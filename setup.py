@@ -1,0 +1,73 @@
+# -*- coding: utf-8 -*-
+
+# Setup script for LivingApps SDK
+
+import os, re
+
+import setuptools
+
+
+DESCRIPTION = """
+:mod:`livapi` is a Python module for accessing data from LivingApps
+(http://www.living-apps.de/)
+"""
+
+CLASSIFIERS = """
+Development Status :: 3 - Alpha
+Intended Audience :: Developers
+License :: OSI Approved :: MIT License
+Operating System :: OS Independent
+Programming Language :: Python
+Programming Language :: Python :: 3 :: Only
+Programming Language :: Python :: 3
+Programming Language :: Python :: 3.5
+Programming Language :: Python :: 3.6
+Topic :: Software Development :: Libraries :: Python Modules
+Topic :: Internet :: WWW/HTTP
+"""
+
+KEYWORDS = """
+LivingApps
+"""
+
+try:
+	news = list(open("docs/NEWS.rst", "r", encoding="utf-8"))
+except IOError:
+	description = DESCRIPTION.strip()
+else:
+	# Extract the first section (which are the changes for the current version)
+	underlines = [i for (i, line) in enumerate(news) if line.startswith("---")]
+	news = news[underlines[0]-1:underlines[1]-1]
+	news = "".join(news)
+	description = "{DESCRIPTION.strip()}\n\n\n{}".format(news)
+
+# Get rid of text roles PyPI doesn't know about
+description = re.subn(":[a-z]+:`~?([-a-zA-Z0-9_./]+)`", "``\\1``", description)[0]
+
+# Expand tabs (so they won't show up as 8 spaces in the Windows installer)
+description = description.expandtabs(2)
+
+args = dict(
+	name="livapps",
+	version="0.1",
+	description="Python API for LivingApps",
+	long_description=description,
+	author="Walter Doerwald",
+	author_email="walter@livinglogic.de",
+	url="http://github.com/LivingLogic/LivingApps.Python.LivingAPI",
+	license="MIT",
+	# python_requires=">=3.5",
+	classifiers=sorted({c for c in CLASSIFIERS.strip().splitlines() if c.strip() and not c.strip().startswith("#")}),
+	keywords=", ".join(sorted({k.strip() for k in KEYWORDS.strip().splitlines() if k.strip() and not k.strip().startswith("#")})),
+	package_dir={"": "src"},
+	py_modules=["livapps", "ul4on"],
+	install_requires=[
+		"ll-xist == 5.27",
+		"requests >= 2.18.4",
+		"geocoder >= 1.30.1"
+	],
+	zip_safe=False,
+)
+
+if __name__ == "__main__":
+	setuptools.setup(**args)
