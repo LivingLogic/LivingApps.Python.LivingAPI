@@ -2,7 +2,8 @@
 (see http://www.living-apps.de/ or http://www.living-apps.com/ for more info).
 
 ``livapps`` allows you to fetch the configured data sources from a template,
-create new records, and update and delete existing records.
+create new records, and update and delete existing records all from Python
+prompt (or script).
 
 
 Installation
@@ -32,12 +33,26 @@ Preparing your apps
 -------------------
 
 To be able to access your apps, you have to configure export templates for them.
-For this refer to LivingApps expert documentation.
+For this refer to LivingApps' expert documentation.
 
 The short version: Add a list template under ``Konfiguration`` ➝ ``Erweitert``
 ➝ ``Anzeige-Templates``. Give it the ``Identifizierer`` ``export``, set it's
-``Typ`` to ``Liste`` and select ``Standard?``. Add the data source you need
-unter ``Datenquellen``.
+``Typ`` to ``Liste`` and select ``Standard?``. Add the data sources you need
+under ``Datenquellen``.
+
+
+Examples
+--------
+
+All the following examples will assume we're using IPython and we have an app
+for storing information about persons with the following fields:
+
+Firstname : identifier ``firstname``, type ``string``
+	First name of the person
+
+Lastname : identifier ``lastname``, type ``string``
+	Last name of the person
+
 
 Author
 ------
