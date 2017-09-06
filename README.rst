@@ -58,6 +58,19 @@ Location    ``location``   ``geo``
 ==========  ==============  =========  ================================================
 
 
+To get into IPython type::
+
+	$ ipython3
+	Python 3.5.1 (default, Jan 22 2016, 11:57:23)
+	Type 'copyright', 'credits' or 'license' for more information
+	IPython 6.1.0 -- An enhanced Interactive Python. Type '?' for help.
+	In [1] ▶
+
+Then import the ``livapps`` module::
+
+	In [1] ▶ import libapps
+	In [2] ▶ 
+
 
 Author
 ------
