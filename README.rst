@@ -66,10 +66,13 @@ To get into IPython type::
 	IPython 6.1.0 -- An enhanced Interactive Python. Type '?' for help.
 	In [1] ▶
 
-Then import the ``livapps`` module::
+Import the ``livapps`` module::
 
 	In [1] ▶ import libapps
-	In [2] ▶ 
+
+Then login to LivingApps::
+
+	In [2] ▶ login = livapps.Login("https://my.living-apps.de/", "username", "password")
 
 
 Author
