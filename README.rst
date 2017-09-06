@@ -74,6 +74,33 @@ Then login to LivingApps::
 
 	In [2] ▶ login = livapps.Login("https://my.living-apps.de/", "username", "password")
 
+You can also omit the username and password, then you will only be able to
+access public templates (i.e. those that have been configured to be visible to
+all users).
+
+Then you can fetch the data you have configured for your export template:
+
+	In [3] ▶ data = login.get("59b02548af9e99d525d316b4")
+
+``"59b02548af9e99d525d316b4"`` is the id of your app. You can also fetch the
+data from other templates by passing the template identifier as the second
+argument::
+
+	In [3] ▶ data = login.get("59b02548af9e99d525d316b4", "specialexport")
+
+The ``data`` object will have two attributes: ``globals`` which contains
+global information and ``datasources`` which contains information about the
+data sources in your template. You can extract the ``persons`` app like this::
+
+	In [3] ▶ papp = data.datasources.persons.app
+
+Then you can access the records of the app:
+
+	In [4] ▶ [(r.values.firstname, r.values.lastname, r.values.birthday) for r in papp.records.values()]
+	Out[4] ▶
+	[('Bernhard', 'Riemann', datetime.datetime(1866, 6, 20, 0, 6, 32)),
+	 ('Albert', 'Einstein', datetime.datetime(1879, 3, 14, 0, 6, 32))]
+
 
 Author
 ------
