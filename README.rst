@@ -2,7 +2,7 @@
 (see http://www.living-apps.de/ or http://www.living-apps.com/ for more info).
 
 ``livapps`` allows you to fetch the configured data sources from a template,
-create new records, and update and delete existing records all from Python
+create new records, and update and delete existing records all from your Python
 prompt (or script).
 
 
@@ -10,8 +10,8 @@ Installation
 ------------
 
 ``livapps`` requires at least Python 3.5. You will also need ``venv`` and the
-Python dev package, which might not be part of the standard Python installation
-on your system. Both can be installed with::
+Python dev package (as well as a C compiler), which might not be part of the
+standard Python installation on your system. All this can be installed with::
 
 	apt-get install python3.5-venv python3.5-dev
 
@@ -47,11 +47,16 @@ Examples
 All the following examples will assume we're using IPython and we have an app
 for storing information about persons with the following fields:
 
-Firstname : identifier ``firstname``, type ``string``
-	First name of the person
+==========  ==============  =========  ================================================
+Label       Identifier      Type       Comment
+----------  --------------   --------  ------------------------------------------------
+First name  ``firstname``  ``string``
+Last name   ``lastname``   ``string``
+Salutation  ``salutation`` ``lookup``  choices ``mr`` ➝ ``Mr.`` and ``mrs`` ➝ ``Mrs.``
+Birth day   ``birthday``   ``date``
+Location    ``location``   ``geo``
+==========  ==============  =========  ================================================
 
-Lastname : identifier ``lastname``, type ``string``
-	Last name of the person
 
 
 Author
