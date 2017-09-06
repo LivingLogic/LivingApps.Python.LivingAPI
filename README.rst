@@ -49,7 +49,7 @@ for storing information about persons with the following fields:
 
 ==========  ==============  =========  ================================================
 Label       Identifier      Type       Comment
-----------  --------------   --------  ------------------------------------------------
+==========  ==============  =========  ================================================
 First name  ``firstname``  ``string``
 Last name   ``lastname``   ``string``
 Salutation  ``salutation`` ``lookup``  choices ``mr`` ➝ ``Mr.`` and ``mrs`` ➝ ``Mrs.``
