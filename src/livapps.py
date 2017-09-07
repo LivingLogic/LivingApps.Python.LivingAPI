@@ -828,7 +828,8 @@ class Record(Base):
 		self.attachments = attachments
 
 	def __repr__(self):
-		return "<{} id={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, id(self))
+		attrs = " ".join("values.{}={!r}".format(identifier, value) for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
+		return "<{} id={!r} {} at {:#x}>".format(self.__class__.__qualname__, self.id, attrs, id(self))
 
 	def update(self, **kwargs):
 		self.app.globals.login._update(self, **kwargs)
@@ -879,8 +880,8 @@ class Record(Base):
 		self.updatedby = decoder.load()
 		self.updatecount = decoder.load()
 		fieldvalues = decoder.load()
-		self.values = attrdict()
-		self.fields = attrdict()
+		self.values = ul4on.ordereddict()
+		self.fields = ul4on.ordereddict()
 		for (identifier, control) in self.app.controls.items():
 			value = fieldvalues.get(identifier, None)
 			self.values[identifier] = value
