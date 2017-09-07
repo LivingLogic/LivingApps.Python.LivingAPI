@@ -47,15 +47,15 @@ Examples
 All the following examples will assume we're using IPython and we have an app
 for storing information about persons with the following fields:
 
-==========  ==============  =========  ================================================
-Label       Identifier      Type       Comment
-==========  ==============  =========  ================================================
-First name  ``firstname``  ``string``
-Last name   ``lastname``   ``string``
-Salutation  ``salutation`` ``lookup``  choices ``mr`` ➝ ``Mr.`` and ``mrs`` ➝ ``Mrs.``
-Birth day   ``birthday``   ``date``
-Location    ``location``   ``geo``
-==========  ==============  =========  ================================================
+==========  ==============  ==========  ================================================
+Label       Identifier      Type        Comment
+==========  ==============  ==========  ================================================
+First name  ``firstname``   ``string``
+Last name   ``lastname``    ``string``
+Salutation  ``salutation``  ``lookup``  choices ``mr`` ➝ ``Mr.`` and ``mrs`` ➝ ``Mrs.``
+Birth day   ``birthday``    ``date``
+Location    ``location``    ``geo``
+==========  ==============  ==========  ================================================
 
 
 To get into IPython type::
