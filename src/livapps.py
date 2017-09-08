@@ -831,6 +831,25 @@ class Record(Base):
 		attrs = " ".join("values.{}={!r}".format(identifier, value) for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
 		return "<{} id={!r} {} at {:#x}>".format(self.__class__.__qualname__, self.id, attrs, id(self))
 
+	def _repr_pretty_(self, p, cycle):
+		prefix = "<{}.{}".format(self.__class__.__module__, self.__class__.__qualname__)
+		suffix = "at {:#x}".format(id(self))
+
+		if cycle:
+			p.text("{} ... {}>".format(prefix, suffix))
+		else:
+			with p.group(4, prefix, ">"):
+				p.breakable()
+				p.text("id=")
+				p.pretty(self.id)
+				for (identifier, value) in self.values.items():
+					if self.app.controls[identifier].priority:
+						p.breakable()
+						p.text("values.{}=".format(identifier))
+						p.pretty(value)
+				p.breakable()
+				p.text(suffix)
+
 	def update(self, **kwargs):
 		self.app.globals.login._update(self, **kwargs)
 
