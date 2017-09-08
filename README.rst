@@ -94,7 +94,7 @@ data sources in your template. You can extract the ``persons`` app like this::
 
 	In [3] ▶ papp = data.datasources.persons.app
 
-Then you can access the records of the app:
+Then you can access the records of the app::
 
 	In [4] ▶ [(r.values.firstname, r.values.lastname, r.values.birthday) for r in papp.records.values()]
 	Out[4] ▶
