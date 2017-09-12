@@ -259,10 +259,10 @@ def _load(self, typecode):
 		value.ul4onload(self)
 		typecode = self._nextchar()
 		if typecode != ")":
-			raise ValueError("broken UL4ON stream at position {self.stream.tell():,}: object terminator ')' expected, got {!r}".format(typecode))
+			raise ValueError("broken UL4ON stream at position {:,}: object terminator ')' expected, got {!r}".format(self.stream.tell(), typecode))
 		return value
 	else:
-		raise ValueError("broken UL4ON stream at position {self.stream.tell():,}: unknown typecode {!r}".format(typecode))
+		raise ValueError("broken UL4ON stream at position {:,}: unknown typecode {!r}".format(self.stream.tell(), typecode))
 
 ul4on.Decoder._load = _load
 
