@@ -1304,7 +1304,6 @@ class Login:
 		kwargs = {
 			"cookies": self.cookies,
 			"headers": {"Accept": "application/la-ul4on"},
-			"timeout": 3.0,
 		}
 		if templatename is not None:
 			kwargs["params"] = {"template": templatename}
