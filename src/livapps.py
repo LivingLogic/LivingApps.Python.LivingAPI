@@ -813,7 +813,7 @@ class GeoControl(Control):
 
 @register("record")
 class Record(Base):
-	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "attachments"}
+	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "attachments", "errors", "has_errors"}
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None, values=None, fields=None, attachments=None):
 		self.id = id
@@ -826,6 +826,7 @@ class Record(Base):
 		self.values = values
 		self.fields = fields
 		self.attachments = attachments
+		self.errors = []
 
 	def __repr__(self):
 		attrs = " ".join("values.{}={!r}".format(identifier, value) for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
@@ -855,6 +856,9 @@ class Record(Base):
 
 	def delete(self):
 		self.app.globals.login._delete(self)
+
+	def has_errors(self):
+		return bool(self.errors) or any(field.has_errors() for field in self.fields.values())
 
 	def ul4ondump2(self, encoder):
 		encoder.dumpattr("id", self.id)
@@ -909,7 +913,7 @@ class Record(Base):
 
 
 class Field:
-	ul4attrs = {"control", "record", "value", "errors", "enabled", "writable", "visible"}
+	ul4attrs = {"control", "record", "value", "errors", "has_errors", "enabled", "writable", "visible"}
 
 	def __init__(self, control, record, value):
 		self.control = control
@@ -923,6 +927,9 @@ class Field:
 	@property
 	def value(self):
 		return self.record.values[self.control.identifier]
+
+	def has_errors(self):
+		return bool(self.errors)
 
 	def __repr__(self):
 		return "<{} identifier={!r} value={!r} at {:#x}>".format(self.__class__.__qualname__, self.control.identifier, self.value, id(self))
