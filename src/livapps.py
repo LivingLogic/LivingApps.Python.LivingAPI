@@ -433,6 +433,38 @@ class App(Base):
 		self.views = decoder.load()
 
 
+@register("installation")
+class Installation(Base):
+	ul4attrs = {"id", "name"}
+
+	def __init__(self, id=None, name=None):
+		self.id = id
+		self.name = name
+
+	def __repr__(self):
+		return "<{} id={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.name, id(self))
+
+	def ul4ondump2(self, encoder):
+		encoder.dumpattr("id", self.id)
+		encoder.dumpattr("name", self.name)
+
+	def ul4ondump(self, encoder):
+		encoder.dump(self.id)
+		encoder.dump(self.name)
+
+	def ul4onload2(self, decoder):
+		attrs = {"id", "name"}
+		for attr in attrs:
+			setattr(self, attr, None)
+		for (key, value) in decoder.loadattrs():
+			if key in attrs:
+				setattr(self, key, value)
+
+	def ul4onload(self, decoder):
+		self.id = decoder.load()
+		self.name = decoder.load()
+
+
 @register("view")
 class View(Base):
 	ul4attrs = {"id", "name", "app", "order", "width", "height", "start", "end"}
