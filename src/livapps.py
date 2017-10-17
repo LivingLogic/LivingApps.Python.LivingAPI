@@ -1309,7 +1309,6 @@ class Login:
 			url += "/"
 		self.url = url
 		self.username = username
-		self.password = password
 
 		self.session = requests.Session()
 
@@ -1319,7 +1318,7 @@ class Login:
 		# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
 		if username is not None and password is not None:
 			# Login to the LivingApps installation and store the auth token we get
-			r = self.session.post(self.url + "gateway/login", data=json.dumps({"username": self.username, "password": self.password}))
+			r = self.session.post(self.url + "gateway/login", data=json.dumps({"username": username, "password": password}))
 			result = r.json()
 			if result.get("status") == "success":
 				self.auth_token = result["auth_token"]
