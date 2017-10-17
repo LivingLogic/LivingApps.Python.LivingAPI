@@ -68,7 +68,7 @@ class attrodict(collections.OrderedDict):
 def makeattrs(value):
 	"""
 	Convert a :class:`dict` or a :class:`collections.OrderedDict` for convenient
-	access to the attributes in code and interactive shell (lik IPython).
+	access to the attributes in code and interactive shell (like IPython).
 
 	If :obj:`value` is neither a :class:`dict` nor a
 	:class:`collections.OrderedDict` it will be returned unchanged.
@@ -1313,43 +1313,35 @@ class Login:
 
 		self.session = requests.Session()
 
-		self.cookies = {}
+		self.auth_token = None
+
 		# If :obj:`username` or :obj:`password` are not given, we don't log in
 		# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
 		if username is not None and password is not None:
-			# Login to the LivingApps installation and store the cookie we get
-			r = self.session.post(
-				self.url + "login.htm",
-				data={
-					"cugUsername": username,
-					"cugPassword": password,
-					"com.livinglogic.cms.apps.cug.model.ClosedUserGroupLoginDisplayPreparer.loginFormSubmit": "true"
-				},
-			)
-
-			# If we're still on the login page, raise a "Forbidden" error
-			if "formError" in r.text:
+			# Login to the LivingApps installation and store the auth token we get
+			r = self.session.post(self.url + "gateway/login", data=json.dumps({"username": self.username, "password": self.password}))
+			result = r.json()
+			if result.get("status") == "success":
+				self.auth_token = result["auth_token"]
+			else:
 				raise_403(r)
-
-			for h in r.history:
-				if "XIST4CSESSIONID" in h.cookies:
-					self.cookies = h.cookies
-					break
 
 	def __repr__(self):
 		return "<{} url={!r} username={!r} at {:#x}>".format(self.__class__.__qualname__, self.url, self.username, id(self))
 
 	def get(self, appid, templatename=None):
 		kwargs = {
-			"cookies": self.cookies,
-			"headers": {"Accept": "application/la-ul4on"},
+			"headers": {
+				"X-La-Auth-Token": self.auth_token,
+				"Accept": "application/la-ul4on",
+			},
 		}
 		if templatename is not None:
 			kwargs["params"] = {"template": templatename}
 		r = self.session.get("{}gateway/apps/{}".format(self.url, appid), **kwargs)
 		r.raise_for_status()
 		# Workaround: If we're not logged in, but request a protected template, we get redirected to the login page instead -> raise a 403 error instead
-		if not self.cookies and r.history:
+		if self.auth_token is None and r.history:
 			raise_403(r)
 		dump = ul4on.loads(r.text)
 		globals = dump["globals"]
@@ -1371,7 +1363,7 @@ class Login:
 		r = self.session.post(
 			"{}gateway/v1/appdd/{}.json".format(self.url, app.id),
 			data={"appdd": json.dumps(data)},
-			cookies=self.cookies,
+			headers={"X-La-Auth-Token": self.auth_token},
 		)
 		# Workaround: The Content-Type should be ``application/json``, but isn't
 		# if r.headers["Content-Type"] != "application/json":
@@ -1411,7 +1403,7 @@ class Login:
 		r = self.session.post(
 			"{}gateway/v1/appdd/{}.json".format(self.url, app.id),
 			data={"appdd": json.dumps(data)},
-			cookies=self.cookies,
+			headers={"X-La-Auth-Token": self.auth_token},
 		)
 		# Workaround: The Content-Type should be ``application/json``, but isn't
 		# if r.headers["Content-Type"] != "application/json":
@@ -1429,7 +1421,7 @@ class Login:
 	def _delete(self, record):
 		r = self.session.delete(
 			"{}gateway/v1/appdd/{}/{}.json".format(self.url, record.app.id, record.id),
-			cookies=self.cookies,
+			headers={"X-La-Auth-Token": self.auth_token},
 		)
 		if r.text != '"Successfully deleted dataset"':
 			raise TypeError("Unexpectedd response {!r}".format(r.text))
