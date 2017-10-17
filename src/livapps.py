@@ -889,6 +889,9 @@ class Record(Base):
 	def delete(self):
 		self.app.globals.login._delete(self)
 
+	def executeaction(self, actionidentifier):
+		self.app.globals.login._executeaction(self, actionidentifier)
+
 	def has_errors(self):
 		return bool(self.errors) or any(field.has_errors() for field in self.fields.values())
 
@@ -1364,6 +1367,7 @@ class Login:
 			data={"appdd": json.dumps(data)},
 			headers={"X-La-Auth-Token": self.auth_token},
 		)
+		r.raise_for_status()
 		# Workaround: The Content-Type should be ``application/json``, but isn't
 		# if r.headers["Content-Type"] != "application/json":
 		# 	raise TypeError("bad Content-Type")
@@ -1404,6 +1408,7 @@ class Login:
 			data={"appdd": json.dumps(data)},
 			headers={"X-La-Auth-Token": self.auth_token},
 		)
+		r.raise_for_status()
 		# Workaround: The Content-Type should be ``application/json``, but isn't
 		# if r.headers["Content-Type"] != "application/json":
 		# 	raise TypeError("bad Content-Type")
@@ -1422,5 +1427,14 @@ class Login:
 			"{}gateway/v1/appdd/{}/{}.json".format(self.url, record.app.id, record.id),
 			headers={"X-La-Auth-Token": self.auth_token},
 		)
+		r.raise_for_status()
 		if r.text != '"Successfully deleted dataset"':
 			raise TypeError("Unexpectedd response {!r}".format(r.text))
+
+	def _executeaction(self, record, actionidentifier):
+		r = self.session.post(
+			"{}gateway/api/v1/apps/{}/actions/{}".format(self.url, record.app.id, actionidentifier),
+			headers={"X-La-Auth-Token": self.auth_token},
+			data={"recid": record.id},
+		)
+		r.raise_for_status()
