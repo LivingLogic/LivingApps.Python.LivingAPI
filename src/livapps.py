@@ -780,7 +780,7 @@ class LookupControl(Control):
 	def ul4onload(self, decoder):
 		super().ul4onload(decoder)
 		lookupdata = decoder.load()
-		self.lookupdata = attrdict(lookupdata) if lookupdata is not None else None
+		self.lookupdata = makeattrs(lookupdata)
 		self.lookupapp = decoder.load()
 		self.lookupcontrols = decoder.load()
 
@@ -926,7 +926,7 @@ class Record(Base):
 		for (key, value) in decoder.loadattrs():
 			if key in attrs:
 				if key == "fields":
-					value = attrdict({identifier: Field(control, self, value.get(identifier, None)) for (identifier, control) in self.app.controls.items()})
+					value = makeattrs({identifier: Field(control, self, value.get(identifier, None)) for (identifier, control) in self.app.controls.items()})
 				setattr(self, key, value)
 
 	def ul4onload(self, decoder):
@@ -938,8 +938,8 @@ class Record(Base):
 		self.updatedby = decoder.load()
 		self.updatecount = decoder.load()
 		fieldvalues = decoder.load()
-		self.values = ul4on.ordereddict()
-		self.fields = ul4on.ordereddict()
+		self.values = makeattrs(ul4on.ordereddict())
+		self.fields = makeattrs(ul4on.ordereddict())
 		for (identifier, control) in self.app.controls.items():
 			value = fieldvalues.get(identifier, None)
 			self.values[identifier] = value
