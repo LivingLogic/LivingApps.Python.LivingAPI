@@ -6,7 +6,7 @@
 ##
 ## All Rights Reserved
 
-import datetime, json, collections, ast
+import sys, datetime, json, collections, ast
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -19,6 +19,12 @@ __docformat__ = "reStructuredText"
 ###
 ### Helper functions and classes
 ###
+
+if sys.version_info >= (3, 6):
+	ordereddict = dict
+else:
+	ordereddict = collections.OrderedDict
+
 
 def register(name):
 	"""
@@ -215,7 +221,7 @@ def _load(self, typecode):
 				item = self._load(typecode)
 				value.append(item)
 	elif typecode in "dDeE":
-		value = {} if typecode in "dD" else ul4on.ordereddict()
+		value = {} if typecode in "dD" else ordereddict()
 		if typecode in "DE":
 			self._loading(value)
 		while True:
@@ -938,8 +944,8 @@ class Record(Base):
 		self.updatedby = decoder.load()
 		self.updatecount = decoder.load()
 		fieldvalues = decoder.load()
-		self.values = makeattrs(ul4on.ordereddict())
-		self.fields = makeattrs(ul4on.ordereddict())
+		self.values = makeattrs(ordereddict())
+		self.fields = makeattrs(ordereddict())
 		for (identifier, control) in self.app.controls.items():
 			value = fieldvalues.get(identifier, None)
 			self.values[identifier] = value
