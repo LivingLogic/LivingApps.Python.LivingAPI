@@ -287,7 +287,7 @@ class Globals(Base):
 		self.maxdbactions = None
 		self.maxtemplateruntime = None
 		self.flashes = []
-		self.login = None # The login from which we've got the data (required for insert/update/delete methods)
+		self.login = None # The login from which we've got the data (required for insert/update/delete/executeaction methods)
 
 	def __repr__(self):
 		return "<{} version={!r} platform={!r} at {:#x}>".format(self.__class__.__qualname__, self.version, self.platform, id(self))
