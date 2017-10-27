@@ -748,35 +748,27 @@ class BoolControl(Control):
 class LookupControl(Control):
 	type = "lookup"
 
-	ul4attrs = Control.ul4attrs.union({"lookupdata", "lookupapp", "lookupcontrols"})
+	ul4attrs = Control.ul4attrs.union({"lookupdata"})
 
-	def __init__(self, id=None, identifier=None, app=None, label=None, order=None, default=None, lookupdata=None, lookupapp=None, lookupcontrols=None):
+	def __init__(self, id=None, identifier=None, app=None, label=None, order=None, default=None, lookupdata=None):
 		super().__init__(id=id, identifier=identifier, app=app, label=label, order=order, default=default)
 		self.lookupdata = lookupdata
-		self.lookupapp = lookupapp
-		self.lookupcontrols = lookupcontrols
 
 	def asjson(self, value):
 		if isinstance(value, LookupItem):
 			value = value.key
-		elif isinstance(value, Record):
-			value = value.id
 		return value
 
 	def ul4ondump2(self, encoder):
 		super().ul4ondump2(encoder)
 		encoder.dumpattr("lookupdata", self.lookupdata)
-		encoder.dumpattr("lookupapp", self.lookupapp)
-		encoder.dumpattr("lookupcontrols", self.lookupcontrols)
 
 	def ul4ondump(self, encoder):
 		super().ul4ondump(encoder)
 		encoder.dump(self.lookupdata)
-		encoder.dump(self.lookupapp)
-		encoder.dump(self.lookupcontrols)
 
 	def ul4onload2(self, decoder):
-		attrs = {"id", "identifier", "field", "app", "label", "priority", "order", "default", "lookupdata", "lookupapp", "Lookupcontrols"}
+		attrs = {"id", "identifier", "field", "app", "label", "priority", "order", "default", "lookupdata"}
 		for attr in attrs:
 			setattr(self, attr, None)
 		for (key, value) in decoder.loadattrs():
@@ -787,8 +779,6 @@ class LookupControl(Control):
 		super().ul4onload(decoder)
 		lookupdata = decoder.load()
 		self.lookupdata = makeattrs(lookupdata)
-		self.lookupapp = decoder.load()
-		self.lookupcontrols = decoder.load()
 
 
 @register("lookupselectcontrol")
@@ -806,14 +796,66 @@ class LookupChoiceControl(LookupControl):
 	subtype = "choice"
 
 
+class AppLookupControl(Control):
+	type = "applookup"
+
+	ul4attrs = Control.ul4attrs.union({"lookupapp", "lookupcontrols"})
+
+	def __init__(self, id=None, identifier=None, app=None, label=None, order=None, default=None, lookupapp=None, lookupcontrols=None):
+		super().__init__(id=id, identifier=identifier, app=app, label=label, order=order, default=default)
+		self.lookupapp = lookupapp
+		self.lookupcontrols = lookupcontrols
+
+	def asjson(self, value):
+		if isinstance(value, Record):
+			value = value.id
+		return value
+
+	def ul4ondump2(self, encoder):
+		super().ul4ondump2(encoder)
+		encoder.dumpattr("lookupapp", self.lookupapp)
+		encoder.dumpattr("lookupcontrols", self.lookupcontrols)
+
+	def ul4ondump(self, encoder):
+		super().ul4ondump(encoder)
+		encoder.dump(self.lookupapp)
+		encoder.dump(self.lookupcontrols)
+
+	def ul4onload2(self, decoder):
+		attrs = {"id", "identifier", "field", "app", "label", "priority", "order", "default", "lookupapp", "Lookupcontrols"}
+		for attr in attrs:
+			setattr(self, attr, None)
+		for (key, value) in decoder.loadattrs():
+			if key in attrs:
+				setattr(self, key, value)
+
+	def ul4onload(self, decoder):
+		super().ul4onload(decoder)
+		self.lookupapp = decoder.load()
+		self.lookupcontrols = decoder.load()
+
+
+@register("applookupselectcontrol")
+class AppLookupSelectControl(AppLookupControl):
+	subtype = "select"
+
+
+@register("applookupradiocontrol")
+class AppLookupRadioControl(AppLookupControl):
+	subtype = "radio"
+
+
+@register("applookupchoicecontrol")
+class AppLookupChoiceControl(AppLookupControl):
+	subtype = "choice"
+
+
 class MultipleLookupControl(LookupControl):
 	type = "multiplelookup"
 
 	def asjson(self, value):
 		if isinstance(value, LookupItem):
 			value = [value.key]
-		elif isinstance(value, Record):
-			value = [value.id]
 		elif isinstance(value, collections.Sequence):
 			value = [self.asjson(item) for item in value]
 		return value
@@ -826,6 +868,27 @@ class MultipleLookupSelectControl(MultipleLookupControl):
 
 @register("multiplelookupcheckboxcontrol")
 class MultipleLookupCheckboxControl(MultipleLookupControl):
+	subtype = "checkbox"
+
+
+class MultipleAppLookupControl(AppLookupControl):
+	type = "multipleapplookup"
+
+	def asjson(self, value):
+		if isinstance(value, Record):
+			value = [value.id]
+		elif isinstance(value, collections.Sequence):
+			value = [self.asjson(item) for item in value]
+		return value
+
+
+@register("multipleapplookupselectcontrol")
+class MultipleAppLookupSelectControl(MultipleAppLookupControl):
+	subtype = "select"
+
+
+@register("multipleapplookupcheckboxcontrol")
+class MultipleAppLookupCheckboxControl(MultipleAppLookupControl):
 	subtype = "checkbox"
 
 
