@@ -348,9 +348,9 @@ class Globals(Base):
 
 @register("app")
 class App(Base):
-	ul4attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "owner", "controls", "records", "recordcount", "installation", "categories", "params", "views"}
+	ul4attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "owner", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier"}
 
-	def __init__(self, id=None, globals=None, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, owner=None, controls=None, records=None, recordcount=None, installation=None, categories=None, params=None, views=None):
+	def __init__(self, id=None, globals=None, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, owner=None, controls=None, records=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = id
 		self.globals = globals
 		self.name = name
@@ -367,6 +367,7 @@ class App(Base):
 		self.categories = categories
 		self.params = params
 		self.views = views
+		self.datamanagement_identifier = datamanagement_identifier
 
 	def __repr__(self):
 		return "<{} id={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.name, id(self))
@@ -391,6 +392,7 @@ class App(Base):
 		encoder.dumpattr("categories", self.categories)
 		encoder.dumpattr("params", self.params)
 		encoder.dumpattr("views", self.views)
+		encoder.dumpattr("datamanagement_identifier", self.datamanagement_identifier)
 
 	def ul4ondump(self, encoder):
 		encoder.dump(self.id)
@@ -409,9 +411,10 @@ class App(Base):
 		encoder.dump(self.categories)
 		encoder.dump(self.params)
 		encoder.dump(self.views)
+		encoder.dump(self.datamanagement_identifier)
 
 	def ul4onload2(self, decoder):
-		attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "owner", "controls", "records", "recordcount", "installation", "categories", "params", "views"}
+		attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "owner", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier"}
 		for attr in attrs:
 			setattr(self, attr, None)
 		for (key, value) in decoder.loadattrs():
@@ -437,6 +440,7 @@ class App(Base):
 		self.categories = decoder.load()
 		self.params = makeattrs(decoder.load())
 		self.views = decoder.load()
+		self.datamanagement_identifier = decoder.load()
 
 
 @register("installation")
@@ -1414,6 +1418,9 @@ class Login:
 		# Workaround: If we're not logged in, but request a protected template, we get redirected to the login page instead -> raise a 403 error instead
 		if self.auth_token is None and r.history:
 			raise_403(r)
+		with open("/Users/walter/gurk.ul4on", "w", encoding="utf-8") as f:
+			print("-"*80)
+			f.write(r.text)
 		dump = ul4on.loads(r.text)
 		globals = dump["globals"]
 		globals.login = self
