@@ -755,7 +755,7 @@ class Record(Base):
 		self.errors = []
 
 	def __repr__(self):
-		attrs = " ".join("values.{}={!r}".format(identifier, value) for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
+		attrs = " ".join("v_{}={!r}".format(identifier, value) for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
 		return "<{} id={!r} {} at {:#x}>".format(self.__class__.__qualname__, self.id, attrs, id(self))
 
 	def _repr_pretty_(self, p, cycle):
@@ -772,10 +772,28 @@ class Record(Base):
 				for (identifier, value) in self.values.items():
 					if self.app.controls[identifier].priority:
 						p.breakable()
-						p.text("values.{}=".format(identifier))
+						p.text("v_{}=".format(identifier))
 						p.pretty(value)
 				p.breakable()
 				p.text(suffix)
+
+	def __getattr__(self, name):
+		try:
+			if name.startswith("c_"):
+				return self.children[name[2:]]
+			elif name.startswith("f_"):
+				return self.fields[name[2:]]
+			elif name.startswith("v_"):
+				return self.values[name[2:]]
+		except KeyError:
+			pass
+		raise AttributeError(name) from None
+
+	def __dir__(self):
+		"""
+		This makes keys completeable in IPython.
+		"""
+		return set(super().__dir__()) | {f"f_{identifier}" for identifier in self.app.controls} | {f"v_{identifier}" for identifier in self.app.controls} | {f"c_{identifier}" for identifier in self.children}
 
 	@property
 	def values(self):
