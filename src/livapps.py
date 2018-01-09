@@ -103,7 +103,7 @@ class Base:
 
 @register("globals")
 class Globals(Base):
-	ul4attrs = {"version", "platform", "user", "flashes"}
+	ul4attrs = {"version", "platform", "user", "flashes", "geo"}
 
 	def __init__(self, version=None, platform=None, user=None):
 		self.version = version
