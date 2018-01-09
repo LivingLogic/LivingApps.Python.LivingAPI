@@ -1238,7 +1238,6 @@ class Login:
 		if self.auth_token is None and r.history:
 			raise_403(r)
 		with open("/Users/walter/gurk.ul4on", "w", encoding="utf-8") as f:
-			print("-"*80)
 			f.write(r.text)
 		dump = ul4on.loads(r.text)
 		globals = dump["globals"]
