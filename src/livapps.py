@@ -737,9 +737,9 @@ class GeoControl(Control):
 
 @register("record")
 class Record(Base):
-	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "attachments", "errors", "has_errors"}
+	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments", "errors", "has_errors"}
 
-	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None, values=None, fields=None, attachments=None):
+	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
 		self.id = id
 		self.app = app
 		self.createdat = createdat
@@ -747,9 +747,11 @@ class Record(Base):
 		self.updatedat = updatedat
 		self.updatedby = updatedby
 		self.updatecount = updatecount
-		self.values = values
-		self.fields = fields
-		self.attachments = attachments
+		self._sparsevalues = None
+		self._values = None
+		self._fields = None
+		self.children = None
+		self.attachments = None
 		self.errors = []
 
 	def __repr__(self):
@@ -775,6 +777,22 @@ class Record(Base):
 				p.breakable()
 				p.text(suffix)
 
+	@property
+	def values(self):
+		if self._values is None:
+			values = {identifier: self._sparsevalues.get(identifier) for identifier in self.app.controls}
+			self._values = values
+			self._sparsevalues = None
+		return self._values
+
+	@property
+	def fields(self):
+		if self._fields is None:
+			values = self.values
+			fields = {control.identifier: Field(control, self, value) for (control, value) in zip(self.app.controls.values(), values.values())}
+			self._fields = fields
+		return self._fields
+
 	def update(self, **kwargs):
 		self.app.globals.login._update(self, **kwargs)
 
@@ -798,6 +816,7 @@ class Record(Base):
 		fieldvalues = {identifier: value for (identifier, value) in self.values.items() if value is not None}
 		encoder.dumpattr("fields", fieldvalues)
 		encoder.dumpattr("attachments", self.attachments)
+		encoder.dumpattr("children", self.children)
 
 	def ul4ondump(self, encoder):
 		encoder.dump(self.id)
@@ -807,12 +826,17 @@ class Record(Base):
 		encoder.dump(self.updatedat)
 		encoder.dump(self.updatedby)
 		encoder.dump(self.updatecount)
-		fieldvalues = {identifier: value for (identifier, value) in self.values.items() if value is not None}
+		if self._sparsevalues is not None:
+			fieldvalues = self._sparsevalues
+		else:
+			values = self.values
+			fieldvalues = {identifier: value for (identifier, value) in values.items() if value is not None}
 		encoder.dump(fieldvalues)
 		encoder.dump(attachments)
+		encoder.dump(self.children)
 
 	def ul4onload2(self, decoder):
-		attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "attachments"}
+		attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments"}
 		for attr in attrs:
 			setattr(self, attr, None)
 		for (key, value) in decoder.loadattrs():
@@ -829,14 +853,11 @@ class Record(Base):
 		self.updatedat = decoder.load()
 		self.updatedby = decoder.load()
 		self.updatecount = decoder.load()
-		fieldvalues = decoder.load()
-		self.values = makeattrs(ordereddict())
-		self.fields = makeattrs(ordereddict())
-		for (identifier, control) in self.app.controls.items():
-			value = fieldvalues.get(identifier, None)
-			self.values[identifier] = value
-			self.fields[identifier] = Field(control, self, value)
+		self._sparsevalues = decoder.load()
+		self._values = None
+		self._fields = None
 		self.attachments = decoder.load()
+		self.children = makeattrs(decoder.load())
 
 
 class Field:
