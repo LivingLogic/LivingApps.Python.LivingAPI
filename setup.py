@@ -20,7 +20,6 @@ Operating System :: OS Independent
 Programming Language :: Python
 Programming Language :: Python :: 3 :: Only
 Programming Language :: Python :: 3
-Programming Language :: Python :: 3.5
 Programming Language :: Python :: 3.6
 Topic :: Software Development :: Libraries :: Python Modules
 Topic :: Internet :: WWW/HTTP
@@ -62,7 +61,7 @@ args = dict(
 	package_dir={"": "src"},
 	py_modules=["livapps", "ul4on"],
 	install_requires=[
-		"ll-xist == 5.27",
+		"ll-xist >= 5.29",
 		"requests >= 2.18.4",
 		"geocoder >= 1.30.1"
 	],
