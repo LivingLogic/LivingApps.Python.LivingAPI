@@ -785,6 +785,10 @@ class Record(Base):
 				return self.fields[name[2:]]
 			elif name.startswith("v_"):
 				return self.values[name[2:]]
+			elif name == "fields":
+				return self.__class__.fields.__get__(self)
+			elif name == "values":
+				return self.__class__.values.__get__(self)
 		except KeyError:
 			pass
 		raise AttributeError(name) from None
