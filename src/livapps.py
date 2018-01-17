@@ -747,10 +747,10 @@ class Record(Base):
 		self.updatedat = updatedat
 		self.updatedby = updatedby
 		self.updatecount = updatecount
-		self._sparsevalues = None
+		self._sparsevalues = attrdict()
 		self._values = None
 		self._fields = None
-		self.children = None
+		self.children = attrdict()
 		self.attachments = None
 		self.errors = []
 
