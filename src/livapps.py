@@ -798,17 +798,14 @@ class Record(Base):
 	@property
 	def values(self):
 		if self._values is None:
-			values = {identifier: self._sparsevalues.get(identifier) for identifier in self.app.controls}
-			self._values = values
+			self._values = attrdict((identifier, self._sparsevalues.get(identifier)) for identifier in self.app.controls)
 			self._sparsevalues = None
 		return self._values
 
 	@property
 	def fields(self):
 		if self._fields is None:
-			values = self.values
-			fields = {control.identifier: Field(control, self, value) for (control, value) in zip(self.app.controls.values(), values.values())}
-			self._fields = fields
+			self._fields = attrdict((control.identifier, Field(control, self, value)) for (control, value) in zip(self.app.controls.values(), self.values.values()))
 		return self._fields
 
 	def update(self, **kwargs):
@@ -1354,7 +1351,7 @@ class Login:
 		values = record.values
 		values.update(kwargs)
 		values = {key: value for (key, value) in values.items() if value is not None}
-		record._sparsevalues = values
+		record._sparsevalues = attrdict(values)
 		record._values = None
 		record._fields = None
 
