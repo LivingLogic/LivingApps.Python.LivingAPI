@@ -1297,8 +1297,8 @@ class Login:
 		data = dict(id=app.id, data=[{"fields": fields}])
 		r = self.session.post(
 			"{}gateway/v1/appdd/{}.json".format(self.url, app.id),
-			data={"appdd": json.dumps(data)},
-			headers={"X-La-Auth-Token": self.auth_token},
+			data=json.dumps({"appdd": data}),
+			headers={"X-La-Auth-Token": self.auth_token, "Content-Type": "application/json"},
 		)
 		r.raise_for_status()
 		# Workaround: The Content-Type should be ``application/json``, but isn't
@@ -1317,14 +1317,13 @@ class Login:
 			updatedby=None,
 			updatecount=0
 		)
-		record.values = attrdict()
-		record.fields = attrdict()
+		record._sparsevalues = attrdict()
 		for (identifier, control) in app.controls.items():
 			value = kwargs.get(identifier, None)
 			if value is None and isinstance(control, MultipleLookupControl):
 				value = []
-			record.values[identifier] = value
-			record.fields[identifier] = Field(control, record, value)
+			if value is not None:
+				record._sparsevalues[identifier] = value
 		return record
 
 	def _update(self, record, **kwargs):
@@ -1338,8 +1337,8 @@ class Login:
 		data = dict(id=app.id, data=[{"id": record.id, "fields": fields}])
 		r = self.session.post(
 			"{}gateway/v1/appdd/{}.json".format(self.url, app.id),
-			data={"appdd": json.dumps(data)},
-			headers={"X-La-Auth-Token": self.auth_token},
+			data=json.dumps({"appdd": data}),
+			headers={"X-La-Auth-Token": self.auth_token, "Content-Type": "application/json"},
 		)
 		r.raise_for_status()
 		# Workaround: The Content-Type should be ``application/json``, but isn't
@@ -1352,8 +1351,12 @@ class Login:
 		record.updatedat = datetime.datetime.now()
 		record.updatedby = app.globals.user
 		record.updatecount += 1
-		for (identifier, control) in kwargs.items():
-			record.values[identifier] = value
+		values = record.values
+		values.update(kwargs)
+		values = {key: value for (key, value) in values.items() if value is not None}
+		record._sparsevalues = values
+		record._values = None
+		record._fields = None
 
 	def _delete(self, record):
 		r = self.session.delete(
