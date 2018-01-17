@@ -805,7 +805,8 @@ class Record(Base):
 	@property
 	def fields(self):
 		if self._fields is None:
-			self._fields = attrdict((identifier, Field(self.app.controls[identifier], self, value)) for identifier in self.app.controls)
+			values = self.values
+			self._fields = attrdict((identifier, Field(self.app.controls[identifier], self, values[identifier])) for identifier in self.app.controls)
 		return self._fields
 
 	def update(self, **kwargs):
