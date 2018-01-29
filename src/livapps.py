@@ -594,8 +594,7 @@ class Record(Base):
 			if self._sparsevalues is not None:
 				return self._sparsevalues
 			else:
-				values = self.values
-				return {identifier: value for (identifier, value) in values.items() if value is not None}
+				return {identifier: value for (identifier, value) in self.values.items() if value is not None}
 		else:
 			return getattr(self, name)
 
