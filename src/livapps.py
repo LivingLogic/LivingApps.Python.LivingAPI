@@ -20,12 +20,6 @@ __docformat__ = "reStructuredText"
 ### Helper functions and classes
 ###
 
-if sys.version_info >= (3, 6):
-	ordereddict = dict
-else:
-	ordereddict = collections.OrderedDict
-
-
 def register(name):
 	"""
 	Shortcut for registering a LivingAPI class with the UL4ON machinery.
@@ -53,36 +47,15 @@ class attrdict(dict):
 		return set(dir(dict)) | set(self)
 
 
-class attrodict(collections.OrderedDict):
-	"""
-	A subclass of :class:`collections.OrderedDict` that makes keys accessible
-	as attributes.
-	"""
-	def __getattr__(self, key):
-		try:
-			return self[key]
-		except KeyError:
-			raise AttributeError(key)
-
-	def __dir__(self):
-		"""
-		This makes keys completeable in IPython.
-		"""
-		return set(dir(dict)) | set(self)
-
-
 def makeattrs(value):
 	"""
-	Convert a :class:`dict` or a :class:`collections.OrderedDict` for convenient
-	access to the attributes in code and interactive shell (like IPython).
+	Convert a :class:`dict` for convenient access to the attributes in code and
+	interactive shell (like IPython).
 
-	If :obj:`value` is neither a :class:`dict` nor a
-	:class:`collections.OrderedDict` it will be returned unchanged.
+	If :obj:`value` is not a :class:`dict` it will be returned unchanged.
 	"""
 
-	if isinstance(value, collections.OrderedDict):
-		value = attrodict(value)
-	elif isinstance(value, dict):
+	if isinstance(value, dict):
 		value = attrdict(value)
 	return value
 
@@ -98,12 +71,36 @@ def raise_403(response):
 
 
 class Base:
-	pass
+	ul4onattrs = []
+
+	def ul4ondump(self, encoder):
+		for name in self.ul4onattrs:
+			value = self.ul4ondump_getattr(name)
+			encoder.dump(value)
+
+	def ul4ondump_getattr(self, name):
+		return getattr(self, name)
+
+	def ul4onload(self, decoder):
+		names = iter(self.ul4onattrs)
+		for (name, value) in zip(names, decoder.loadcontent()):
+			self.ul4onload_setattr(name, value)
+
+		# Initialize the rest of the attributes
+		for name in names:
+			self.ul4onload_setdefaultattr(name)
+
+	def ul4onload_setattr(self, name, value):
+		setattr(self, name, value)
+
+	def ul4onload_setdefaultattr(self, name):
+		setattr(self, name, None)
 
 
 @register("globals")
 class Globals(Base):
 	ul4attrs = {"version", "platform", "user", "flashes", "geo"}
+	ul4onattrs = ["version", "platform", "user", "maxdbactions", "maxtemplateruntime", "flashes"]
 
 	def __init__(self, version=None, platform=None, user=None):
 		self.version = version
@@ -132,42 +129,17 @@ class Globals(Base):
 			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
 		return Geo(result.lat, result.lng, result.address)
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("version", self.version)
-		encoder.dumpattr("platform", self.platform)
-		encoder.dumpattr("user", self.user)
-		encoder.dumpattr("maxdbactions", self.maxdbactions)
-		encoder.dumpattr("maxtemplateruntime", self.maxtemplateruntime)
-		encoder.dumpattr("flashes", self.flashes)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.version)
-		encoder.dump(self.platform)
-		encoder.dump(self.user)
-		encoder.dump(self.maxdbactions)
-		encoder.dump(self.maxtemplateruntime)
-		encoder.dump(self.flashes)
-
-	def ul4onload2(self, decoder):
-		attrs = {"version", "platform", "user", "maxdbactions", "maxtemplateruntime", "flashes"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.version = decoder.load()
-		self.platform = decoder.load()
-		self.user = decoder.load()
-		self.maxdbactions = decoder.load()
-		self.maxtemplateruntime = decoder.load()
-		self.flashes = decoder.load()
+	def ul4onload_setdefaultattr(self, name):
+		if name == "flashes":
+			self.flashes = []
+		else:
+			setattr(self, name, None)
 
 
 @register("app")
 class App(Base):
 	ul4attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "owner", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier"}
+	ul4onattrs = ["id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "owner", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier"]
 
 	def __init__(self, id=None, globals=None, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, owner=None, controls=None, records=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = id
@@ -194,77 +166,20 @@ class App(Base):
 	def insert(self, **kwargs):
 		return self.globals.login._insert(self, **kwargs)
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("globals", self.globals)
-		encoder.dumpattr("name", self.name)
-		encoder.dumpattr("description", self.description)
-		encoder.dumpattr("language", self.language)
-		encoder.dumpattr("startlink", self.startlink)
-		encoder.dumpattr("iconlarge", self.iconlarge)
-		encoder.dumpattr("iconsmall", self.iconsmall)
-		encoder.dumpattr("owner", self.owner)
-		encoder.dumpattr("controls", self.controls)
-		encoder.dumpattr("records", self.records)
-		encoder.dumpattr("recordcount", self.recordcount)
-		encoder.dumpattr("installation", self.installation)
-		encoder.dumpattr("categories", self.categories)
-		encoder.dumpattr("params", self.params)
-		encoder.dumpattr("views", self.views)
-		encoder.dumpattr("datamanagement_identifier", self.datamanagement_identifier)
+	def ul4onload_setattr(self, name, value):
+		if name in {"controls", "params"}:
+			value = makeattrs(value)
+		setattr(self, name, value)
 
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.globals)
-		encoder.dump(self.name)
-		encoder.dump(self.description)
-		encoder.dump(self.language)
-		encoder.dump(self.startlink)
-		encoder.dump(self.iconlarge)
-		encoder.dump(self.iconsmall)
-		encoder.dump(self.owner)
-		encoder.dump(self.controls)
-		encoder.dump(self.records)
-		encoder.dump(self.recordcount)
-		encoder.dump(self.installation)
-		encoder.dump(self.categories)
-		encoder.dump(self.params)
-		encoder.dump(self.views)
-		encoder.dump(self.datamanagement_identifier)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "owner", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				if key == "controls":
-					value = makeattrs(value)
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.globals = decoder.load()
-		self.name = decoder.load()
-		self.description = decoder.load()
-		self.language = decoder.load()
-		self.startlink = decoder.load()
-		self.iconlarge = decoder.load()
-		self.iconsmall = decoder.load()
-		self.owner = decoder.load()
-		self.controls = makeattrs(decoder.load())
-		self.records = decoder.load()
-		self.recordcount = decoder.load()
-		self.installation = decoder.load()
-		self.categories = decoder.load()
-		self.params = makeattrs(decoder.load())
-		self.views = decoder.load()
-		self.datamanagement_identifier = decoder.load()
+	def ul4onload_setdefaultattr(self, name):
+		value = attrdict() if name in {"controls"} else None
+		setattr(self, name, value)
 
 
 @register("installation")
 class Installation(Base):
 	ul4attrs = {"id", "name"}
+	ul4onattrs = ["id", "name"]
 
 	def __init__(self, id=None, name=None):
 		self.id = id
@@ -273,30 +188,11 @@ class Installation(Base):
 	def __repr__(self):
 		return "<{} id={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.name, id(self))
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("name", self.name)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.name)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "name"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.name = decoder.load()
-
 
 @register("view")
 class View(Base):
 	ul4attrs = {"id", "name", "app", "order", "width", "height", "start", "end"}
+	ul4onattrs = ["id", "name", "app", "order", "width", "height", "start", "end"]
 
 	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None):
 		self.id = id
@@ -311,48 +207,11 @@ class View(Base):
 	def __repr__(self):
 		return "<{} id={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.name, id(self))
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("name", self.name)
-		encoder.dumpattr("app", self.app)
-		encoder.dumpattr("order", self.order)
-		encoder.dumpattr("width", self.width)
-		encoder.dumpattr("height", self.height)
-		encoder.dumpattr("start", self.start)
-		encoder.dumpattr("end", self.end)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.name)
-		encoder.dump(self.app)
-		encoder.dump(self.order)
-		encoder.dump(self.width)
-		encoder.dump(self.height)
-		encoder.dump(self.start)
-		encoder.dump(self.end)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "name", "app", "order", "width", "height", "start", "end"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.name = decoder.load()
-		self.app = decoder.load()
-		self.order = decoder.load()
-		self.width = decoder.load()
-		self.height = decoder.load()
-		self.start = decoder.load()
-		self.end = decoder.load()
-
 
 @register("datasource")
 class DataSource(Base):
 	ul4attrs = {"id", "identifier", "app", "apps"}
+	ul4onattrs = ["id", "identifier", "app", "apps"]
 
 	def __init__(self, id=None, identifier=None, app=None, apps=None):
 		self.id = id
@@ -363,36 +222,15 @@ class DataSource(Base):
 	def __repr__(self):
 		return "<{} id={!r} identifier={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.identifier, id(self))
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("identifier", self.identifier)
-		encoder.dumpattr("app", self.app)
-		encoder.dumpattr("apps", self.apps)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.identifier)
-		encoder.dump(self.app)
-		encoder.dump(self.apps)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "identifier", "app", "apps"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.identifier = decoder.load()
-		self.app = decoder.load()
-		self.apps = decoder.load()
+	def ul4onload_setdefaultattr(self, name):
+		value = {} if name == "apps" else None
+		setattr(self, name, value)
 
 
 @register("lookupitem")
 class LookupItem(Base):
 	ul4attrs = {"key", "label"}
+	ul4onattrs = ["key", "label"]
 
 	def __init__(self, key=None, label=None):
 		self.key = key
@@ -401,31 +239,12 @@ class LookupItem(Base):
 	def __repr__(self):
 		return "<{} key={!r} label={!r} at {:#x}>".format(self.__class__.__qualname__, self.key, self.label, id(self))
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("key", self.key)
-		encoder.dumpattr("label", self.label)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.key)
-		encoder.dump(self.label)
-
-	def ul4onload2(self, decoder):
-		attrs = {"key", "value"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.key = decoder.load()
-		self.label = decoder.load()
-
 
 class Control(Base):
 	type = None
 	subtype = None
 	ul4attrs = {"id", "identifier", "app", "label", "type", "subtype", "priority", "order", "default"}
+	ul4onattrs = ["id", "identifier", "field", "app", "label", "priority", "order", "default"]
 
 	def __init__(self, id=None, identifier=None, field=None, app=None, label=None, priority=None, order=None, default=None):
 		self.id = id
@@ -442,44 +261,6 @@ class Control(Base):
 
 	def asjson(self, value):
 		return value
-
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("identifier", self.identifier)
-		encoder.dumpattr("field", self.field)
-		encoder.dumpattr("app", self.app)
-		encoder.dumpattr("label", self.label)
-		encoder.dumpattr("priority", self.priority)
-		encoder.dumpattr("order", self.order)
-		encoder.dumpattr("default", self.default)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.identifier)
-		encoder.dump(self.field)
-		encoder.dump(self.app)
-		encoder.dump(self.label)
-		encoder.dump(self.priority)
-		encoder.dump(self.order)
-		encoder.dump(self.default)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "identifier", "field", "app", "label", "priority", "order", "default"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.identifier = decoder.load()
-		self.field = decoder.load()
-		self.app = decoder.load()
-		self.label = decoder.load()
-		self.priority = decoder.load()
-		self.order = decoder.load()
-		self.default = decoder.load()
 
 
 class StringControl(Control):
@@ -572,6 +353,7 @@ class LookupControl(Control):
 	type = "lookup"
 
 	ul4attrs = Control.ul4attrs.union({"lookupdata"})
+	ul4onattrs = Control.ul4onattrs + ["lookupdata"]
 
 	def __init__(self, id=None, identifier=None, app=None, label=None, order=None, default=None, lookupdata=None):
 		super().__init__(id=id, identifier=identifier, app=app, label=label, order=order, default=default)
@@ -582,26 +364,17 @@ class LookupControl(Control):
 			value = value.key
 		return value
 
-	def ul4ondump2(self, encoder):
-		super().ul4ondump2(encoder)
-		encoder.dumpattr("lookupdata", self.lookupdata)
+	def ul4onload_setattr(self, name, value):
+		if name == "lookupdata":
+			self.lookupdata = makeattrs(value)
+		else:
+			super().ul4onload_setattr(name, value)
 
-	def ul4ondump(self, encoder):
-		super().ul4ondump(encoder)
-		encoder.dump(self.lookupdata)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "identifier", "field", "app", "label", "priority", "order", "default", "lookupdata"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		super().ul4onload(decoder)
-		lookupdata = decoder.load()
-		self.lookupdata = makeattrs(lookupdata)
+	def ul4onload_setdefaultattr(self, name):
+		if name == "lookupdata":
+			self.lookupdata = attrdict()
+		else:
+			return super().ul4onload_defaultattr(name)
 
 
 @register("lookupselectcontrol")
@@ -623,6 +396,7 @@ class AppLookupControl(Control):
 	type = "applookup"
 
 	ul4attrs = Control.ul4attrs.union({"lookupapp", "lookupcontrols"})
+	ul4onattrs = Control.ul4onattrs + ["lookupapp", "lookupcontrols"]
 
 	def __init__(self, id=None, identifier=None, app=None, label=None, order=None, default=None, lookupapp=None, lookupcontrols=None):
 		super().__init__(id=id, identifier=identifier, app=app, label=label, order=order, default=default)
@@ -634,28 +408,17 @@ class AppLookupControl(Control):
 			value = value.id
 		return value
 
-	def ul4ondump2(self, encoder):
-		super().ul4ondump2(encoder)
-		encoder.dumpattr("lookupapp", self.lookupapp)
-		encoder.dumpattr("lookupcontrols", self.lookupcontrols)
+	def ul4onload_setattr(self, name, value):
+		if name == "lookupcontrols":
+			self.lookupcontrols = makeattrs(value)
+		else:
+			super().ul4onload_setattr(name, value)
 
-	def ul4ondump(self, encoder):
-		super().ul4ondump(encoder)
-		encoder.dump(self.lookupapp)
-		encoder.dump(self.lookupcontrols)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "identifier", "field", "app", "label", "priority", "order", "default", "lookupapp", "Lookupcontrols"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		super().ul4onload(decoder)
-		self.lookupapp = decoder.load()
-		self.lookupcontrols = decoder.load()
+	def ul4onload_setdefaultattr(self, name):
+		if name == "lookupcontrols":
+			self.lookupcontrols = attrdict()
+		else:
+			super().ul4onload_setdefaultattr(name)
 
 
 @register("applookupselectcontrol")
@@ -738,6 +501,7 @@ class GeoControl(Control):
 @register("record")
 class Record(Base):
 	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments", "errors", "has_errors"}
+	ul4onattrs = ["id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "values", "attachments", "children"]
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
 		self.id = id
@@ -825,59 +589,35 @@ class Record(Base):
 	def has_errors(self):
 		return bool(self.errors) or any(field.has_errors() for field in self.fields.values())
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("app", self.app)
-		encoder.dumpattr("createdat", self.createdat)
-		encoder.dumpattr("createdby", self.createdby)
-		encoder.dumpattr("updatedat", self.updatedat)
-		encoder.dumpattr("updatedby", self.updatedby)
-		encoder.dumpattr("updatecount", self.updatecount)
-		fieldvalues = {identifier: value for (identifier, value) in self.values.items() if value is not None}
-		encoder.dumpattr("fields", fieldvalues)
-		encoder.dumpattr("attachments", self.attachments)
-		encoder.dumpattr("children", self.children)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.app)
-		encoder.dump(self.createdat)
-		encoder.dump(self.createdby)
-		encoder.dump(self.updatedat)
-		encoder.dump(self.updatedby)
-		encoder.dump(self.updatecount)
-		if self._sparsevalues is not None:
-			fieldvalues = self._sparsevalues
+	def ul4ondump_getattr(self, name):
+		if name == "values":
+			if self._sparsevalues is not None:
+				return self._sparsevalues
+			else:
+				values = self.values
+				return {identifier: value for (identifier, value) in values.items() if value is not None}
 		else:
-			values = self.values
-			fieldvalues = {identifier: value for (identifier, value) in values.items() if value is not None}
-		encoder.dump(fieldvalues)
-		encoder.dump(attachments)
-		encoder.dump(self.children)
+			return getattr(self, name)
 
-	def ul4onload2(self, decoder):
-		attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				if key == "fields":
-					value = makeattrs({identifier: Field(control, self, value.get(identifier, None)) for (identifier, control) in self.app.controls.items()})
-				setattr(self, key, value)
+	def ul4onload_setattr(self, name, value):
+		if name == "values":
+			self._sparsevalues = value
+			self._values = None
+			self._fields = None
+		elif name == "children":
+			self.children = makeattrs(value)
+		else:
+			setattr(self, name, value)
 
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.app = decoder.load()
-		self.createdat = decoder.load()
-		self.createdby = decoder.load()
-		self.updatedat = decoder.load()
-		self.updatedby = decoder.load()
-		self.updatecount = decoder.load()
-		self._sparsevalues = decoder.load()
-		self._values = None
-		self._fields = None
-		self.attachments = decoder.load()
-		self.children = makeattrs(decoder.load())
+	def ul4onload_setdefaultattr(self, name, value):
+		if name == "values":
+			self._sparsevalues = {}
+			self._values = None
+			self._fields = None
+		elif name == "children":
+			self.children = attrdict()
+		else:
+			setattr(self, name, value)
 
 
 class Field:
@@ -906,6 +646,7 @@ class Field:
 @register("attachment")
 class Attachment:
 	ul4attrs = {"id", "type", "record", "label", "active"}
+	ul4onattrs = ["id", "type", "record", "label", "active"]
 
 	def __init__(self, id=None, record=None, label=None, active=None):
 		self.id = id
@@ -916,36 +657,11 @@ class Attachment:
 	def __repr__(self):
 		return "<{} id={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, id(self))
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("record", self.record)
-		encoder.dumpattr("label", self.label)
-		encoder.dumpattr("active", self.active)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.record)
-		encoder.dump(self.label)
-		encoder.dump(self.active)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "record", "label", "active"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.record = decoder.load()
-		self.label = decoder.load()
-		self.active = decoder.load()
-
 
 @register("file")
 class File(Base):
 	ul4attrs = {"id", "url", "filename", "mimetype", "width", "height"}
+	ul4onattrs = ["id", "url", "filename", "mimetype", "width", "height"]
 
 	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None):
 		self.id = id
@@ -958,42 +674,11 @@ class File(Base):
 	def __repr__(self):
 		return "<{} id={!r} url={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.url, id(self))
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("url", self.url)
-		encoder.dumpattr("filename", self.filename)
-		encoder.dumpattr("mimetype", self.mimetype)
-		encoder.dumpattr("width", self.width)
-		encoder.dumpattr("height", self.height)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.url)
-		encoder.dump(self.filename)
-		encoder.dump(self.mimetype)
-		encoder.dump(self.width)
-		encoder.dump(self.height)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "url", "filename", "mimetype", "width", "height"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.url = decoder.load()
-		self.filename = decoder.load()
-		self.mimetype = decoder.load()
-		self.width = decoder.load()
-		self.height = decoder.load()
-
 
 @register("geo")
 class Geo(Base):
 	ul4attrs = {"lat", "long", "info"}
+	ul4onattrs = ["lat", "long", "info"]
 
 	def __init__(self, lat=None, long=None, info=None):
 		self.lat = lat
@@ -1003,33 +688,11 @@ class Geo(Base):
 	def __repr__(self):
 		return "<{} lat={!r} long={!r} info={!r} at {:#x}>".format(self.__class__.__qualname__, self.lat, self.long, self.info, id(self))
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("lat", self.lat)
-		encoder.dumpattr("long", self.long)
-		encoder.dumpattr("info", self.info)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.lat)
-		encoder.dump(self.long)
-		encoder.dump(self.info)
-
-	def ul4onload2(self, decoder):
-		attrs = {"lat", "long", "info"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.lat = decoder.load()
-		self.long = decoder.load()
-		self.info = decoder.load()
-
 
 @register("user")
 class User(Base):
 	ul4attrs = {"id", "gender", "firstname", "surname", "initials", "email", "language", "avatar_small", "avatar_large", "keyviews"}
+	ul4onattrs = ["_id", "id", "gender", "firstname", "surname", "initials", "email", "language", "avatar_small", "avatar_large", "keyviews"]
 
 	def __init__(self, _id=None, id=None, gender=None, firstname=None, surname=None, initials=None, email=None, language=None, avatar_small=None, avatar_large=None, keyviews=None):
 		self._id = _id
@@ -1047,61 +710,11 @@ class User(Base):
 	def __repr__(self):
 		return "<{} id={!r} firstname={!r} surname={!r} email={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.firstname, self.surname, self.email, id(self))
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self._id)
-		encoder.dumpattr("public_id", self.id)
-		encoder.dumpattr("gender", self.gender)
-		encoder.dumpattr("firstname", self.firstname)
-		encoder.dumpattr("surname", self.surname)
-		encoder.dumpattr("initials", self.initials)
-		encoder.dumpattr("email", self.email)
-		encoder.dumpattr("language", self.language)
-		encoder.dumpattr("avatar_small", self.avatar_small)
-		encoder.dumpattr("avatar_large", self.avatar_large)
-		encoder.dumpattr("keyviews", self.keyviews)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self._id)
-		encoder.dump(self.id)
-		encoder.dump(self.gender)
-		encoder.dump(self.firstname)
-		encoder.dump(self.surname)
-		encoder.dump(self.initials)
-		encoder.dump(self.email)
-		encoder.dump(self.language)
-		encoder.dump(self.avatar_small)
-		encoder.dump(self.avatar_large)
-		encoder.dump(self.keyviews)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "public_id", "gender", "firstname", "surname", "initials", "email", "language", "avatar_small", "avatar_large", "keyviews"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				if key == "id":
-					key = "_id"
-				elif key == "public_id":
-					key = "id"
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self._id = decoder.load()
-		self.id = decoder.load()
-		self.gender = decoder.load()
-		self.firstname = decoder.load()
-		self.surname = decoder.load()
-		self.initials = decoder.load()
-		self.email = decoder.load()
-		self.language = decoder.load()
-		self.avatar_small = decoder.load()
-		self.avatar_large = decoder.load()
-		self.keyviews = decoder.load()
-
 
 @register("category")
 class Category(Base):
 	ul4attrs = {"id", "identifier", "name", "order", "parent", "children", "apps"}
+	ul4onattrs = ["id", "identifier", "name", "order", "parent", "children", "apps"]
 
 	def __init__(self, id=None, identifier=None, name=None, order=None, parent=None, children=None, apps=None):
 		self.id = id
@@ -1115,45 +728,11 @@ class Category(Base):
 	def __repr__(self):
 		return "<{} id={!r} identifier={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.identifier, self.name, id(self))
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("identifier", self.identifier)
-		encoder.dumpattr("name", self.name)
-		encoder.dumpattr("order", self.order)
-		encoder.dumpattr("parent", self.parent)
-		encoder.dumpattr("children", self.children)
-		encoder.dumpattr("apps", self.apps)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.identifier)
-		encoder.dump(self.name)
-		encoder.dump(self.order)
-		encoder.dump(self.parent)
-		encoder.dump(self.children)
-		encoder.dump(self.apps)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "identifier", "name", "order", "parent", "children", "apps"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.identifier = decoder.load()
-		self.name = decoder.load()
-		self.order = decoder.load()
-		self.parent = decoder.load()
-		self.children = decoder.load()
-		self.apps = decoder.load()
-
 
 @register("keyview")
 class KeyView(Base):
 	ul4attrs = {"id", "identifier", "name", "key", "user"}
+	ul4onattrs = ["id", "identifier", "name", "key", "user"]
 
 	def __init__(self, id=None, identifier=None, name=None, key=None, user=None):
 		self.id = id
@@ -1165,39 +744,11 @@ class KeyView(Base):
 	def __repr__(self):
 		return "<{} id={!r} identifier={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.identifier, self.name, id(self))
 
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("identifier", self.identifier)
-		encoder.dumpattr("name", self.name)
-		encoder.dumpattr("key", self.key)
-		encoder.dumpattr("user", self.user)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.identifier)
-		encoder.dump(self.name)
-		encoder.dump(self.key)
-		encoder.dump(self.user)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "identifier", "name", "key", "user"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.identifier = decoder.load()
-		self.name = decoder.load()
-		self.key = decoder.load()
-		self.user = decoder.load()
-
 
 @register("appparameter")
 class AppParameter(Base):
 	ul4attrs = {"id", "app", "identifier", "description", "value"}
+	ul4onattrs = ["id", "app", "identifier", "description", "value"]
 
 	def __init__(self, id=None, app=None, identifier=None, description=None, value=None):
 		self.id = id
@@ -1208,35 +759,6 @@ class AppParameter(Base):
 
 	def __repr__(self):
 		return "<{} id={!r} identifier={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.identifier, id(self))
-
-	def ul4ondump2(self, encoder):
-		encoder.dumpattr("id", self.id)
-		encoder.dumpattr("app", self.app)
-		encoder.dumpattr("identifier", self.identifier)
-		encoder.dumpattr("description", self.description)
-		encoder.dumpattr("value", self.value)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.id)
-		encoder.dump(self.app)
-		encoder.dump(self.identifier)
-		encoder.dump(self.description)
-		encoder.dump(self.value)
-
-	def ul4onload2(self, decoder):
-		attrs = {"id", "app", "identifier", "description", "value"}
-		for attr in attrs:
-			setattr(self, attr, None)
-		for (key, value) in decoder.loadattrs():
-			if key in attrs:
-				setattr(self, key, value)
-
-	def ul4onload(self, decoder):
-		self.id = decoder.load()
-		self.app = decoder.load()
-		self.identifier = decoder.load()
-		self.description = decoder.load()
-		self.value = decoder.load()
 
 
 class Login:

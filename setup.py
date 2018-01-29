@@ -48,7 +48,7 @@ description = description.expandtabs(2)
 
 args = dict(
 	name="livapps",
-	version="0.1",
+	version="0.2",
 	description="Python API for LivingApps",
 	long_description=description,
 	author="Walter Doerwald",
@@ -61,7 +61,7 @@ args = dict(
 	package_dir={"": "src"},
 	py_modules=["livapps", "ul4on"],
 	install_requires=[
-		"ll-xist >= 5.29",
+		"ll-xist >= 5.31",
 		"requests >= 2.18.4",
 		"geocoder >= 1.30.1"
 	],
