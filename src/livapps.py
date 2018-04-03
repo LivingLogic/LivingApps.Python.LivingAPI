@@ -804,7 +804,7 @@ class Login:
 		dump = ul4on.loads(r.text)
 		globals = dump["globals"]
 		globals.login = self
-		datasources = attrdict(misc.first(dump["viewtemplates"].values())["datasources"])
+		datasources = attrdict(dump["datasources"])
 		return attrdict(
 			globals=globals,
 			datasources=datasources,
