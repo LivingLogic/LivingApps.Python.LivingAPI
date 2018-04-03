@@ -83,8 +83,13 @@ class Base:
 
 	def ul4onload(self, decoder):
 		names = iter(self.ul4onattrs)
-		for (name, value) in zip(names, decoder.loadcontent()):
+		dump = decoder.loadcontent()
+		for (name, value) in zip(names, dump):
 			self.ul4onload_setattr(name, value)
+
+		# Exhaust the dump
+		for value in dump:
+			pass
 
 		# Initialize the rest of the attributes
 		for name in names:
