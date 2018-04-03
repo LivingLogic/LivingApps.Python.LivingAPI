@@ -804,8 +804,6 @@ class Login:
 		# Workaround: If we're not logged in, but request a protected template, we get redirected to the login page instead -> raise a 403 error instead
 		if self.auth_token is None and r.history:
 			raise_403(r)
-		with open("/Users/walter/gurk.ul4on", "w", encoding="utf-8") as f:
-			f.write(r.text)
 		dump = ul4on.loads(r.text)
 		globals = dump["globals"]
 		globals.login = self
