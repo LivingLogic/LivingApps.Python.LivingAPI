@@ -808,6 +808,7 @@ class Login:
 		return attrdict(
 			globals=globals,
 			datasources=datasources,
+			app=dump["app"],
 		)
 
 	def _insert(self, app, **kwargs):
