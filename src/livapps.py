@@ -10,7 +10,7 @@ import sys, datetime, json, collections, ast
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
-from ll import misc, ul4on # This requires :mod:`ll-xist`, which you can install with ``pip install ll-xist==5.27``
+from ll import misc, ul4on # This requires :mod:`ll-xist`, which you can install with ``pip install ll-xist``
 
 
 __docformat__ = "reStructuredText"
@@ -805,14 +805,20 @@ class Login:
 		if self.auth_token is None and r.history:
 			raise_403(r)
 		dump = ul4on.loads(r.text)
-		globals = dump["globals"]
-		globals.login = self
-		datasources = attrdict(dump["datasources"])
-		return attrdict(
-			globals=globals,
-			datasources=datasources,
-			app=dump["app"],
-		)
+		dump = attrdict(dump)
+		dump.globals.login = self
+		if "viewtemplates" in dump:
+			# Old version from ``VIEWTEMPLATES_FUL4ON``
+			viewtemplate = misc.first(dump["viewtemplates"].values())
+			return attrdict(
+				globals=dump["globals"],
+				datasources=attrdict(viewtemplate["datasources"]),
+				app=dump["app"],
+			)
+		else:
+			# New version from  ``VIEWTEMPLATE_FUL4ON``
+			dump.datasources = attrdict(dump.datasources)
+			return dump
 
 	def _insert(self, app, **kwargs):
 		fields = {}
