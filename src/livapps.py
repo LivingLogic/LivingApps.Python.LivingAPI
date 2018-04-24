@@ -811,9 +811,10 @@ class Login:
 			# Old version from ``VIEWTEMPLATES_FUL4ON``
 			viewtemplate = misc.first(dump["viewtemplates"].values())
 			return attrdict(
-				globals=dump["globals"],
+				globals=viewtemplate["globals"],
 				datasources=attrdict(viewtemplate["datasources"]),
-				app=dump["app"],
+				app=viewtemplate["app"],
+				apps=viewtemplate["apps"],
 			)
 		else:
 			# New version from  ``VIEWTEMPLATE_FUL4ON``
