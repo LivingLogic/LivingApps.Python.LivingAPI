@@ -8,7 +8,7 @@ import setuptools
 
 
 DESCRIPTION = """
-:mod:`livapi` is a Python module for accessing data from LivingApps
+:mod:`livapps` is a Python module for accessing data from LivingApps
 (http://www.living-apps.de/)
 """
 
