@@ -807,19 +807,8 @@ class Login:
 		dump = ul4on.loads(r.text)
 		dump = attrdict(dump)
 		dump.globals.login = self
-		if "viewtemplates" in dump:
-			# Old version from ``VIEWTEMPLATES_FUL4ON``
-			viewtemplate = misc.first(dump["viewtemplates"].values())
-			return attrdict(
-				globals=viewtemplate["globals"],
-				datasources=attrdict(viewtemplate["datasources"]),
-				app=viewtemplate["app"],
-				apps=viewtemplate["apps"],
-			)
-		else:
-			# New version from  ``VIEWTEMPLATE_FUL4ON``
-			dump.datasources = attrdict(dump.datasources)
-			return dump
+		dump.datasources = attrdict(dump.datasources)
+		return dump
 
 	def _insert(self, app, **kwargs):
 		fields = {}
