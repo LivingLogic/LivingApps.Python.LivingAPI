@@ -475,7 +475,9 @@ class MultipleLookupControl(LookupControl):
 	type = "multiplelookup"
 
 	def asjson(self, value):
-		if isinstance(value, LookupItem):
+		if value is None:
+			value = []
+		elif isinstance(value, LookupItem):
 			value = [value.key]
 		elif isinstance(value, collections.Sequence):
 			value = [self.asjson(item) for item in value]
@@ -501,7 +503,9 @@ class MultipleAppLookupControl(AppLookupControl):
 	type = "multipleapplookup"
 
 	def asjson(self, value):
-		if isinstance(value, Record):
+		if value is None:
+			value = []
+		elif isinstance(value, Record):
 			value = [value.id]
 		elif isinstance(value, collections.Sequence):
 			value = [self.asjson(item) for item in value]
