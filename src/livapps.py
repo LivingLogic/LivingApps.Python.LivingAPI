@@ -915,7 +915,7 @@ class Login:
 		record._sparsevalues = attrdict()
 		for (identifier, control) in app.controls.items():
 			value = kwargs.get(identifier, None)
-			if value is None and isinstance(control, MultipleLookupControl):
+			if value is None and isinstance(control, (MultipleLookupControl, MultipleAppLookupControl)):
 				value = []
 			if value is not None:
 				record._sparsevalues[identifier] = value
