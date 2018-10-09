@@ -61,7 +61,13 @@ def makeattrs(value):
 
 
 def raise_403(response):
-	http_error_msg = "403 Client Error: Forbidden for url: {}".format(response.url)
+	"""
+	Raise an HTTP exception with the status code 403 (i.e. "Forbidden").
+
+	(This is used if the HTTP interface would redirect us to a different page,
+	which we don't want).
+	"""
+	http_error_msg = f"403 Client Error: Forbidden for url: {response.url}"
 	raise requests.exceptions.HTTPError(http_error_msg, response=response)
 
 
