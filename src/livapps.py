@@ -6,7 +6,7 @@
 ##
 ## All Rights Reserved
 
-import sys, datetime, json, collections, ast
+import sys, datetime, json, collections, ast, enum
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -297,9 +297,33 @@ class TelControl(StringControl):
 	subtype = "tel"
 
 
+class EncryptionType(enum.IntEnum):
+	NONE = 0
+	FORCE = 1
+	OPTIONAL = 2
+
+
 @register("textareacontrol")
 class TextAreaControl(StringControl):
 	subtype = "textarea"
+	ul4attrs = StringControl.ul4attrs.union({"encrypted"})
+	ul4onattrs = StringControl.ul4onattrs + ["encrypted"]
+
+	def ul4onload_setattr(self, name, value):
+		if name == "encrypted":
+			try:
+				value = EncryptionType(value)
+			except ValueError:
+				pass
+			self.encrypted = value
+		else:
+			super().ul4onload_setattr(name, value)
+
+	def ul4onload_setdefaultattr(self, name):
+		if name == "encrypted":
+			self.encrypted = EncryptionType.NONE
+		else:
+			return super().ul4onload_defaultattr(name)
 
 
 @register("intcontrol")
