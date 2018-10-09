@@ -206,7 +206,7 @@ class Installation(Base):
 		self.name = name
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} name={!r} at {id(self):#x}>"
+		return f"<{self.__class__.__qualname__} id={self.id!r} name={self.name!r} at {id(self):#x}>"
 
 
 @register("view")
@@ -552,7 +552,7 @@ class GeoControl(Control):
 
 	def asjson(self, value):
 		if isinstance(value, Geo):
-			value = "{!r}, {!r}, {}".format(value.lat, value.long, value.info)
+			value = f"{value.lat!r}, {value.long!r}, {value.info}"
 		return value
 
 
@@ -577,15 +577,15 @@ class Record(Base):
 		self.errors = []
 
 	def __repr__(self):
-		attrs = " ".join("v_{}={!r}".format(identifier, value) for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
-		return "<{} id={!r} {} at {:#x}>".format(self.__class__.__qualname__, self.id, attrs, id(self))
+		attrs = " ".join(f"v_{identifier}={value!r}" for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
+		return f"<{self.__class__.__qualname__} id={self.id!r} {attrs} at {id(self):#x}>"
 
 	def _repr_pretty_(self, p, cycle):
-		prefix = "<{}.{}".format(self.__class__.__module__, self.__class__.__qualname__)
-		suffix = "at {:#x}".format(id(self))
+		prefix = f"<{self.__class__.__module__}.{self.__class__.__qualname__}"
+		suffix = f"at {id(self):#x}"
 
 		if cycle:
-			p.text("{} ... {}>".format(prefix, suffix))
+			p.text(f"{prefix} ... {suffix}>")
 		else:
 			with p.group(4, prefix, ">"):
 				p.breakable()
@@ -594,7 +594,7 @@ class Record(Base):
 				for (identifier, value) in self.values.items():
 					if self.app.controls[identifier].priority:
 						p.breakable()
-						p.text("v_{}=".format(identifier))
+						p.text(f"v_{identifier}=")
 						p.pretty(value)
 				p.breakable()
 				p.text(suffix)
@@ -697,7 +697,7 @@ class Field:
 		return bool(self.errors)
 
 	def __repr__(self):
-		return "<{} identifier={!r} value={!r} at {:#x}>".format(self.__class__.__qualname__, self.control.identifier, self.value, id(self))
+		return f"<{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self.value!r} at {id(self):#x}>"
 
 
 @register("attachment")
@@ -712,7 +712,7 @@ class Attachment:
 		self.active = active
 
 	def __repr__(self):
-		return "<{} id={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} at {id(self):#x}>"
 
 
 @register("file")
@@ -729,7 +729,7 @@ class File(Base):
 		self.height = height
 
 	def __repr__(self):
-		return "<{} id={!r} url={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.url, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} url={self.url!r} at {id(self):#x}>"
 
 
 @register("geo")
@@ -743,7 +743,7 @@ class Geo(Base):
 		self.info = info
 
 	def __repr__(self):
-		return "<{} lat={!r} long={!r} info={!r} at {:#x}>".format(self.__class__.__qualname__, self.lat, self.long, self.info, id(self))
+		return f"<{self.__class__.__qualname__} lat={self.lat!r} long={self.long!r} info={self.info!r} at {id(self):#x}>"
 
 
 @register("user")
@@ -765,7 +765,7 @@ class User(Base):
 		self.keyviews = keyviews
 
 	def __repr__(self):
-		return "<{} id={!r} firstname={!r} surname={!r} email={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.firstname, self.surname, self.email, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} firstname={self.firstname!r} surname={self.surname!r} email={self.email!r} at {id(self):#x}>"
 
 
 @register("category")
@@ -783,7 +783,7 @@ class Category(Base):
 		self.apps = apps
 
 	def __repr__(self):
-		return "<{} id={!r} identifier={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.identifier, self.name, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} name={self.name!r} at {id(self):#x}>"
 
 
 @register("keyview")
@@ -799,7 +799,7 @@ class KeyView(Base):
 		self.user = user
 
 	def __repr__(self):
-		return "<{} id={!r} identifier={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.identifier, self.name, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} name={self.name!r} at {id(self):#x}>"
 
 
 @register("appparameter")
@@ -815,7 +815,7 @@ class AppParameter(Base):
 		self.value = value
 
 	def __repr__(self):
-		return "<{} id={!r} identifier={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.identifier, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} at {id(self):#x}>"
 
 
 class Login:
@@ -833,7 +833,10 @@ class Login:
 		# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
 		if username is not None and password is not None:
 			# Login to the LivingApps installation and store the auth token we get
-			r = self.session.post(self.url + "gateway/login", data=json.dumps({"username": username, "password": password}))
+			r = self.session.post(
+				self.url + "gateway/login",
+				data=json.dumps({"username": username, "password": password}),
+			)
 			result = r.json()
 			if result.get("status") == "success":
 				self.auth_token = result["auth_token"]
@@ -841,7 +844,7 @@ class Login:
 				raise_403(r)
 
 	def __repr__(self):
-		return "<{} url={!r} username={!r} at {:#x}>".format(self.__class__.__qualname__, self.url, self.username, id(self))
+		return f"<{self.__class__.__qualname__} url={self.url!r} username={self.username!r} at {id(self):#x}>"
 
 	def _add_auth_token(self, kwargs):
 		if self.auth_token:
@@ -852,7 +855,10 @@ class Login:
 	def file(self, file):
 		kwargs = {}
 		self._add_auth_token(kwargs)
-		r = self.session.get(self.url.rstrip("/") + file.url, **kwargs)
+		r = self.session.get(
+			self.url.rstrip("/") + file.url,
+			**kwargs,
+		)
 		return r
 
 	def get(self, appid, templatename=None):
@@ -865,11 +871,13 @@ class Login:
 		if templatename is not None:
 			kwargs["params"] = {"template": templatename}
 		r = self.session.get(
-			"{}gateway/apps/{}".format(self.url, appid),
+			f"{self.url}gateway/apps/{appid}",
 			**kwargs,
 		)
 		r.raise_for_status()
-		# Workaround: If we're not logged in, but request a protected template, we get redirected to the login page instead -> raise a 403 error instead
+		# Workaround: If we're not logged in, but request a protected template,
+		# we get redirected to the login page instead
+		# -> raise a 403 error instead
 		if self.auth_token is None and r.history:
 			raise_403(r)
 		dump = ul4on.loads(r.text)
@@ -882,7 +890,7 @@ class Login:
 		fields = {}
 		for (identifier, value) in kwargs.items():
 			if identifier not in app.controls:
-				raise TypeError("insert() got an unexpected keyword argument {!r}".format(identifier))
+				raise TypeError(f"insert() got an unexpected keyword argument {identifier!r}")
 			control = app.controls[identifier]
 			fields[identifier] = control.asjson(value)
 
@@ -896,13 +904,14 @@ class Login:
 		self._add_auth_token(kwargs)
 
 		r = self.session.post(
-			"{}gateway/v1/appdd/{}.json".format(self.url, app.id),
+			f"{self.url}gateway/v1/appdd/{app.id}.json",
 			**kwargs,
 		)
 		r.raise_for_status()
 		result = json.loads(r.text)
-		if result["status"] != "ok":
-			raise TypeError("Response status {!r}".format(result['status']))
+		status = result["status"]
+		if status != "ok":
+			raise TypeError(f"Response status {status!r}")
 		record = Record(
 			id=result["id"],
 			app=app,
@@ -926,7 +935,7 @@ class Login:
 		app = record.app
 		for (identifier, value) in kwargs.items():
 			if identifier not in app.controls:
-				raise TypeError("update() got an unexpected keyword argument {!r}".format(identifier))
+				raise TypeError(f"update() got an unexpected keyword argument {identifier!r}")
 			control = app.controls[identifier]
 			fields[identifier] = control.asjson(value)
 		data = dict(id=app.id, data=[{"id": record.id, "fields": fields}])
@@ -938,13 +947,14 @@ class Login:
 		}
 		self._add_auth_token(kwargs)
 		r = self.session.post(
-			"{}gateway/v1/appdd/{}.json".format(self.url, app.id),
+			f"{self.url}gateway/v1/appdd/{app.id}.json",
 			**kwargs,
 		)
 		r.raise_for_status()
 		result = json.loads(r.text)
-		if result["status"] != "ok":
-			raise TypeError("Response status {!r}".format(result['status']))
+		status = result["status"]
+		if status != "ok":
+			raise TypeError(f"Response status {status!r}")
 		record.updatedat = datetime.datetime.now()
 		record.updatedby = app.globals.user
 		record.updatecount += 1
@@ -960,12 +970,12 @@ class Login:
 		self._add_auth_token(kwargs)
 
 		r = self.session.delete(
-			"{}gateway/v1/appdd/{}/{}.json".format(self.url, record.app.id, record.id),
+			f"{self.url}gateway/v1/appdd/{record.app.id}/{record.id}.json",
 			**kwargs,
 		)
 		r.raise_for_status()
 		if r.text != '"Successfully deleted dataset"':
-			raise TypeError("Unexpected response {!r}".format(r.text))
+			raise TypeError(f"Unexpected response {r.text!r}")
 
 	def _executeaction(self, record, actionidentifier):
 		kwargs = {
@@ -974,7 +984,7 @@ class Login:
 		self._add_auth_token(kwargs)
 
 		r = self.session.post(
-			"{}gateway/api/v1/apps/{}/actions/{}".format(self.url, record.app.id, actionidentifier),
+			f"{self.url}gateway/api/v1/apps/{record.app.id}/actions/{actionidentifier}",
 			**kwargs,
 		)
 		r.raise_for_status()
