@@ -90,14 +90,17 @@ class Base:
 	def ul4onload(self, decoder):
 		names = iter(self.ul4onattrs)
 		dump = decoder.loadcontent()
+
+		# Load all attributes that we get from the UL4ON dump
+		# Stop when the dump is exhausted or we've loaded all known attributes.
 		for (name, value) in zip(names, dump):
 			self.ul4onload_setattr(name, value)
 
-		# Exhaust the dump
+		# Exhaust the UL4ON dump
 		for value in dump:
 			pass
 
-		# Initialize the rest of the attributes
+		# Initialize the rest of the attributes with default values
 		for name in names:
 			self.ul4onload_setdefaultattr(name)
 
