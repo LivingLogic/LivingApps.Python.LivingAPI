@@ -486,6 +486,11 @@ class MultipleLookupCheckboxControl(MultipleLookupControl):
 	subtype = "checkbox"
 
 
+@register("multiplelookupchoicecontrol")
+class MultipleLookupChoiceControl(MultipleLookupControl):
+	subtype = "choice"
+
+
 class MultipleAppLookupControl(AppLookupControl):
 	type = "multipleapplookup"
 
@@ -505,6 +510,11 @@ class MultipleAppLookupSelectControl(MultipleAppLookupControl):
 @register("multipleapplookupcheckboxcontrol")
 class MultipleAppLookupCheckboxControl(MultipleAppLookupControl):
 	subtype = "checkbox"
+
+
+@register("multipleapplookupchoicecontrol")
+class MultipleAppLookupChoiceControl(MultipleAppLookupControl):
+	subtype = "choice"
 
 
 @register("filecontrol")
