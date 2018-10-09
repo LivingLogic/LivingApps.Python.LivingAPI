@@ -836,6 +836,12 @@ class Login:
 				kwargs["headers"] = {}
 			kwargs["headers"]["X-La-Auth-Token"] = self.auth_token
 
+	def file(self, file):
+		kwargs = {}
+		self._add_auth_token(kwargs)
+		r = self.session.get(self.url.rstrip("/") + file.url, **kwargs)
+		return r
+
 	def get(self, appid, templatename=None):
 		kwargs = {
 			"headers": {
