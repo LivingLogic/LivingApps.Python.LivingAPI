@@ -900,10 +900,6 @@ class Login:
 			**kwargs,
 		)
 		r.raise_for_status()
-		# Workaround: The Content-Type should be ``application/json``, but isn't
-		# if r.headers["Content-Type"] != "application/json":
-		# 	raise TypeError("bad Content-Type")
-		# result = r.json()
 		result = json.loads(r.text)
 		if result["status"] != "ok":
 			raise TypeError("Response status {!r}".format(result['status']))
@@ -946,10 +942,6 @@ class Login:
 			**kwargs,
 		)
 		r.raise_for_status()
-		# Workaround: The Content-Type should be ``application/json``, but isn't
-		# if r.headers["Content-Type"] != "application/json":
-		# 	raise TypeError("bad Content-Type")
-		# result = r.json()
 		result = json.loads(r.text)
 		if result["status"] != "ok":
 			raise TypeError("Response status {!r}".format(result['status']))
