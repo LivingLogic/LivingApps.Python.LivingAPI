@@ -830,16 +830,25 @@ class Login:
 	def __repr__(self):
 		return "<{} url={!r} username={!r} at {:#x}>".format(self.__class__.__qualname__, self.url, self.username, id(self))
 
+	def _add_auth_token(self, kwargs):
+		if self.auth_token:
+			if "headers" not in kwargs:
+				kwargs["headers"] = {}
+			kwargs["headers"]["X-La-Auth-Token"] = self.auth_token
+
 	def get(self, appid, templatename=None):
 		kwargs = {
 			"headers": {
-				"X-La-Auth-Token": self.auth_token,
 				"Accept": "application/la-ul4on",
 			},
 		}
+		self._add_auth_token(kwargs)
 		if templatename is not None:
 			kwargs["params"] = {"template": templatename}
-		r = self.session.get("{}gateway/apps/{}".format(self.url, appid), **kwargs)
+		r = self.session.get(
+			"{}gateway/apps/{}".format(self.url, appid),
+			**kwargs,
+		)
 		r.raise_for_status()
 		# Workaround: If we're not logged in, but request a protected template, we get redirected to the login page instead -> raise a 403 error instead
 		if self.auth_token is None and r.history:
@@ -857,11 +866,19 @@ class Login:
 				raise TypeError("insert() got an unexpected keyword argument {!r}".format(identifier))
 			control = app.controls[identifier]
 			fields[identifier] = control.asjson(value)
+
 		data = dict(id=app.id, data=[{"fields": fields}])
+		kwargs = {
+			"data": json.dumps({"appdd": data}),
+			"headers": {
+				"Content-Type": "application/json",
+			},
+		}
+		self._add_auth_token(kwargs)
+
 		r = self.session.post(
 			"{}gateway/v1/appdd/{}.json".format(self.url, app.id),
-			data=json.dumps({"appdd": data}),
-			headers={"X-La-Auth-Token": self.auth_token, "Content-Type": "application/json"},
+			**kwargs,
 		)
 		r.raise_for_status()
 		# Workaround: The Content-Type should be ``application/json``, but isn't
@@ -898,10 +915,16 @@ class Login:
 			control = app.controls[identifier]
 			fields[identifier] = control.asjson(value)
 		data = dict(id=app.id, data=[{"id": record.id, "fields": fields}])
+		kwargs = {
+			"data": json.dumps({"appdd": data}),
+			"headers": {
+				"Content-Type": "application/json",
+			},
+		}
+		self._add_auth_token(kwargs)
 		r = self.session.post(
 			"{}gateway/v1/appdd/{}.json".format(self.url, app.id),
-			data=json.dumps({"appdd": data}),
-			headers={"X-La-Auth-Token": self.auth_token, "Content-Type": "application/json"},
+			**kwargs,
 		)
 		r.raise_for_status()
 		# Workaround: The Content-Type should be ``application/json``, but isn't
@@ -922,18 +945,25 @@ class Login:
 		record._fields = None
 
 	def _delete(self, record):
+		kwargs = {}
+		self._add_auth_token(kwargs)
+
 		r = self.session.delete(
 			"{}gateway/v1/appdd/{}/{}.json".format(self.url, record.app.id, record.id),
-			headers={"X-La-Auth-Token": self.auth_token},
+			**kwargs,
 		)
 		r.raise_for_status()
 		if r.text != '"Successfully deleted dataset"':
 			raise TypeError("Unexpected response {!r}".format(r.text))
 
 	def _executeaction(self, record, actionidentifier):
+		kwargs = {
+			"data": {"recid": record.id},
+		}
+		self._add_auth_token(kwargs)
+
 		r = self.session.post(
 			"{}gateway/api/v1/apps/{}/actions/{}".format(self.url, record.app.id, actionidentifier),
-			headers={"X-La-Auth-Token": self.auth_token},
-			data={"recid": record.id},
+			**kwargs,
 		)
 		r.raise_for_status()
