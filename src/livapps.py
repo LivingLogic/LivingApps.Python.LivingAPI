@@ -928,7 +928,7 @@ class Login:
 		)
 		r.raise_for_status()
 		if r.text != '"Successfully deleted dataset"':
-			raise TypeError("Unexpectedd response {!r}".format(r.text))
+			raise TypeError("Unexpected response {!r}".format(r.text))
 
 	def _executeaction(self, record, actionidentifier):
 		r = self.session.post(
