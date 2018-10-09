@@ -126,7 +126,7 @@ class Globals(Base):
 		self.login = None # The login from which we've got the data (required for insert/update/delete/executeaction methods)
 
 	def __repr__(self):
-		return "<{} version={!r} platform={!r} at {:#x}>".format(self.__class__.__qualname__, self.version, self.platform, id(self))
+		return f"<{self.__class__.__qualname__} version={self.version!r} platform={self.platform!r} at {id(self):#x}>"
 
 	def geo(self, lat=None, long=None, info=None):
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
@@ -181,7 +181,7 @@ class App(Base):
 		self.deleteprocedure = None
 
 	def __repr__(self):
-		return "<{} id={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.name, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} name={self.name!r} at {id(self):#x}>"
 
 	def insert(self, **kwargs):
 		return self.globals.login._insert(self, **kwargs)
@@ -206,7 +206,7 @@ class Installation(Base):
 		self.name = name
 
 	def __repr__(self):
-		return "<{} id={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.name, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} name={!r} at {id(self):#x}>"
 
 
 @register("view")
@@ -225,7 +225,7 @@ class View(Base):
 		self.end = end
 
 	def __repr__(self):
-		return "<{} id={!r} name={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.name, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} name={self.name!r} at {id(self):#x}>"
 
 
 @register("datasource")
@@ -240,7 +240,7 @@ class DataSource(Base):
 		self.apps = apps
 
 	def __repr__(self):
-		return "<{} id={!r} identifier={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.identifier, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} at {id(self):#x}>"
 
 	def ul4onload_setdefaultattr(self, name):
 		value = {} if name == "apps" else None
@@ -257,7 +257,7 @@ class LookupItem(Base):
 		self.label = label
 
 	def __repr__(self):
-		return "<{} key={!r} label={!r} at {:#x}>".format(self.__class__.__qualname__, self.key, self.label, id(self))
+		return f"<{self.__class__.__qualname__} key={self.key!r} label={self.label!r} at {id(self):#x}>"
 
 
 class Control(Base):
@@ -277,7 +277,7 @@ class Control(Base):
 		self.default = default
 
 	def __repr__(self):
-		return "<{} id={!r} identifier={!r} at {:#x}>".format(self.__class__.__qualname__, self.id, self.identifier, id(self))
+		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} at {id(self):#x}>"
 
 	def asjson(self, value):
 		return value
