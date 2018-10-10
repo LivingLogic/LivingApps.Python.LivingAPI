@@ -861,15 +861,16 @@ class Login:
 		)
 		return r
 
-	def get(self, appid, templatename=None):
+	def get(self, appid, templatename=None, **params):
 		kwargs = {
 			"headers": {
 				"Accept": "application/la-ul4on",
 			},
+			"params": params,
 		}
 		self._add_auth_token(kwargs)
 		if templatename is not None:
-			kwargs["params"] = {"template": templatename}
+			kwargs["params"]["template"] = templatename
 		r = self.session.get(
 			f"{self.url}gateway/apps/{appid}",
 			**kwargs,
