@@ -769,6 +769,7 @@ class Record(Base):
 		self.children = attrdict()
 		self.attachments = None
 		self.errors = []
+		self.is_deleted = False
 
 	def __repr__(self):
 		attrs = " ".join(f"v_{identifier}={value!r}" for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
@@ -1200,6 +1201,7 @@ class Login:
 		r.raise_for_status()
 		if r.text != '"Successfully deleted dataset"':
 			raise TypeError(f"Unexpected response {r.text!r}")
+		record.is_deleted = True
 
 	def _executeaction(self, record, actionidentifier):
 		kwargs = {
