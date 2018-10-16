@@ -629,7 +629,9 @@ class MultipleLookupControl(LookupControl):
 			pass
 		elif isinstance(value, (str, LookupItem)):
 			(value, error) = super()._convertvalue(value)
-			if not error:
+			if error:
+				value = []
+			else:
 				value = [value]
 		elif isinstance(value, list):
 			realvalue = []
@@ -644,7 +646,7 @@ class MultipleLookupControl(LookupControl):
 			value = realvalue
 		else:
 			error = error_wrong_type(value)
-			value = None
+			value = []
 		return (value, error)
 
 	def _asjson(self, value):
@@ -675,7 +677,9 @@ class MultipleAppLookupControl(AppLookupControl):
 			pass
 		elif isinstance(value, (str, Record)):
 			(value, error) = super()._convertvalue(value)
-			if not error:
+			if error:
+				value = []
+			else:
 				value = [value]
 		elif isinstance(value, list):
 			realvalue = []
@@ -690,7 +694,7 @@ class MultipleAppLookupControl(AppLookupControl):
 			value = realvalue
 		else:
 			error = error_wrong_type(value)
-			value = None
+			value = []
 		return (value, error)
 
 	def _asjson(self, value):
