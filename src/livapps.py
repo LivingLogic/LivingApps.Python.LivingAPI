@@ -588,7 +588,7 @@ class AppLookupControl(Control):
 		return (value, error)
 
 	def _asjson(self, value):
-		if isinstance(value, Record):
+		if value is not None:
 			value = value.id
 		return value
 
@@ -648,13 +648,7 @@ class MultipleLookupControl(LookupControl):
 		return (value, error)
 
 	def _asjson(self, value):
-		if value is None:
-			value = []
-		elif isinstance(value, LookupItem):
-			value = [value.key]
-		elif isinstance(value, collections.Sequence):
-			value = [self._asjson(item) for item in value]
-		return value
+		return [item.key for item in value]
 
 
 @register("multiplelookupselectcontrol")
@@ -700,13 +694,7 @@ class MultipleAppLookupControl(AppLookupControl):
 		return (value, error)
 
 	def _asjson(self, value):
-		if value is None:
-			value = []
-		elif isinstance(value, Record):
-			value = [value.id]
-		elif isinstance(value, collections.Sequence):
-			value = [self._asjson(item) for item in value]
-		return value
+		return [item.id for item in value]
 
 
 @register("multipleapplookupselectcontrol")
