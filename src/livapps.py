@@ -589,6 +589,10 @@ class AppLookupControl(Control):
 
 	def _asjson(self, value):
 		if value is not None:
+			if value.id is None:
+				raise ValueError(f"Referenced record {value!r} hasn't been saved yet!")
+			elif value.is_deleted:
+				raise ValueError(f"Referenced record {value!r} has been deleted!")
 			value = value.id
 		return value
 
@@ -698,7 +702,14 @@ class MultipleAppLookupControl(AppLookupControl):
 		return (value, error)
 
 	def _asjson(self, value):
-		return [item.id for item in value]
+		newvalue = []
+		for item in value:
+			if item.id is None:
+				raise ValueError(f"Referenced record {item!r} hasn't been saved yet!")
+			elif item.is_deleted:
+				raise ValueError(f"Referenced record {item!r} has been deleted!")
+			newvalue.append(item)
+		return newvalue
 
 
 @register("multipleapplookupselectcontrol")
