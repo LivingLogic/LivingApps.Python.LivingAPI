@@ -716,6 +716,13 @@ class MultipleAppLookupChoiceControl(MultipleAppLookupControl):
 class FileControl(Control):
 	type = "file"
 
+	def _convertvalue(self, value):
+		error = None
+		if value is not None and not isinstance(value, File):
+			error = error_wrong_type(value)
+			value = None
+		return (value, error)
+
 	def _asjson(self, value):
 		if value is not None:
 			raise NotImplementedError
@@ -725,6 +732,13 @@ class FileControl(Control):
 @register("geocontrol")
 class GeoControl(Control):
 	type = "geo"
+
+	def _convertvalue(self, value):
+		error = None
+		if value is not None and not isinstance(value, Geo):
+			error = error_wrong_type(value)
+			value = None
+		return (value, error)
 
 	def _asjson(self, value):
 		if isinstance(value, Geo):
