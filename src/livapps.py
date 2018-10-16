@@ -212,7 +212,7 @@ class App(Base):
 		raise AttributeError(name) from None
 
 	def insert(self, **kwargs):
-		return self.globals.login._insert(self, **kwargs)
+		return self.globals.handler._insert(self, **kwargs)
 
 	def __call__(self, **kwargs):
 		record = Record(app=self)
@@ -858,16 +858,16 @@ class Record(Base):
 		return self._fields
 
 	def save(self):
-		self.app.globals.login._save(self)
+		self.app.globals.handler._save(self)
 
 	def update(self, **kwargs):
-		self.app.globals.login._update(self, **kwargs)
+		self.app.globals.handler._update(self, **kwargs)
 
 	def delete(self):
-		self.app.globals.login._delete(self)
+		self.app.globals.handler._delete(self)
 
 	def executeaction(self, actionidentifier):
-		self.app.globals.login._executeaction(self, actionidentifier)
+		self.app.globals.handler._executeaction(self, actionidentifier)
 
 	@property
 	def has_errors(self):
@@ -1119,7 +1119,62 @@ class AppParameter(Base):
 		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} at {id(self):#x}>"
 
 
-class Login:
+###
+### Handler classes
+###
+
+class Handler:
+	"""
+	A :class:`Handler` object is responsible for handling communication with
+	the LivingApps backend system.
+
+	This can either be direct communication via a database interface
+	(not implemented) yet or communication via an HTTP interface
+	(see :class:`HTTPHandler`).
+	"""
+	def file(self, file):
+		pass
+
+	def get(self, appid, template=None, **params):
+		pass
+
+	def _save(self, record):
+		pass
+
+	def _insert(self, app, **kwargs):
+		record = Record(
+			id=None,
+			app=app,
+			createdat=datetime.datetime.now(),
+			createdby=app.globals.user,
+			updatedat=None,
+			updatedby=None,
+			updatecount=0
+		)
+
+		for (identifier, value) in kwargs.items():
+			if identifier not in app.controls:
+				raise TypeError(f"insert() got an unexpected keyword argument {identifier!r}")
+			record.fields[identifier].value = value
+		self._save(record)
+		return record
+
+	def _update(self, record, **kwargs):
+		app = record.app
+		for (identifier, value) in kwargs.items():
+			if identifier not in app.controls:
+				raise TypeError(f"update() got an unexpected keyword argument {identifier!r}")
+			record.fields[identifier].value = value
+		self._save(record)
+
+	def _delete(self, record):
+		pass
+
+	def _executeaction(self, record, actionidentifier):
+		pass
+
+
+class HTTPHandler(Handler):
 	def __init__(self, url, username=None, password=None):
 		if not url.endswith("/"):
 			url += "/"
@@ -1184,7 +1239,7 @@ class Login:
 			raise_403(r)
 		dump = ul4on.loads(r.content.decode("utf-8"))
 		dump = attrdict(dump)
-		dump.globals.login = self
+		dump.globals.handler = self
 		dump.datasources = attrdict(dump.datasources)
 		return dump
 
@@ -1222,32 +1277,6 @@ class Login:
 			record.updatecount += 1
 		for field in record.fields.values():
 			field.is_dirty = False
-
-	def _insert(self, app, **kwargs):
-		record = Record(
-			id=None,
-			app=app,
-			createdat=datetime.datetime.now(),
-			createdby=app.globals.user,
-			updatedat=None,
-			updatedby=None,
-			updatecount=0
-		)
-
-		for (identifier, value) in kwargs.items():
-			if identifier not in app.controls:
-				raise TypeError(f"insert() got an unexpected keyword argument {identifier!r}")
-			record.fields[identifier].value = value
-		self._save(record)
-		return record
-
-	def _update(self, record, **kwargs):
-		app = record.app
-		for (identifier, value) in kwargs.items():
-			if identifier not in app.controls:
-				raise TypeError(f"update() got an unexpected keyword argument {identifier!r}")
-			record.fields[identifier].value = value
-		self._save(record)
 
 	def _delete(self, record):
 		kwargs = {}
