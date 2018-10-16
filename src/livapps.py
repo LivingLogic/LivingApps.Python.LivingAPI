@@ -1112,7 +1112,7 @@ class Login:
 			self.url.rstrip("/") + file.url,
 			**kwargs,
 		)
-		return r
+		return r.content
 
 	def get(self, appid, template=None, **params):
 		kwargs = {
