@@ -877,7 +877,7 @@ class Login:
 		)
 		r.raise_for_status()
 		# Workaround: If we're not logged in, but request a protected template,
-		# we get redirected to the login page instead
+		# we get redirected to the login page
 		# -> raise a 403 error instead
 		if self.auth_token is None and r.history:
 			raise_403(r)
