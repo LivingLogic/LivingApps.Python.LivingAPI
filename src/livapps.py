@@ -953,10 +953,9 @@ class Field:
 		return s
 
 
-@register("attachment")
-class Attachment:
+class Attachment(Base):
 	ul4attrs = {"id", "type", "record", "label", "active"}
-	ul4onattrs = ["id", "type", "record", "label", "active"]
+	ul4onattrs = ["id", "record", "label", "active"]
 
 	def __init__(self, id=None, record=None, label=None, active=None):
 		self.id = id
@@ -966,6 +965,55 @@ class Attachment:
 
 	def __repr__(self):
 		return f"<{self.__class__.__qualname__} id={self.id!r} at {id(self):#x}>"
+
+
+@register("imageattachment")
+class ImageAttachment(Attachment):
+	ul4attrs = Attachment.ul4attrs.union({"original", "thumb", "small", "medium", "large"})
+	ul4onattrs = Attachment.ul4onattrs + ["original", "thumb", "small", "medium", "large"]
+	type = "imageattachment"
+
+	def __init__(self, id=None, record=None, label=None, active=None, original=None, thumb=None, small=None, medium=None, large=None):
+		super().__init__(id=id, record=record, label=label, active=active)
+		self.original = original
+		self.thumb = thumb
+		self.small = small
+		self.medium = medium
+		self.large = large
+
+
+class SimpleAttachment(Attachment):
+	ul4attrs = Attachment.ul4attrs.union({"value"})
+	ul4onattrs = Attachment.ul4onattrs + ["value"]
+
+	def __init__(self, id=None, record=None, label=None, active=None, value=None):
+		super().__init__(id=id, record=record, label=label, active=active)
+		self.value = value
+
+
+@register("fileattachment")
+class FileAttachment(SimpleAttachment):
+	type = "fileattachment"
+
+
+@register("urlattachment")
+class URLAttachment(SimpleAttachment):
+	type = "urlattachment"
+
+
+@register("noteattachment")
+class NoteAttachment(SimpleAttachment):
+	type = "noteattachment"
+
+
+@register("jsonattachment")
+class JSONAttachment(SimpleAttachment):
+	type = "jsonattachment"
+
+	def ul4onload_setattr(self, name, value):
+		if name == "value":
+			value = json.parse(value)
+		super().ul4onload_setattr(name, value)
 
 
 @register("file")
