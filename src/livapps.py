@@ -881,7 +881,7 @@ class Login:
 		# -> raise a 403 error instead
 		if self.auth_token is None and r.history:
 			raise_403(r)
-		dump = ul4on.loads(r.text)
+		dump = ul4on.loads(r.content.decode("utf-8"))
 		dump = attrdict(dump)
 		dump.globals.login = self
 		dump.datasources = attrdict(dump.datasources)
