@@ -1277,6 +1277,8 @@ class HTTPHandler(Handler):
 			record.updatecount += 1
 		for field in record.fields.values():
 			field.is_dirty = False
+			field.errors = []
+		record.errors = []
 
 	def _delete(self, record):
 		kwargs = {}
