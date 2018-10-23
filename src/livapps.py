@@ -651,7 +651,7 @@ class MultipleLookupControl(LookupControl):
 	def _convertvalue(self, value):
 		error = None
 		if value is None:
-			pass
+			value = []
 		elif isinstance(value, (str, LookupItem)):
 			(value, error) = super()._convertvalue(value)
 			if error:
@@ -699,7 +699,7 @@ class MultipleAppLookupControl(AppLookupControl):
 	def _convertvalue(self, value):
 		error = None
 		if value is None:
-			pass
+			value = []
 		elif isinstance(value, (str, Record)):
 			(value, error) = super()._convertvalue(value)
 			if error:
@@ -866,7 +866,11 @@ class Record(Base):
 	@property
 	def values(self):
 		if self._values is None:
-			self._values = attrdict((identifier, self._sparsevalues.get(identifier)) for identifier in self.app.controls)
+			self._values = attrdict()
+			for control in self.app.controls.values():
+				value = self._sparsevalues.get(control.identifier)
+				(value, _) = control._convertvalue(value)
+				self._values[control.identifier] = value
 			self._sparsevalues = None
 		return self._values
 
