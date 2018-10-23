@@ -1186,7 +1186,11 @@ class DBHandler(Handler):
 			raise ImportError("cx_Oracle required")
 		self.db = orasql.connect(connectstring)
 		self.uploaddirectory = url.URL(uploaddirectory)
-		self.dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
+		self.proc_data_insert = orasql.Procedure("LIVINGAPI_PKG.DATA_INSERT")
+		self.proc_data_update = orasql.Procedure("LIVINGAPI_PKG.DATA_UPDATE")
+		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
+		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
+		self.custom_procs = {}
 
 		if userid is None:
 			self.ide_id = None
@@ -1235,17 +1239,75 @@ class DBHandler(Handler):
 		dump = self._decoratedump(dump)
 		return dump
 
+	def _save(self, record):
+		app = record.app
+		real = app.basetable in {"data_select", "data"}
+		if real:
+			proc = self.proc_data_insert if record.id is None else self.proc_data_update
+			pk = "dat_id"
+		else:
+			proc = self._getproc(app.insertprocedure if record.id is None else app.updateprocedure)
+			pk = app.primarykey
+
+		args = {
+			"c_user": self.ide_id,
+		}
+		if real and record.id is None:
+			args["p_tpl_uuid"] = app.id
+		if record.id is not None:
+			args[f"p_{pk}"] = record.id
+		for field in record.fields.values():
+			print(field)
+			if record.id is None or field._dirty:
+				args[f"p_{field.control.field}"] = field.value
+				if record.id is not None:
+					args[f"p_{field.control.field}_changed"] = 1
+		print(args)
+		c = self.db.cursor()
+		r = proc(c, **args)
+
+		if r.p_errormessage:
+			raise ValueError(r.p_errormessage)
+
+	def _delete(self, record):
+
+		app = record.app
+		if app.basetable in {"data_select", "data"}:
+			proc = self.proc_data_delete
+		else:
+			proc = self._getproc(app.deleteprocedure)
+
+		c = self.db.cursor()
+		r = proc(
+			c,
+			c_user=self.ide_id,
+			p_dat_id=record.id,
+		)
+
+		if r.p_errormessage:
+			raise ValueError(r.p_errormessage)
+
 	def _executeaction(self, record, actionidentifier):
 		c = self.db.cursor()
-
-		r = self.dataaction_execute(
+		r = self.proc_dataaction_execute(
 			c,
 			c_user=self.ide_id,
 			p_dat_id=record.id,
 			p_da_identifier=actionidentifier,
 		)
+
 		if r.p_errormessage:
 			raise ValueError(r.p_errormessage)
+
+	def _getproc(self, procname):
+		try:
+			return self.custom_procs[procname]
+		except KeyError:
+			proc = self.db.getobject(procname)
+			if not isinstance(proc, orasql.Procedure):
+				raise ValueError(f"no procedure {procname}")
+			self.custom_procs[procname] = proc
+			return proc
 
 
 class HTTPHandler(Handler):
