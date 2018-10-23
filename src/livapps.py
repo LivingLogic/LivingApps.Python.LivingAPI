@@ -729,7 +729,7 @@ class MultipleAppLookupControl(AppLookupControl):
 				raise ValueError(f"Referenced record {item!r} hasn't been saved yet!")
 			elif item.is_deleted:
 				raise ValueError(f"Referenced record {item!r} has been deleted!")
-			newvalue.append(item)
+			newvalue.append(item.id)
 		return newvalue
 
 
