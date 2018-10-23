@@ -10,8 +10,12 @@ import sys, datetime, json, collections, ast, enum
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
-from ll import misc, ul4on # This requires :mod:`ll-xist`, which you can install with ``pip install ll-xist``
+from ll import misc, url, ul4on # This requires :mod:`ll-xist`, which you can install with ``pip install ll-xist``
 
+try:
+	from ll import orasql
+except ImportError:
+	orasql = None
 
 __docformat__ = "reStructuredText"
 
@@ -212,6 +216,23 @@ class App(Base):
 		raise AttributeError(name) from None
 
 	def insert(self, **kwargs):
+		record = Record(
+			id=None,
+			app=self,
+			createdat=datetime.datetime.now(),
+			createdby=self.globals.user,
+			updatedat=None,
+			updatedby=None,
+			updatecount=0
+		)
+
+		for (identifier, value) in kwargs.items():
+			if identifier not in self.controls:
+				raise TypeError(f"insert() got an unexpected keyword argument {identifier!r}")
+			record.fields[identifier].value = value
+		record.save()
+		return record
+
 		return self.globals.handler._insert(self, **kwargs)
 
 	def __call__(self, **kwargs):
@@ -861,7 +882,11 @@ class Record(Base):
 		self.app.globals.handler._save(self)
 
 	def update(self, **kwargs):
-		self.app.globals.handler._update(self, **kwargs)
+		for (identifier, value) in kwargs.items():
+			if identifier not in self.app.controls:
+				raise TypeError(f"update() got an unexpected keyword argument {identifier!r}")
+			self.fields[identifier].value = value
+		self.save()
 
 	def delete(self):
 		self.app.globals.handler._delete(self)
@@ -1129,43 +1154,19 @@ class Handler:
 	the LivingApps backend system.
 
 	This can either be direct communication via a database interface
-	(not implemented) yet or communication via an HTTP interface
+	(see :class:`DBHandler`) or communication via an HTTP interface
 	(see :class:`HTTPHandler`).
 	"""
 	def file(self, file):
-		pass
+		"""
+		Return the content of the :class:`File` object ``file``.
+		"""
 
 	def get(self, appid, template=None, **params):
 		pass
 
 	def _save(self, record):
 		pass
-
-	def _insert(self, app, **kwargs):
-		record = Record(
-			id=None,
-			app=app,
-			createdat=datetime.datetime.now(),
-			createdby=app.globals.user,
-			updatedat=None,
-			updatedby=None,
-			updatecount=0
-		)
-
-		for (identifier, value) in kwargs.items():
-			if identifier not in app.controls:
-				raise TypeError(f"insert() got an unexpected keyword argument {identifier!r}")
-			record.fields[identifier].value = value
-		self._save(record)
-		return record
-
-	def _update(self, record, **kwargs):
-		app = record.app
-		for (identifier, value) in kwargs.items():
-			if identifier not in app.controls:
-				raise TypeError(f"update() got an unexpected keyword argument {identifier!r}")
-			record.fields[identifier].value = value
-		self._save(record)
 
 	def _delete(self, record):
 		pass
@@ -1178,6 +1179,74 @@ class Handler:
 		dump.globals.handler = self
 		dump.datasources = attrdict(dump.datasources)
 		return dump
+
+
+class DBHandler(Handler):
+	def __init__(self, connectstring, uploaddirectory, userid):
+		if orasql is None:
+			raise ImportError("cx_Oracle required")
+		self.db = orasql.connect(connectstring)
+		self.uploaddirectory = url.URL(uploaddirectory)
+		self.dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
+
+		if userid is None:
+			self.ide_id = None
+		else:
+			c = self.db.cursor()
+			c.execute("select ide_id from identity where ide_publicid = :userid", userid=userid)
+			r = c.fetchone()
+			if r is None:
+				raise ValueError(f"no user {self.userid!r}")
+			self.ide_id = r[0]
+
+	def commit(self):
+		self.db.commit()
+
+	def file(self, file):
+		upr_id = file.url.rsplit("/")[-1]
+		c = self.db.cursor()
+		c.execute("select u.upl_name from upload u, uploadref ur where u.upl_id=ur.upl_id and ur.upr_id = :upr_id", upr_id=upr_id)
+		r = c.fetchone()
+		if r is None:
+			raise ValueError(f"no such file {file.url!r}")
+		with url.Context():
+			u = self.uploaddirectory/r.upl_name
+			return u.openread().read()
+
+	def get(self, appid, template=None, **params):
+		c = self.db.cursor()
+
+		c.execute("select tpl_id from template where tpl_uuid = :appid", appid=appid)
+		r = c.fetchone()
+		if r is None:
+			raise ValueError(f"no template {appid!r}")
+		tpl_id = r.tpl_id
+		if template is None:
+			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_defaultlist != 0", tpl_id=tpl_id)
+		else:
+			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = : identifier", tpl_id=tpl_id, identifier=template)
+		r = c.fetchone()
+		if r is None:
+			raise ValueError("no such template")
+		vt_id = r.vt_id
+		c.execute("select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, null, null) from dual", ide_id=self.ide_id, vt_id=vt_id)
+		r = c.fetchone()
+		dump = r[0].read().decode("utf-8")
+		dump = ul4on.loads(dump)
+		dump = self._decoratedump(dump)
+		return dump
+
+	def _executeaction(self, record, actionidentifier):
+		c = self.db.cursor()
+
+		r = self.dataaction_execute(
+			c,
+			c_user=self.ide_id,
+			p_dat_id=record.id,
+			p_da_identifier=actionidentifier,
+		)
+		if r.p_errormessage:
+			raise ValueError(r.p_errormessage)
 
 
 class HTTPHandler(Handler):
