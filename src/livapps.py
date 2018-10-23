@@ -242,7 +242,7 @@ class App(Base):
 				raise TypeError(f"app_{self.id}() got an unexpected keyword argument {identifier!r}")
 			field = record.fields[identifier]
 			field.value = value
-			field.is_dirty = False # The record is dirty anyway
+			field._dirty = False # The record is dirty anyway
 		return record
 
 	def ul4onload_setattr(self, name, value):
@@ -860,9 +860,8 @@ class Record(Base):
 		"""
 		return set(super().__dir__()) | {f"f_{identifier}" for identifier in self.app.controls} | {f"v_{identifier}" for identifier in self.app.controls} | {f"c_{identifier}" for identifier in self.children}
 
-	@property
 	def is_dirty(self):
-		return self.id is None or any(field.is_dirty for field in self.fields.values())
+		return self.id is None or any(field._dirty for field in self.fields.values())
 
 	@property
 	def values(self):
@@ -894,7 +893,6 @@ class Record(Base):
 	def executeaction(self, actionidentifier):
 		self.app.globals.handler._executeaction(self, actionidentifier)
 
-	@property
 	def has_errors(self):
 		return bool(self.errors) or any(field.has_errors for field in self.fields.values())
 
@@ -935,7 +933,7 @@ class Field:
 		self.control = control
 		self.record = record
 		self._value = value
-		self.is_dirty = False
+		self._dirty = False
 		self.errors = []
 		self.enabled = True
 		self.writable = True
@@ -951,29 +949,30 @@ class Field:
 		(value, error) = self.control._convertvalue(value)
 		if error:
 			self._value = self.record.values[self.control.identifier] = value
-			self.is_dirty = True
+			self._dirty = True
 			if not isinstance(error, list):
 				error = [error]
 			self.errors = error
 		else:
 			if value != oldvalue:
 				self._value = self.record.values[self.control.identifier] = value
-				self.is_dirty = True
+				self._dirty = True
 
-	@property
 	def is_empty(self):
 		return self.value is None or (isinstance(self.value, list) and not value)
 
-	@property
+	def is_dirty(self):
+		return self._dirty
+
 	def has_errors(self):
 		return bool(self.errors)
 
 	def __repr__(self):
 		s = f"<{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self.value!r}"
-		if self.is_dirty:
-			s += " is_dirty=True"
+		if self._dirty:
+			s += " is_dirty()=True"
 		if self.errors:
-			s += " has_errors=True"
+			s += " has_errors()=True"
 		s += f" at {id(self):#x}>"
 		return s
 
