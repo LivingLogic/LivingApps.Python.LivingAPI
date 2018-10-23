@@ -1261,12 +1261,10 @@ class DBHandler(Handler):
 		if record.id is not None:
 			args[f"p_{pk}"] = record.id
 		for field in record.fields.values():
-			print(field)
 			if record.id is None or field._dirty:
 				args[f"p_{field.control.field}"] = field.value
 				if record.id is not None:
 					args[f"p_{field.control.field}_changed"] = 1
-		print(args)
 		c = self.db.cursor()
 		r = proc(c, **args)
 
