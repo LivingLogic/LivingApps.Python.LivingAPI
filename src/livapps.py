@@ -1173,6 +1173,12 @@ class Handler:
 	def _executeaction(self, record, actionidentifier):
 		pass
 
+	def _decoratedump(self, dump):
+		dump = attrdict(dump)
+		dump.globals.handler = self
+		dump.datasources = attrdict(dump.datasources)
+		return dump
+
 
 class HTTPHandler(Handler):
 	def __init__(self, url, username=None, password=None):
@@ -1238,9 +1244,7 @@ class HTTPHandler(Handler):
 		if self.auth_token is None and r.history:
 			raise_403(r)
 		dump = ul4on.loads(r.content.decode("utf-8"))
-		dump = attrdict(dump)
-		dump.globals.handler = self
-		dump.datasources = attrdict(dump.datasources)
+		dump = self._decoratedump(dump)
 		return dump
 
 	def _save(self, record):
