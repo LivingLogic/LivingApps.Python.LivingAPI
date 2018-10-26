@@ -6,7 +6,7 @@
 ##
 ## All Rights Reserved
 
-import sys, datetime, json, collections, ast, enum
+import sys, os, os.path, datetime, json, collections, ast, enum, pathlib, mimetypes
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -147,25 +147,10 @@ class Globals(Base):
 		self.maxdbactions = None
 		self.maxtemplateruntime = None
 		self.flashes = []
-		self.login = None # The login from which we've got the data (required for insert/update/delete/executeaction methods)
+		self.handler = None # The handler from which we've got the data (required for insert/update/delete/executeaction methods)
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} version={self.version!r} platform={self.platform!r} at {id(self):#x}>"
-
-	def geo(self, lat=None, long=None, info=None):
-		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
-		# Get coordinates from description (passed via keyword ``info``)
-		if info is not None and lat is None and long is None:
-			result = geocoder.google(info, language="de")
-		# Get coordinates from description (passed positionally as ``lat``)
-		elif lat is not None and long is None and info is None:
-			result = geocoder.google(lat, language="de")
-		# Get description from coordinates
-		elif lat is not None and long is not None and info is None:
-			result = geocoder.google([lat, long], method="reverse", language="de")
-		else:
-			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
-		return Geo(result.lat, result.lng, result.address)
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} version={self.version!r} platform={self.platform!r} at {id(self):#x}>"
 
 	def ul4onload_setdefaultattr(self, name):
 		if name == "flashes":
@@ -205,7 +190,7 @@ class App(Base):
 		self.deleteprocedure = None
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} name={self.name!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} name={self.name!r} at {id(self):#x}>"
 
 	def __getattr__(self, name):
 		try:
@@ -265,7 +250,7 @@ class Installation(Base):
 		self.name = name
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} name={self.name!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} name={self.name!r} at {id(self):#x}>"
 
 
 @register("view")
@@ -284,7 +269,7 @@ class View(Base):
 		self.end = end
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} name={self.name!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} name={self.name!r} at {id(self):#x}>"
 
 
 @register("datasource")
@@ -299,7 +284,7 @@ class DataSource(Base):
 		self.apps = apps
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} at {id(self):#x}>"
 
 	def ul4onload_setdefaultattr(self, name):
 		value = {} if name == "apps" else None
@@ -316,7 +301,7 @@ class LookupItem(Base):
 		self.label = label
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} key={self.key!r} label={self.label!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} key={self.key!r} label={self.label!r} at {id(self):#x}>"
 
 
 class Control(Base):
@@ -336,12 +321,15 @@ class Control(Base):
 		self.default = default
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} at {id(self):#x}>"
 
 	def _convertvalue(self, value):
 		return (value, None)
 
 	def _asjson(self, value):
+		return value
+
+	def _asdbarg(self, value):
 		return value
 
 
@@ -515,6 +503,11 @@ class BoolControl(Control):
 			value = None
 		return (value, error)
 
+	def _asdbarg(self, value):
+		if value is not None:
+			value = int(value)
+		return value
+
 
 class LookupControl(Control):
 	type = "lookup"
@@ -549,6 +542,9 @@ class LookupControl(Control):
 		if isinstance(value, LookupItem):
 			value = value.key
 		return value
+
+	def _asdbarg(self, value):
+		return self._asjson(value)
 
 	def ul4onload_setattr(self, name, value):
 		if name == "lookupdata":
@@ -617,6 +613,9 @@ class AppLookupControl(Control):
 			value = value.id
 		return value
 
+	def _asdbarg(self, value):
+		return self._asjson(value)
+
 	def ul4onload_setattr(self, name, value):
 		if name == "lookupcontrols":
 			self.lookupcontrols = makeattrs(value)
@@ -677,6 +676,9 @@ class MultipleLookupControl(LookupControl):
 	def _asjson(self, value):
 		return [item.key for item in value]
 
+	def _asdbarg(self, value):
+		return self._asjson(value)
+
 
 @register("multiplelookupselectcontrol")
 class MultipleLookupSelectControl(MultipleLookupControl):
@@ -732,6 +734,11 @@ class MultipleAppLookupControl(AppLookupControl):
 			newvalue.append(item.id)
 		return newvalue
 
+	def _asdbarg(self, value):
+		value = self._asjson(value)
+		print(value)
+		return self.app.globals.handler.varchars(value)
+
 
 @register("multipleapplookupselectcontrol")
 class MultipleAppLookupSelectControl(MultipleAppLookupControl):
@@ -764,6 +771,13 @@ class FileControl(Control):
 			raise NotImplementedError
 		return value
 
+	def _asdbarg(self, value):
+		if value is not None:
+			if value.internalid is None:
+				raise ValueError(f"Referenced File {value!r} hasn't been saved yet!")
+			value = value.internalid
+		return value
+
 
 @register("geocontrol")
 class GeoControl(Control):
@@ -777,9 +791,12 @@ class GeoControl(Control):
 		return (value, error)
 
 	def _asjson(self, value):
-		if isinstance(value, Geo):
+		if value is not None:
 			value = f"{value.lat!r}, {value.long!r}, {value.info}"
 		return value
+
+	def _asdbarg(self, value):
+		return self._asjson(value)
 
 
 @register("record")
@@ -805,7 +822,7 @@ class Record(Base):
 
 	def __repr__(self):
 		attrs = " ".join(f"v_{identifier}={value!r}" for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
-		return f"<{self.__class__.__qualname__} id={self.id!r} {attrs} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} {attrs} at {id(self):#x}>"
 
 	def _repr_pretty_(self, p, cycle):
 		prefix = f"<{self.__class__.__module__}.{self.__class__.__qualname__}"
@@ -972,7 +989,7 @@ class Field:
 		return bool(self.errors)
 
 	def __repr__(self):
-		s = f"<{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self.value!r}"
+		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self.value!r}"
 		if self._dirty:
 			s += " is_dirty()=True"
 		if self.errors:
@@ -992,7 +1009,7 @@ class Attachment(Base):
 		self.active = active
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} at {id(self):#x}>"
 
 
 @register("imageattachment")
@@ -1047,18 +1064,37 @@ class JSONAttachment(SimpleAttachment):
 @register("file")
 class File(Base):
 	ul4attrs = {"id", "url", "filename", "mimetype", "width", "height"}
-	ul4onattrs = ["id", "url", "filename", "mimetype", "width", "height"]
+	ul4onattrs = ["id", "url", "filename", "mimetype", "width", "height", "internalid"]
 
-	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None):
+	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None, internalid=None):
 		self.id = id
 		self.url = url
 		self.filename = filename
 		self.mimetype = mimetype
 		self.width = width
 		self.height = height
+		self.internalid = internalid
+		self.handler = None
+		self._content = None
+
+	def save(self):
+		if self.internalid is None:
+			if self.handler is None:
+				raise ValueError(f"Can't save file {self!r}")
+			self.handler._savefile(self)
+
+	def content(self):
+		"""
+		Return the file content as a :class:`bytes` object.
+		"""
+		if self._content is not None:
+			return self._content
+		elif self.handler is None:
+			raise ValueError(f"Can't load content of {self!r}")
+		return self.handler._filecontent(self)
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} url={self.url!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} filename={self.filename!r} mimetype={self.mimetype!r} at {id(self):#x}>"
 
 
 @register("geo")
@@ -1072,7 +1108,7 @@ class Geo(Base):
 		self.info = info
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} lat={self.lat!r} long={self.long!r} info={self.info!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} lat={self.lat!r} long={self.long!r} info={self.info!r} at {id(self):#x}>"
 
 
 @register("user")
@@ -1094,7 +1130,7 @@ class User(Base):
 		self.keyviews = keyviews
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} firstname={self.firstname!r} surname={self.surname!r} email={self.email!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} firstname={self.firstname!r} surname={self.surname!r} email={self.email!r} at {id(self):#x}>"
 
 
 @register("category")
@@ -1112,7 +1148,7 @@ class Category(Base):
 		self.apps = apps
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} name={self.name!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} name={self.name!r} at {id(self):#x}>"
 
 
 @register("keyview")
@@ -1128,7 +1164,7 @@ class KeyView(Base):
 		self.user = user
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} name={self.name!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} name={self.name!r} at {id(self):#x}>"
 
 
 @register("appparameter")
@@ -1144,7 +1180,7 @@ class AppParameter(Base):
 		self.value = value
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} identifier={self.identifier!r} at {id(self):#x}>"
 
 
 ###
@@ -1160,24 +1196,91 @@ class Handler:
 	(see :class:`DBHandler`) or communication via an HTTP interface
 	(see :class:`HTTPHandler`).
 	"""
-	def file(self, file):
-		"""
-		Return the content of the :class:`File` object ``file``.
-		"""
+	def __init__(self):
+		self.globals = None
 
 	def get(self, appid, template=None, **params):
 		pass
 
+	def file(self, source):
+		path = None
+		stream = None
+		if isinstance(source, pathlib.Path):
+			content = source.read_bytes()
+			filename = source.name
+			path = source.resolve()
+		if isinstance(source, str):
+			with open(source, "rb") as f:
+				content = f.read()
+			filename = os.path.basename(source)
+			path = source
+		elif isinstance(source, os.PathLike):
+			path = source.__fspath__()
+			with open(path, "rb") as f:
+				content = f.read()
+			filename = os.path.basename(path)
+		else:
+			content = source.read()
+			if source.name:
+				filename = os.path.basename(source.name)
+			else:
+				filename = "Dummy"
+			stream = source
+		file = File(
+			filename=filename,
+			mimetype=mimetypes.guess_type(filename, strict=False)[0],
+		)
+		if file.mimetype.startswith("image/"):
+			from PIL import Image # This requires :mod:`Pillow`, which you can install with ``pip install pillow``
+			if stream:
+				stream.seek(0)
+			with Image.open(path or stream) as img:
+				file.width = img.size[0]
+				file.height = img.size[1]
+		file._content = content
+		file.handler = self
+		return file
+
+	def geo(self, lat=None, long=None, info=None):
+		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
+		# Get coordinates from description (passed via keyword ``info``)
+		if info is not None and lat is None and long is None:
+			result = geocoder.google(info, language="de")
+		# Get coordinates from description (passed positionally as ``lat``)
+		elif lat is not None and long is None and info is None:
+			result = geocoder.google(lat, language="de")
+		# Get description from coordinates
+		elif lat is not None and long is not None and info is None:
+			result = geocoder.google([lat, long], method="reverse", language="de")
+		else:
+			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
+		return Geo(result.lat, result.lng, result.address)
+
 	def _save(self, record):
-		pass
+		raise NotImplementedError
 
 	def _delete(self, record):
-		pass
+		raise NotImplementedError
 
 	def _executeaction(self, record, actionidentifier):
-		pass
+		raise NotImplementedError
 
-	def _decoratedump(self, dump):
+	def _filecontent(self, file):
+		raise NotImplementedError
+
+	def _savefile(self, file):
+		raise NotImplementedError
+
+	def _loadfile(self):
+		file = File()
+		file.handler = self
+		return file
+
+	def _loaddump(self, dump):
+		registry = {
+			"de.livingapps.appdd.file": self._loadfile,
+		}
+		dump = ul4on.loads(dump, registry)
 		dump = attrdict(dump)
 		dump.globals.handler = self
 		dump.datasources = attrdict(dump.datasources)
@@ -1186,14 +1289,20 @@ class Handler:
 
 class DBHandler(Handler):
 	def __init__(self, connectstring, uploaddirectory, userid):
+		super().__init__()
 		if orasql is None:
 			raise ImportError("cx_Oracle required")
 		self.db = orasql.connect(connectstring)
 		self.uploaddirectory = url.URL(uploaddirectory)
+		self.varchars = self.db.gettype("LL.VARCHARS")
+		self.urlcontext = None
+
+		# Procedures
 		self.proc_data_insert = orasql.Procedure("LIVINGAPI_PKG.DATA_INSERT")
 		self.proc_data_update = orasql.Procedure("LIVINGAPI_PKG.DATA_UPDATE")
 		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
+		self.proc_upload_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_INSERT")
 		self.custom_procs = {}
 
 		if userid is None:
@@ -1206,10 +1315,33 @@ class DBHandler(Handler):
 				raise ValueError(f"no user {self.userid!r}")
 			self.ide_id = r[0]
 
+	def __repr__(self):
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} at {id(self):#x}>"
+
 	def commit(self):
 		self.db.commit()
 
-	def file(self, file):
+	def _savefile(self, file):
+		if file.internalid is None:
+			if file._content is None:
+				raise ValueError(f"Can't save {file!r} without content!")
+			c = self.db.cursor()
+			r = self.proc_upload_insert(
+				c,
+				c_user=self.ide_id,
+				p_upl_orgname=file.filename,
+				p_upl_size=len(file._content),
+				p_upl_mimetype=file.mimetype,
+				p_upl_width=file.width,
+				p_upl_height=file.height,
+			)
+			if self.urlcontext is None:
+				self.urlcontext = url.Context()
+			with (self.uploaddirectory/r.p_upl_name).open("wb", context=self.urlcontext) as f:
+				f.write(file._content)
+			file.internalid = r.p_upl_id
+
+	def _filecontent(self, file):
 		upr_id = file.url.rsplit("/")[-1]
 		c = self.db.cursor()
 		c.execute("select u.upl_name from upload u, uploadref ur where u.upl_id=ur.upl_id and ur.upr_id = :upr_id", upr_id=upr_id)
@@ -1239,8 +1371,7 @@ class DBHandler(Handler):
 		c.execute("select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, null, null) from dual", ide_id=self.ide_id, vt_id=vt_id)
 		r = c.fetchone()
 		dump = r[0].read().decode("utf-8")
-		dump = ul4on.loads(dump)
-		dump = self._decoratedump(dump)
+		dump = self._loaddump(dump)
 		return dump
 
 	def _save(self, record):
@@ -1262,7 +1393,7 @@ class DBHandler(Handler):
 			args[f"p_{pk}"] = record.id
 		for field in record.fields.values():
 			if record.id is None or field._dirty:
-				args[f"p_{field.control.field}"] = field.value
+				args[f"p_{field.control.field}"] = field.control._asdbarg(field.value)
 				if record.id is not None:
 					args[f"p_{field.control.field}_changed"] = 1
 		c = self.db.cursor()
@@ -1314,6 +1445,7 @@ class DBHandler(Handler):
 
 class HTTPHandler(Handler):
 	def __init__(self, url, username=None, password=None):
+		super().__init__()
 		if not url.endswith("/"):
 			url += "/"
 		self.url = url
@@ -1328,7 +1460,7 @@ class HTTPHandler(Handler):
 		if username is not None and password is not None:
 			# Login to the LivingApps installation and store the auth token we get
 			r = self.session.post(
-				self.url + "gateway/login",
+				f"{self.url}gateway/login",
 				data=json.dumps({"username": username, "password": password}),
 			)
 			result = r.json()
@@ -1338,7 +1470,7 @@ class HTTPHandler(Handler):
 				raise_403(r)
 
 	def __repr__(self):
-		return f"<{self.__class__.__qualname__} url={self.url!r} username={self.username!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} url={self.url!r} username={self.username!r} at {id(self):#x}>"
 
 	def _add_auth_token(self, kwargs):
 		if self.auth_token:
@@ -1346,7 +1478,7 @@ class HTTPHandler(Handler):
 				kwargs["headers"] = {}
 			kwargs["headers"]["X-La-Auth-Token"] = self.auth_token
 
-	def file(self, file):
+	def _filecontent(self, file):
 		kwargs = {}
 		self._add_auth_token(kwargs)
 		r = self.session.get(
@@ -1375,8 +1507,8 @@ class HTTPHandler(Handler):
 		# -> raise a 403 error instead
 		if self.auth_token is None and r.history:
 			raise_403(r)
-		dump = ul4on.loads(r.content.decode("utf-8"))
-		dump = self._decoratedump(dump)
+		dump = r.content.decode("utf-8")
+		dump = self._loaddump(dump)
 		return dump
 
 	def _save(self, record):
