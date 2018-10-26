@@ -96,6 +96,56 @@ def error_applookuprecord_foreign(value):
 
 
 ###
+### Exceptions
+###
+
+class UnsavedError(Exception):
+	"""
+	Exception that is thrown when an object is saved and this object references
+	another object that hasn't been saved yet.
+	"""
+
+
+class UnsavedRecordError(UnsavedError):
+	"""
+	Subclass of :class:`UnsafedError` that is used for unsaved :class:`Record`
+	objects.
+	"""
+
+	def __init__(self, record):
+		self.record = record
+
+	def __str__(self):
+		return f"Referenced record {self.record!r} hasn't been saved yet!"
+
+
+class UnsavedFileError(UnsavedError):
+	"""
+	Subclass of :class:`UnsafedError` that is used for unsaved :class:`File`
+	objects.
+	"""
+
+	def __init__(self, file):
+		self.file = file
+
+	def __str__(self):
+		return f"Referenced file {self.file!r} hasn't been saved yet!"
+
+
+class DeletedRecordError(Exception):
+	"""
+	Exception that is thrown when a record is saved and this object references
+	another record which has been deleted previously.
+	"""
+
+	def __init__(self, record):
+		self.record = record
+
+	def __str__(self):
+		return f"Referenced record {self.record!r} has been deleted!"
+
+
+###
 ### Core classes
 ###
 
@@ -607,9 +657,9 @@ class AppLookupControl(Control):
 	def _asjson(self, value):
 		if value is not None:
 			if value.id is None:
-				raise ValueError(f"Referenced record {value!r} hasn't been saved yet!")
+				raise UnsavedRecordError(value)
 			elif value.is_deleted:
-				raise ValueError(f"Referenced record {value!r} has been deleted!")
+				raise DeletedRecordError(value)
 			value = value.id
 		return value
 
@@ -728,9 +778,9 @@ class MultipleAppLookupControl(AppLookupControl):
 		newvalue = []
 		for item in value:
 			if item.id is None:
-				raise ValueError(f"Referenced record {item!r} hasn't been saved yet!")
+				raise UnsavedRecordError(item)
 			elif item.is_deleted:
-				raise ValueError(f"Referenced record {item!r} has been deleted!")
+				raise DeletedRecordError(item)
 			newvalue.append(item.id)
 		return newvalue
 
@@ -773,7 +823,7 @@ class FileControl(Control):
 	def _asdbarg(self, value):
 		if value is not None:
 			if value.internalid is None:
-				raise ValueError(f"Referenced File {value!r} hasn't been saved yet!")
+				raise UnsavedFileError(value)
 			value = value.internalid
 		return value
 
