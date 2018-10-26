@@ -736,7 +736,6 @@ class MultipleAppLookupControl(AppLookupControl):
 
 	def _asdbarg(self, value):
 		value = self._asjson(value)
-		print(value)
 		return self.app.globals.handler.varchars(value)
 
 
