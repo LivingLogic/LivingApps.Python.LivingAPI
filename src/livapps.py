@@ -1337,7 +1337,7 @@ class Handler:
 
 
 class DBHandler(Handler):
-	def __init__(self, connectstring, uploaddirectory, userid):
+	def __init__(self, connectstring, uploaddirectory, account):
 		super().__init__()
 		if orasql is None:
 			raise ImportError("cx_Oracle required")
@@ -1354,15 +1354,15 @@ class DBHandler(Handler):
 		self.proc_upload_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_INSERT")
 		self.custom_procs = {}
 
-		if userid is None:
+		if account is None:
 			self.ide_id = None
 		else:
 			c = self.db.cursor()
-			c.execute("select ide_id from identity where ide_publicid = :userid", userid=userid)
+			c.execute("select ide_id from identity where ide_account = :account", account=account)
 			r = c.fetchone()
 			if r is None:
-				raise ValueError(f"no user {self.userid!r}")
-			self.ide_id = r[0]
+				raise ValueError(f"no user {self.account!r}")
+			self.ide_id = r.ide_id
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} at {id(self):#x}>"
