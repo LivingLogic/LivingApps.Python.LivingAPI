@@ -1361,7 +1361,7 @@ class DBHandler(Handler):
 			c.execute("select ide_id from identity where ide_account = :account", account=account)
 			r = c.fetchone()
 			if r is None:
-				raise ValueError(f"no user {self.account!r}")
+				raise ValueError(f"no user {account!r}")
 			self.ide_id = r.ide_id
 
 	def __repr__(self):
