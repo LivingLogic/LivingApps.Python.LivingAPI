@@ -1575,7 +1575,7 @@ class HTTPHandler(Handler):
 		return dump
 
 	def _save(self, record):
-		fields = {field.control.identifier : field.control._asjson(field.value) for field in record.fields.values() if record.id is None or field.is_dirty}
+		fields = {field.control.identifier : field.control._asjson(field.value) for field in record.fields.values() if record.id is None or field.is_dirty()}
 		app = record.app
 		recorddata = {"fields": fields}
 		if record.id is not None:
