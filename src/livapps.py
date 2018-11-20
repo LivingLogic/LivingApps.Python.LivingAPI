@@ -1011,7 +1011,7 @@ class Record(Base):
 
 
 class Field:
-	ul4attrs = {"control", "record", "value", "is_dirty", "errors", "has_errors", "enabled", "writable", "visible"}
+	ul4attrs = {"control", "record", "value", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
 
 	def __init__(self, control, record, value):
 		self.control = control
@@ -1050,6 +1050,12 @@ class Field:
 
 	def has_errors(self):
 		return bool(self.errors)
+
+	def add_error(self, error):
+		self.errors.append(error)
+
+	def clear_errors(self):
+		self.errors = []
 
 	def __repr__(self):
 		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self.value!r}"
