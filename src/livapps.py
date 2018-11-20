@@ -6,7 +6,7 @@
 ##
 ## All Rights Reserved
 
-import sys, os, os.path, datetime, json, collections, ast, enum, pathlib, mimetypes
+import sys, os, os.path, io, datetime, json, collections, ast, enum, pathlib, mimetypes
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -29,7 +29,7 @@ def register(name):
 	Shortcut for registering a LivingAPI class with the UL4ON machinery.
 	"""
 	def registration(cls):
-		ul4on.register("de.livingapps.appdd." + name)(cls)
+		ul4on.register("de.livingapps.livingapi." + name)(cls)
 		return cls
 	return registration
 
@@ -201,6 +201,9 @@ class Globals(Base):
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} version={self.version!r} platform={self.platform!r} at {id(self):#x}>"
+
+	def geo(self, lat=None, long=None, info=None):
+		return self.handler.geo(lat, long, info)
 
 	def ul4onload_setdefaultattr(self, name):
 		if name == "flashes":
@@ -658,7 +661,7 @@ class AppLookupControl(Control):
 		if value is not None:
 			if value.id is None:
 				raise UnsavedRecordError(value)
-			elif value.is_deleted:
+			elif value._deleted:
 				raise DeletedRecordError(value)
 			value = value.id
 		return value
@@ -779,7 +782,7 @@ class MultipleAppLookupControl(AppLookupControl):
 		for item in value:
 			if item.id is None:
 				raise UnsavedRecordError(item)
-			elif item.is_deleted:
+			elif item._deleted:
 				raise DeletedRecordError(item)
 			newvalue.append(item.id)
 		return newvalue
@@ -850,7 +853,7 @@ class GeoControl(Control):
 
 @register("record")
 class Record(Base):
-	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments", "errors", "has_errors"}
+	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted"}
 	ul4onattrs = ["id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "values", "attachments", "children"]
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
@@ -867,7 +870,7 @@ class Record(Base):
 		self.children = attrdict()
 		self.attachments = None
 		self.errors = []
-		self.is_deleted = False
+		self._deleted = False
 
 	def __repr__(self):
 		attrs = " ".join(f"v_{identifier}={value!r}" for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
@@ -966,6 +969,17 @@ class Record(Base):
 	def has_errors(self):
 		return bool(self.errors) or any(field.has_errors for field in self.fields.values())
 
+	def add_error(self, error):
+		self.errors.append(error)
+
+	def clear_errors(self):
+		for field in self.fields.values():
+			field.clear_errors()
+		self.errors = []
+
+	def is_deleted(self):
+		return self._deleted
+
 	def ul4ondump_getattr(self, name):
 		if name == "values":
 			if self._sparsevalues is not None:
@@ -997,7 +1011,7 @@ class Record(Base):
 
 
 class Field:
-	ul4attrs = {"control", "record", "value", "is_dirty", "errors", "has_errors", "enabled", "writable", "visible"}
+	ul4attrs = {"control", "record", "value", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
 
 	def __init__(self, control, record, value):
 		self.control = control
@@ -1036,6 +1050,12 @@ class Field:
 
 	def has_errors(self):
 		return bool(self.errors)
+
+	def add_error(self, error):
+		self.errors.append(error)
+
+	def clear_errors(self):
+		self.errors = []
 
 	def __repr__(self):
 		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self.value!r}"
@@ -1254,6 +1274,7 @@ class Handler:
 	def file(self, source):
 		path = None
 		stream = None
+		mimetype = None
 		if isinstance(source, pathlib.Path):
 			content = source.read_bytes()
 			filename = source.name
@@ -1268,6 +1289,11 @@ class Handler:
 			with open(path, "rb") as f:
 				content = f.read()
 			filename = os.path.basename(path)
+		elif isinstance(source, url.URL):
+			filename = source.file
+			with source.openread() as r:
+				content = r.read()
+				stream = io.BytesIO(content)
 		else:
 			content = source.read()
 			if source.name:
@@ -1275,10 +1301,9 @@ class Handler:
 			else:
 				filename = "Dummy"
 			stream = source
-		file = File(
-			filename=filename,
-			mimetype=mimetypes.guess_type(filename, strict=False)[0],
-		)
+		if mimetype is None:
+			mimetype = mimetypes.guess_type(filename, strict=False)[0]
+		file = File(filename=filename, mimetype=mimetype)
 		if file.mimetype.startswith("image/"):
 			from PIL import Image # This requires :mod:`Pillow`, which you can install with ``pip install pillow``
 			if stream:
@@ -1327,7 +1352,7 @@ class Handler:
 
 	def _loaddump(self, dump):
 		registry = {
-			"de.livingapps.appdd.file": self._loadfile,
+			"de.livingapps.livingapi.file": self._loadfile,
 		}
 		dump = ul4on.loads(dump, registry)
 		dump = attrdict(dump)
@@ -1446,10 +1471,24 @@ class DBHandler(Handler):
 				if record.id is not None:
 					args[f"p_{field.control.field}_changed"] = 1
 		c = self.db.cursor()
-		r = proc(c, **args)
+		result = proc(c, **args)
 
-		if r.p_errormessage:
+		if result.p_errormessage:
 			raise ValueError(r.p_errormessage)
+
+		if record.id is None:
+			record.id = result[f"p_{pk}"]
+			record.createdat = datetime.datetime.now()
+			record.createdby = app.globals.user
+			record.updatecount = 0
+		else:
+			record.updatedat = datetime.datetime.now()
+			record.updatedby = app.globals.user
+			record.updatecount += 1
+		for field in record.fields.values():
+			field._dirty = False
+			field.errors = []
+		record.errors = []
 
 	def _delete(self, record):
 
@@ -1561,7 +1600,7 @@ class HTTPHandler(Handler):
 		return dump
 
 	def _save(self, record):
-		fields = {field.control.identifier : field.control._asjson(field.value) for field in record.fields.values() if record.id is None or field.is_dirty}
+		fields = {field.control.identifier : field.control._asjson(field.value) for field in record.fields.values() if record.id is None or field.is_dirty()}
 		app = record.app
 		recorddata = {"fields": fields}
 		if record.id is not None:
@@ -1593,7 +1632,7 @@ class HTTPHandler(Handler):
 			record.updatedby = app.globals.user
 			record.updatecount += 1
 		for field in record.fields.values():
-			field.is_dirty = False
+			field._dirty = False
 			field.errors = []
 		record.errors = []
 
@@ -1608,7 +1647,7 @@ class HTTPHandler(Handler):
 		r.raise_for_status()
 		if r.text != '"Successfully deleted dataset"':
 			raise TypeError(f"Unexpected response {r.text!r}")
-		record.is_deleted = True
+		record._deleted = True
 
 	def _executeaction(self, record, actionidentifier):
 		kwargs = {
