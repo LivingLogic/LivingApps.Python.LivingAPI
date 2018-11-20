@@ -6,7 +6,7 @@
 ##
 ## All Rights Reserved
 
-import sys, os, os.path, datetime, json, collections, ast, enum, pathlib, mimetypes
+import sys, os, os.path, io, datetime, json, collections, ast, enum, pathlib, mimetypes
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -1254,6 +1254,7 @@ class Handler:
 	def file(self, source):
 		path = None
 		stream = None
+		mimetype = None
 		if isinstance(source, pathlib.Path):
 			content = source.read_bytes()
 			filename = source.name
@@ -1268,6 +1269,11 @@ class Handler:
 			with open(path, "rb") as f:
 				content = f.read()
 			filename = os.path.basename(path)
+		elif isinstance(source, url.URL):
+			filename = source.file
+			with source.openread() as r:
+				content = r.read()
+				stream = io.BytesIO(content)
 		else:
 			content = source.read()
 			if source.name:
@@ -1275,10 +1281,9 @@ class Handler:
 			else:
 				filename = "Dummy"
 			stream = source
-		file = File(
-			filename=filename,
-			mimetype=mimetypes.guess_type(filename, strict=False)[0],
-		)
+		if mimetype is None:
+			mimetype = mimetypes.guess_type(filename, strict=False)[0]
+		file = File(filename=filename, mimetype=mimetype)
 		if file.mimetype.startswith("image/"):
 			from PIL import Image # This requires :mod:`Pillow`, which you can install with ``pip install pillow``
 			if stream:
