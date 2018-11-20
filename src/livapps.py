@@ -853,7 +853,7 @@ class GeoControl(Control):
 
 @register("record")
 class Record(Base):
-	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments", "errors", "has_errors", "is_deleted"}
+	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted"}
 	ul4onattrs = ["id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "values", "attachments", "children"]
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
@@ -968,6 +968,14 @@ class Record(Base):
 
 	def has_errors(self):
 		return bool(self.errors) or any(field.has_errors for field in self.fields.values())
+
+	def add_error(self, error):
+		self.errors.append(error)
+
+	def clear_errors(self):
+		for field in self.fields.values():
+			field.clear_errors()
+		self.errors = []
 
 	def is_deleted(self):
 		return self._deleted
