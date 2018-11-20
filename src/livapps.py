@@ -1446,10 +1446,24 @@ class DBHandler(Handler):
 				if record.id is not None:
 					args[f"p_{field.control.field}_changed"] = 1
 		c = self.db.cursor()
-		r = proc(c, **args)
+		result = proc(c, **args)
 
-		if r.p_errormessage:
+		if result.p_errormessage:
 			raise ValueError(r.p_errormessage)
+
+		if record.id is None:
+			record.id = result[f"p_{pk}"]
+			record.createdat = datetime.datetime.now()
+			record.createdby = app.globals.user
+			record.updatecount = 0
+		else:
+			record.updatedat = datetime.datetime.now()
+			record.updatedby = app.globals.user
+			record.updatecount += 1
+		for field in record.fields.values():
+			field._dirty = False
+			field.errors = []
+		record.errors = []
 
 	def _delete(self, record):
 
