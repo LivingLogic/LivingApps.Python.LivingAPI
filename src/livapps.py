@@ -1607,7 +1607,7 @@ class HTTPHandler(Handler):
 			record.updatedby = app.globals.user
 			record.updatecount += 1
 		for field in record.fields.values():
-			field.is_dirty = False
+			field._dirty = False
 			field.errors = []
 		record.errors = []
 
