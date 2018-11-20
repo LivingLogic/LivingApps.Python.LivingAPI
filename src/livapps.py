@@ -661,7 +661,7 @@ class AppLookupControl(Control):
 		if value is not None:
 			if value.id is None:
 				raise UnsavedRecordError(value)
-			elif value.is_deleted:
+			elif value._deleted:
 				raise DeletedRecordError(value)
 			value = value.id
 		return value
@@ -782,7 +782,7 @@ class MultipleAppLookupControl(AppLookupControl):
 		for item in value:
 			if item.id is None:
 				raise UnsavedRecordError(item)
-			elif item.is_deleted:
+			elif item._deleted:
 				raise DeletedRecordError(item)
 			newvalue.append(item.id)
 		return newvalue
@@ -853,7 +853,7 @@ class GeoControl(Control):
 
 @register("record")
 class Record(Base):
-	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments", "errors", "has_errors"}
+	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments", "errors", "has_errors", "is_deleted"}
 	ul4onattrs = ["id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "values", "attachments", "children"]
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
@@ -870,7 +870,7 @@ class Record(Base):
 		self.children = attrdict()
 		self.attachments = None
 		self.errors = []
-		self.is_deleted = False
+		self._deleted = False
 
 	def __repr__(self):
 		attrs = " ".join(f"v_{identifier}={value!r}" for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
@@ -968,6 +968,9 @@ class Record(Base):
 
 	def has_errors(self):
 		return bool(self.errors) or any(field.has_errors for field in self.fields.values())
+
+	def is_deleted(self):
+		return self._deleted
 
 	def ul4ondump_getattr(self, name):
 		if name == "values":
@@ -1630,7 +1633,7 @@ class HTTPHandler(Handler):
 		r.raise_for_status()
 		if r.text != '"Successfully deleted dataset"':
 			raise TypeError(f"Unexpected response {r.text!r}")
-		record.is_deleted = True
+		record._deleted = True
 
 	def _executeaction(self, record, actionidentifier):
 		kwargs = {
