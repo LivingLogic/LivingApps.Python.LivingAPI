@@ -202,6 +202,9 @@ class Globals(Base):
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} version={self.version!r} platform={self.platform!r} at {id(self):#x}>"
 
+	def geo(self, lat=None, long=None, info=None):
+		return self.handler.geo(lat, long, info)
+
 	def ul4onload_setdefaultattr(self, name):
 		if name == "flashes":
 			self.flashes = []
