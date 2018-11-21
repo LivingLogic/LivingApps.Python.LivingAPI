@@ -29,7 +29,8 @@ def register(name):
 	Shortcut for registering a LivingAPI class with the UL4ON machinery.
 	"""
 	def registration(cls):
-		ul4on.register("de.livingapps.livingapi." + name)(cls)
+		ul4on.register("de.livingapps.appdd." + name)(cls)
+		ul4on.register("de.livinglogic.livingapi." + name)(cls)
 		return cls
 	return registration
 
@@ -1352,7 +1353,8 @@ class Handler:
 
 	def _loaddump(self, dump):
 		registry = {
-			"de.livingapps.livingapi.file": self._loadfile,
+			"de.livingapps.appdd.file": self._loadfile,
+			"de.livinglogic.livingapi.file": self._loadfile,
 		}
 		dump = ul4on.loads(dump, registry)
 		dump = attrdict(dump)
