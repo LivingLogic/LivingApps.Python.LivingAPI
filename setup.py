@@ -48,14 +48,14 @@ description = description.expandtabs(2)
 
 args = dict(
 	name="livapps",
-	version="0.4",
+	version="0.4.1",
 	description="Python API for LivingApps",
 	long_description=description,
 	author="Walter Doerwald",
 	author_email="walter@livinglogic.de",
 	url="http://github.com/LivingLogic/LivingApps.Python.LivingAPI",
 	license="MIT",
-	# python_requires=">=3.5",
+	python_requires=">=3.6",
 	classifiers=sorted({c for c in CLASSIFIERS.strip().splitlines() if c.strip() and not c.strip().startswith("#")}),
 	keywords=", ".join(sorted({k.strip() for k in KEYWORDS.strip().splitlines() if k.strip() and not k.strip().startswith("#")})),
 	package_dir={"": "src"},

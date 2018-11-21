@@ -29,7 +29,8 @@ def register(name):
 	Shortcut for registering a LivingAPI class with the UL4ON machinery.
 	"""
 	def registration(cls):
-		ul4on.register("de.livingapps.livingapi." + name)(cls)
+		ul4on.register("de.livingapps.appdd." + name)(cls)
+		ul4on.register("de.livinglogic.livingapi." + name)(cls)
 		return cls
 	return registration
 
@@ -1352,7 +1353,8 @@ class Handler:
 
 	def _loaddump(self, dump):
 		registry = {
-			"de.livingapps.livingapi.file": self._loadfile,
+			"de.livingapps.appdd.file": self._loadfile,
+			"de.livinglogic.livingapi.file": self._loadfile,
 		}
 		dump = ul4on.loads(dump, registry)
 		dump = attrdict(dump)
@@ -1442,7 +1444,12 @@ class DBHandler(Handler):
 		if r is None:
 			raise ValueError("no such template")
 		vt_id = r.vt_id
-		c.execute("select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, null, null) from dual", ide_id=self.ide_id, vt_id=vt_id)
+		reqparams = []
+		for (key, value) in params.items():
+			reqparams.append(key)
+			reqparams.append(value)
+		reqparams = self.varchars(reqparams)
+		c.execute("select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, null, :reqparams) from dual", ide_id=self.ide_id, vt_id=vt_id, reqparams=reqparams)
 		r = c.fetchone()
 		dump = r[0].read().decode("utf-8")
 		dump = self._loaddump(dump)
