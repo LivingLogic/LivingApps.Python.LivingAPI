@@ -1444,7 +1444,12 @@ class DBHandler(Handler):
 		if r is None:
 			raise ValueError("no such template")
 		vt_id = r.vt_id
-		c.execute("select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, null, null) from dual", ide_id=self.ide_id, vt_id=vt_id)
+		reqparams = []
+		for (key, value) in params.items():
+			reqparams.append(key)
+			reqparams.append(value)
+		reqparams = self.varchars(reqparams)
+		c.execute("select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, null, :reqparams) from dual", ide_id=self.ide_id, vt_id=vt_id, reqparams=reqparams)
 		r = c.fetchone()
 		dump = r[0].read().decode("utf-8")
 		dump = self._loaddump(dump)
