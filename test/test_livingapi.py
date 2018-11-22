@@ -340,15 +340,15 @@ def test_app(H):
 	h = H(template="export")
 
 	# Check that ``app`` is the correct one
-	testappid == h.render("<?print app.id?>")
-	"LA-Demo: Personen" == h.render("<?print app.name?>")
+	assert testappid == h.render("<?print app.id?>")
+	assert "LA-Demo: Personen" == h.render("<?print app.name?>")
 
 
 def test_datasources(H):
 	h = H(template="export")
 
 	# Check that the datasources have the identifiers we expect
-	"personen;taetigkeitsfelder" == h.render("<?print ';'.join(sorted(datasources))?>")
+	assert "personen;taetigkeitsfelder" == h.render("<?print ';'.join(sorted(datasources))?>")
 
 
 def test_output_all_records(H, personrecords):
@@ -396,15 +396,15 @@ def test_output_all_controls(H):
 def test_record_shortcutattributes(H, personrecords):
 	h = H(template="export")
 
-	# Find "Albert Einstein" and output his fields in multiple ways
-	4 * "Albert" == h.render("""
+	# Find "Albert Einstein" and output one of his fields in multiple ways
+	assert "'Albert';'Albert';'Albert';'Albert'" == h.render("""
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
 		<?code ae = first(r for r in papp.records.values() if r.v_nachname == "Einstein")?>
-		<?print ae.fields.vorname.value?>
-		<?print ae.f_vorname.value?>
-		<?print ae.values.vorname?>
-		<?print ae.v_vorname?>
+		<?print repr(ae.fields.vorname.value)?>;
+		<?print repr(ae.f_vorname.value)?>;
+		<?print repr(ae.values.vorname)?>;
+		<?print repr(ae.v_vorname)?>
 	""")
 
 
@@ -412,23 +412,30 @@ def test_app_shortcutattributes(H):
 	h = H(template="export")
 
 	# Access a control and output its fields with in two ways
-	2 * "vorname" == h.render("""
+	assert "'vorname';'vorname'" == h.render("""
 		<?whitespace strip?>
-		<?print app.controls.vorname.identifier?>
-		<?print app.c_vorname.identifier?>
+		<?print repr(app.controls.vorname.identifier)?>;
+		<?print repr(app.c_vorname.identifier)?>
 	""")
 
 
-def test_insert_record(H):
+def test_insert_record(H, norecords):
 	h = H(template="export")
 
-	h.render("""
+	assert "'Isaac' 'Newton'" == h.render("""
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
-		<?code r = papp.insert(vorname="John", nachname="Doe")?>
+		<?code r = papp.insert(vorname="Isaac", nachname="Newton")?>
+		<?print repr(r.v_vorname)?> <?print repr(r.v_nachname)?>
 	""")
 
-	"John Doe" == h.render("""
+	h = H(template="export") # Refetch data
+	assert "'Isaac' 'Newton'" == h.render("""
+		<?whitespace strip?>
+		<?code papp = datasources.personen.app?>
+		<?code r = first(r for r in papp.records.values() if r.v_vorname == "Isaac" and r.v_nachname == "Newton")?>
+		<?print repr(r.v_vorname)?> <?print repr(r.v_nachname)?>
+	""")
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
 		<?code jd = first(r for r in papp.records.values() if r.v_vorname == "John" and r.v_nachname == "Doe")?>
