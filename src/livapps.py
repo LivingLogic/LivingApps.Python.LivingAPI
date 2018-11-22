@@ -251,8 +251,16 @@ class App(Base):
 			if name.startswith("c_"):
 				return self.controls[name[2:]]
 		except KeyError:
-			pass
+			raise AttributeError(name) from None
+		return super().__getattr__(name)
+
+	def ul4getattr(self, name):
+		if self.ul4hasattr(name):
+			return getattr(self, name)
 		raise AttributeError(name) from None
+
+	def ul4hasattr(self, name):
+		return name in self.ul4attrs or (name.startswith("c_") and name[2:] in self.controls)
 
 	def insert(self, **kwargs):
 		record = Record(
