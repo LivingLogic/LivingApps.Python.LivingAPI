@@ -1,8 +1,8 @@
-import os, datetime
+import sys, os, datetime, subprocess
 
 import pytest
 
-from ll import ul4c, url as url_
+from ll import ul4c, url as url_, ul4on
 
 import livapps
 
@@ -83,9 +83,61 @@ class PythonHTTPHandler:
 		return result
 
 
+class JavaDBHandler:
+	def __init__(self, template=None):
+		self.template = template
+
+	def findexception(self, output):
+		lines = output.splitlines()
+		msg = None
+		exc = None
+		lastexc = None
+		for line in lines:
+			prefix1 = 'Exception in thread "main"'
+			prefix2 = "Caused by:"
+			if line.startswith(prefix1):
+				msg = line[len(prefix1):].strip()
+			elif line.startswith(prefix2):
+				msg = line[len(prefix2):].strip()
+			else:
+				continue
+			newexc = RuntimeError(msg)
+			newexc.__cause__ = lastexc
+			lastexc = newexc
+			if exc is None:
+				exc = newexc
+		if exc is not None:
+			print(output, file=sys.stderr)
+			raise exc
+
+	def run(self, data):
+		dump = ul4on.dumps(data).encode("utf-8")
+		result = subprocess.run("java com.livinglogic.livingapi.Tester", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+		# Check if we have an exception
+		self.findexception(result.stderr.decode("utf-8", "passbytes"))
+		return result.stdout.decode("utf-8", "passbytes")
+
+	def render(self, template):
+		template = ul4c.Template(template) # Just a syntax check
+		(dbuserpassword, connectdescriptor) = connect().split("@", 1)
+		(dbuser, dbpassword) = dbuserpassword.split("/")
+		data = dict(
+			jdbcurl=f"jdbc:oracle:thin:@{connectdescriptor}",
+			jdbcuser=dbuser,
+			jdbcpassword=dbpassword,
+			user=user(),
+			appid=testappid,
+			command="render",
+			template=template.source,
+			templateidentifier=self.template,
+		)
+		return self.run(data)
+
+
 all_handlers = dict(
 	python_db=PythonDBHandler,
 	python_http=PythonHTTPHandler,
+	java_db=JavaDBHandler,
 )
 
 
