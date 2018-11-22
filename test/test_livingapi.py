@@ -436,8 +436,35 @@ def test_insert_record(H, norecords):
 		<?code r = first(r for r in papp.records.values() if r.v_vorname == "Isaac" and r.v_nachname == "Newton")?>
 		<?print repr(r.v_vorname)?> <?print repr(r.v_nachname)?>
 	""")
+
+
+def test_attributes_unsaved_record(H, norecords):
+	h = H(template="export")
+
+	# Check that ``id``, ``createdat`` and ``createdby`` will be set when the
+	# new record is saved
+	assert f"True True True;False False {user()}" == h.render("""
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
-		<?code jd = first(r for r in papp.records.values() if r.v_vorname == "John" and r.v_nachname == "Doe")?>
-		<?print r.v_vorname?> <?print r.v_nachname?>
+		<?code r = papp(vorname="Isaac", nachname="Newton")?>
+		<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby is None?>
+		<?code r.save()?>;
+		<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby.email?>
+	""")
+
+	h = H(template="export") # Refetch data
+
+	# Check that ``updatedat`` and ``updatedby`` will be set when the
+	# record is saved (this even happens when the record hasn't been changed
+	# however in this case no value fields will be changed)
+	assert f"True True;False {user()};False {user()}" == h.render("""
+		<?whitespace strip?>
+		<?code papp = datasources.personen.app?>
+		<?code r = first(r for r in papp.records.values() if r.v_nachname == 'Newton')?>
+		<?print r.updatedat is None?> <?print r.updatedby is None?>
+		<?code r.save()?>;
+		<?print r.updatedat is None?> <?print r.updatedby.email?>
+		<?code r.v_geburtstag = @(1642-12-25)?>
+		<?code r.save()?>;
+		<?print r.updatedat is None?> <?print r.updatedby.email?>
 	""")
