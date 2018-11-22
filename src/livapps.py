@@ -266,8 +266,8 @@ class App(Base):
 		record = Record(
 			id=None,
 			app=self,
-			createdat=datetime.datetime.now(),
-			createdby=self.globals.user,
+			createdat=None,
+			createdby=None,
 			updatedat=None,
 			updatedby=None,
 			updatecount=0
