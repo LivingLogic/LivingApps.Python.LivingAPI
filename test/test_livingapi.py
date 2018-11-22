@@ -68,7 +68,6 @@ class PythonDBHandler:
 		return result
 
 
-
 class PythonHTTPHandler:
 	def __init__(self, **params):
 		self.handler = livapps.HTTPHandler(
@@ -265,6 +264,7 @@ def personrecords(arearecords):
 	)
 
 	attrs.handler.commit()
+
 	return attrs
 
 
