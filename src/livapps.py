@@ -952,6 +952,12 @@ class Record(Base):
 			return name[2:] in self.children
 		return False
 
+	def ul4setattr(self, name, value):
+		if name.startswith("v_") and name[2:] in self.app.controls:
+			setattr(self, name, value)
+		else:
+			raise TypeError(f"can't set attribute {name!r}")
+
 	def is_dirty(self):
 		return self.id is None or any(field._dirty for field in self.fields.values())
 
