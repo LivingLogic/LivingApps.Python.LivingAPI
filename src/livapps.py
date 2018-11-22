@@ -862,7 +862,7 @@ class GeoControl(Control):
 
 @register("record")
 class Record(Base):
-	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted"}
+	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted"}
 	ul4onattrs = ["id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "values", "attachments", "children"]
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
@@ -937,6 +937,20 @@ class Record(Base):
 		This makes keys completeable in IPython.
 		"""
 		return set(super().__dir__()) | {f"f_{identifier}" for identifier in self.app.controls} | {f"v_{identifier}" for identifier in self.app.controls} | {f"c_{identifier}" for identifier in self.children}
+
+	def ul4getattr(self, name):
+		if self.ul4hasattr(name):
+			return getattr(self, name)
+		raise AttributeError(name) from None
+
+	def ul4hasattr(self, name):
+		if name in self.ul4attrs:
+			return True
+		elif name.startswith(("f_", "v_")):
+			return name[2:] in self.app.controls
+		elif name.startswith("c_"):
+			return name[2:] in self.children
+		return False
 
 	def is_dirty(self):
 		return self.id is None or any(field._dirty for field in self.fields.values())
