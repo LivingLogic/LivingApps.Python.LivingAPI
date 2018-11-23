@@ -136,8 +136,8 @@ class JavaDBHandler:
 
 all_handlers = dict(
 	python_db=PythonDBHandler,
-	python_http=PythonHTTPHandler,
-	java_db=JavaDBHandler,
+#	python_http=PythonHTTPHandler,
+#	java_db=JavaDBHandler,
 )
 
 
@@ -468,3 +468,10 @@ def test_attributes_unsaved_record(H, norecords):
 		<?code r.save()?>;
 		<?print r.updatedat is None?> <?print r.updatedby.email?>
 	""")
+
+
+def test_datasource_recordfilter(H, arearecords):
+	h = H(template="export_recordfilter")
+
+	assert "1" == h.render("<?print len(datasources.taetigkeitsfelder.app.records)?>")
+	assert "Mathematik" == h.render("<?print first(datasources.taetigkeitsfelder.app.records.values()).v_name?>")
