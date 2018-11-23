@@ -240,6 +240,9 @@ def personrecords(arearecords):
 	def u(u):
 		return attrs.handler.file(url_.URL(u))
 
+	def g(lat, long):
+		return attrs.handler.geo(lat, long)
+
 	ae = p(
 		vorname="Albert",
 		nachname="Einstein",
