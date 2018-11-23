@@ -437,18 +437,21 @@ def test_app_shortcutattributes(H):
 def test_insert_record(H, norecords):
 	h = H(template="export")
 
-	assert "'Isaac' 'Newton'" == h.render("""
+	(output, id) = h.render("""
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
 		<?code r = papp.insert(vorname="Isaac", nachname="Newton")?>
-		<?print repr(r.v_vorname)?> <?print repr(r.v_nachname)?>
-	""")
+		<?print repr(r.v_vorname)?> <?print repr(r.v_nachname)?>;
+		<?print r.id?>
+	""").split(";")
+
+	assert "'Isaac' 'Newton'" == output
 
 	h = H(template="export") # Refetch data
-	assert "'Isaac' 'Newton'" == h.render("""
+	assert "'Isaac' 'Newton'" == h.render(f"""
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
-		<?code r = first(r for r in papp.records.values() if r.v_vorname == "Isaac" and r.v_nachname == "Newton")?>
+		<?code r = papp.records['{id}']?>
 		<?print repr(r.v_vorname)?> <?print repr(r.v_nachname)?>
 	""")
 
@@ -485,8 +488,101 @@ def test_attributes_unsaved_record(H, norecords):
 	""")
 
 
-def test_datasource_recordfilter(H, arearecords):
+def test_datasource_recordfilter(H, personrecords):
 	h = H(template="export_recordfilter")
 
-	assert "1" == h.render("<?print len(datasources.taetigkeitsfelder.app.records)?>")
-	assert "Mathematik" == h.render("<?print first(datasources.taetigkeitsfelder.app.records.values()).v_name?>")
+	assert "1" == h.render("<?print len(datasources.personen.app.records)?>")
+	assert "Albert Einstein" == h.render("""
+		<?whitespace strip?>
+		<?code r = first(datasources.personen.app.records.values())?>
+		<?print r.v_vorname?> <?print r.v_nachname?>
+	""")
+
+
+def test_datasource_recordfilter_param_str(H, personrecords):
+	h = H(template="export_recordfilter_param_str", nachname="Curie")
+
+	assert "1" == h.render("<?print len(datasources.personen.app.records)?>")
+	assert "Marie Curie" == h.render("""
+		<?whitespace strip?>
+		<?code r = first(datasources.personen.app.records.values())?>
+		<?print r.v_vorname?> <?print r.v_nachname?>
+	""")
+
+
+def test_datasource_recordfilter_param_int(H, personrecords):
+	h = H(template="export_recordfilter_param_int", jahr="1935")
+
+	assert "1" == h.render("<?print len(datasources.personen.app.records)?>")
+	assert "Elvis Presley" == h.render("""
+		<?whitespace strip?>
+		<?code r = first(datasources.personen.app.records.values())?>
+		<?print r.v_vorname?> <?print r.v_nachname?>
+	""")
+
+
+def test_datasource_recordfilter_param_date(H, personrecords):
+	h = H(template="export_recordfilter_param_date", geburtstag="1926-06-01")
+
+	assert "1" == h.render("<?print len(datasources.personen.app.records)?>")
+	assert "Marilyn Monroe" == h.render("""
+		<?whitespace strip?>
+		<?code r = first(datasources.personen.app.records.values())?>
+		<?print r.v_vorname?> <?print r.v_nachname?>
+	""")
+
+
+def test_datasource_recordfilter_param_datetime(H, personrecords):
+	h = H(template="export_recordfilter_param_datetime", geburtstag="1926-06-01T12:34:56")
+
+	assert "1" == h.render("<?print len(datasources.personen.app.records)?>")
+	assert "Marilyn Monroe" == h.render("""
+		<?whitespace strip?>
+		<?code r = first(datasources.personen.app.records.values())?>
+		<?print r.v_vorname?> <?print r.v_nachname?>
+	""")
+
+
+def test_datasource_recordfilter_param_strlist(H, personrecords):
+	h = H(template="export_recordfilter_param_strlist", nachname=["Gauß", "Riemann"])
+
+	assert "2" == h.render("<?print len(datasources.personen.app.records)?>")
+	assert "Carl Friedrich Gauß;Bernhard Riemann;" == h.render("""
+		<?whitespace strip?>
+		<?def key(r)?>
+			<?return r.v_nachname?>
+		<?end def?>
+		<?for r in sorted(datasources.personen.app.records.values(), key)?>
+			<?print r.v_vorname?> <?print r.v_nachname?>;
+		<?end for?>
+	""")
+
+
+def test_datasource_recordfilter_param_intlist(H, personrecords):
+	h = H(template="export_recordfilter_param_intlist", jahr=["1826", "1777"])
+
+	assert "2" == h.render("<?print len(datasources.personen.app.records)?>")
+	assert "Carl Friedrich Gauß;Bernhard Riemann;" == h.render("""
+		<?whitespace strip?>
+		<?def key(r)?>
+			<?return r.v_nachname?>
+		<?end def?>
+		<?for r in sorted(datasources.personen.app.records.values(), key)?>
+			<?print r.v_vorname?> <?print r.v_nachname?>;
+		<?end for?>
+	""")
+
+
+def test_datasource_recordfilter_param_datelist(H, personrecords):
+	h = H(template="export_recordfilter_param_datelist", geburtstag=["1826-06-17", "1777-04-30"])
+
+	assert "2" == h.render("<?print len(datasources.personen.app.records)?>")
+	assert "Carl Friedrich Gauß;Bernhard Riemann;" == h.render("""
+		<?whitespace strip?>
+		<?def key(r)?>
+			<?return r.v_nachname?>
+		<?end def?>
+		<?for r in sorted(datasources.personen.app.records.values(), key)?>
+			<?print r.v_vorname?> <?print r.v_nachname?>;
+		<?end for?>
+	""")
