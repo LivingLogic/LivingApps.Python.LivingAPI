@@ -1486,8 +1486,14 @@ class DBHandler(Handler):
 		vt_id = r.vt_id
 		reqparams = []
 		for (key, value) in params.items():
-			reqparams.append(key)
-			reqparams.append(value)
+			if value is not None:
+				if isinstance(value, str):
+					reqparams.append(key)
+					reqparams.append(value)
+				elif isinstance(value, list):
+					for subvalue in value:
+						reqparams.append(key)
+						reqparams.append(subvalue)
 		reqparams = self.varchars(reqparams)
 		c.execute("select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, null, :reqparams) from dual", ide_id=self.ide_id, vt_id=vt_id, reqparams=reqparams)
 		r = c.fetchone()
