@@ -1344,20 +1344,33 @@ class Handler:
 		file.handler = self
 		return file
 
-	def geo(self, lat=None, long=None, info=None):
+	def _geofrominfo(self, info):
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
+		for provider in (geocoder.google, geocoder.osm):
+			result = provider(info, language="de")
+			if not result.error:
+				return Geo(result.lat, result.lng, result.address)
+
+	def _geofromlatlong(self, lat, long):
+		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
+		for provider in (geocoder.google, geocoder.osm):
+			result = provider([lat, long], method="reverse", language="de")
+			if not result.error:
+				return Geo(result.lat, result.lng, result.address)
+
+
+	def geo(self, lat=None, long=None, info=None):
 		# Get coordinates from description (passed via keyword ``info``)
 		if info is not None and lat is None and long is None:
-			result = geocoder.google(info, language="de")
+			return self._geofrominfo(info)
 		# Get coordinates from description (passed positionally as ``lat``)
 		elif lat is not None and long is None and info is None:
-			result = geocoder.google(lat, language="de")
+			return self._geofrominfo(lat)
 		# Get description from coordinates
 		elif lat is not None and long is not None and info is None:
-			result = geocoder.google([lat, long], method="reverse", language="de")
+			return self._geofromlatlong(lat, long)
 		else:
 			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
-		return Geo(result.lat, result.lng, result.address)
 
 	def _save(self, record):
 		raise NotImplementedError
