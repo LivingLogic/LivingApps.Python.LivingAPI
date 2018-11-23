@@ -1348,16 +1348,15 @@ class Handler:
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
 		for provider in (geocoder.google, geocoder.osm):
 			result = provider(info, language="de")
-			if not result.error:
+			if not result.error and result.lat and result.lng and result.address:
 				return Geo(result.lat, result.lng, result.address)
 
 	def _geofromlatlong(self, lat, long):
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
 		for provider in (geocoder.google, geocoder.osm):
 			result = provider([lat, long], method="reverse", language="de")
-			if not result.error:
+			if not result.error and result.lat and result.lng and result.address:
 				return Geo(result.lat, result.lng, result.address)
-
 
 	def geo(self, lat=None, long=None, info=None):
 		# Get coordinates from description (passed via keyword ``info``)
