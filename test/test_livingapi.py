@@ -240,8 +240,8 @@ def personrecords(arearecords):
 	def u(u):
 		return attrs.handler.file(url_.URL(u))
 
-	def g(lat, long):
-		return attrs.handler.geo(lat, long)
+	def g(lat=None, long=None, info=None):
+		return attrs.handler.geo(lat, long, info)
 
 	ae = p(
 		vorname="Albert",
@@ -250,6 +250,7 @@ def personrecords(arearecords):
 		taetigkeitsfeld=[attrs.areas.physik],
 		geburtstag=datetime.date(1879, 3, 14),
 		todestag=datetime.date(1955, 4, 15),
+		#grab=g(lat, long),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Einstein_1921_portrait2.jpg/330px-Einstein_1921_portrait2.jpg"),
 	)
 
@@ -260,6 +261,7 @@ def personrecords(arearecords):
 		taetigkeitsfeld=[attrs.areas.physik],
 		geburtstag=datetime.date(1867, 11, 7),
 		todestag=datetime.date(1934, 7, 4),
+		grab=g("Patheon Paris"),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
 	)
 
@@ -290,7 +292,7 @@ def personrecords(arearecords):
 		taetigkeitsfeld=[attrs.areas.musik],
 		geburtstag=datetime.date(1935, 1, 8),
 		todestag=datetime.date(1977, 8, 16),
-		todestag=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
+		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
 	)
 
 	br = p(
