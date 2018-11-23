@@ -257,6 +257,7 @@ def personrecords(arearecords):
 		taetigkeitsfeld=[attrs.areas.physik],
 		geburtstag=datetime.date(1867, 11, 7),
 		todestag=datetime.date(1934, 7, 4),
+		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
 	)
 
 	ma = p(
@@ -266,6 +267,7 @@ def personrecords(arearecords):
 		taetigkeitsfeld=[attrs.areas.sport],
 		geburtstag=datetime.date(1942, 1, 17),
 		todestag=datetime.date(2016, 6, 3),
+		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Muhammad_Ali_NYWTS.jpg/200px-Muhammad_Ali_NYWTS.jpg"),
 	)
 
 	mm = p(
@@ -275,6 +277,7 @@ def personrecords(arearecords):
 		taetigkeitsfeld=[attrs.areas.film],
 		geburtstag=datetime.date(1926, 6, 1),
 		todestag=datetime.date(1962, 8, 4),
+		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg/220px-Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg"),
 	)
 
 	ep = p(
@@ -284,6 +287,7 @@ def personrecords(arearecords):
 		taetigkeitsfeld=[attrs.areas.musik],
 		geburtstag=datetime.date(1935, 1, 8),
 		todestag=datetime.date(1977, 8, 16),
+		todestag=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
 	)
 
 	br = p(
@@ -313,6 +317,7 @@ def personrecords(arearecords):
 		taetigkeitsfeld=[attrs.areas.film, attrs.areas.politik],
 		geburtstag=datetime.date(1911, 2, 6),
 		todestag=datetime.date(2004, 6, 5),
+		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
 	)
 
 	attrs.handler.commit()
