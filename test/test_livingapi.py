@@ -84,8 +84,8 @@ class PythonHTTPHandler:
 
 
 class JavaDBHandler:
-	def __init__(self, template=None):
-		self.template = template
+	def __init__(self, **params):
+		self.params = params
 
 	def findexception(self, output):
 		lines = output.splitlines()
@@ -121,6 +121,10 @@ class JavaDBHandler:
 		template = ul4c.Template(template) # Just a syntax check
 		(dbuserpassword, connectdescriptor) = connect().split("@", 1)
 		(dbuser, dbpassword) = dbuserpassword.split("/")
+		params = self.params
+		if "template" in params:
+			params = dict(params)
+			del params["template"]
 		data = dict(
 			jdbcurl=f"jdbc:oracle:thin:@{connectdescriptor}",
 			jdbcuser=dbuser,
@@ -129,7 +133,8 @@ class JavaDBHandler:
 			appid=testappid,
 			command="render",
 			template=template.source,
-			templateidentifier=self.template,
+			templateidentifier=self.params.get("template", None),
+			params=params,
 		)
 		return self.run(data)
 
