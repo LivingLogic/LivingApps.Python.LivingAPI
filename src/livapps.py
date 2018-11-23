@@ -1633,7 +1633,10 @@ class HTTPHandler(Handler):
 			"headers": {
 				"Accept": "application/la-ul4on",
 			},
-			"params": params,
+			"params": {
+				key + "[]" if isinstance(value, list) else key: value
+				for (key, value) in params.items()
+			},
 		}
 		self._add_auth_token(kwargs)
 		if template is not None:
