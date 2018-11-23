@@ -1482,7 +1482,10 @@ class DBHandler(Handler):
 			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = : identifier", tpl_id=tpl_id, identifier=template)
 		r = c.fetchone()
 		if r is None:
-			raise ValueError("no such template")
+			if template is None:
+				raise ValueError(f"no default template for app {appid!r}")
+			else:
+				raise ValueError(f"no template named {template!r} for app {appid!r}")
 		vt_id = r.vt_id
 		reqparams = []
 		for (key, value) in params.items():
