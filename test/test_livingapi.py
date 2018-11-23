@@ -136,8 +136,8 @@ class JavaDBHandler:
 
 all_handlers = dict(
 	python_db=PythonDBHandler,
-#	python_http=PythonHTTPHandler,
-#	java_db=JavaDBHandler,
+	python_http=PythonHTTPHandler,
+	java_db=JavaDBHandler,
 )
 
 
