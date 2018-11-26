@@ -204,7 +204,6 @@ def arearecords(norecords):
 	def aa(**values):
 		aa = taetigkeitsfelder_app(**values)
 		aa.save()
-		print(f"Created and saved area of activity: {aa.v_name}")
 		return aa
 
 	attrs.areas.wissenschaft = aa(name="Wissenschaft")
@@ -239,7 +238,6 @@ def personrecords(arearecords):
 		if p.v_portrait is not None and p.v_portrait.id is None:
 			p.v_portrait.save()
 		p.save()
-		print(f"Created and saved person: {p.v_vorname} {p.v_nachname}")
 		return p
 
 	def u(u):
