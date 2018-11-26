@@ -151,7 +151,7 @@ all_handlers = dict(
 ###
 
 @pytest.fixture(scope="module", params=all_handlers.keys())
-def H(request):
+def Handler(request):
 	"""
 	A parameterized fixture that returns each of the testing classes
 	:class:`PythonDBHandler` and :class:`PythonHTTPHandler`.
@@ -159,7 +159,7 @@ def H(request):
 	return all_handlers[request.param]
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def norecords():
 	"""
 	A test fixture that ensures that both test apps contain no records.
@@ -170,7 +170,7 @@ def norecords():
 	personen_app = vars.datasources.personen.app
 	taetigkeitsfelder_app = vars.datasources.taetigkeitsfelder.app
 
-	# Remove all person records
+	# Remove all persons
 	for r in personen_app.records.values():
 		r.delete()
 
@@ -189,10 +189,11 @@ def norecords():
 	return attrdict(handler=handler)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def arearecords(norecords):
 	"""
-	A fixture that creates the records in the "area of activity" app.
+	A fixture that creates the records in the "area of activity" app (after
+	removing all existing records).
 	"""
 	attrs = norecords
 	attrs.vars = attrs.handler.get(testappid, template="export")
@@ -223,7 +224,7 @@ def arearecords(norecords):
 	return attrs
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def personrecords(arearecords):
 	"""
 	A fixture that creates the records in the "persons" app (after making sure
@@ -347,8 +348,8 @@ def personrecords(arearecords):
 ### Tests
 ###
 
-def test_user(H):
-	h = H(template="export")
+def test_user(Handler):
+	h = Handler(template="export")
 
 	u = user()
 
@@ -359,23 +360,23 @@ def test_user(H):
 	assert f" email='{u}'" in h.render("<?print repr(globals.user)?>")
 
 
-def test_app(H):
-	h = H(template="export")
+def test_app(Handler):
+	h = Handler(template="export")
 
 	# Check that ``app`` is the correct one
 	assert testappid == h.render("<?print app.id?>")
 	assert "LA-Demo: Personen" == h.render("<?print app.name?>")
 
 
-def test_datasources(H):
-	h = H(template="export")
+def test_datasources(Handler):
+	h = Handler(template="export")
 
 	# Check that the datasources have the identifiers we expect
 	assert "personen;taetigkeitsfelder" == h.render("<?print ';'.join(sorted(datasources))?>")
 
 
-def test_output_all_records(H, personrecords):
-	h = H(template="export")
+def test_output_all_records(Handler, personrecords):
+	h = Handler(template="export")
 
 	# Simply output all records from all datasources
 	# to see that we don"t get any exceptions
@@ -400,8 +401,8 @@ def test_output_all_records(H, personrecords):
 	""")
 
 
-def test_output_all_controls(H):
-	h = H(template="export")
+def test_output_all_controls(Handler):
+	h = Handler(template="export")
 
 	# Simply output all controls from all apps
 	# to see that we don"t get any exceptions
@@ -416,8 +417,23 @@ def test_output_all_controls(H):
 	""")
 
 
-def test_record_shortcutattributes(H, personrecords):
-	h = H(template="export")
+def test_sort_default_order_is_newest_first(Handler, personrecords):
+	h = Handler(template="export")
+
+	# Check the the default sort order is descending by creation date
+	assert not h.render("""
+		<?whitespace strip?>
+		<?code lastcreatedat = None?>
+		<?for p in datasources.personen.app.records.values()?>
+			<?if lastcreatedat is not None and lastcreatedat > p.createdat?>
+				Bad: <?print lastcreatedat?> > <?print p.createdat?>
+			<?end if?>
+		<?end for?>
+	""")
+
+
+def test_record_shortcutattributes(Handler, personrecords):
+	h = Handler(template="export")
 
 	# Find "Albert Einstein" and output one of his fields in multiple ways
 	assert "'Albert';'Albert';'Albert';'Albert'" == h.render("""
@@ -431,8 +447,8 @@ def test_record_shortcutattributes(H, personrecords):
 	""")
 
 
-def test_app_shortcutattributes(H):
-	h = H(template="export")
+def test_app_shortcutattributes(Handler):
+	h = Handler(template="export")
 
 	# Access a control and output its fields with in two ways
 	assert "'vorname';'vorname'" == h.render("""
@@ -442,8 +458,8 @@ def test_app_shortcutattributes(H):
 	""")
 
 
-def test_insert_record(H, norecords):
-	h = H(template="export")
+def test_insert_record(Handler, norecords):
+	h = Handler(template="export")
 
 	(output, id) = h.render("""
 		<?whitespace strip?>
@@ -455,7 +471,7 @@ def test_insert_record(H, norecords):
 
 	assert "'Isaac' 'Newton'" == output
 
-	h = H(template="export") # Refetch data
+	h = Handler(template="export") # Refetch data
 	assert "'Isaac' 'Newton'" == h.render(f"""
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
@@ -464,8 +480,8 @@ def test_insert_record(H, norecords):
 	""")
 
 
-def test_attributes_unsaved_record(H, norecords):
-	h = H(template="export")
+def test_attributes_unsaved_record(Handler):
+	h = Handler(template="export")
 
 	# Check that ``id``, ``createdat`` and ``createdby`` will be set when the
 	# new record is saved
@@ -478,7 +494,7 @@ def test_attributes_unsaved_record(H, norecords):
 		<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby.email?>
 	""")
 
-	h = H(template="export") # Refetch data
+	h = Handler(template="export") # Refetch data
 
 	# Check that ``updatedat`` and ``updatedby`` will be set when the
 	# record is saved (this even happens when the record hasn't been changed
@@ -496,101 +512,167 @@ def test_attributes_unsaved_record(H, norecords):
 	""")
 
 
-def test_datasource_recordfilter(H, personrecords):
-	h = H(template="export_recordfilter")
-
-	assert "1" == h.render("<?print len(datasources.personen.app.records)?>")
-	assert "Albert Einstein" == h.render("""
+def template_unsorted_records(records, content):
+	return f"""
 		<?whitespace strip?>
-		<?code r = first(datasources.personen.app.records.values())?>
-		<?print r.v_vorname?> <?print r.v_nachname?>
-	""")
+		<?for (f, r) in isfirst({records})?>
+			<?if not f?>;<?end if?>
+			{content}
+		<?end for?>
+	"""
 
 
-def test_datasource_recordfilter_param_str(H, personrecords):
-	h = H(template="export_recordfilter_param_str", nachname="Curie")
-
-	assert "1" == h.render("<?print len(datasources.personen.app.records)?>")
-	assert "Marie Curie" == h.render("""
-		<?whitespace strip?>
-		<?code r = first(datasources.personen.app.records.values())?>
-		<?print r.v_vorname?> <?print r.v_nachname?>
-	""")
-
-
-def test_datasource_recordfilter_param_int(H, personrecords):
-	h = H(template="export_recordfilter_param_int", jahr="1935")
-
-	assert "1" == h.render("<?print len(datasources.personen.app.records)?>")
-	assert "Elvis Presley" == h.render("""
-		<?whitespace strip?>
-		<?code r = first(datasources.personen.app.records.values())?>
-		<?print r.v_vorname?> <?print r.v_nachname?>
-	""")
-
-
-def test_datasource_recordfilter_param_date(H, personrecords):
-	h = H(template="export_recordfilter_param_date", geburtstag="1926-06-01")
-
-	assert "1" == h.render("<?print len(datasources.personen.app.records)?>")
-	assert "Marilyn Monroe" == h.render("""
-		<?whitespace strip?>
-		<?code r = first(datasources.personen.app.records.values())?>
-		<?print r.v_vorname?> <?print r.v_nachname?>
-	""")
-
-
-def test_datasource_recordfilter_param_datetime(H, personrecords):
-	h = H(template="export_recordfilter_param_datetime", geburtstag="1926-06-01T12:34:56")
-
-	assert "1" == h.render("<?print len(datasources.personen.app.records)?>")
-	assert "Marilyn Monroe" == h.render("""
-		<?whitespace strip?>
-		<?code r = first(datasources.personen.app.records.values())?>
-		<?print r.v_vorname?> <?print r.v_nachname?>
-	""")
-
-
-def test_datasource_recordfilter_param_strlist(H, personrecords):
-	h = H(template="export_recordfilter_param_strlist", nachname=["Gauß", "Riemann"])
-
-	assert "2" == h.render("<?print len(datasources.personen.app.records)?>")
-	assert "Carl Friedrich Gauß;Bernhard Riemann;" == h.render("""
+def template_sorted_records(records, content, sort):
+	return f"""
 		<?whitespace strip?>
 		<?def key(r)?>
-			<?return r.v_nachname?>
+			<?return {sort}?>
 		<?end def?>
-		<?for r in sorted(datasources.personen.app.records.values(), key)?>
-			<?print r.v_vorname?> <?print r.v_nachname?>;
+		<?for (f, r) in isfirst(sorted({records}, key))?>
+			<?if not f?>;<?end if?>
+			{content}
+		<?end for?>
+	"""
+
+
+template_unsorted_persons = template_unsorted_records(
+	"datasources.personen.app.records.values()",
+	"<?print r.v_vorname?> <?print r.v_nachname?>"
+)
+
+template_sorted_persons = template_sorted_records(
+	"datasources.personen.app.records.values()",
+	"<?print r.v_vorname?> <?print r.v_nachname?>",
+	"r.v_nachname",
+)
+
+template_unsorted_children = template_unsorted_records(
+	"datasources.taetigkeitsfelder.app.records[id].c_kinder.values()",
+	"<?print r.v_name?>",
+)
+
+template_sorted_children = template_sorted_records(
+	"datasources.taetigkeitsfelder.app.records[id].c_kinder.values()",
+	"<?print r.v_name?>",
+	"r.v_name",
+)
+
+
+def test_datasource_recordfilter(personrecords):
+	h = PythonDBHandler(template="export_recordfilter")
+
+	assert "Albert Einstein" == h.render(template_unsorted_persons)
+
+
+def test_datasource_recordfilter_param_str(personrecords):
+	h = PythonDBHandler(template="export_recordfilter_param_str", nachname="Curie")
+
+	assert "Marie Curie" == h.render(template_unsorted_persons)
+
+
+def test_datasource_recordfilter_param_int(personrecords):
+	h = PythonDBHandler(template="export_recordfilter_param_int", jahr="1935")
+
+	assert "Elvis Presley" == h.render(template_unsorted_persons)
+
+
+def test_datasource_recordfilter_param_date(personrecords):
+	h = PythonDBHandler(template="export_recordfilter_param_date", geburtstag="1926-06-01")
+
+	assert "Marilyn Monroe" == h.render(template_unsorted_persons)
+
+
+def test_datasource_recordfilter_param_datetime(personrecords):
+	h = PythonDBHandler(template="export_recordfilter_param_datetime", geburtstag="1926-06-01T12:34:56")
+
+	assert "Marilyn Monroe" == h.render(template_unsorted_persons)
+
+
+def test_datasource_recordfilter_param_strlist(personrecords):
+	h = PythonDBHandler(template="export_recordfilter_param_strlist", nachname=["Gauß", "Riemann"])
+
+	assert "Carl Friedrich Gauß;Bernhard Riemann" == h.render(template_sorted_persons)
+
+
+def test_datasource_recordfilter_param_intlist(personrecords):
+	h = PythonDBHandler(template="export_recordfilter_param_intlist", jahr=["1826", "1777"])
+
+	assert "Carl Friedrich Gauß;Bernhard Riemann" == h.render(template_sorted_persons)
+
+
+def test_datasource_recordfilter_param_datelist(personrecords):
+	h = PythonDBHandler(template="export_recordfilter_param_datelist", geburtstag=["1826-06-17", "1777-04-30"])
+
+	assert "Carl Friedrich Gauß;Bernhard Riemann" == h.render(template_sorted_persons)
+
+
+def test_datasource_recordfilter_param_datetimelist(personrecords):
+	h = PythonDBHandler(template="export_recordfilter_param_datetimelist", geburtstag=["1777-04-30T12:34:56"])
+
+	assert "Carl Friedrich Gauß" == h.render(template_sorted_persons)
+
+
+def test_datasource_sort_asc_nullsfirst(personrecords):
+	h = PythonDBHandler(template="export_sort_asc_nullsfirst")
+
+	assert "Donald Knuth;Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein" == h.render(template_unsorted_persons)
+
+
+def test_datasource_sort_asc_nullslast(personrecords):
+	h = PythonDBHandler(template="export_sort_asc_nullslast")
+
+	assert "Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein;Donald Knuth" == h.render(template_unsorted_persons)
+
+
+def test_datasource_sort_desc_nullsfirst(personrecords):
+	h = PythonDBHandler(template="export_sort_desc_nullsfirst")
+
+	assert "Donald Knuth;Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß" == h.render(template_unsorted_persons)
+
+
+def test_datasource_sort_desc_nullslast(personrecords):
+	h = PythonDBHandler(template="export_sort_desc_nullslast")
+
+	assert "Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß;Donald Knuth" == h.render(template_unsorted_persons)
+
+
+def test_datasource_masterdetail_recordfilter(personrecords):
+	h = PythonDBHandler(template="export_masterdetail_recordfilter")
+
+	attrs = personrecords
+
+	assert "True;Informatik;Mathematik;Physik;Literatur" == h.render(f"""
+		<?whitespace strip?>
+		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.taetigkeitsfelder.app.records.values())?>
+		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
+			;{template_sorted_children}
 		<?end for?>
 	""")
 
 
-def test_datasource_recordfilter_param_intlist(H, personrecords):
-	h = H(template="export_recordfilter_param_intlist", jahr=["1826", "1777"])
+def test_datasource_masterdetail_sort_asc(personrecords):
+	h = PythonDBHandler(template="export_masterdetail_sort_asc")
 
-	assert "2" == h.render("<?print len(datasources.personen.app.records)?>")
-	assert "Carl Friedrich Gauß;Bernhard Riemann;" == h.render("""
+	attrs = personrecords
+
+	assert "True;Informatik;Mathematik;Physik;Film;Literatur;Musik" == h.render(f"""
 		<?whitespace strip?>
-		<?def key(r)?>
-			<?return r.v_nachname?>
-		<?end def?>
-		<?for r in sorted(datasources.personen.app.records.values(), key)?>
-			<?print r.v_vorname?> <?print r.v_nachname?>;
+		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.taetigkeitsfelder.app.records.values())?>
+		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
+			;{template_unsorted_children}
 		<?end for?>
 	""")
 
 
-def test_datasource_recordfilter_param_datelist(H, personrecords):
-	h = H(template="export_recordfilter_param_datelist", geburtstag=["1826-06-17", "1777-04-30"])
+def test_datasource_masterdetail_sort_desc(personrecords):
+	h = PythonDBHandler(template="export_masterdetail_sort_desc")
 
-	assert "2" == h.render("<?print len(datasources.personen.app.records)?>")
-	assert "Carl Friedrich Gauß;Bernhard Riemann;" == h.render("""
+	attrs = personrecords
+
+	assert "True;Physik;Mathematik;Informatik;Musik;Literatur;Film" == h.render(f"""
 		<?whitespace strip?>
-		<?def key(r)?>
-			<?return r.v_nachname?>
-		<?end def?>
-		<?for r in sorted(datasources.personen.app.records.values(), key)?>
-			<?print r.v_vorname?> <?print r.v_nachname?>;
+		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.taetigkeitsfelder.app.records.values())?>
+		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
+			;{template_unsorted_children}
 		<?end for?>
 	""")
