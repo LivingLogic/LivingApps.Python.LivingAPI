@@ -209,6 +209,7 @@ def arearecords(norecords):
 	attrs.areas.wissenschaft = aa(name="Wissenschaft")
 	attrs.areas.mathematik = aa(name="Mathematik", uebergeordnetes_taetigkeitsfeld=attrs.areas.wissenschaft)
 	attrs.areas.physik = aa(name="Physik", uebergeordnetes_taetigkeitsfeld=attrs.areas.wissenschaft)
+	attrs.areas.informatik = aa(name="Informatik", uebergeordnetes_taetigkeitsfeld=attrs.areas.wissenschaft)
 	attrs.areas.kunst = aa(name="Kunst")
 	attrs.areas.film = aa(name="Film", uebergeordnetes_taetigkeitsfeld=attrs.areas.kunst)
 	attrs.areas.musik = aa(name="Musik", uebergeordnetes_taetigkeitsfeld=attrs.areas.kunst)
@@ -316,6 +317,15 @@ def personrecords(arearecords):
 		geburtstag=datetime.date(1777, 4, 30),
 		todestag=datetime.date(1855, 2, 23),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carl_Friedrich_Gauss.jpg/255px-Carl_Friedrich_Gauss.jpg"),
+	)
+
+	dk = p(
+		vorname="Donald",
+		nachname="Knuth",
+		geschlecht=personen_app.c_geschlecht.lookupdata.maennlich,
+		taetigkeitsfeld=[attrs.areas.informatik],
+		geburtstag=datetime.date(1938, 1, 10),
+		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/KnuthAtOpenContentAlliance.jpg/255px-KnuthAtOpenContentAlliance.jpg"),
 	)
 
 	rr = p(
