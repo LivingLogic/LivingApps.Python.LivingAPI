@@ -501,50 +501,43 @@ def test_attributes_unsaved_record(handler):
 	assert f"True True;False {user()};False {user()}" == handler(source, testappid, template="export")
 
 
-def template_unsorted_records(records, content):
-	return f"""
-		<?whitespace strip?>
-		<?for (f, r) in isfirst({records})?>
-			<?if not f?>;<?end if?>
-			{content}
-		<?end for?>
-	"""
+template_unsorted_persons = """
+	<?whitespace strip?>
+	<?for (f, r) in isfirst(datasources.personen.app.records.values())?>
+		<?if not f?>;<?end if?>
+		<?print r.v_vorname?> <?print r.v_nachname?>
+	<?end for?>
+"""
 
+template_sorted_persons = """
+	<?whitespace strip?>
+	<?def key(r)?>
+		<?return r.v_nachname?>
+	<?end def?>
+	<?for (f, r) in isfirst(sorted(datasources.personen.app.records.values(), key))?>
+		<?if not f?>;<?end if?>
+		<?print r.v_vorname?> <?print r.v_nachname?>
+	<?end for?>
+"""
 
-def template_sorted_records(records, content, sort):
-	return f"""
-		<?whitespace strip?>
-		<?def key(r)?>
-			<?return {sort}?>
-		<?end def?>
-		<?for (f, r) in isfirst(sorted({records}, key))?>
-			<?if not f?>;<?end if?>
-			{content}
-		<?end for?>
-	"""
+template_unsorted_children = """
+	<?whitespace strip?>
+	<?for (f, r) in isfirst(datasources.taetigkeitsfelder.app.records[id].c_kinder.values())?>
+		<?if not f?>;<?end if?>
+		<?print r.v_name?>
+	<?end for?>
+"""
 
-
-template_unsorted_persons = template_unsorted_records(
-	"datasources.personen.app.records.values()",
-	"<?print r.v_vorname?> <?print r.v_nachname?>"
-)
-
-template_sorted_persons = template_sorted_records(
-	"datasources.personen.app.records.values()",
-	"<?print r.v_vorname?> <?print r.v_nachname?>",
-	"r.v_nachname",
-)
-
-template_unsorted_children = template_unsorted_records(
-	"datasources.taetigkeitsfelder.app.records[id].c_kinder.values()",
-	"<?print r.v_name?>",
-)
-
-template_sorted_children = template_sorted_records(
-	"datasources.taetigkeitsfelder.app.records[id].c_kinder.values()",
-	"<?print r.v_name?>",
-	"r.v_name",
-)
+template_sorted_children = """
+	<?whitespace strip?>
+	<?def key(r)?>
+		<?return r.v_name?>
+	<?end def?>
+	<?for (f, r) in isfirst(sorted(datasources.taetigkeitsfelder.app.records[id].c_kinder.values(), key))?>
+		<?if not f?>;<?end if?>
+		<?print r.v_name?>
+	<?end for?>
+"""
 
 
 def test_datasource_recordfilter(personrecords):
