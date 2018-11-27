@@ -347,7 +347,7 @@ def personrecords(arearecords):
 ### Tests
 ###
 
-def test_user(handler):
+def test_livingapi_user(handler):
 	u = user()
 
 	# Check that the logged in user is the user we"ve used to log in
@@ -357,19 +357,19 @@ def test_user(handler):
 	assert f" email='{u}'" in handler("<?print repr(globals.user)?>", testappid, template="export")
 
 
-def test_app(handler):
+def test_livingapi_app(handler):
 	# Check that ``app`` is the correct one
 	assert testappid == handler("<?print app.id?>", testappid, template="export")
 	assert "LA-Demo: Personen" == handler("<?print app.name?>", testappid, template="export")
 
 
-def test_datasources(handler):
+def test_livingapi_datasources(handler):
 	# Check that the datasources have the identifiers we expect
 	source = "<?print ';'.join(sorted(datasources))?>"
 	assert "personen;taetigkeitsfelder" == handler(source, testappid, template="export")
 
 
-def test_output_all_records(handler, personrecords):
+def test_livingapi_output_all_records(handler, personrecords):
 	# Simply output all records from all datasources
 	# to see that we don"t get any exceptions
 	source = """
@@ -395,7 +395,7 @@ def test_output_all_records(handler, personrecords):
 	handler(source, testappid, template="export")
 
 
-def test_output_all_controls(handler):
+def test_livingapi_output_all_controls(handler):
 	# Simply output all controls from all apps
 	# to see that we don"t get any exceptions
 	source = """
@@ -411,7 +411,7 @@ def test_output_all_controls(handler):
 	handler(source, testappid, template="export")
 
 
-def test_sort_default_order_is_newest_first(handler, personrecords):
+def test_livingapi_sort_default_order_is_newest_first(handler, personrecords):
 	# Check the the default sort order is descending by creation date
 	source = """
 		<?whitespace strip?>
@@ -426,7 +426,7 @@ def test_sort_default_order_is_newest_first(handler, personrecords):
 	assert not handler(source, testappid, template="export")
 
 
-def test_record_shortcutattributes(handler, personrecords):
+def test_livingapi_record_shortcutattributes(handler, personrecords):
 	# Find "Albert Einstein" and output one of his fields in multiple ways
 	source = """
 		<?whitespace strip?>
@@ -440,7 +440,7 @@ def test_record_shortcutattributes(handler, personrecords):
 	assert "'Albert';'Albert';'Albert';'Albert'" == handler(source, testappid, template="export")
 
 
-def test_app_shortcutattributes(handler):
+def test_livingapi_app_shortcutattributes(handler):
 	# Access a control and output its fields with in two ways
 	source = """
 		<?whitespace strip?>
@@ -450,7 +450,7 @@ def test_app_shortcutattributes(handler):
 	assert "'vorname';'vorname'" == handler(source, testappid, template="export")
 
 
-def test_insert_record(handler, norecords):
+def test_livingapi_insert_record(handler, norecords):
 	source = """
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
@@ -471,7 +471,7 @@ def test_insert_record(handler, norecords):
 	assert "'Isaac' 'Newton'" == handler(source, testappid, template="export")
 
 
-def test_attributes_unsaved_record(handler):
+def test_livingapi_attributes_unsaved_record(handler):
 	# Check that ``id``, ``createdat`` and ``createdby`` will be set when the
 	# new record is saved
 	source = """
@@ -540,7 +540,7 @@ template_sorted_children = """
 """
 
 
-def test_datasource_recordfilter(personrecords):
+def test_vsql_datasource_recordfilter(personrecords):
 	output = python_db(
 		template_unsorted_persons,
 		testappid,
@@ -549,7 +549,7 @@ def test_datasource_recordfilter(personrecords):
 	assert "Albert Einstein" == output
 
 
-def test_datasource_recordfilter_param_str(personrecords):
+def test_vsql_datasource_recordfilter_param_str(personrecords):
 	output = python_db(
 		template_unsorted_persons,
 		testappid,
@@ -560,7 +560,7 @@ def test_datasource_recordfilter_param_str(personrecords):
 	assert "Marie Curie" == output
 
 
-def test_datasource_recordfilter_param_int(personrecords):
+def test_vsql_datasource_recordfilter_param_int(personrecords):
 	output = python_db(
 		template_unsorted_persons,
 		testappid,
@@ -571,7 +571,7 @@ def test_datasource_recordfilter_param_int(personrecords):
 	assert "Elvis Presley" == output
 
 
-def test_datasource_recordfilter_param_date(personrecords):
+def test_vsql_datasource_recordfilter_param_date(personrecords):
 	output = python_db(
 		template_unsorted_persons,
 		testappid,
@@ -582,7 +582,7 @@ def test_datasource_recordfilter_param_date(personrecords):
 	assert "Marilyn Monroe" == output
 
 
-def test_datasource_recordfilter_param_datetime(personrecords):
+def test_vsql_datasource_recordfilter_param_datetime(personrecords):
 	output = python_db(
 		template_unsorted_persons,
 		testappid,
@@ -593,7 +593,7 @@ def test_datasource_recordfilter_param_datetime(personrecords):
 	assert "Marilyn Monroe" == output
 
 
-def test_datasource_recordfilter_param_strlist(personrecords):
+def test_vsql_datasource_recordfilter_param_strlist(personrecords):
 	output = python_db(
 		template_sorted_persons,
 		testappid,
@@ -604,7 +604,7 @@ def test_datasource_recordfilter_param_strlist(personrecords):
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
-def test_datasource_recordfilter_param_intlist(personrecords):
+def test_vsql_datasource_recordfilter_param_intlist(personrecords):
 	output = python_db(
 		template_sorted_persons,
 		testappid,
@@ -615,7 +615,7 @@ def test_datasource_recordfilter_param_intlist(personrecords):
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
-def test_datasource_recordfilter_param_datelist(personrecords):
+def test_vsql_datasource_recordfilter_param_datelist(personrecords):
 	output = python_db(
 		template_sorted_persons,
 		testappid,
@@ -626,7 +626,7 @@ def test_datasource_recordfilter_param_datelist(personrecords):
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
-def test_datasource_recordfilter_param_datetimelist(personrecords):
+def test_vsql_datasource_recordfilter_param_datetimelist(personrecords):
 	output = python_db(
 		template_sorted_persons,
 		testappid,
@@ -637,7 +637,7 @@ def test_datasource_recordfilter_param_datetimelist(personrecords):
 	assert "Carl Friedrich Gauß" == output
 
 
-def test_datasource_sort_asc_nullsfirst(personrecords):
+def test_vsql_datasource_sort_asc_nullsfirst(personrecords):
 	output = python_db(
 		template_unsorted_persons,
 		testappid,
@@ -647,7 +647,7 @@ def test_datasource_sort_asc_nullsfirst(personrecords):
 	assert "Donald Knuth;Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein" == output
 
 
-def test_datasource_sort_asc_nullslast(personrecords):
+def test_vsql_datasource_sort_asc_nullslast(personrecords):
 	output = python_db(
 		template_unsorted_persons,
 		testappid,
@@ -657,7 +657,7 @@ def test_datasource_sort_asc_nullslast(personrecords):
 	assert "Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein;Donald Knuth" == output
 
 
-def test_datasource_sort_desc_nullsfirst(personrecords):
+def test_vsql_datasource_sort_desc_nullsfirst(personrecords):
 	output = python_db(
 		template_unsorted_persons,
 		testappid,
@@ -667,7 +667,7 @@ def test_datasource_sort_desc_nullsfirst(personrecords):
 	assert "Donald Knuth;Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß" == output
 
 
-def test_datasource_sort_desc_nullslast(personrecords):
+def test_vsql_datasource_sort_desc_nullslast(personrecords):
 	output = python_db(
 		template_unsorted_persons,
 		testappid,
@@ -677,7 +677,7 @@ def test_datasource_sort_desc_nullslast(personrecords):
 	assert "Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß;Donald Knuth" == output
 
 
-def test_datasource_masterdetail_recordfilter(personrecords):
+def test_vsql_datasource_masterdetail_recordfilter(personrecords):
 	attrs = personrecords
 	source = f"""
 		<?whitespace strip?>
@@ -693,7 +693,7 @@ def test_datasource_masterdetail_recordfilter(personrecords):
 	assert "True;Informatik;Mathematik;Physik;Literatur" == output
 
 
-def test_datasource_masterdetail_sort_asc(personrecords):
+def test_vsql_datasource_masterdetail_sort_asc(personrecords):
 	attrs = personrecords
 	source = f"""
 		<?whitespace strip?>
@@ -708,7 +708,7 @@ def test_datasource_masterdetail_sort_asc(personrecords):
 	assert "True;Informatik;Mathematik;Physik;Film;Literatur;Musik" == output
 
 
-def test_datasource_masterdetail_sort_desc(personrecords):
+def test_vsql_datasource_masterdetail_sort_desc(personrecords):
 	attrs = personrecords
 	source = f"""
 		<?whitespace strip?>
