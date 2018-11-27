@@ -540,6 +540,24 @@ template_sorted_children = """
 """
 
 
+def test_vsql_datasource_appfilter(personrecords):
+	source = """
+		<?whitespace strip?>
+		<?print repr(datasources.alle.app)?>
+		;
+		<?for a in datasources.alle.apps.values()?>
+			<?print a.id?>
+		<?end for?>
+	"""
+
+	output = python_db(
+		source,
+		testappid,
+		template="export_appfilter",
+	)
+	assert f"None;{testappid}" == output
+
+
 def test_vsql_datasource_recordfilter(personrecords):
 	output = python_db(
 		template_unsorted_persons,
