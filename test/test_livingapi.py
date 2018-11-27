@@ -49,100 +49,99 @@ def passwd():
 
 
 ###
-### Testing classes
+### Testing handlers
 ###
 
-class PythonDBHandler:
-	def __init__(self, **params):
-		self.handler = livapps.DBHandler(
-			connect(),
-			uploaddir(),
-			user(),
-		)
-		self.vars = self.handler.get(testappid, **params)
+def python_db(source, *path, **params):
+	template = ul4c.Template(source)
 
-	def render(self, template):
-		template = ul4c.Template(template)
-		result = template.renders(**self.vars)
-		self.handler.commit()
-		return result
+	if len(path) != 1:
+		raise ValueError("need one path element")
 
+	handler = livapps.DBHandler(
+		connect(),
+		uploaddir(),
+		user(),
+	)
 
-class PythonHTTPHandler:
-	def __init__(self, **params):
-		self.handler = livapps.HTTPHandler(
-			url(),
-			user(),
-			passwd(),
-		)
-		self.vars = self.handler.get(testappid, **params)
-
-	def render(self, template):
-		template = ul4c.Template(template)
-		result = template.renders(**self.vars)
-		return result
+	vars = handler.get(path[0], **params)
+	result = template.renders(**vars)
+	handler.commit()
+	return result
 
 
-class JavaDBHandler:
-	def __init__(self, **params):
-		self.params = params
+def python_http(source, *path, **params):
+	template = ul4c.Template(source)
 
-	def findexception(self, output):
-		lines = output.splitlines()
-		msg = None
-		exc = None
-		lastexc = None
-		for line in lines:
-			prefix1 = 'Exception in thread "main"'
-			prefix2 = "Caused by:"
-			if line.startswith(prefix1):
-				msg = line[len(prefix1):].strip()
-			elif line.startswith(prefix2):
-				msg = line[len(prefix2):].strip()
-			else:
-				continue
-			newexc = RuntimeError(msg)
-			newexc.__cause__ = lastexc
-			lastexc = newexc
-			if exc is None:
-				exc = newexc
-		if exc is not None:
-			print(output, file=sys.stderr)
-			raise exc
+	if len(path) != 1:
+		raise ValueError("need one path element")
 
-	def run(self, data):
-		dump = ul4on.dumps(data).encode("utf-8")
-		result = subprocess.run("java com.livinglogic.livingapi.Tester", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-		# Check if we have an exception
-		self.findexception(result.stderr.decode("utf-8", "passbytes"))
-		return result.stdout.decode("utf-8", "passbytes")
+	handler = livapps.HTTPHandler(
+		url(),
+		user(),
+		passwd(),
+	)
 
-	def render(self, template):
-		template = ul4c.Template(template) # Just a syntax check
-		(dbuserpassword, connectdescriptor) = connect().split("@", 1)
-		(dbuser, dbpassword) = dbuserpassword.split("/")
-		params = self.params
-		if "template" in params:
-			params = dict(params)
-			del params["template"]
-		data = dict(
-			jdbcurl=f"jdbc:oracle:thin:@{connectdescriptor}",
-			jdbcuser=dbuser,
-			jdbcpassword=dbpassword,
-			user=user(),
-			appid=testappid,
-			command="render",
-			template=template.source,
-			templateidentifier=self.params.get("template", None),
-			params=params,
-		)
-		return self.run(data)
+	vars = handler.get(path[0], **params)
+	result = template.renders(**vars)
+	return result
+
+
+def java_find_exception(output):
+	lines = output.splitlines()
+	msg = None
+	exc = None
+	lastexc = None
+	for line in lines:
+		prefix1 = 'Exception in thread "main"'
+		prefix2 = "Caused by:"
+		if line.startswith(prefix1):
+			msg = line[len(prefix1):].strip()
+		elif line.startswith(prefix2):
+			msg = line[len(prefix2):].strip()
+		else:
+			continue
+		newexc = RuntimeError(msg)
+		newexc.__cause__ = lastexc
+		lastexc = newexc
+		if exc is None:
+			exc = newexc
+	if exc is not None:
+		print(output, file=sys.stderr)
+		raise exc
+
+
+def java_db(source, *path, **params):
+	template = ul4c.Template(source) # Just a syntax check
+	(dbuserpassword, connectdescriptor) = connect().split("@", 1)
+	(dbuser, dbpassword) = dbuserpassword.split("/")
+	if "template" in params:
+		templateidentifier = params["template"]
+		del params["template"]
+	else:
+		templateidentifier = None
+	data = dict(
+		jdbcurl=f"jdbc:oracle:thin:@{connectdescriptor}",
+		jdbcuser=dbuser,
+		jdbcpassword=dbpassword,
+		user=user(),
+		appid=path[0],
+		command="render",
+		template=source,
+		templateidentifier=templateidentifier,
+		params=params,
+	)
+	dump = ul4on.dumps(data).encode("utf-8")
+	result = subprocess.run("java com.livinglogic.livingapi.Tester", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+	# Check if we have an exception
+	java_find_exception(result.stderr.decode("utf-8", "passbytes"))
+	return result.stdout.decode("utf-8", "passbytes")
 
 
 all_handlers = dict(
-	python_db=PythonDBHandler,
-	python_http=PythonHTTPHandler,
-	java_db=JavaDBHandler,
+	python_db=python_db,
+	python_http=python_http,
+	java_db=java_db,
 )
 
 
@@ -151,7 +150,7 @@ all_handlers = dict(
 ###
 
 @pytest.fixture(scope="module", params=all_handlers.keys())
-def Handler(request):
+def handler(request):
 	"""
 	A parameterized fixture that returns each of the testing classes
 	:class:`PythonDBHandler` and :class:`PythonHTTPHandler`.
@@ -348,39 +347,32 @@ def personrecords(arearecords):
 ### Tests
 ###
 
-def test_user(Handler):
-	h = Handler(template="export")
-
+def test_user(handler):
 	u = user()
 
 	# Check that the logged in user is the user we"ve used to log in
-	assert u == h.render("<?print globals.user.email?>")
+	assert u == handler("<?print globals.user.email?>", testappid, template="export")
 
 	# Check that the account name is part of the user ``repr`` output
-	assert f" email='{u}'" in h.render("<?print repr(globals.user)?>")
+	assert f" email='{u}'" in handler("<?print repr(globals.user)?>", testappid, template="export")
 
 
-def test_app(Handler):
-	h = Handler(template="export")
-
+def test_app(handler):
 	# Check that ``app`` is the correct one
-	assert testappid == h.render("<?print app.id?>")
-	assert "LA-Demo: Personen" == h.render("<?print app.name?>")
+	assert testappid == handler("<?print app.id?>", testappid, template="export")
+	assert "LA-Demo: Personen" == handler("<?print app.name?>", testappid, template="export")
 
 
-def test_datasources(Handler):
-	h = Handler(template="export")
-
+def test_datasources(handler):
 	# Check that the datasources have the identifiers we expect
-	assert "personen;taetigkeitsfelder" == h.render("<?print ';'.join(sorted(datasources))?>")
+	source = "<?print ';'.join(sorted(datasources))?>"
+	assert "personen;taetigkeitsfelder" == handler(source, testappid, template="export")
 
 
-def test_output_all_records(Handler, personrecords):
-	h = Handler(template="export")
-
+def test_output_all_records(handler, personrecords):
 	# Simply output all records from all datasources
 	# to see that we don"t get any exceptions
-	h.render("""
+	source = """
 		<?for ds in datasources.values()?>
 			Datasource/ID: <?print ds.identifier?>
 			<?if ds.app is not None and ds.app.records is not None?>
@@ -398,15 +390,15 @@ def test_output_all_records(Handler, personrecords):
 				<?end for?>
 			<?end if?>
 		<?end for?>
-	""")
+	"""
+
+	handler(source, testappid, template="export")
 
 
-def test_output_all_controls(Handler):
-	h = Handler(template="export")
-
+def test_output_all_controls(handler):
 	# Simply output all controls from all apps
 	# to see that we don"t get any exceptions
-	h.render("""
+	source = """
 		<?for ds in datasources.values()?>
 			<?if ds.app is not None and ds.app.controls is not None?>
 				<?for c in ds.app.controls.values()?>
@@ -414,14 +406,14 @@ def test_output_all_controls(Handler):
 				<?end for?>
 			<?end if?>
 		<?end for?>
-	""")
+	"""
+
+	handler(source, testappid, template="export")
 
 
-def test_sort_default_order_is_newest_first(Handler, personrecords):
-	h = Handler(template="export")
-
+def test_sort_default_order_is_newest_first(handler, personrecords):
 	# Check the the default sort order is descending by creation date
-	assert not h.render("""
+	source = """
 		<?whitespace strip?>
 		<?code lastcreatedat = None?>
 		<?for p in datasources.personen.app.records.values()?>
@@ -429,14 +421,14 @@ def test_sort_default_order_is_newest_first(Handler, personrecords):
 				Bad: <?print lastcreatedat?> > <?print p.createdat?>
 			<?end if?>
 		<?end for?>
-	""")
+	"""
+
+	assert not handler(source, testappid, template="export")
 
 
-def test_record_shortcutattributes(Handler, personrecords):
-	h = Handler(template="export")
-
+def test_record_shortcutattributes(handler, personrecords):
 	# Find "Albert Einstein" and output one of his fields in multiple ways
-	assert "'Albert';'Albert';'Albert';'Albert'" == h.render("""
+	source = """
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
 		<?code ae = first(r for r in papp.records.values() if r.v_nachname == "Einstein")?>
@@ -444,62 +436,58 @@ def test_record_shortcutattributes(Handler, personrecords):
 		<?print repr(ae.f_vorname.value)?>;
 		<?print repr(ae.values.vorname)?>;
 		<?print repr(ae.v_vorname)?>
-	""")
+	"""
+	assert "'Albert';'Albert';'Albert';'Albert'" == handler(source, testappid, template="export")
 
 
-def test_app_shortcutattributes(Handler):
-	h = Handler(template="export")
-
+def test_app_shortcutattributes(handler):
 	# Access a control and output its fields with in two ways
-	assert "'vorname';'vorname'" == h.render("""
+	source = """
 		<?whitespace strip?>
 		<?print repr(app.controls.vorname.identifier)?>;
 		<?print repr(app.c_vorname.identifier)?>
-	""")
+	"""
+	assert "'vorname';'vorname'" == handler(source, testappid, template="export")
 
 
-def test_insert_record(Handler, norecords):
-	h = Handler(template="export")
-
-	(output, id) = h.render("""
+def test_insert_record(handler, norecords):
+	source = """
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
 		<?code r = papp.insert(vorname="Isaac", nachname="Newton")?>
 		<?print repr(r.v_vorname)?> <?print repr(r.v_nachname)?>;
 		<?print r.id?>
-	""").split(";")
+	"""
+	(output, id) = handler(source, testappid, template="export").split(";")
 
 	assert "'Isaac' 'Newton'" == output
 
-	h = Handler(template="export") # Refetch data
-	assert "'Isaac' 'Newton'" == h.render(f"""
+	source = f"""
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
 		<?code r = papp.records['{id}']?>
 		<?print repr(r.v_vorname)?> <?print repr(r.v_nachname)?>
-	""")
+	"""
+	assert "'Isaac' 'Newton'" == handler(source, testappid, template="export")
 
 
-def test_attributes_unsaved_record(Handler):
-	h = Handler(template="export")
-
+def test_attributes_unsaved_record(handler):
 	# Check that ``id``, ``createdat`` and ``createdby`` will be set when the
 	# new record is saved
-	assert f"True True True;False False {user()}" == h.render("""
+	source = """
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
 		<?code r = papp(vorname="Isaac", nachname="Newton")?>
 		<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby is None?>
 		<?code r.save()?>;
 		<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby.email?>
-	""")
-
-	h = Handler(template="export") # Refetch data
+	"""
+	assert f"True True True;False False {user()}" == handler(source, testappid, template="export")
 
 	# Check that ``updatedat`` and ``updatedby`` will be set when the
 	# record is saved (this even happens when the record hasn't been changed
 	# however in this case no value fields will be changed)
-	assert f"True True;False {user()};False {user()}" == h.render("""
+	source = """
 		<?whitespace strip?>
 		<?code papp = datasources.personen.app?>
 		<?code r = first(r for r in papp.records.values() if r.v_nachname == 'Newton')?>
@@ -509,7 +497,8 @@ def test_attributes_unsaved_record(Handler):
 		<?code r.v_geburtstag = @(1642-12-25)?>
 		<?code r.save()?>;
 		<?print r.updatedat is None?> <?print r.updatedby.email?>
-	""")
+	"""
+	assert f"True True;False {user()};False {user()}" == handler(source, testappid, template="export")
 
 
 def template_unsorted_records(records, content):
@@ -559,120 +548,183 @@ template_sorted_children = template_sorted_records(
 
 
 def test_datasource_recordfilter(personrecords):
-	h = PythonDBHandler(template="export_recordfilter")
-
-	assert "Albert Einstein" == h.render(template_unsorted_persons)
+	output = python_db(
+		template_unsorted_persons,
+		testappid,
+		template="export_recordfilter",
+	)
+	assert "Albert Einstein" == output
 
 
 def test_datasource_recordfilter_param_str(personrecords):
-	h = PythonDBHandler(template="export_recordfilter_param_str", nachname="Curie")
+	output = python_db(
+		template_unsorted_persons,
+		testappid,
+		template="export_recordfilter_param_str",
+		nachname="Curie",
+	)
 
-	assert "Marie Curie" == h.render(template_unsorted_persons)
+	assert "Marie Curie" == output
 
 
 def test_datasource_recordfilter_param_int(personrecords):
-	h = PythonDBHandler(template="export_recordfilter_param_int", jahr="1935")
+	output = python_db(
+		template_unsorted_persons,
+		testappid,
+		template="export_recordfilter_param_int",
+		jahr="1935",
+	)
 
-	assert "Elvis Presley" == h.render(template_unsorted_persons)
+	assert "Elvis Presley" == output
 
 
 def test_datasource_recordfilter_param_date(personrecords):
-	h = PythonDBHandler(template="export_recordfilter_param_date", geburtstag="1926-06-01")
+	output = python_db(
+		template_unsorted_persons,
+		testappid,
+		template="export_recordfilter_param_date",
+		geburtstag="1926-06-01",
+	)
 
-	assert "Marilyn Monroe" == h.render(template_unsorted_persons)
+	assert "Marilyn Monroe" == output
 
 
 def test_datasource_recordfilter_param_datetime(personrecords):
-	h = PythonDBHandler(template="export_recordfilter_param_datetime", geburtstag="1926-06-01T12:34:56")
+	output = python_db(
+		template_unsorted_persons,
+		testappid,
+		template="export_recordfilter_param_datetime",
+		geburtstag="1926-06-01T12:34:56",
+	)
 
-	assert "Marilyn Monroe" == h.render(template_unsorted_persons)
+	assert "Marilyn Monroe" == output
 
 
 def test_datasource_recordfilter_param_strlist(personrecords):
-	h = PythonDBHandler(template="export_recordfilter_param_strlist", nachname=["Gauß", "Riemann"])
+	output = python_db(
+		template_sorted_persons,
+		testappid,
+		template="export_recordfilter_param_strlist",
+		nachname=["Gauß", "Riemann"],
+	)
 
-	assert "Carl Friedrich Gauß;Bernhard Riemann" == h.render(template_sorted_persons)
+	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
 def test_datasource_recordfilter_param_intlist(personrecords):
-	h = PythonDBHandler(template="export_recordfilter_param_intlist", jahr=["1826", "1777"])
+	output = python_db(
+		template_sorted_persons,
+		testappid,
+		template="export_recordfilter_param_intlist",
+		jahr=["1826", "1777"],
+	)
 
-	assert "Carl Friedrich Gauß;Bernhard Riemann" == h.render(template_sorted_persons)
+	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
 def test_datasource_recordfilter_param_datelist(personrecords):
-	h = PythonDBHandler(template="export_recordfilter_param_datelist", geburtstag=["1826-06-17", "1777-04-30"])
+	output = python_db(
+		template_sorted_persons,
+		testappid,
+		template="export_recordfilter_param_datelist",
+		geburtstag=["1826-06-17", "1777-04-30"],
+	)
 
-	assert "Carl Friedrich Gauß;Bernhard Riemann" == h.render(template_sorted_persons)
+	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
 def test_datasource_recordfilter_param_datetimelist(personrecords):
-	h = PythonDBHandler(template="export_recordfilter_param_datetimelist", geburtstag=["1777-04-30T12:34:56"])
+	output = python_db(
+		template_sorted_persons,
+		testappid,
+		template="export_recordfilter_param_datetimelist",
+		geburtstag=["1777-04-30T12:34:56"],
+	)
 
-	assert "Carl Friedrich Gauß" == h.render(template_sorted_persons)
+	assert "Carl Friedrich Gauß" == output
 
 
 def test_datasource_sort_asc_nullsfirst(personrecords):
-	h = PythonDBHandler(template="export_sort_asc_nullsfirst")
+	output = python_db(
+		template_unsorted_persons,
+		testappid,
+		template="export_sort_asc_nullsfirst",
+	)
 
-	assert "Donald Knuth;Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein" == h.render(template_unsorted_persons)
+	assert "Donald Knuth;Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein" == output
 
 
 def test_datasource_sort_asc_nullslast(personrecords):
-	h = PythonDBHandler(template="export_sort_asc_nullslast")
+	output = python_db(
+		template_unsorted_persons,
+		testappid,
+		template="export_sort_asc_nullslast",
+	)
 
-	assert "Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein;Donald Knuth" == h.render(template_unsorted_persons)
+	assert "Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein;Donald Knuth" == output
 
 
 def test_datasource_sort_desc_nullsfirst(personrecords):
-	h = PythonDBHandler(template="export_sort_desc_nullsfirst")
+	output = python_db(
+		template_unsorted_persons,
+		testappid,
+		template="export_sort_desc_nullsfirst",
+	)
 
-	assert "Donald Knuth;Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß" == h.render(template_unsorted_persons)
+	assert "Donald Knuth;Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß" == output
 
 
 def test_datasource_sort_desc_nullslast(personrecords):
-	h = PythonDBHandler(template="export_sort_desc_nullslast")
+	output = python_db(
+		template_unsorted_persons,
+		testappid,
+		template="export_sort_desc_nullslast",
+	)
 
-	assert "Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß;Donald Knuth" == h.render(template_unsorted_persons)
+	assert "Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß;Donald Knuth" == output
 
 
 def test_datasource_masterdetail_recordfilter(personrecords):
-	h = PythonDBHandler(template="export_masterdetail_recordfilter")
-
 	attrs = personrecords
-
-	assert "True;Informatik;Mathematik;Physik;Literatur" == h.render(f"""
+	source = f"""
 		<?whitespace strip?>
 		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.taetigkeitsfelder.app.records.values())?>
 		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
 			;{template_sorted_children}
 		<?end for?>
-	""")
+	"""
+
+	output = python_db(source, testappid, template="export_masterdetail_recordfilter")
+
+
+	assert "True;Informatik;Mathematik;Physik;Literatur" == output
 
 
 def test_datasource_masterdetail_sort_asc(personrecords):
-	h = PythonDBHandler(template="export_masterdetail_sort_asc")
-
 	attrs = personrecords
-
-	assert "True;Informatik;Mathematik;Physik;Film;Literatur;Musik" == h.render(f"""
+	source = f"""
 		<?whitespace strip?>
 		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.taetigkeitsfelder.app.records.values())?>
 		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
 			;{template_unsorted_children}
 		<?end for?>
-	""")
+	"""
+
+	output = python_db(source, testappid, template="export_masterdetail_sort_asc")
+
+	assert "True;Informatik;Mathematik;Physik;Film;Literatur;Musik" == output
 
 
 def test_datasource_masterdetail_sort_desc(personrecords):
-	h = PythonDBHandler(template="export_masterdetail_sort_desc")
-
 	attrs = personrecords
-
-	assert "True;Physik;Mathematik;Informatik;Musik;Literatur;Film" == h.render(f"""
+	source = f"""
 		<?whitespace strip?>
 		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.taetigkeitsfelder.app.records.values())?>
 		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
 			;{template_unsorted_children}
 		<?end for?>
-	""")
+	"""
+
+	output = python_db(source, testappid, template="export_masterdetail_sort_desc")
+
+	assert "True;Physik;Mathematik;Informatik;Musik;Literatur;Film" == output
