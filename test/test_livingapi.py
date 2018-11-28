@@ -515,64 +515,86 @@ def test_livingapi_appparam_bool(handler):
 	source = """
 		<?whitespace strip?>
 		<?print repr(app.params.bool_none.value)?>;
+		<?print app.params.bool_none.description?>;
 		<?print repr(app.params.bool_false.value)?>;
-		<?print repr(app.params.bool_true.value)?>
+		<?print app.params.bool_false.description?>;
+		<?print repr(app.params.bool_true.value)?>;
+		<?print app.params.bool_true.description?>
 	"""
-	assert "None;False;True" == python_db(source, testappid, template="export_appparams")
+	output = python_db(source, testappid, template="export_appparams")
+	assert "None;desc bool_none;False;desc bool_false;True;desc bool_true" == output
 
 
 def test_livingapi_appparam_int(handler):
 	source = """
 		<?whitespace strip?>
 		<?print repr(app.params.int_none.value)?>;
-		<?print repr(app.params.int_value.value)?>
+		<?print app.params.int_none.description?>;
+		<?print repr(app.params.int_value.value)?>;
+		<?print app.params.int_value.description?>
 	"""
-	assert "None;42" == python_db(source, testappid, template="export_appparams")
+	output = python_db(source, testappid, template="export_appparams")
+	assert "None;desc int_none;42;desc int_value" == output
 
 
 def test_livingapi_appparam_number(handler):
 	source = """
 		<?whitespace strip?>
 		<?print repr(app.params.number_none.value)?>;
-		<?print repr(app.params.number_value.value)?>
+		<?print app.params.number_none.description?>;
+		<?print repr(app.params.number_value.value)?>;
+		<?print app.params.number_value.description?>
 	"""
-	assert "None;42.5" == python_db(source, testappid, template="export_appparams")
+	output = python_db(source, testappid, template="export_appparams")
+	assert "None;desc number_none;42.5;desc number_value" == output
 
 
 def test_livingapi_appparam_str(handler):
 	source = """
 		<?whitespace strip?>
 		<?print repr(app.params.str_none.value)?>;
-		<?print repr(app.params.str_value.value)?>
+		<?print app.params.str_none.description?>;
+		<?print repr(app.params.str_value.value)?>;
+		<?print app.params.str_value.description?>
 	"""
-	assert "None;'gurk'" == python_db(source, testappid, template="export_appparams")
+	output = python_db(source, testappid, template="export_appparams")
+	assert "None;desc str_none;'gurk';desc str_value" == output
 
 
 def test_livingapi_appparam_color(handler):
 	source = """
 		<?whitespace strip?>
 		<?print repr(app.params.color_none.value)?>;
-		<?print repr(app.params.color_value.value)?>
+		<?print app.params.color_none.description?>;
+		<?print repr(app.params.color_value.value)?>;
+		<?print app.params.color_value.description?>
 	"""
-	assert "None;#369c" == python_db(source, testappid, template="export_appparams")
+	output = python_db(source, testappid, template="export_appparams")
+	assert "None;desc color_none;#369c;desc color_value" == output
 
 
 def test_livingapi_appparam_upload(handler):
 	source = """
 		<?whitespace strip?>
 		<?print repr(app.params.upload_none.value)?>;
-		<?print repr(app.params.upload_value.value.mimetype)?>
+		<?print app.params.upload_none.description?>;
+		<?print repr(app.params.upload_value.value.mimetype)?>;
+		<?print app.params.upload_value.description?>
 	"""
-	assert "None;'image/jpeg'" == python_db(source, testappid, template="export_appparams")
+	output = python_db(source, testappid, template="export_appparams")
+	assert "None;desc upload_none;'image/jpeg';desc upload_value" == output
 
 
 def test_livingapi_appparam_app(handler):
 	source = """
 		<?whitespace strip?>
 		<?print repr(app.params.app_none.value)?>;
-		<?print repr(app.params.app_value.value.id)?>
+		<?print app.params.app_none.description?>;
+		<?print repr(app.params.app_value.value.id)?>;
+		<?print app.params.app_value.description?>
 	"""
-	assert f"None;'{testappid}'" == python_db(source, testappid, template="export_appparams")
+	output = python_db(source, testappid, template="export_appparams")
+	assert f"None;desc app_none;'{testappid}';desc app_value" == output
 
 
 template_unsorted_persons = """
