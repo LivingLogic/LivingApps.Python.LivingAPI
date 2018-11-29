@@ -540,7 +540,7 @@ def test_livingapi_appparam_int(handler):
 		<?print app.params.int_value.description?>
 	"""
 	output = python_db(source, testappid, template="export_appparams")
-	assert "None;desc int_none;42;desc int_value" == output
+	assert "None;desc int_none;1777;desc int_value" == output
 
 
 def test_livingapi_appparam_number(handler):
