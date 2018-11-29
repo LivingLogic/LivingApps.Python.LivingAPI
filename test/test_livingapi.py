@@ -757,6 +757,16 @@ def test_vsql_datasource_recordfilter_param_datetimelist(personrecords):
 	assert "Carl Friedrich Gauß" == output
 
 
+def test_vsql_datasource_recordfilter_appparam_int(personrecords):
+	output = python_db(
+		template_sorted_persons,
+		testappid,
+		template="export_recordfilter_appparam_int",
+	)
+
+	assert "Carl Friedrich Gauß" == output
+
+
 def test_vsql_datasource_sort_asc_nullsfirst(personrecords):
 	output = python_db(
 		template_unsorted_persons,
