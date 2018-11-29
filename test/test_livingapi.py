@@ -11,7 +11,7 @@ import livapps
 ### Data and helper functions
 ###
 
-testappid = "5bf3f8b2b7d9a84b7a9a4476"
+testappid = "5bffc841c26a4b5902b2278c"
 
 
 class attrdict(dict):
@@ -171,8 +171,8 @@ def norecords():
 	handler = livapps.DBHandler(connect(), uploaddir(), user())
 	vars = handler.get(testappid, template="export")
 
-	personen_app = vars.datasources.personen.app
-	taetigkeitsfelder_app = vars.datasources.taetigkeitsfelder.app
+	personen_app = vars.datasources.persons.app
+	taetigkeitsfelder_app = vars.datasources.fieldsofactivity.app
 
 	# Remove all persons
 	for r in personen_app.records.values():
@@ -186,7 +186,7 @@ def norecords():
 		r.delete()
 
 	for r in taetigkeitsfelder_app.records.values():
-		if r.v_uebergeordnetes_taetigkeitsfeld is None:
+		if r.v_parent is None:
 			removeaa(r)
 
 	handler.commit()
@@ -202,7 +202,7 @@ def arearecords(norecords):
 	attrs = norecords
 	attrs.vars = attrs.handler.get(testappid, template="export")
 
-	taetigkeitsfelder_app = attrs.vars.datasources.taetigkeitsfelder.app
+	taetigkeitsfelder_app = attrs.vars.datasources.fieldsofactivity.app
 
 	attrs.areas = attrdict()
 
@@ -211,16 +211,16 @@ def arearecords(norecords):
 		aa.save()
 		return aa
 
-	attrs.areas.wissenschaft = aa(name="Wissenschaft")
-	attrs.areas.mathematik = aa(name="Mathematik", uebergeordnetes_taetigkeitsfeld=attrs.areas.wissenschaft)
-	attrs.areas.physik = aa(name="Physik", uebergeordnetes_taetigkeitsfeld=attrs.areas.wissenschaft)
-	attrs.areas.informatik = aa(name="Informatik", uebergeordnetes_taetigkeitsfeld=attrs.areas.wissenschaft)
-	attrs.areas.kunst = aa(name="Kunst")
-	attrs.areas.film = aa(name="Film", uebergeordnetes_taetigkeitsfeld=attrs.areas.kunst)
-	attrs.areas.musik = aa(name="Musik", uebergeordnetes_taetigkeitsfeld=attrs.areas.kunst)
-	attrs.areas.literatur = aa(name="Literatur", uebergeordnetes_taetigkeitsfeld=attrs.areas.kunst)
-	attrs.areas.politik = aa(name="Politik")
-	attrs.areas.wirtschaft = aa(name="Wirtschaft")
+	attrs.areas.science = aa(name="Science")
+	attrs.areas.maths = aa(name="Maths", parent=attrs.areas.science)
+	attrs.areas.physics = aa(name="Physics", parent=attrs.areas.science)
+	attrs.areas.computerscience = aa(name="Computer science", parent=attrs.areas.science)
+	attrs.areas.art = aa(name="Art")
+	attrs.areas.film = aa(name="Film", parent=attrs.areas.art)
+	attrs.areas.music = aa(name="Music", parent=attrs.areas.art)
+	attrs.areas.literature = aa(name="Literature", parent=attrs.areas.art)
+	attrs.areas.politics = aa(name="Politics")
+	attrs.areas.industry = aa(name="Industry")
 	attrs.areas.sport = aa(name="Sport")
 
 	attrs.handler.commit()
@@ -237,7 +237,7 @@ def personrecords(arearecords):
 	attrs = arearecords
 	ps = []
 
-	personen_app = attrs.vars.datasources.personen.app
+	personen_app = attrs.vars.datasources.persons.app
 
 	def p(**values):
 		p = personen_app(**values)
@@ -253,93 +253,99 @@ def personrecords(arearecords):
 		return attrs.handler.geo(lat, long, info)
 
 	ae = p(
-		vorname="Albert",
-		nachname="Einstein",
-		geschlecht=personen_app.c_geschlecht.lookupdata.maennlich,
-		taetigkeitsfeld=[attrs.areas.physik],
-		geburtstag=datetime.date(1879, 3, 14),
-		todestag=datetime.date(1955, 4, 15),
-		#grab=g(lat, long),
+		firstname="Albert",
+		lastname="Einstein",
+		sex=personen_app.c_sex.lookupdata.male,
+		field_of_activity2=[attrs.areas.physics],
+		date_of_birth=datetime.date(1879, 3, 14),
+		date_of_death=datetime.date(1955, 4, 15),
+		grave2=g(lat, long),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Einstein_1921_portrait2.jpg/330px-Einstein_1921_portrait2.jpg"),
 	)
 
 	mc = p(
-		vorname="Marie",
-		nachname="Curie",
-		geschlecht=personen_app.c_geschlecht.lookupdata.weiblich,
-		taetigkeitsfeld=[attrs.areas.physik],
-		geburtstag=datetime.date(1867, 11, 7),
-		todestag=datetime.date(1934, 7, 4),
-		grab=g("Patheon Paris"),
+		firstname="Marie",
+		lastname="Curie",
+		sex=personen_app.c_sex.lookupdata.female,
+		field_of_activity2=[attrs.areas.physics],
+		date_of_birth=datetime.date(1867, 11, 7),
+		date_of_death=datetime.date(1934, 7, 4),
+		grave2=g(lat, long),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
 	)
 
 	ma = p(
-		vorname="Muhammad",
-		nachname="Ali",
-		geschlecht=personen_app.c_geschlecht.lookupdata.maennlich,
-		taetigkeitsfeld=[attrs.areas.sport],
-		geburtstag=datetime.date(1942, 1, 17),
-		todestag=datetime.date(2016, 6, 3),
+		firstname="Muhammad",
+		lastname="Ali",
+		sex=personen_app.c_sex.lookupdata.male,
+		field_of_activity2=[attrs.areas.sport],
+		date_of_birth=datetime.date(1942, 1, 17),
+		date_of_death=datetime.date(2016, 6, 3),
+		grave2=g(lat, long),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Muhammad_Ali_NYWTS.jpg/200px-Muhammad_Ali_NYWTS.jpg"),
 	)
 
 	mm = p(
-		vorname="Marilyn",
-		nachname="Monroe",
-		geschlecht=personen_app.c_geschlecht.lookupdata.weiblich,
-		taetigkeitsfeld=[attrs.areas.film],
-		geburtstag=datetime.date(1926, 6, 1),
-		todestag=datetime.date(1962, 8, 4),
+		firstname="Marilyn",
+		lastname="Monroe",
+		sex=personen_app.c_sex.lookupdata.female,
+		field_of_activity2=[attrs.areas.film],
+		date_of_birth=datetime.date(1926, 6, 1),
+		date_of_death=datetime.date(1962, 8, 4),
+		grave2=g(lat, long),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg/220px-Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg"),
 	)
 
 	ep = p(
-		vorname="Elvis",
-		nachname="Presley",
-		geschlecht=personen_app.c_geschlecht.lookupdata.maennlich,
-		taetigkeitsfeld=[attrs.areas.musik],
-		geburtstag=datetime.date(1935, 1, 8),
-		todestag=datetime.date(1977, 8, 16),
+		firstname="Elvis",
+		lastname="Presley",
+		sex=personen_app.c_sex.lookupdata.male,
+		field_of_activity2=[attrs.areas.music],
+		date_of_birth=datetime.date(1935, 1, 8),
+		date_of_death=datetime.date(1977, 8, 16),
+		grave2=g(lat, long),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
 	)
 
 	br = p(
-		vorname="Bernhard",
-		nachname="Riemann",
-		geschlecht=personen_app.c_geschlecht.lookupdata.maennlich,
-		taetigkeitsfeld=[attrs.areas.mathematik],
-		geburtstag=datetime.date(1826, 6, 17),
-		todestag=datetime.date(1866, 6, 20),
+		firstname="Bernhard",
+		lastname="Riemann",
+		sex=personen_app.c_sex.lookupdata.male,
+		field_of_activity2=[attrs.areas.maths],
+		date_of_birth=datetime.date(1826, 6, 17),
+		date_of_death=datetime.date(1866, 6, 20),
+		grave2=g(lat, long),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/BernhardRiemannAWeger.jpg/330px-BernhardRiemannAWeger.jpg"),
 	)
 
 	cfg = p(
-		vorname="Carl Friedrich",
-		nachname="Gauß",
-		geschlecht=personen_app.c_geschlecht.lookupdata.maennlich,
-		taetigkeitsfeld=[attrs.areas.mathematik],
-		geburtstag=datetime.date(1777, 4, 30),
-		todestag=datetime.date(1855, 2, 23),
+		firstname="Carl Friedrich",
+		lastname="Gauß",
+		sex=personen_app.c_sex.lookupdata.male,
+		field_of_activity2=[attrs.areas.maths],
+		date_of_birth=datetime.date(1777, 4, 30),
+		date_of_death=datetime.date(1855, 2, 23),
+		grave2=g(lat, long),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carl_Friedrich_Gauss.jpg/255px-Carl_Friedrich_Gauss.jpg"),
 	)
 
 	dk = p(
-		vorname="Donald",
-		nachname="Knuth",
-		geschlecht=personen_app.c_geschlecht.lookupdata.maennlich,
-		taetigkeitsfeld=[attrs.areas.informatik],
-		geburtstag=datetime.date(1938, 1, 10),
+		firstname="Donald",
+		lastname="Knuth",
+		sex=personen_app.c_sex.lookupdata.male,
+		field_of_activity2=[attrs.areas.computerscience],
+		date_of_birth=datetime.date(1938, 1, 10),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/KnuthAtOpenContentAlliance.jpg/255px-KnuthAtOpenContentAlliance.jpg"),
 	)
 
 	rr = p(
-		vorname="Ronald",
-		nachname="Reagan",
-		geschlecht=personen_app.c_geschlecht.lookupdata.maennlich,
-		taetigkeitsfeld=[attrs.areas.film, attrs.areas.politik],
-		geburtstag=datetime.date(1911, 2, 6),
-		todestag=datetime.date(2004, 6, 5),
+		firstname="Ronald",
+		lastname="Reagan",
+		sex=personen_app.c_sex.lookupdata.male,
+		field_of_activity2=[attrs.areas.film, attrs.areas.politics],
+		date_of_birth=datetime.date(1911, 2, 6),
+		date_of_death=datetime.date(2004, 6, 5),
+		grave2=g(lat, long),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
 	)
 
