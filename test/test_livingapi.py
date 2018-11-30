@@ -414,6 +414,16 @@ def test_livingapi_output_all_controls(handler):
 	handler(source, testappid, template="export")
 
 
+def test_livingapi_detail(handler, personrecords):
+	# Simply test that detail templates work
+	source = """
+		<?whitespace strip?>
+		<?print record.v_firstname?> <?print record.v_lastname?>
+	"""
+
+	assert "Albert Einstein" == handler(source, testappid, personrecords.persons.ae.id, template="export_detail")
+
+
 def test_livingapi_sort_default_order_is_newest_first(handler, personrecords):
 	# Check the the default sort order is descending by creation date
 	source = """
