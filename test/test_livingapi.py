@@ -145,18 +145,18 @@ def java_db(source, *path, **params):
 ### Test fixtures
 ###
 
+params = [
+	"python_db",
+	"python_http",
+	pytest.param("java_db", marks=pytest.mark.java)
+]
+
 all_handlers = dict(
 	python_db=python_db,
 	python_http=python_http,
 	java_db=java_db,
 )
 
-params = [
-	"python_db",
-	"python_http",
-	pytest.param("java_db", marks=pytest.mark.java)
-
-]
 @pytest.fixture(scope="module", params=params)
 def handler(request):
 	"""
