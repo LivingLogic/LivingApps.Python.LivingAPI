@@ -184,7 +184,7 @@ def norecords():
 
 	# Recursively remove areas of activity
 	def removeaa(r):
-		for r2 in r.c_kinder.values():
+		for r2 in r.c_children.values():
 			removeaa(r2)
 		r.delete()
 
@@ -627,7 +627,7 @@ template_sorted_persons = """
 
 template_unsorted_children = """
 	<?whitespace strip?>
-	<?for (f, r) in isfirst(datasources.fieldsofactivity.app.records[id].c_kinder.values())?>
+	<?for (f, r) in isfirst(datasources.fieldsofactivity.app.records[id].c_children.values())?>
 		<?if not f?>;<?end if?>
 		<?print r.v_name?>
 	<?end for?>
@@ -638,7 +638,7 @@ template_sorted_children = """
 	<?def key(r)?>
 		<?return r.v_name?>
 	<?end def?>
-	<?for (f, r) in isfirst(sorted(datasources.fieldsofactivity.app.records[id].c_kinder.values(), key))?>
+	<?for (f, r) in isfirst(sorted(datasources.fieldsofactivity.app.records[id].c_children.values(), key))?>
 		<?if not f?>;<?end if?>
 		<?print r.v_name?>
 	<?end for?>
@@ -831,7 +831,7 @@ def test_vsql_datasource_masterdetail_sort_asc(personrecords):
 	source = f"""
 		<?whitespace strip?>
 		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.fieldsofactivity.app.records.values())?>
-		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
+		<?for id in ['{attrs.areas.science.id}', '{attrs.areas.art.id}']?>
 			;{template_unsorted_children}
 		<?end for?>
 	"""
@@ -846,7 +846,7 @@ def test_vsql_datasource_masterdetail_sort_desc(personrecords):
 	source = f"""
 		<?whitespace strip?>
 		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.fieldsofactivity.app.records.values())?>
-		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
+		<?for id in ['{attrs.areas.science.id}', '{attrs.areas.art.id}']?>
 			;{template_unsorted_children}
 		<?end for?>
 	"""
