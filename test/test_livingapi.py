@@ -95,10 +95,13 @@ def java_find_exception(output):
 	for line in lines:
 		prefix1 = 'Exception in thread "main"'
 		prefix2 = "Caused by:"
+		prefix3 = "Suppressed:"
 		if line.startswith(prefix1):
 			msg = line[len(prefix1):].strip()
 		elif line.startswith(prefix2):
 			msg = line[len(prefix2):].strip()
+		elif line.lstrip().startswith(prefix3):
+			msg = line.lstrip()[len(prefix3):].strip()
 		else:
 			continue
 		newexc = RuntimeError(msg)
