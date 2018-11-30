@@ -508,7 +508,7 @@ def test_livingapi_attributes_unsaved_record(handler):
 		<?print r.updatedat is None?> <?print r.updatedby is None?>
 		<?code r.save()?>;
 		<?print r.updatedat is None?> <?print r.updatedby.email?>
-		<?code r.v_	date_of_birth = @(1642-12-25)?>
+		<?code r.v_date_of_birth = @(1642-12-25)?>
 		<?code r.save()?>;
 		<?print r.updatedat is None?> <?print r.updatedby.email?>
 	"""
