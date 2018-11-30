@@ -256,10 +256,10 @@ def personrecords(arearecords):
 		firstname="Albert",
 		lastname="Einstein",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity2=[attrs.areas.physics],
+		field_of_activity=[attrs.areas.physics],
 		date_of_birth=datetime.date(1879, 3, 14),
 		date_of_death=datetime.date(1955, 4, 15),
-		grave2=g(lat, long),
+		grave=g(40.216085, -74.7917151),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Einstein_1921_portrait2.jpg/330px-Einstein_1921_portrait2.jpg"),
 	)
 
@@ -267,10 +267,10 @@ def personrecords(arearecords):
 		firstname="Marie",
 		lastname="Curie",
 		sex=personen_app.c_sex.lookupdata.female,
-		field_of_activity2=[attrs.areas.physics],
+		field_of_activity=[attrs.areas.physics],
 		date_of_birth=datetime.date(1867, 11, 7),
 		date_of_death=datetime.date(1934, 7, 4),
-		grave2=g(lat, long),
+		grave=g(48.84672, 2.34631),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
 	)
 
@@ -278,10 +278,10 @@ def personrecords(arearecords):
 		firstname="Muhammad",
 		lastname="Ali",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity2=[attrs.areas.sport],
+		field_of_activity=[attrs.areas.sport],
 		date_of_birth=datetime.date(1942, 1, 17),
 		date_of_death=datetime.date(2016, 6, 3),
-		grave2=g(lat, long),
+		grave=g(38.2454051, -85.7170115),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Muhammad_Ali_NYWTS.jpg/200px-Muhammad_Ali_NYWTS.jpg"),
 	)
 
@@ -289,10 +289,10 @@ def personrecords(arearecords):
 		firstname="Marilyn",
 		lastname="Monroe",
 		sex=personen_app.c_sex.lookupdata.female,
-		field_of_activity2=[attrs.areas.film],
+		field_of_activity=[attrs.areas.film],
 		date_of_birth=datetime.date(1926, 6, 1),
 		date_of_death=datetime.date(1962, 8, 4),
-		grave2=g(lat, long),
+		grave=g(34.05827, -118.44096),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg/220px-Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg"),
 	)
 
@@ -300,10 +300,10 @@ def personrecords(arearecords):
 		firstname="Elvis",
 		lastname="Presley",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity2=[attrs.areas.music],
+		field_of_activity=[attrs.areas.music],
 		date_of_birth=datetime.date(1935, 1, 8),
 		date_of_death=datetime.date(1977, 8, 16),
-		grave2=g(lat, long),
+		grave=g(35.04522870295311, -90.02283096313477),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
 	)
 
@@ -311,10 +311,10 @@ def personrecords(arearecords):
 		firstname="Bernhard",
 		lastname="Riemann",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity2=[attrs.areas.maths],
+		field_of_activity=[attrs.areas.maths],
 		date_of_birth=datetime.date(1826, 6, 17),
 		date_of_death=datetime.date(1866, 6, 20),
-		grave2=g(lat, long),
+		grave=g(45.942127, 8.5870263),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/BernhardRiemannAWeger.jpg/330px-BernhardRiemannAWeger.jpg"),
 	)
 
@@ -322,10 +322,10 @@ def personrecords(arearecords):
 		firstname="Carl Friedrich",
 		lastname="Gauß",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity2=[attrs.areas.maths],
+		field_of_activity=[attrs.areas.maths],
 		date_of_birth=datetime.date(1777, 4, 30),
 		date_of_death=datetime.date(1855, 2, 23),
-		grave2=g(lat, long),
+		grave=g(51.53157404627684, 9.94189739227295),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carl_Friedrich_Gauss.jpg/255px-Carl_Friedrich_Gauss.jpg"),
 	)
 
@@ -333,7 +333,7 @@ def personrecords(arearecords):
 		firstname="Donald",
 		lastname="Knuth",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity2=[attrs.areas.computerscience],
+		field_of_activity=[attrs.areas.computerscience],
 		date_of_birth=datetime.date(1938, 1, 10),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/KnuthAtOpenContentAlliance.jpg/255px-KnuthAtOpenContentAlliance.jpg"),
 	)
@@ -342,10 +342,10 @@ def personrecords(arearecords):
 		firstname="Ronald",
 		lastname="Reagan",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity2=[attrs.areas.film, attrs.areas.politics],
+		field_of_activity=[attrs.areas.film, attrs.areas.politics],
 		date_of_birth=datetime.date(1911, 2, 6),
 		date_of_death=datetime.date(2004, 6, 5),
-		grave2=g(lat, long),
+		grave=g(34.2590025, -118.8226249),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
 	)
 
@@ -371,13 +371,13 @@ def test_livingapi_user(handler):
 def test_livingapi_app(handler):
 	# Check that ``app`` is the correct one
 	assert testappid == handler("<?print app.id?>", testappid, template="export")
-	assert "LA-Demo: Personen" == handler("<?print app.name?>", testappid, template="export")
+	assert "LA-Demo: Persons" == handler("<?print app.name?>", testappid, template="export")
 
 
 def test_livingapi_datasources(handler):
 	# Check that the datasources have the identifiers we expect
 	source = "<?print ';'.join(sorted(datasources))?>"
-	assert "personen;taetigkeitsfelder" == handler(source, testappid, template="export")
+	assert "persons;fieldsofactivity" == handler(source, testappid, template="export")
 
 
 def test_livingapi_output_all_records(handler, personrecords):
@@ -427,7 +427,7 @@ def test_livingapi_sort_default_order_is_newest_first(handler, personrecords):
 	source = """
 		<?whitespace strip?>
 		<?code lastcreatedat = None?>
-		<?for p in datasources.personen.app.records.values()?>
+		<?for p in datasources.persons.app.records.values()?>
 			<?if lastcreatedat is not None and lastcreatedat > p.createdat?>
 				Bad: <?print lastcreatedat?> > <?print p.createdat?>
 			<?end if?>
@@ -441,12 +441,12 @@ def test_livingapi_record_shortcutattributes(handler, personrecords):
 	# Find "Albert Einstein" and output one of his fields in multiple ways
 	source = """
 		<?whitespace strip?>
-		<?code papp = datasources.personen.app?>
-		<?code ae = first(r for r in papp.records.values() if r.v_nachname == "Einstein")?>
-		<?print repr(ae.fields.vorname.value)?>;
-		<?print repr(ae.f_vorname.value)?>;
-		<?print repr(ae.values.vorname)?>;
-		<?print repr(ae.v_vorname)?>
+		<?code papp = datasources.persons.app?>
+		<?code ae = first(r for r in papp.records.values() if r.v_lastname == "Einstein")?>
+		<?print repr(ae.fields.firstname.value)?>;
+		<?print repr(ae.f_firstname.value)?>;
+		<?print repr(ae.values.firstname)?>;
+		<?print repr(ae.v_firstname)?>
 	"""
 	assert "'Albert';'Albert';'Albert';'Albert'" == handler(source, testappid, template="export")
 
@@ -455,18 +455,18 @@ def test_livingapi_app_shortcutattributes(handler):
 	# Access a control and output its fields with in two ways
 	source = """
 		<?whitespace strip?>
-		<?print repr(app.controls.vorname.identifier)?>;
-		<?print repr(app.c_vorname.identifier)?>
+		<?print repr(app.controls.firstname.identifier)?>;
+		<?print repr(app.c_firstname.identifier)?>
 	"""
-	assert "'vorname';'vorname'" == handler(source, testappid, template="export")
+	assert "'firstname';'firstname'" == handler(source, testappid, template="export")
 
 
 def test_livingapi_insert_record(handler, norecords):
 	source = """
 		<?whitespace strip?>
-		<?code papp = datasources.personen.app?>
-		<?code r = papp.insert(vorname="Isaac", nachname="Newton")?>
-		<?print repr(r.v_vorname)?> <?print repr(r.v_nachname)?>;
+		<?code papp = datasources.persons.app?>
+		<?code r = papp.insert(firstname="Isaac", lastname="Newton")?>
+		<?print repr(r.v_firstname)?> <?print repr(r.v_lastname)?>;
 		<?print r.id?>
 	"""
 	(output, id) = handler(source, testappid, template="export").split(";")
@@ -475,9 +475,9 @@ def test_livingapi_insert_record(handler, norecords):
 
 	source = f"""
 		<?whitespace strip?>
-		<?code papp = datasources.personen.app?>
+		<?code papp = datasources.persons.app?>
 		<?code r = papp.records['{id}']?>
-		<?print repr(r.v_vorname)?> <?print repr(r.v_nachname)?>
+		<?print repr(r.v_firstname)?> <?print repr(r.v_lastname)?>
 	"""
 	assert "'Isaac' 'Newton'" == handler(source, testappid, template="export")
 
@@ -487,8 +487,8 @@ def test_livingapi_attributes_unsaved_record(handler):
 	# new record is saved
 	source = """
 		<?whitespace strip?>
-		<?code papp = datasources.personen.app?>
-		<?code r = papp(vorname="Isaac", nachname="Newton")?>
+		<?code papp = datasources.persons.app?>
+		<?code r = papp(firstname="Isaac", lastname="Newton")?>
 		<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby is None?>
 		<?code r.save()?>;
 		<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby.email?>
@@ -500,12 +500,12 @@ def test_livingapi_attributes_unsaved_record(handler):
 	# however in this case no value fields will be changed)
 	source = """
 		<?whitespace strip?>
-		<?code papp = datasources.personen.app?>
-		<?code r = first(r for r in papp.records.values() if r.v_nachname == 'Newton')?>
+		<?code papp = datasources.persons.app?>
+		<?code r = first(r for r in papp.records.values() if r.v_lastname == 'Newton')?>
 		<?print r.updatedat is None?> <?print r.updatedby is None?>
 		<?code r.save()?>;
 		<?print r.updatedat is None?> <?print r.updatedby.email?>
-		<?code r.v_geburtstag = @(1642-12-25)?>
+		<?code r.v_	date_of_birth = @(1642-12-25)?>
 		<?code r.save()?>;
 		<?print r.updatedat is None?> <?print r.updatedby.email?>
 	"""
@@ -605,26 +605,26 @@ def test_livingapi_appparam_app(handler):
 
 template_unsorted_persons = """
 	<?whitespace strip?>
-	<?for (f, r) in isfirst(datasources.personen.app.records.values())?>
+	<?for (f, r) in isfirst(datasources.persons.app.records.values())?>
 		<?if not f?>;<?end if?>
-		<?print r.v_vorname?> <?print r.v_nachname?>
+		<?print r.v_firstname?> <?print r.v_lastname?>
 	<?end for?>
 """
 
 template_sorted_persons = """
 	<?whitespace strip?>
 	<?def key(r)?>
-		<?return r.v_nachname?>
+		<?return r.v_lastname?>
 	<?end def?>
-	<?for (f, r) in isfirst(sorted(datasources.personen.app.records.values(), key))?>
+	<?for (f, r) in isfirst(sorted(datasources.persons.app.records.values(), key))?>
 		<?if not f?>;<?end if?>
-		<?print r.v_vorname?> <?print r.v_nachname?>
+		<?print r.v_firstname?> <?print r.v_lastname?>
 	<?end for?>
 """
 
 template_unsorted_children = """
 	<?whitespace strip?>
-	<?for (f, r) in isfirst(datasources.taetigkeitsfelder.app.records[id].c_kinder.values())?>
+	<?for (f, r) in isfirst(datasources.fieldsofactivity.app.records[id].c_kinder.values())?>
 		<?if not f?>;<?end if?>
 		<?print r.v_name?>
 	<?end for?>
@@ -635,7 +635,7 @@ template_sorted_children = """
 	<?def key(r)?>
 		<?return r.v_name?>
 	<?end def?>
-	<?for (f, r) in isfirst(sorted(datasources.taetigkeitsfelder.app.records[id].c_kinder.values(), key))?>
+	<?for (f, r) in isfirst(sorted(datasources.fieldsofactivity.app.records[id].c_kinder.values(), key))?>
 		<?if not f?>;<?end if?>
 		<?print r.v_name?>
 	<?end for?>
@@ -674,7 +674,7 @@ def test_vsql_datasource_recordfilter_param_str(personrecords):
 		template_unsorted_persons,
 		testappid,
 		template="export_recordfilter_param_str",
-		nachname="Curie",
+		lastname="Curie",
 	)
 
 	assert "Marie Curie" == output
@@ -696,7 +696,7 @@ def test_vsql_datasource_recordfilter_param_date(personrecords):
 		template_unsorted_persons,
 		testappid,
 		template="export_recordfilter_param_date",
-		geburtstag="1926-06-01",
+		date_of_birth="1926-06-01",
 	)
 
 	assert "Marilyn Monroe" == output
@@ -707,7 +707,7 @@ def test_vsql_datasource_recordfilter_param_datetime(personrecords):
 		template_unsorted_persons,
 		testappid,
 		template="export_recordfilter_param_datetime",
-		geburtstag="1926-06-01T12:34:56",
+		date_of_birth="1926-06-01T12:34:56",
 	)
 
 	assert "Marilyn Monroe" == output
@@ -718,7 +718,7 @@ def test_vsql_datasource_recordfilter_param_strlist(personrecords):
 		template_sorted_persons,
 		testappid,
 		template="export_recordfilter_param_strlist",
-		nachname=["Gauß", "Riemann"],
+		lastname=["Gauß", "Riemann"],
 	)
 
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
@@ -740,7 +740,7 @@ def test_vsql_datasource_recordfilter_param_datelist(personrecords):
 		template_sorted_persons,
 		testappid,
 		template="export_recordfilter_param_datelist",
-		geburtstag=["1826-06-17", "1777-04-30"],
+		date_of_birth=["1826-06-17", "1777-04-30"],
 	)
 
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
@@ -751,7 +751,7 @@ def test_vsql_datasource_recordfilter_param_datetimelist(personrecords):
 		template_sorted_persons,
 		testappid,
 		template="export_recordfilter_param_datetimelist",
-		geburtstag=["1777-04-30T12:34:56"],
+		date_of_birth=["1777-04-30T12:34:56"],
 	)
 
 	assert "Carl Friedrich Gauß" == output
@@ -811,8 +811,8 @@ def test_vsql_datasource_masterdetail_recordfilter(personrecords):
 	attrs = personrecords
 	source = f"""
 		<?whitespace strip?>
-		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.taetigkeitsfelder.app.records.values())?>
-		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
+		<?print all(r.v_parent is None for r in datasources.fieldsofactivity.app.records.values())?>
+		<?for id in ['{attrs.areas.science.id}', '{attrs.areas.art.id}']?>
 			;{template_sorted_children}
 		<?end for?>
 	"""
@@ -820,14 +820,14 @@ def test_vsql_datasource_masterdetail_recordfilter(personrecords):
 	output = python_db(source, testappid, template="export_masterdetail_recordfilter")
 
 
-	assert "True;Informatik;Mathematik;Physik;Literatur" == output
+	assert "True;Computer science;Maths;Physics;Literature" == output
 
 
 def test_vsql_datasource_masterdetail_sort_asc(personrecords):
 	attrs = personrecords
 	source = f"""
 		<?whitespace strip?>
-		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.taetigkeitsfelder.app.records.values())?>
+		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.fieldsofactivity.app.records.values())?>
 		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
 			;{template_unsorted_children}
 		<?end for?>
@@ -835,14 +835,14 @@ def test_vsql_datasource_masterdetail_sort_asc(personrecords):
 
 	output = python_db(source, testappid, template="export_masterdetail_sort_asc")
 
-	assert "True;Informatik;Mathematik;Physik;Film;Literatur;Musik" == output
+	assert "True;Computer science;Maths;Physics;Film;Literature;Music" == output
 
 
 def test_vsql_datasource_masterdetail_sort_desc(personrecords):
 	attrs = personrecords
 	source = f"""
 		<?whitespace strip?>
-		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.taetigkeitsfelder.app.records.values())?>
+		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.fieldsofactivity.app.records.values())?>
 		<?for id in ['{attrs.areas.wissenschaft.id}', '{attrs.areas.kunst.id}']?>
 			;{template_unsorted_children}
 		<?end for?>
@@ -850,4 +850,4 @@ def test_vsql_datasource_masterdetail_sort_desc(personrecords):
 
 	output = python_db(source, testappid, template="export_masterdetail_sort_desc")
 
-	assert "True;Physik;Mathematik;Informatik;Musik;Literatur;Film" == output
+	assert "True;Physics;Maths;Computer science;Music;Literature;Film" == output
