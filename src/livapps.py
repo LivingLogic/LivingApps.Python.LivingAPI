@@ -1297,7 +1297,7 @@ class Handler:
 	def __init__(self):
 		self.globals = None
 
-	def get(self, appid, **params):
+	def get(self, *path, **params):
 		pass
 
 	def file(self, source):
@@ -1460,7 +1460,10 @@ class DBHandler(Handler):
 	def _filecontent(self, file):
 		upr_id = file.url.rsplit("/")[-1]
 		c = self.db.cursor()
-		c.execute("select u.upl_name from upload u, uploadref ur where u.upl_id=ur.upl_id and ur.upr_id = :upr_id", upr_id=upr_id)
+		c.execute(
+			"select u.upl_name from upload u, uploadref ur where u.upl_id=ur.upl_id and ur.upr_id = :upr_id",
+			upr_id=upr_id,
+		)
 		r = c.fetchone()
 		if r is None:
 			raise ValueError(f"no such file {file.url!r}")
@@ -1468,7 +1471,13 @@ class DBHandler(Handler):
 			u = self.uploaddirectory/r.upl_name
 			return u.openread().read()
 
-	def get(self, appid, **params):
+	def get(self, *path, **params):
+		if not 1 <= len(path) <= 2:
+			raise ValueError(f"need one or two path components, got {len(path)}")
+
+		appid = path[0]
+		datid = path[1] if len(path) > 1 else None
+
 		c = self.db.cursor()
 
 		c.execute("select tpl_id from template where tpl_uuid = :appid", appid=appid)
@@ -1478,10 +1487,17 @@ class DBHandler(Handler):
 		tpl_id = r.tpl_id
 		if "template" in params:
 			template = params.pop("template")
-			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = : identifier", tpl_id=tpl_id, identifier=template)
+			c.execute(
+				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = : identifier",
+				tpl_id=tpl_id,
+				identifier=template,
+			)
 		else:
 			template = None
-			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_defaultlist != 0", tpl_id=tpl_id)
+			c.execute(
+				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_defaultlist != 0",
+				tpl_id=tpl_id,
+			)
 		r = c.fetchone()
 		if r is None:
 			if template is None:
@@ -1500,7 +1516,13 @@ class DBHandler(Handler):
 						reqparams.append(key)
 						reqparams.append(subvalue)
 		reqparams = self.varchars(reqparams)
-		c.execute("select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, null, :reqparams) from dual", ide_id=self.ide_id, vt_id=vt_id, reqparams=reqparams)
+		c.execute(
+			"select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, :dat_id, :reqparams) from dual",
+			ide_id=self.ide_id,
+			vt_id=vt_id,
+			dat_id=datid,
+			reqparams=reqparams,
+		)
 		r = c.fetchone()
 		dump = r[0].read().decode("utf-8")
 		dump = self._loaddump(dump)
@@ -1633,7 +1655,9 @@ class HTTPHandler(Handler):
 		)
 		return r.content
 
-	def get(self, appid, **params):
+	def get(self, *path, **params):
+		if not 1 <= len(path) <= 2:
+			raise ValueError(f"need one or two path components, got {len(path)}")
 		kwargs = {
 			"headers": {
 				"Accept": "application/la-ul4on",
@@ -1643,9 +1667,10 @@ class HTTPHandler(Handler):
 				for (key, value) in params.items()
 			},
 		}
+		path = "/".join(path)
 		self._add_auth_token(kwargs)
 		r = self.session.get(
-			f"{self.url}gateway/apps/{appid}",
+			f"{self.url}gateway/apps/{path}",
 			**kwargs,
 		)
 		r.raise_for_status()
