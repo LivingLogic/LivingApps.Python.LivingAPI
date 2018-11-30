@@ -55,16 +55,9 @@ def passwd():
 def python_db(source, *path, **params):
 	template = ul4c.Template(source)
 
-	if len(path) != 1:
-		raise ValueError("need one path element")
+	handler = livapps.DBHandler(connect(), uploaddir(), user())
 
-	handler = livapps.DBHandler(
-		connect(),
-		uploaddir(),
-		user(),
-	)
-
-	vars = handler.get(path[0], **params)
+	vars = handler.get(*path, **params)
 	result = template.renders(**vars)
 	handler.commit()
 	return result
@@ -73,16 +66,9 @@ def python_db(source, *path, **params):
 def python_http(source, *path, **params):
 	template = ul4c.Template(source)
 
-	if len(path) != 1:
-		raise ValueError("need one path element")
+	handler = livapps.HTTPHandler(url(), user(), passwd())
 
-	handler = livapps.HTTPHandler(
-		url(),
-		user(),
-		passwd(),
-	)
-
-	vars = handler.get(path[0], **params)
+	vars = handler.get(*path, **params)
 	result = template.renders(**vars)
 	return result
 
@@ -129,6 +115,7 @@ def java_db(source, *path, **params):
 		jdbcpassword=dbpassword,
 		user=user(),
 		appid=path[0],
+		datid=path[1] if len(path) > 1 else None,
 		command="render",
 		template=source,
 		templateidentifier=templateidentifier,
