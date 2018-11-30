@@ -1297,7 +1297,7 @@ class Handler:
 	def __init__(self):
 		self.globals = None
 
-	def get(self, appid, template=None, **params):
+	def get(self, appid, **params):
 		pass
 
 	def file(self, source):
@@ -1468,7 +1468,7 @@ class DBHandler(Handler):
 			u = self.uploaddirectory/r.upl_name
 			return u.openread().read()
 
-	def get(self, appid, template=None, **params):
+	def get(self, appid, **params):
 		c = self.db.cursor()
 
 		c.execute("select tpl_id from template where tpl_uuid = :appid", appid=appid)
@@ -1476,10 +1476,12 @@ class DBHandler(Handler):
 		if r is None:
 			raise ValueError(f"no app {appid!r}")
 		tpl_id = r.tpl_id
-		if template is None:
-			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_defaultlist != 0", tpl_id=tpl_id)
-		else:
+		if "template" in params:
+			template = params.pop("template")
 			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = : identifier", tpl_id=tpl_id, identifier=template)
+		else:
+			template = None
+			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_defaultlist != 0", tpl_id=tpl_id)
 		r = c.fetchone()
 		if r is None:
 			if template is None:
@@ -1631,7 +1633,7 @@ class HTTPHandler(Handler):
 		)
 		return r.content
 
-	def get(self, appid, template=None, **params):
+	def get(self, appid, **params):
 		kwargs = {
 			"headers": {
 				"Accept": "application/la-ul4on",
@@ -1642,8 +1644,6 @@ class HTTPHandler(Handler):
 			},
 		}
 		self._add_auth_token(kwargs)
-		if template is not None:
-			kwargs["params"]["template"] = template
 		r = self.session.get(
 			f"{self.url}gateway/apps/{appid}",
 			**kwargs,
