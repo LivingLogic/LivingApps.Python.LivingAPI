@@ -380,7 +380,7 @@ def test_livingapi_app(handler):
 def test_livingapi_datasources(handler):
 	# Check that the datasources have the identifiers we expect
 	source = "<?print ';'.join(sorted(datasources))?>"
-	assert "persons;fieldsofactivity" == handler(source, testappid, template="export")
+	assert "fieldsofactivity;persons" == handler(source, testappid, template="export")
 
 
 def test_livingapi_output_all_records(handler, personrecords):
