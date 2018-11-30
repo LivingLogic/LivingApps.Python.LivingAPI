@@ -1474,7 +1474,7 @@ class DBHandler(Handler):
 		c.execute("select tpl_id from template where tpl_uuid = :appid", appid=appid)
 		r = c.fetchone()
 		if r is None:
-			raise ValueError(f"no template {appid!r}")
+			raise ValueError(f"no app {appid!r}")
 		tpl_id = r.tpl_id
 		if template is None:
 			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_defaultlist != 0", tpl_id=tpl_id)
