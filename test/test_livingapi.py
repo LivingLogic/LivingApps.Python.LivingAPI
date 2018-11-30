@@ -229,6 +229,8 @@ def personrecords(arearecords):
 
 	personen_app = attrs.vars.datasources.persons.app
 
+	attrs.persons = attrdict()
+
 	def p(**values):
 		p = personen_app(**values)
 		if p.v_portrait is not None and p.v_portrait.id is None:
@@ -242,7 +244,7 @@ def personrecords(arearecords):
 	def g(lat=None, long=None, info=None):
 		return attrs.handler.geo(lat, long, info)
 
-	ae = p(
+	attrs.persons.ae = p(
 		firstname="Albert",
 		lastname="Einstein",
 		sex=personen_app.c_sex.lookupdata.male,
@@ -253,7 +255,7 @@ def personrecords(arearecords):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Einstein_1921_portrait2.jpg/330px-Einstein_1921_portrait2.jpg"),
 	)
 
-	mc = p(
+	attrs.persons.mc = p(
 		firstname="Marie",
 		lastname="Curie",
 		sex=personen_app.c_sex.lookupdata.female,
@@ -264,7 +266,7 @@ def personrecords(arearecords):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
 	)
 
-	ma = p(
+	attrs.persons.ma = p(
 		firstname="Muhammad",
 		lastname="Ali",
 		sex=personen_app.c_sex.lookupdata.male,
@@ -275,7 +277,7 @@ def personrecords(arearecords):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Muhammad_Ali_NYWTS.jpg/200px-Muhammad_Ali_NYWTS.jpg"),
 	)
 
-	mm = p(
+	attrs.persons.mm = p(
 		firstname="Marilyn",
 		lastname="Monroe",
 		sex=personen_app.c_sex.lookupdata.female,
@@ -286,7 +288,7 @@ def personrecords(arearecords):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg/220px-Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg"),
 	)
 
-	ep = p(
+	attrs.persons.ep = p(
 		firstname="Elvis",
 		lastname="Presley",
 		sex=personen_app.c_sex.lookupdata.male,
@@ -297,7 +299,7 @@ def personrecords(arearecords):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
 	)
 
-	br = p(
+	attrs.persons.br = p(
 		firstname="Bernhard",
 		lastname="Riemann",
 		sex=personen_app.c_sex.lookupdata.male,
@@ -308,7 +310,7 @@ def personrecords(arearecords):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/BernhardRiemannAWeger.jpg/330px-BernhardRiemannAWeger.jpg"),
 	)
 
-	cfg = p(
+	attrs.persons.cfg = p(
 		firstname="Carl Friedrich",
 		lastname="Gauß",
 		sex=personen_app.c_sex.lookupdata.male,
@@ -319,7 +321,7 @@ def personrecords(arearecords):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carl_Friedrich_Gauss.jpg/255px-Carl_Friedrich_Gauss.jpg"),
 	)
 
-	dk = p(
+	attrs.persons.dk = p(
 		firstname="Donald",
 		lastname="Knuth",
 		sex=personen_app.c_sex.lookupdata.male,
@@ -328,7 +330,7 @@ def personrecords(arearecords):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/KnuthAtOpenContentAlliance.jpg/255px-KnuthAtOpenContentAlliance.jpg"),
 	)
 
-	rr = p(
+	attrs.persons.rr = p(
 		firstname="Ronald",
 		lastname="Reagan",
 		sex=personen_app.c_sex.lookupdata.male,
