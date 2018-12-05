@@ -648,9 +648,9 @@ template_sorted_children = """
 def test_vsql_datasource_appfilter(personrecords):
 	source = """
 		<?whitespace strip?>
-		<?print repr(datasources.alle.app)?>
+		<?print repr(datasources.all.app)?>
 		;
-		<?for a in datasources.alle.apps.values()?>
+		<?for a in datasources.all.apps.values()?>
 			<?print a.id?>
 		<?end for?>
 	"""
@@ -830,7 +830,7 @@ def test_vsql_datasource_masterdetail_sort_asc(personrecords):
 	attrs = personrecords
 	source = f"""
 		<?whitespace strip?>
-		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.fieldsofactivity.app.records.values())?>
+		<?print all(r.v_parent is None for r in datasources.fieldsofactivity.app.records.values())?>
 		<?for id in ['{attrs.areas.science.id}', '{attrs.areas.art.id}']?>
 			;{template_unsorted_children}
 		<?end for?>
@@ -845,7 +845,7 @@ def test_vsql_datasource_masterdetail_sort_desc(personrecords):
 	attrs = personrecords
 	source = f"""
 		<?whitespace strip?>
-		<?print all(r.v_uebergeordnetes_taetigkeitsfeld is None for r in datasources.fieldsofactivity.app.records.values())?>
+		<?print all(r.v_parent is None for r in datasources.fieldsofactivity.app.records.values())?>
 		<?for id in ['{attrs.areas.science.id}', '{attrs.areas.art.id}']?>
 			;{template_unsorted_children}
 		<?end for?>
