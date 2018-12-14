@@ -854,3 +854,27 @@ def test_vsql_datasource_masterdetail_sort_desc(personrecords):
 	output = python_db(source, testappid, template="export_masterdetail_sort_desc")
 
 	assert "True;Physics;Mathematics;Computer science;Music;Literature;Film" == output
+
+
+def test_vsql_color_attributes(personrecords):
+	attrs = personrecords
+	source = f"""
+		<?whitespace strip?>
+		<?print len(datasources.persons.app.records)?>
+	"""
+
+	output = python_db(source, testappid, template="export_vsql_color_attributes")
+
+	assert "0" != output
+
+
+def test_vsql_color_methods(personrecords):
+	attrs = personrecords
+	source = f"""
+		<?whitespace strip?>
+		<?print len(datasources.persons.app.records)?>
+	"""
+
+	output = python_db(source, testappid, template="export_vsql_color_methods")
+
+	assert "0" != output
