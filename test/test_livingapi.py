@@ -878,3 +878,15 @@ def test_vsql_color_methods(personrecords):
 	output = python_db(source, testappid, template="export_vsql_color_methods")
 
 	assert "0" != output
+
+
+def test_vsql_repr_color(personrecords):
+	attrs = personrecords
+	source = f"""
+		<?whitespace strip?>
+		<?print len(datasources.persons.app.records)?>
+	"""
+
+	output = python_db(source, testappid, template="export_vsql_repr_color")
+
+	assert "0" != output
