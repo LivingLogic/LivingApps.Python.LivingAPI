@@ -1,4 +1,4 @@
-import sys, os, datetime, subprocess
+import sys, os, datetime, subprocess, operator
 
 import pytest
 
@@ -642,6 +642,32 @@ template_sorted_children = """
 		<?print r.v_name?>
 	<?end for?>
 """
+
+
+def test_vsql_global_variables(personrecords):
+	attrs = personrecords
+	areas = attrs.areas
+	source = f"""
+		<?whitespace strip?>
+		<?for r in datasources.fieldsofactivity.app.records.values()?>
+			;<?print r.v_name?>
+			<?for r2 in r.c_children.values()?>
+				;<?print r2.v_name?>
+			<?end for?>
+		<?end for?>
+	"""
+
+	output = python_db(source, testappid, template="export_global_variables")
+
+	expected = []
+	key = operator.attrgetter("v_name")
+	for a in sorted(areas.values(), key=key):
+		expected.append(a.v_name)
+		for a2 in sorted((a2 for a2 in areas.values() if a2.v_parent is a), key=key):
+			expected.append(a2.v_name)
+	expected = ";" + ";".join(expected)
+
+	assert expected == output
 
 
 def test_vsql_datasource_appfilter(personrecords):
