@@ -657,7 +657,7 @@ def test_vsql_global_variables(personrecords):
 		<?end for?>
 	"""
 
-	output = python_db(source, testappid, template="export_global_variables")
+	output = python_db(source, testappid, template="export_vsql_global_variables")
 
 	expected = []
 	key = operator.attrgetter("v_name")
