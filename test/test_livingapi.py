@@ -168,7 +168,6 @@ def norecords():
 	for r in personen_app.records.values():
 		r.delete()
 
-
 	# Recursively remove areas of activity
 	def removeaa(r):
 		for r2 in r.c_children.values():
@@ -785,7 +784,6 @@ def test_vsql_datasource_recordfilter_param_datetimelist(personrecords):
 	assert "Carl Friedrich Gauß" == output
 
 
-@pytest.mark.xfail
 def test_vsql_datasource_recordfilter_appparam_int(personrecords):
 	output = python_db(
 		template_sorted_persons,
@@ -916,3 +914,33 @@ def test_vsql_repr_color(personrecords):
 	output = python_db(source, testappid, template="export_vsql_repr_color")
 
 	assert "0" != output
+
+
+def test_vsql_datasource_paging(personrecords):
+	output = python_db(
+		template_unsorted_persons,
+		testappid,
+		template="export_datasource_paging",
+		**{"la-ds-persons-paging": "0_2"},
+	)
+
+	assert "Muhammad Ali;Marie Curie" == output
+
+
+def test_vsql_datasourcechildren_paging(personrecords):
+	attrs = personrecords
+	source = f"""
+		<?whitespace strip?>
+		<?for (f, r) in isfirst(datasources.fieldsofactivity.app.records['{attrs.areas.film.id}'].c_persons.values())?>
+			<?if not f?>;<?end if?><?print r.v_firstname?> <?print r.v_lastname?>
+		<?end for?>
+	"""
+
+	output = python_db(
+		source,
+		testappid,
+		template="export_datasourcechildren_paging",
+		**{f"la-dsc-fieldsofactivity-{attrs.areas.film.id}-persons-paging": "1_1"},
+	)
+
+	assert "Ronald Reagan" == output
