@@ -1571,7 +1571,6 @@ class DBHandler(Handler):
 		record.errors = []
 
 	def _delete(self, record):
-
 		app = record.app
 		if app.basetable in {"data_select", "data"}:
 			proc = self.proc_data_delete
