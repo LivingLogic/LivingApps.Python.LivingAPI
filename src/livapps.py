@@ -1629,6 +1629,7 @@ class HTTPHandler(Handler):
 			r = self.session.post(
 				f"{self.url}gateway/login",
 				data=json.dumps({"username": username, "password": password}),
+				headers={'content-type': "application/json"},
 			)
 			result = r.json()
 			if result.get("status") == "success":
