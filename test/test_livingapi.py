@@ -502,7 +502,9 @@ def test_livingapi_attributes_unsaved_record(handler):
 	source = """
 		<?whitespace strip?>
 		<?code papp = datasources.persons.app?>
-		<?code r = first(r for r in papp.records.values() if r.v_lastname == 'Newton')?>
+		<?code r = papp(firstname="Isaac", lastname="Newton")?>
+		<?print r.updatedat is None?> <?print r.updatedby is None?>
+		<?code r.save()?>;
 		<?print r.updatedat is None?> <?print r.updatedby is None?>
 		<?code r.save()?>;
 		<?print r.updatedat is None?> <?print r.updatedby.email?>
@@ -510,7 +512,7 @@ def test_livingapi_attributes_unsaved_record(handler):
 		<?code r.save()?>;
 		<?print r.updatedat is None?> <?print r.updatedby.email?>
 	"""
-	assert f"True True;False {user()};False {user()}" == handler(source, testappid, template="export")
+	assert f"True True;True True;False {user()};False {user()}" == handler(source, testappid, template="export")
 
 
 def test_livingapi_no_appparams(handler):
