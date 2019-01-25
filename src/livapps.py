@@ -215,7 +215,7 @@ class Globals(Base):
 
 @register("app")
 class App(Base):
-	ul4attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "owner", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier", "basetable", "primarykey", "insertprocedure", "updateprocedure", "deleteprocedure", "templates"}
+	ul4attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "owner", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier", "basetable", "primarykey", "insertprocedure", "updateprocedure", "deleteprocedure", "templates", "insert"}
 	ul4onattrs = ["id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "owner", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier", "basetable", "primarykey", "insertprocedure", "updateprocedure", "deleteprocedure", "templates"]
 
 	def __init__(self, id=None, globals=None, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, owner=None, controls=None, records=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
@@ -251,15 +251,23 @@ class App(Base):
 			if name.startswith("c_"):
 				return self.controls[name[2:]]
 		except KeyError:
-			pass
+			raise AttributeError(name) from None
+		return super().__getattr__(name)
+
+	def ul4getattr(self, name):
+		if self.ul4hasattr(name):
+			return getattr(self, name)
 		raise AttributeError(name) from None
+
+	def ul4hasattr(self, name):
+		return name in self.ul4attrs or (name.startswith("c_") and name[2:] in self.controls)
 
 	def insert(self, **kwargs):
 		record = Record(
 			id=None,
 			app=self,
-			createdat=datetime.datetime.now(),
-			createdby=self.globals.user,
+			createdat=None,
+			createdby=None,
 			updatedat=None,
 			updatedby=None,
 			updatecount=0
@@ -854,7 +862,7 @@ class GeoControl(Control):
 
 @register("record")
 class Record(Base):
-	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted"}
+	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update"}
 	ul4onattrs = ["id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "values", "attachments", "children"]
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
@@ -929,6 +937,26 @@ class Record(Base):
 		This makes keys completeable in IPython.
 		"""
 		return set(super().__dir__()) | {f"f_{identifier}" for identifier in self.app.controls} | {f"v_{identifier}" for identifier in self.app.controls} | {f"c_{identifier}" for identifier in self.children}
+
+	def ul4getattr(self, name):
+		if self.ul4hasattr(name):
+			return getattr(self, name)
+		raise AttributeError(name) from None
+
+	def ul4hasattr(self, name):
+		if name in self.ul4attrs:
+			return True
+		elif name.startswith(("f_", "v_")):
+			return name[2:] in self.app.controls
+		elif name.startswith("c_"):
+			return name[2:] in self.children
+		return False
+
+	def ul4setattr(self, name, value):
+		if name.startswith("v_") and name[2:] in self.app.controls:
+			setattr(self, name, value)
+		else:
+			raise TypeError(f"can't set attribute {name!r}")
 
 	def is_dirty(self):
 		return self.id is None or any(field._dirty for field in self.fields.values())
@@ -1269,7 +1297,7 @@ class Handler:
 	def __init__(self):
 		self.globals = None
 
-	def get(self, appid, template=None, **params):
+	def get(self, *path, **params):
 		pass
 
 	def file(self, source):
@@ -1316,20 +1344,32 @@ class Handler:
 		file.handler = self
 		return file
 
-	def geo(self, lat=None, long=None, info=None):
+	def _geofrominfo(self, info):
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
+		for provider in (geocoder.google, geocoder.osm):
+			result = provider(info, language="de")
+			if not result.error and result.lat and result.lng and result.address:
+				return Geo(result.lat, result.lng, result.address)
+
+	def _geofromlatlong(self, lat, long):
+		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
+		for provider in (geocoder.google, geocoder.osm):
+			result = provider([lat, long], method="reverse", language="de")
+			if not result.error and result.lat and result.lng and result.address:
+				return Geo(result.lat, result.lng, result.address)
+
+	def geo(self, lat=None, long=None, info=None):
 		# Get coordinates from description (passed via keyword ``info``)
 		if info is not None and lat is None and long is None:
-			result = geocoder.google(info, language="de")
+			return self._geofrominfo(info)
 		# Get coordinates from description (passed positionally as ``lat``)
 		elif lat is not None and long is None and info is None:
-			result = geocoder.google(lat, language="de")
+			return self._geofrominfo(lat)
 		# Get description from coordinates
 		elif lat is not None and long is not None and info is None:
-			result = geocoder.google([lat, long], method="reverse", language="de")
+			return self._geofromlatlong(lat, long)
 		else:
 			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
-		return Geo(result.lat, result.lng, result.address)
 
 	def _save(self, record):
 		raise NotImplementedError
@@ -1420,7 +1460,10 @@ class DBHandler(Handler):
 	def _filecontent(self, file):
 		upr_id = file.url.rsplit("/")[-1]
 		c = self.db.cursor()
-		c.execute("select u.upl_name from upload u, uploadref ur where u.upl_id=ur.upl_id and ur.upr_id = :upr_id", upr_id=upr_id)
+		c.execute(
+			"select u.upl_name from upload u, uploadref ur where u.upl_id=ur.upl_id and ur.upr_id = :upr_id",
+			upr_id=upr_id,
+		)
 		r = c.fetchone()
 		if r is None:
 			raise ValueError(f"no such file {file.url!r}")
@@ -1428,28 +1471,58 @@ class DBHandler(Handler):
 			u = self.uploaddirectory/r.upl_name
 			return u.openread().read()
 
-	def get(self, appid, template=None, **params):
+	def get(self, *path, **params):
+		if not 1 <= len(path) <= 2:
+			raise ValueError(f"need one or two path components, got {len(path)}")
+
+		appid = path[0]
+		datid = path[1] if len(path) > 1 else None
+
 		c = self.db.cursor()
 
 		c.execute("select tpl_id from template where tpl_uuid = :appid", appid=appid)
 		r = c.fetchone()
 		if r is None:
-			raise ValueError(f"no template {appid!r}")
+			raise ValueError(f"no app {appid!r}")
 		tpl_id = r.tpl_id
-		if template is None:
-			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_defaultlist != 0", tpl_id=tpl_id)
+		if "template" in params:
+			template = params.pop("template")
+			c.execute(
+				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = : identifier",
+				tpl_id=tpl_id,
+				identifier=template,
+			)
 		else:
-			c.execute("select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = : identifier", tpl_id=tpl_id, identifier=template)
+			template = None
+			c.execute(
+				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_defaultlist != 0",
+				tpl_id=tpl_id,
+			)
 		r = c.fetchone()
 		if r is None:
-			raise ValueError("no such template")
+			if template is None:
+				raise ValueError(f"no default template for app {appid!r}")
+			else:
+				raise ValueError(f"no template named {template!r} for app {appid!r}")
 		vt_id = r.vt_id
 		reqparams = []
 		for (key, value) in params.items():
-			reqparams.append(key)
-			reqparams.append(value)
+			if value is not None:
+				if isinstance(value, str):
+					reqparams.append(key)
+					reqparams.append(value)
+				elif isinstance(value, list):
+					for subvalue in value:
+						reqparams.append(key)
+						reqparams.append(subvalue)
 		reqparams = self.varchars(reqparams)
-		c.execute("select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, null, :reqparams) from dual", ide_id=self.ide_id, vt_id=vt_id, reqparams=reqparams)
+		c.execute(
+			"select livingapi_pkg.viewtemplate_ful4on(:ide_id, :vt_id, :dat_id, :reqparams) from dual",
+			ide_id=self.ide_id,
+			vt_id=vt_id,
+			dat_id=datid,
+			reqparams=reqparams,
+		)
 		r = c.fetchone()
 		dump = r[0].read().decode("utf-8")
 		dump = self._loaddump(dump)
@@ -1498,7 +1571,6 @@ class DBHandler(Handler):
 		record.errors = []
 
 	def _delete(self, record):
-
 		app = record.app
 		if app.basetable in {"data_select", "data"}:
 			proc = self.proc_data_delete
@@ -1582,18 +1654,22 @@ class HTTPHandler(Handler):
 		)
 		return r.content
 
-	def get(self, appid, template=None, **params):
+	def get(self, *path, **params):
+		if not 1 <= len(path) <= 2:
+			raise ValueError(f"need one or two path components, got {len(path)}")
 		kwargs = {
 			"headers": {
 				"Accept": "application/la-ul4on",
 			},
-			"params": params,
+			"params": {
+				key + "[]" if isinstance(value, list) else key: value
+				for (key, value) in params.items()
+			},
 		}
+		path = "/".join(path)
 		self._add_auth_token(kwargs)
-		if template is not None:
-			kwargs["params"]["template"] = template
 		r = self.session.get(
-			f"{self.url}gateway/apps/{appid}",
+			f"{self.url}gateway/apps/{path}",
 			**kwargs,
 		)
 		r.raise_for_status()
