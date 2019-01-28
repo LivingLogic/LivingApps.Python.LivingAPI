@@ -1161,10 +1161,10 @@ class JSONAttachment(SimpleAttachment):
 
 @register("file")
 class File(Base):
-	ul4attrs = {"id", "url", "filename", "mimetype", "width", "height"}
-	ul4onattrs = ["id", "url", "filename", "mimetype", "width", "height", "internalid"]
+	ul4attrs = {"id", "url", "filename", "mimetype", "width", "height", "createdat"}
+	ul4onattrs = ["id", "url", "filename", "mimetype", "width", "height", "internalid", "createdat"]
 
-	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None, internalid=None):
+	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None, internalid=None, createdat=None):
 		self.id = id
 		self.url = url
 		self.filename = filename
@@ -1172,6 +1172,7 @@ class File(Base):
 		self.width = width
 		self.height = height
 		self.internalid = internalid
+		self.createdat = createdat
 		self.handler = None
 		self._content = None
 
