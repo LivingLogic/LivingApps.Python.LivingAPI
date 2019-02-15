@@ -6,12 +6,12 @@
 ##
 ## All Rights Reserved
 
-import os, datetime, pathlib, itertools
-from typing import *
+import os, io, datetime, pathlib, itertools, json, mimetypes, operator
+import typing as T
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
-from ll import url, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
+from ll import misc, url, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
 try:
 	from ll import orasql
@@ -31,15 +31,15 @@ __all__ = ["Handler", "HTTPHandler", "DBHandler"]
 ### Types
 ###
 
-if TYPE_CHECKING:
-	OptStr = Optional[str]
-	OptInt = Optional[int]
-	OptFloat = Optional[float]
-	OptBool = Optional[bool]
-	OptDatetime = Optional[datetime.datetime]
+if T.TYPE_CHECKING:
+	OptStr = T.Optional[str]
+	OptInt = T.Optional[int]
+	OptFloat = T.Optional[float]
+	OptBool = T.Optional[bool]
+	OptDatetime = T.Optional[datetime.datetime]
 	PK = str
-	OptPK = Optional[PK]
-	ReqParams = Dict[str, Union[None, str, List[str]]]
+	OptPK = T.Optional[PK]
+	ReqParams = T.Dict[str, T.Union[None, str, T.List[str]]]
 
 
 ###
@@ -95,13 +95,13 @@ class Handler:
 		self.globals = None
 
 	def get(self, *path, **params):
-		# type: (*str, **Union[str, List[str]]) -> Any
+		# type: (*str, **T.Union[str, T.List[str]]) -> T.Any
 		pass
 
 	def file(self, source):
-		# type: (Union[str, os.PathLike, pathlib.Path, url.URL, IO[bytes]]) -> la.File
+		# type: (T.Union[str, os.PathLike, pathlib.Path, url.URL, T.IO[bytes]]) -> la.File
 		path = None # type: OptStr
-		stream = None # type: Optional[IO[bytes]]
+		stream = None # type: T.Optional[T.IO[bytes]]
 		mimetype = None # type: OptStr
 		if isinstance(source, pathlib.Path):
 			content = source.read_bytes()
@@ -144,7 +144,7 @@ class Handler:
 		return file
 
 	def _geofrominfo(self, info):
-		# type: (str) -> Optional[la.Geo]
+		# type: (str) -> T.Optional[la.Geo]
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
 		for provider in (geocoder.google, geocoder.osm):
 			result = provider(info, language="de")
@@ -153,7 +153,7 @@ class Handler:
 		return None
 
 	def _geofromlatlong(self, lat, long):
-		# type: (float, float) -> Optional[la.Geo]
+		# type: (float, float) -> T.Optional[la.Geo]
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
 		for provider in (geocoder.google, geocoder.osm):
 			result = provider([lat, long], method="reverse", language="de")
@@ -176,7 +176,7 @@ class Handler:
 		else:
 			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
 
-	def _save(self, record):
+	def save_record(self, record):
 		# type: (la.Record) -> None
 		raise NotImplementedError
 
@@ -225,7 +225,7 @@ class Handler:
 		return globals
 
 	def _loaddump(self, dump):
-		# type: (str) -> Mapping[str, Any]
+		# type: (str) -> T.Mapping[str, T.Any]
 		registry = {
 			"de.livingapps.appdd.file": self._loadfile,
 			"de.livinglogic.livingapi.file": self._loadfile,
@@ -241,7 +241,7 @@ class Handler:
 
 class DBHandler(Handler):
 	def __init__(self, connectstring, uploaddirectory, account):
-		# type: (str, Union[str, url.URL], OptStr) -> None
+		# type: (str, T.Union[str, url.URL], OptStr) -> None
 		super().__init__()
 		if orasql is None:
 			raise ImportError("ll.orasql required")
@@ -265,7 +265,7 @@ class DBHandler(Handler):
 		self.proc_vsqlsource_insert = orasql.Procedure("VSQL_PKG.VSQLSOURCE_INSERT")
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
 
-		self.custom_procs = {} # type: Dict[str, orasql.Procedure]
+		self.custom_procs = {} # type: T.Dict[str, orasql.Procedure]
 
 		if account is None:
 			self.ide_id = None
@@ -326,7 +326,7 @@ class DBHandler(Handler):
 			return u.openread().read()
 
 	def save_vsql(self, cursor, source, function, datatype=None, **queryargs):
-		# type: (orasql.Cursor, OptStr, str, OptStr, Any) -> OptPK
+		# type: (orasql.Cursor, OptStr, str, OptStr, T.Any) -> OptPK
 		return vsql.compile_and_save(self, cursor, source, datatype, function, **queryargs)
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
@@ -479,7 +479,7 @@ class DBHandler(Handler):
 			)
 
 	def _save_dataorderconfigs(self, cursor, orders, function, **kwargs):
-		# type: (orasql.Cursor, List[la.DataOrderConfig], str, **str) -> None
+		# type: (orasql.Cursor, T.List[la.DataOrderConfig], str, **str) -> None
 		queryargs = " and ".join(f"{k}=:{k}" for k in kwargs)
 		procargs = {"p_" + k: v for (k, v) in kwargs.items()}
 		query = f"select do_id, do_order from dataorder where {queryargs} order by do_order"
@@ -516,7 +516,7 @@ class DBHandler(Handler):
 				self.proc_dataorder_delete(cursor, c_user=self.ide_id, p_do_id=do_id)
 
 	def getmeta(self, *appids):
-		# type: (*str) -> Mapping[str, Any]
+		# type: (*str) -> T.Mapping[str, T.Any]
 		cursor = self.cursor()
 
 		tpl_uuids = self.varchars(appids)
@@ -531,7 +531,7 @@ class DBHandler(Handler):
 		return dump
 
 	def get(self, *path, **params):
-		# type: (*str, **Union[str, List[str]]) -> Mapping[str, Any]
+		# type: (*str, **T.Union[str, T.List[str]]) -> T.Mapping[str, T.Any]
 		if not 1 <= len(path) <= 2:
 			raise ValueError(f"need one or two path components, got {len(path)}")
 
@@ -588,7 +588,7 @@ class DBHandler(Handler):
 		dump = self._loaddump(dump)
 		return dump
 
-	def _save(self, record):
+	def save_record(self, record):
 		app = record.app
 		real = app.basetable in {"data_select", "data"}
 		if real:
@@ -614,7 +614,7 @@ class DBHandler(Handler):
 		result = proc(c, **args)
 
 		if result.p_errormessage:
-			raise ValueError(r.p_errormessage)
+			raise ValueError(result.p_errormessage)
 
 		if record.id is None:
 			record.id = result[f"p_{pk}"]
@@ -703,7 +703,7 @@ class HTTPHandler(Handler):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} url={self.url!r} username={self.username!r} at {id(self):#x}>"
 
 	def _add_auth_token(self, kwargs):
-		# type: (Dict[str, Any]) -> None
+		# type: (T.Dict[str, T.Any]) -> None
 		if self.auth_token:
 			if "headers" not in kwargs:
 				kwargs["headers"] = {}
@@ -720,7 +720,7 @@ class HTTPHandler(Handler):
 		return r.content
 
 	def get(self, *path, **params):
-		# type: (*str, **Union[str, List[str]]) -> Dict[str, Any]
+		# type: (*str, **T.Union[str, T.List[str]]) -> T.Dict[str, T.Any]
 		if not 1 <= len(path) <= 2:
 			raise ValueError(f"need one or two path components, got {len(path)}")
 		kwargs = {
@@ -748,7 +748,8 @@ class HTTPHandler(Handler):
 		dump = self._loaddump(dump)
 		return dump
 
-	def _save(self, record):
+	def save_record(self, record):
+		# type: (la.Record) -> None
 		fields = {field.control.identifier: field.control._asjson(field.value) for field in record.fields.values() if record.id is None or field.is_dirty()}
 		app = record.app
 		recorddata = {"fields": fields}

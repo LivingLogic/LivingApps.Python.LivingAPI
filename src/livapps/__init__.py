@@ -6,8 +6,8 @@
 ##
 ## All Rights Reserved
 
-import sys, os, os.path, io, datetime, json, mimetypes, operator, string, enum
-from typing import *
+import sys, os, os.path, io, datetime, mimetypes, operator, string, enum, pathlib
+import typing as T
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
@@ -21,15 +21,15 @@ __docformat__ = "reStructuredText"
 ### Types
 ###
 
-if TYPE_CHECKING:
-	OptStr = Optional[str]
-	OptInt = Optional[int]
-	OptFloat = Optional[float]
-	OptBool = Optional[bool]
-	OptDatetime = Optional[datetime.datetime]
+if T.TYPE_CHECKING:
+	OptStr = T.Optional[str]
+	OptInt = T.Optional[int]
+	OptFloat = T.Optional[float]
+	OptBool = T.Optional[bool]
+	OptDatetime = T.Optional[datetime.datetime]
 	PK = str
-	OptPK = Optional[PK]
-	ReqParams = Dict[str, Union[None, str, List[str]]]
+	OptPK = T.Optional[PK]
+	ReqParams = T.Dict[str, T.Union[None, str, T.List[str]]]
 
 
 ###
@@ -37,12 +37,12 @@ if TYPE_CHECKING:
 ###
 
 def register(name):
-	# type: (str) -> Callable[[Type], Type]
+	# type: (str) -> T.Callable[[T.Type], T.Type]
 	"""
 	Shortcut for registering a LivingAPI class with the UL4ON machinery.
 	"""
 	def registration(cls):
-		# type: (Type) -> Type
+		# type: (T.Type) -> T.Type
 		ul4on.register("de.livingapps.appdd." + name)(cls)
 		ul4on.register("de.livinglogic.livingapi." + name)(cls)
 		return cls
@@ -50,7 +50,7 @@ def register(name):
 
 
 def format_class(cls):
-	# type: (Type) -> str
+	# type: (T.Type) -> str
 	"""
 	Format the name of the class object :obj:`cls`.
 
@@ -66,7 +66,7 @@ def format_class(cls):
 
 
 def format_list(items):
-	# type: (List[str]) -> str
+	# type: (T.List[str]) -> str
 	"""
 	Format a list of strings for text output.
 
@@ -131,11 +131,11 @@ class Attr:
 	"""
 
 	def __init__(self, *types, required=False, default=None, repr=False, ul4on=False):
-		# type: (*Type, bool, Any, bool, bool) -> None
-		self.name = None # Will be set by the metaclass
+		# type: (*T.Type, bool, T.Any, bool, bool) -> None
+		self.name = None # type: OptStr # Will be set by the metaclass
 		typecount = len(types)
 		if typecount == 0:
-			self.types = object # type: Union[Type, Tuple[Type, ...]]
+			self.types = object # type: T.Union[T.Type, T.Tuple[T.Type, ...]]
 		elif typecount == 1:
 			self.types = types[0]
 		else:
@@ -218,7 +218,7 @@ class EnumAttr(Attr):
 	"""
 
 	def __init__(self, type, required=False, default=None, repr=False, ul4on=False):
-		# type: (Type[enum.Enum], bool, Any, bool, bool) -> None
+		# type: (T.Type[enum.Enum], bool, T.Any, bool, bool) -> None
 		super().__init__(type, required=required, default=default, repr=repr, ul4on=ul4on)
 
 	def __set__(self, instance, value):
@@ -297,7 +297,8 @@ class BaseMetaClass(type):
 	Metaclass that sets the ``name`` attribute of our data descriptors.
 	"""
 
-	def __new__(cls, name: str, bases: Tuple[Type], dict: Dict) -> Type:
+	def __new__(cls, name, bases, dict):
+		# type: (str, T.Tuple[T.Type], T.Dict[str, T.Any]) -> T.Type
 		for (key, value) in dict.items():
 			if isinstance(value, Attr):
 				value.name = key
@@ -305,13 +306,13 @@ class BaseMetaClass(type):
 
 
 class Base(metaclass=BaseMetaClass):
-	ul4onattrs = [] # type: List[str]
-	ul4attrs = set() # type: Set[str]
+	ul4onattrs = [] # type: T.List[str]
+	ul4attrs = set() # type: T.Set[str]
 
 	@classmethod
 	def attrs(cls):
-		# type: () -> Iterator[Attr]
-		attrs = {}
+		# type: () -> T.Iterable[Attr]
+		attrs = {} # type: T.Dict[str, Attr]
 		for checkcls in reversed(cls.__mro__):
 			for attr in checkcls.__dict__.values():
 				if isinstance(attr, Attr):
@@ -338,7 +339,7 @@ class Base(metaclass=BaseMetaClass):
 				encoder.dump(value)
 
 	def ul4ondump_getattr(self, name):
-		# type: (str) -> Any
+		# type: (str) -> T.Any
 		return getattr(self, name)
 
 	def ul4onload(self, decoder):
@@ -360,7 +361,7 @@ class Base(metaclass=BaseMetaClass):
 			self.ul4onload_setdefaultattr(attr.name)
 
 	def ul4onload_setattr(self, name, value):
-		# type: (str, Any) -> None
+		# type: (str, T.Any) -> None
 		setattr(self, name, value)
 
 	def ul4onload_setdefaultattr(self, name):
@@ -385,8 +386,8 @@ class FlashMessage(Base):
 	message = Attr(str, ul4on=True)
 
 	def __init__(self, timestamp=None, type=Type.INFO, title=None, message=None):
-		# type: (OptDatetime, Union[str, Type], OptStr, OptStr) -> None
-		self.timestamp = timetsamp
+		# type: (OptDatetime, T.Union[str, T.Type], OptStr, OptStr) -> None
+		self.timestamp = timestamp
 		self.type = type
 		self.title = title
 		self.message = message
@@ -471,7 +472,7 @@ class User(Base):
 	keyviews = Attr(ul4on=True)
 
 	def __init__(self, gender=None, firstname=None, surname=None, initials=None, email=None, language=None, avatar_small=None, avatar_large=None):
-		# type: (OptStr, OptStr, OptStr, OptStr, OptStr, OptStr, Optional[File], Optional[File]) -> None
+		# type: (OptStr, OptStr, OptStr, OptStr, OptStr, OptStr, T.Optional[File],T. Optional[File]) -> None
 		self.internalid = None
 		self.id = None
 		self.gender = gender
@@ -482,7 +483,7 @@ class User(Base):
 		self.language = language
 		self.avatar_small = avatar_small
 		self.avatar_large = avatar_large
-		self.keyviews = attrdict() # type: Mapping[str, KeyView]
+		self.keyviews = attrdict() # type: T.Mapping[str, KeyView]
 
 
 @register("keyview")
@@ -497,7 +498,7 @@ class KeyView(Base):
 	user = Attr(User, ul4on=True)
 
 	def __init__(self, identifier=None, name=None, key=None, user=None):
-		# type: (str, str, str, Optional[User]) -> None
+		# type: (str, str, str, T.Optional[User]) -> None
 		self.id = None
 		self.identifier = identifier
 		self.name = name
@@ -524,8 +525,8 @@ class Globals(Base):
 		self.user = None
 		self.maxdbactions = None
 		self.maxtemplateruntime = None
-		self.flashes = [] # type: List[FlashMessage]
-		self.handler = None # type: Optional[Handler] # The handler from which we've got the data (required for insert/update/delete/executeaction methods)
+		self.flashes = [] # type: T.List[FlashMessage]
+		self.handler = None # type: T.Optional[Handler] # The handler from which we've got the data (required for insert/update/delete/executeaction methods)
 
 	def geo(self, lat=None, long=None, info=None):
 		return self.handler.geo(lat, long, info)
@@ -657,7 +658,7 @@ class App(Base):
 			raise TypeError(f"don't know what to do with positional argument {template!r}")
 
 	def insert(self, **kwargs):
-		# type: (**Any) -> Record
+		# type: (**T.Any) -> Record
 		record = Record(
 			id=None,
 			app=self,
@@ -676,7 +677,7 @@ class App(Base):
 		return record
 
 	def __call__(self, **kwargs):
-		# type: (**Any) -> Record
+		# type: (**T.Any) -> Record
 		record = Record(app=self)
 		for (identifier, value) in kwargs.items():
 			if identifier not in self.controls:
@@ -714,7 +715,7 @@ class Control(Base):
 	inupdateprocedure = BoolAttr(ul4on=True)
 
 	def __init__(self, identifier=None, field=None, label=None, priority=None, order=None, default=None):
-		# type: (str, str, str, int, int, Any) -> None
+		# type: (str, str, str, int, int, T.Any) -> None
 		self.id = None
 		self.app = None
 		self.identifier = identifier
@@ -798,7 +799,7 @@ class TextAreaControl(StringControl):
 		if name == "encrypted":
 			self.encrypted = EncryptionType.NONE
 		else:
-			return super().ul4onload_defaultattr(name)
+			return super().ul4onload_setdefaultattr(name)
 
 
 @register("intcontrol")
@@ -961,7 +962,7 @@ class LookupControl(Control):
 		if name == "lookupdata":
 			self.lookupdata = attrdict()
 		else:
-			return super().ul4onload_defaultattr(name)
+			return super().ul4onload_setdefaultattr(name)
 
 
 @register("lookupselectcontrol")
@@ -1338,7 +1339,7 @@ class Record(Base):
 		return self._fields
 
 	def save(self):
-		self.app.globals.handler._save(self)
+		self.app.globals.handler.save_record(self)
 
 	def update(self, **kwargs):
 		for (identifier, value) in kwargs.items():
@@ -1543,9 +1544,9 @@ class Template(Base):
 	doc = Attr(str, ul4on=True)
 
 	def __init__(self, identifier=None, source=None, whitespace="keep", signature=None, doc=None):
-		# type: (str, str, str, Topstr, OptStr) -> None
-		self.id = None # Type: Optional[str]
-		self.app = None # type: Optional[App]
+		# type: (str, str, str, OptStr, OptStr) -> None
+		self.id = None # Type: OptStr
+		self.app = None # type: T.Optional[App]
 		self.identifier = identifier # type: str
 		self.source = source # type: str
 		self.signature = signature
@@ -1573,7 +1574,7 @@ class Template(Base):
 		htmlul4=("</", "<span", "<p>", "<p ", "<div>", "<div ", "<td>", "<td ", "<th>", "<th ", "<!--"),
 		cssul4=("font-size", "background-color", "{"),
 		jsul4=("$(", "var ", "let ", "{"),
-	) # type: Dict[str, Tuple[str, ...]]
+	) # type: T.Dict[str, T.Tuple[str, ...]]
 
 	def _guessext(self, basedir) -> str:
 		"""
@@ -1684,7 +1685,7 @@ class ViewTemplate(Template):
 	datasources = Attr(ul4on=True)
 
 	def __init__(self, *args, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype=None, permission=None):
-		# type:  (*DataSourceConfig, str, str, str, str, str, Union[None, str, Type], str, Union[None, int, Permission]) -> None
+		# type:  (*DataSourceConfig, str, str, str, str, str, T.Union[None, str, T.Type], str, T.Union[None, int, Permission]) -> None
 		super().__init__(identifier=identifier, source=source, whitespace=whitespace, signature=signature, doc=doc)
 		self.type = type
 		self.mimetype = mimetype
@@ -1706,7 +1707,7 @@ class ViewTemplate(Template):
 			self.datasources[datasource.identifier] = datasource
 
 	def ul4onload_setattr(self, name, value):
-		# type: (str, Any) -> None
+		# type: (str, T.Any) -> None
 		if name == "datasources":
 			value = makeattrs(value)
 		setattr(self, name, value)
@@ -1719,9 +1720,6 @@ class ViewTemplate(Template):
 	def save(self, handler, recursive=True):
 		# type: (Handler, bool) -> None
 		handler.save_viewtemplate(self)
-		if recursive:
-			for datasource in self.datasources.values():
-				datasource.save(handler, recursive=recursive)
 
 
 @register("datasourceconfig")
@@ -1786,9 +1784,9 @@ class DataSourceConfig(Base):
 	includecategories = IntEnumAttr(IncludeCategories, required=True, default=IncludeCategories.NO, ul4on=True)
 
 	def __init__(self, *args, identifier=None, app=None, includecloned=False, appfilter=None, includecontrols=None, includerecords=None, includecount=False, recordpermission=None, recordfilter=None, includepermissions=False, includeattachments=False, includetemplates=False, includeparams=False, includeviews=False, includecategories=None):
-		# type: (Union[DataOrderConfig, DataSourceChildrenConfig], str, Optional[App], OptBool, OptStr, Union[None, int, IncludeControls], Union[None, int, IncludeRecords], bool, Union[None, int, RecordPermission], str, bool, bool, bool, bool, bool, Union[None, int, IncludeCategories]) -> None
+		# type: (T.Union[DataOrderConfig, DataSourceChildrenConfig], str, T.Optional[App], OptBool, OptStr, T.Union[None, int, IncludeControls], T.Union[None, int, IncludeRecords], bool, T.Union[None, int, RecordPermission], str, bool, bool, bool, bool, bool, T.Union[None, int, IncludeCategories]) -> None
 		self.id = None
-		self.parent = None # type: Optional[ViewTemplate]
+		self.parent = None # type: T.Optional[ViewTemplate]
 		self.identifier = identifier
 		self.app = app
 		self.includecloned = includecloned
@@ -1804,8 +1802,8 @@ class DataSourceConfig(Base):
 		self.includeparams = includeparams
 		self.includeviews = includeviews
 		self.includecategories = includecategories
-		self.orders = [] # type: List[DataOrderConfig]
-		self.children = attrdict() # type: Mapping[str, DataSourceChildrenConfig]
+		self.orders = [] # type: T.List[DataOrderConfig]
+		self.children = attrdict() # type: T.Mapping[str, DataSourceChildrenConfig]
 		for arg in args:
 			if isinstance(arg, DataOrderConfig):
 				self.addorder(arg)
@@ -1857,13 +1855,13 @@ class DataSourceChildrenConfig(Base):
 	filter = VSQLAttr("vsqlfield_pkg.dsc_recordfilter_ful4on")
 
 	def __init__(self, *args, identifier=None, control=None, filter=None):
-		# type: (List[DataOrderConfig], str, Control, OptStr) -> None
+		# type: (T.List[DataOrderConfig], str, Control, OptStr) -> None
 		self.id = None # type: str
 		self.datasourceconfig = None # type: DataSourceConfig
 		self.identifier = identifier
 		self.control = control
 		self.filter = filter
-		self.orders = [] # type: List[DataOrderConfig]
+		self.orders = [] # type: T.List[DataOrderConfig]
 		for arg in args:
 			if isinstance(arg, DataOrderConfig):
 				self.addorder(arg)
@@ -1910,9 +1908,9 @@ class DataOrderConfig(Base):
 	nulls = EnumAttr(Nulls, required=True, default=Nulls.LAST, repr=True, ul4on=True)
 
 	def __init__(self, expression=None, direction=Direction.ASC, nulls=Nulls.LAST):
-		# type: (str, Union[str, Direction], Union[str, Nulls]) -> None
+		# type: (str, T.Union[str, Direction], T.Union[str, Nulls]) -> None
 		self.id = None
-		self.parent = None # type: Union[None, DataSourceConfig, DataSourceChildrenConfig]
+		self.parent = None # type: T.Union[None, DataSourceConfig, DataSourceChildrenConfig]
 		self.expression = expression
 		self.direction = direction
 		self.nulls = nulls
@@ -1969,7 +1967,7 @@ class View(Base):
 	end = Attr(datetime.datetime, ul4on=True)
 
 	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None):
-		# type: (OptStr, OptStr, Optional[App], OptInt, OptInt, OptInt, OptDatetime, OptDatetime) -> None
+		# type: (OptStr, OptStr, T.Optional[App], OptInt, OptInt, OptInt, OptDatetime, OptDatetime) -> None
 		self.id = id
 		self.name = name
 		self.app = app
@@ -1991,7 +1989,7 @@ class DataSource(Base):
 	app = Attr(ul4on=True)
 
 	def __init__(self, id=None, identifier=None, app=None, apps=None):
-		# type: (str, str, Optional[App], Mapping[str, App]) -> None
+		# type: (str, str, T.Optional[App], T.Mapping[str, App]) -> None
 		self.id = id
 		self.identifier = identifier
 		self.app = app
@@ -2051,7 +2049,7 @@ class AppParameter(Base):
 	value = Attr(ul4on=True)
 
 	def __init__(self, id=None, app=None, identifier=None, description=None, value=None):
-		# type: (str, App, str, OptStr, Union[None, str, File, App]) -> None
+		# type: (str, App, str, OptStr, T.Union[None, str, File, App]) -> None
 		self.id = id
 		self.app = app
 		self.identifier = identifier

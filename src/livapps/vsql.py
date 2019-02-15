@@ -4,24 +4,29 @@ Classes and functions for compiling vSQL expressions.
 
 import datetime
 import itertools
-from typing import *
+import typing as T
 
 from ll import color, misc, ul4c, ul4on
 
-if TYPE_CHECKING:
-	import livapps
+try:
+	from ll import orasql
+except ImportError:
+	orasql = None
+
+
+import livapps as la
 
 
 ###
 ### Types
 ###
 
-if TYPE_CHECKING:
-	OptStr = Optional[str]
-	OptInt = Optional[int]
-	OptFloat = Optional[float]
-	OptBool = Optional[bool]
-	OptDatetime = Optional[datetime.datetime]
+if T.TYPE_CHECKING:
+	OptStr = T.Optional[str]
+	OptInt = T.Optional[int]
+	OptFloat = T.Optional[float]
+	OptBool = T.Optional[bool]
+	OptDatetime = T.Optional[datetime.datetime]
 	PK = str
 	OptPK = OptStr
 
@@ -37,14 +42,14 @@ def _offset(pos):
 
 
 def compile(source, vars={}):
-	# type: (str, Mapping[str, Field]) -> AST
+	# type: (str, T.Mapping[str, Field]) -> AST
 	template = ul4c.Template(f"<?return {source}?>")
 	expr = template.content[-1].obj
 	return AST.fromul4(source, expr, vars)
 
 
 def compile_and_save(handler, cursor, source, datatype, function, **queryargs):
-	# type: (livapps.DBHandler, orasql.Cursor, OptStr, OptStr, str, Union[str, int]) -> Toptpk
+	# type: (la.DBHandler, orasql.Cursor, OptStr, OptStr, str, T.Union[str, int]) -> OptPK
 	if source is None:
 		return None
 	else:
@@ -83,11 +88,11 @@ class Repr:
 		return " ".join(parts)
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield from ()
 
 	def _repr_pretty_(self, p, cycle):
-		# type: (Any, bool) -> None
+		# type: (T.Any, bool) -> None
 		if cycle:
 			p.text(f"{self._ll_repr_prefix_()} ... {self._ll_repr_suffix_()}>")
 		else:
@@ -97,7 +102,7 @@ class Repr:
 				p.text(self._ll_repr_suffix_())
 
 	def _ll_repr_pretty_(self, p):
-		# type: (Any) -> None
+		# type: (T.Any) -> None
 		pass
 
 
@@ -112,7 +117,7 @@ class Def(Repr):
 @ul4on.register("de.livinglogic.vsql.field")
 class Field(Def):
 	def __init__(self, identifier=None, datatype=None, fieldsql=None, joinsql=None, refgroup=None):
-		# type: (str, str, str, OptStr, Optional[Group]) -> None
+		# type: (str, str, str, OptStr, T.Optional[Group]) -> None
 		self.identifier = identifier
 		self.datatype = datatype
 		self.fieldsql = fieldsql
@@ -120,7 +125,7 @@ class Field(Def):
 		self.refgroup = refgroup
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"{self.identifier!r}"
 		yield f"datatype={self.datatype!r}"
 		yield f"fieldsql={self.fieldsql!r}"
@@ -130,7 +135,7 @@ class Field(Def):
 			yield f"refgroup.tablesql={self.refgroup.tablesql!r}"
 
 	def _ll_repr_pretty_(self, p):
-		# type: (Any) -> None
+		# type: (T.Any) -> None
 		p.text(" ")
 		p.pretty(self.identifier)
 		p.breakable()
@@ -173,12 +178,12 @@ class Group(Def):
 		self.fields = fields
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"tablesql={self.tablesql!r}"
 		yield f"with {len(self.fields):,} fields"
 
 	def _ll_repr_pretty_(self, p):
-		# type: (Any) -> None
+		# type: (T.Any) -> None
 		p.breakable()
 		p.text("tablesql=")
 		p.pretty(self.tablesql)
@@ -208,17 +213,17 @@ class UnknownField(Def):
 	datatype = None
 
 	def __init__(self, parent=None, identifier=None):
-		# type: (Union[Field, UnknownField], str) -> None
+		# type: (T.Union[Field, UnknownField], str) -> None
 		self.parent = parent
 		self.identifier = identifier
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"parent={self.parent!r}"
 		yield f"identifier={self.identifier!r}"
 
 	def _ll_repr_pretty_(self, p):
-		# type: (Any) -> None
+		# type: (T.Any) -> None
 		p.breakable()
 		p.text("parent=")
 		p.pretty(self.parent)
@@ -253,11 +258,11 @@ class AST(Repr):
 		return self._source[self.pos]
 
 	def dbchildren(self):
-		# type: () -> Iterator[AST]
+		# type: () -> T.Iterator[AST]
 		yield from ()
 
 	def save(self, handler, cursor=None, vs_id_super=None, vs_order=None, vss_id=None):
-		# type: (livapps.DBHandler, Optional[orasql.Cursor], OptStr, OptInt, OptStr) -> Tpk
+		# type: (la.DBHandler, T.Optional[orasql.Cursor], OptStr, OptInt, OptStr) -> PK
 		"""
 		Save :obj:`self` to the :class:`DBHandler` :obj:`handler`.
 
@@ -311,7 +316,7 @@ class AST(Repr):
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		if isinstance(node, ul4c.Const):
 			if node.value is None:
 				return None_.fromul4(source, node, vars)
@@ -382,7 +387,7 @@ class None_(Const):
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		return cls(source, _offset(node.pos))
 
 
@@ -398,16 +403,16 @@ class _ConstWithValue(Const):
 		return self.value
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"value={self.value!r}"
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		return cls(source, _offset(node.pos), node.value)
 
 	def _ll_repr_pretty_(self, p):
-		# type: (Any) -> None
+		# type: (T.Any) -> None
 		p.breakable()
 		p.text("value=")
 		p.pretty(self.value)
@@ -492,7 +497,7 @@ class DateTime(_ConstWithValue):
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		v = node.value
 		if not (v.hour or v.minute or v.second or v.microsecond):
 			return Date(source, _offset(node.pos), node.value.date())
@@ -510,21 +515,21 @@ class List(AST):
 	def __init__(self, source=None, pos=None):
 		# type: (str, slice) -> None
 		super().__init__(source, pos)
-		self.items = [] # type: List[AST]
+		self.items = [] # type: T.List[AST]
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"with {len(self.items):,} items"
 
 	def _ll_repr_pretty_(self, p):
-		# type: (Any) -> None
+		# type: (T.Any) -> None
 		for item in self.items:
 			p.breakable()
 			p.pretty(item)
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		self = cls(source, _offset(node.pos))
 		for item in node.items:
 			if not isinstance(item, ul4c.SeqItem):
@@ -533,7 +538,7 @@ class List(AST):
 		return self
 
 	def dbchildren(self):
-		# type: () -> Iterator[AST]
+		# type: () -> T.Iterator[AST]
 		yield from self.items
 
 	def ul4ondump(self, encoder):
@@ -552,7 +557,7 @@ class FieldRef(AST):
 	dbnodetype = "field"
 
 	def __init__(self, source=None, pos=None, parent=None, field=None):
-		# type: (str, slice, Optional[FieldRef], Field) -> None
+		# type: (str, slice, T.Optional[FieldRef], Field) -> None
 		super().__init__(source, pos)
 		self.parent = parent
 		self.field = field
@@ -573,7 +578,7 @@ class FieldRef(AST):
 		return ".".join(identifierpath)
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		if self.parent is not None:
 			yield f"parent={self.parent!r}"
 		yield f"field={self.field!r}"
@@ -613,7 +618,7 @@ class Binary(AST):
 		yield self.obj2
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"obj1={self.obj1!r}"
 		yield f"obj2={self.obj2!r}"
 
@@ -627,7 +632,7 @@ class Binary(AST):
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		return cls(source, _offset(node.pos), AST.fromul4(source, node.obj1, vars), AST.fromul4(source, node.obj2, vars))
 
 	def ul4ondump(self, encoder):
@@ -739,7 +744,7 @@ class Item(Binary):
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		if isinstance(node.obj2, ul4c.Slice):
 			return Slice.fromul4(source, node, vars)
 		return super().fromul4(source, node, vars)
@@ -779,7 +784,7 @@ class Unary(AST):
 		yield self.obj
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"obj={self.obj!r}"
 
 	def _ll_repr_pretty_(self, p):
@@ -789,7 +794,7 @@ class Unary(AST):
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		return cls(source, _offset(node.pos), AST.fromul4(source, node.obj, vars))
 
 	def ul4ondump(self, encoder):
@@ -830,13 +835,13 @@ class If(AST):
 		self.objelse = objelse
 
 	def dbchildren(self):
-		# type: () -> Iterator[AST]
+		# type: () -> T.Iterator[AST]
 		yield self.objif
 		yield self.objcond
 		yield self.objelse
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"objif={self.objif!r}"
 		yield f"objcond={self.objcond!r}"
 		yield f"objelse={self.objelse!r}"
@@ -852,7 +857,7 @@ class If(AST):
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		return cls(
 			source,
 			_offset(node.pos),
@@ -881,20 +886,20 @@ class Slice(AST):
 	dbnodetype = "ternop_slice"
 
 	def __init__(self, source=None, pos=None, obj=None, index1=None, index2=None):
-		# type: (str, slice, AST, Optional[AST], Optional[AST]) -> None
+		# type: (str, slice, AST, T.Optional[AST], T.Optional[AST]) -> None
 		super().__init__(source, pos)
 		self.obj = obj
 		self.index1 = index1
 		self.index2 = index2
 
 	def dbchildren(self):
-		# type: () -> Iterator[AST]
+		# type: () -> T.Iterator[AST]
 		yield self.obj
 		yield self.index1
 		yield self.index2
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"obj={self.obj!r}"
 		if self.index1 is not None:
 			yield f"index1={self.index1!r}"
@@ -916,7 +921,7 @@ class Slice(AST):
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		return cls(
 			source,
 			_offset(node.pos),
@@ -956,16 +961,16 @@ class Attr(AST):
 		return self.attrname
 
 	def dbchildren(self):
-		# type: () -> Iterator[AST]
+		# type: () -> T.Iterator[AST]
 		yield self.obj
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"obj={self.obj!r}"
 		yield f"attrname={self.attrname!r}"
 
 	def _ll_repr_pretty_(self, p):
-		# type: (Any) -> None
+		# type: (T.Any) -> None
 		p.breakable()
 		p.text("obj=")
 		p.pretty(self.obj)
@@ -975,7 +980,7 @@ class Attr(AST):
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		# type: (str, ul4c.AST, Mapping[str, Field]) -> AST
+		# type: (str, ul4c.AST, T.Mapping[str, Field]) -> AST
 		return cls(
 			source,
 			_offset(node.pos),
@@ -1011,16 +1016,16 @@ class Func(AST):
 		return self.name
 
 	def dbchildren(self):
-		# type: () -> Iterator[AST]
+		# type: () -> T.Iterator[AST]
 		yield from self.args
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"{self.name!r}"
 		yield f"with {len(self.args):,} arguments"
 
 	def _ll_repr_pretty_(self, p):
-		# type: (Any) -> None
+		# type: (T.Any) -> None
 		p.text(" ")
 		p.pretty(self.name)
 		for (i, arg) in enumerate(self.args):
@@ -1046,7 +1051,7 @@ class Meth(AST):
 	dbnodetype = "meth"
 
 	def __init__(self, source=None, pos=None, obj=None, name=None, args=None):
-		# type: (str, slice, AST, str, List[AST]) -> None
+		# type: (str, slice, AST, str, T.List[AST]) -> None
 		super().__init__(source, pos)
 		self.obj = obj
 		self.name = name
@@ -1058,18 +1063,18 @@ class Meth(AST):
 		return self.name
 
 	def dbchildren(self):
-		# type: () -> Iterator[AST]
+		# type: () -> T.Iterator[AST]
 		yield self.obj
 		yield from self.args
 
 	def _ll_repr_(self):
-		# type: () -> Iterator[str]
+		# type: () -> T.Iterator[str]
 		yield f"{self.name!r}"
 		yield f"obj={self.obj!r}"
 		yield f" with {len(self.args):,} arguments"
 
 	def _ll_repr_pretty_(self, p):
-		# type: (Any) -> None
+		# type: (T.Any) -> None
 		p.text(" ")
 		p.pretty(self.name)
 		p.breakable()
