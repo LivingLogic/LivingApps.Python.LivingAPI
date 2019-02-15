@@ -1783,6 +1783,8 @@ class DataSourceConfig(Base):
 	includeparams = BoolAttr(required=True, default=False, ul4on=True)
 	includeviews = BoolAttr(required=True, default=False, ul4on=True)
 	includecategories = IntEnumAttr(IncludeCategories, required=True, default=IncludeCategories.NO, ul4on=True)
+	orders = Attr(ul4on=True)
+	children = Attr(ul4on=True)
 
 	def __init__(self, *args, identifier=None, app=None, includecloned=False, appfilter=None, includecontrols=None, includerecords=None, includecount=False, recordpermission=None, recordfilter=None, includepermissions=False, includeattachments=False, includetemplates=False, includeparams=False, includeviews=False, includecategories=None):
 		# type: (T.Union[DataOrderConfig, DataSourceChildrenConfig], str, T.Optional[App], OptBool, OptStr, T.Union[None, int, IncludeControls], T.Union[None, int, IncludeRecords], bool, T.Union[None, int, RecordPermission], str, bool, bool, bool, bool, bool, T.Union[None, int, IncludeCategories]) -> None
@@ -1851,9 +1853,11 @@ class DataSourceChildrenConfig(Base):
 	ul4attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
 	ul4onattrs = ["id", "datasource", "identifier", "control", "filters", "orders"]
 
-	identifier = Attr(str)
-	control = Attr(Control)
-	filter = VSQLAttr("vsqlfield_pkg.dsc_recordfilter_ful4on")
+	id = Attr(str, ul4on=True)
+	datasourceconfig = Attr(ul4on=True)
+	identifier = Attr(str, ul4on=True)
+	control = Attr(Control, ul4on=True)
+	filter = VSQLAttr("vsqlfield_pkg.dsc_recordfilter_ful4on", ul4on=True)
 
 	def __init__(self, *args, identifier=None, control=None, filter=None):
 		# type: (T.List[DataOrderConfig], str, Control, OptStr) -> None
