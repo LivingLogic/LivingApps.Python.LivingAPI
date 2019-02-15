@@ -2,7 +2,7 @@
 
 # Setup script for LivingApps SDK
 
-import os, re
+import re
 
 import setuptools
 
