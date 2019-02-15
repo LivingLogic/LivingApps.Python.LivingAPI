@@ -25,7 +25,7 @@ from livapps import vsql
 
 __docformat__ = "reStructuredText"
 
-__all__ = ["Handler", "HTTPHandler", "DBHandler"]
+__all__ = ["Handler", "HTTPHandler", "DBHandler", "FileHandler"]
 
 ###
 ### Types
@@ -810,3 +810,157 @@ class HTTPHandler(Handler):
 			**kwargs,
 		)
 		r.raise_for_status()
+
+
+class FileHandler(Handler):
+	def __init__(self, basepath=None):
+		# type: (T.Union[None, str, pathlib.Path]) -> None
+		if basepath is None:
+			basepath = pathlib.Path()
+		self.basepath = basepath
+
+	def _save(self, path, content):
+		# type: (pathlib.Path, str) -> None
+		content = content or ""
+		try:
+			path.write_text(content, encoding="utf-8")
+		except FileNotFoundError:
+			path.parent.mkdir(parents=True)
+			path.write_text(content, encoding="utf-8")
+
+	_hints = dict(
+		htmlul4=("</", "<span", "<p>", "<p ", "<div>", "<div ", "<td>", "<td ", "<th>", "<th ", "<!--"),
+		cssul4=("font-size", "background-color", "{"),
+		jsul4=("$(", "var ", "let ", "{"),
+	) # type: T.Dict[str, T.Tuple[str, ...]]
+
+	def _guessext(self, basedir, template):
+		# type: (T.Union[str, pathlib.Path], la.Template) -> str
+		"""
+		Try to guess an extension for the template ``template``.
+
+		If there's only *one* file with a matching filename in the directory
+		``basedir``, always use its filename, else try to guess the extension
+		from the source.
+		"""
+		source = template.source or ""
+
+		# If we have exactly *one* file with this basename in ``basedir``, use this filename
+		candidates = list(pathlib.Path(basedir).glob(f"{template.identifier}.*ul4"))
+		if len(candidates) == 1:
+			return candidates[0].suffix[1:]
+		hintcount = {key: sum(source.count(string) for string in strings) for (key, strings) in self._hints.items()}
+		bestguess = max(hintcount.items(), key=operator.itemgetter(1))
+		# If we've guessed "HTML", but there are no HTML markers in the file,
+		# but we have a ``<?return?>`` tag, this is probably just a function.
+		if bestguess[0] == "htmlul4" and bestguess[1] == 0 and "<?return " in source:
+			return "ul4"
+		# If we've guessed "JS" or "CSS", and the number of hints is the same
+		# (probable because of the number of ``{`` characters} and we have a
+		# ``<?return?>`` tag, this is probably just a function.
+		elif (bestguess[0] in ("jsul4", "cssul4") and hintcount["jsul4"] == hintcount["cssul4"]) and "<?return " in source:
+			return "ul4"
+		# Else return the guess with the most hint matches
+		return bestguess[0]
+
+	def _dumpattr(self, config, obj, name):
+		"""
+		Put the attribute named ``name`` into the JSON configuration ``config``.
+
+		This means that if the attribute has the default value it will not be put
+		into the config. All other values (e.g. ``enum``\\s) have to be converted
+		to a JSON compatible type.
+		"""
+		value = getattr(obj, name)
+		attr = getattr(obj.__class__, name)
+		if value != attr.default:
+			if isinstance(attr, la.EnumAttr):
+				value = value.name.lower()
+			config[name] = value
+
+	def save_internaltemplate(self, internaltemplate, recursive=True):
+		# type: (la.InternalTemplate, bool) -> None
+		dir = f"{self.basepath}/{internaltemplate.app.fullname}/internaltemplates"
+		ext = self._guessext(dir, internaltemplate)
+		path = pathlib.Path(dir, f"{internaltemplate.identifier}.{ext}")
+		self._save(path, internaltemplate.source)
+
+	def _datasource_as_config(self, datasource):
+		configdatasource = {}
+		if datasource.app is not None:
+			configdatasource["app"] = datasource.app.fullname
+		self._dumpattr(configdatasource, datasource, "includecloned")
+		self._dumpattr(configdatasource, datasource, "appfilter")
+		self._dumpattr(configdatasource, datasource, "includerecords")
+		self._dumpattr(configdatasource, datasource, "includecontrols")
+		self._dumpattr(configdatasource, datasource, "includecount")
+		self._dumpattr(configdatasource, datasource, "recordpermission")
+		self._dumpattr(configdatasource, datasource, "recordfilter")
+		self._dumpattr(configdatasource, datasource, "includepermissions")
+		self._dumpattr(configdatasource, datasource, "includeattachments")
+		self._dumpattr(configdatasource, datasource, "includetemplates")
+		self._dumpattr(configdatasource, datasource, "includeparams")
+		self._dumpattr(configdatasource, datasource, "includeviews")
+		self._dumpattr(configdatasource, datasource, "includecategories")
+		configorders = self._dataorders_as_config(datasource.orders)
+		if configorders:
+			configdatasource["order"] = configorders
+		configdatasourcechildren = {}
+		for datasourcechildren in datasource.children.values():
+			configdatasourcechildren[datasourcechildren.identifier] = self._datasourcechildren_as_config(datasourcechildren)
+		if configdatasourcechildren:
+			configdatasource["children"] = configdatasourcechildren
+		return configdatasource
+
+	def _datasourcechildren_as_config(self, datasourcechildren):
+		configdatasourcechildren = {}
+		self._dumpattr(configdatasourcechildren, datasourcechildren, "identifier")
+		configdatasourcechildren["app"] = datasourcechildren.control.app.fullname
+		configdatasourcechildren["control"] = datasourcechildren.control.identifier
+		self._dumpattr(configdatasourcechildren, datasourcechildren, "filter")
+		configorders = self._dataorders_as_config(datasourcechildren.orders)
+		if configorders:
+			configdatasourcechildren["order"] = configorders
+		return configdatasourcechildren
+
+	def _dataorders_as_config(self, orders):
+		configorders = []
+		for order in orders:
+			configorder = {} # type: T.Union[str, T.Dict[str, str]]
+			self._dumpattr(configorder, order, "expression")
+			self._dumpattr(configorder, order, "direction")
+			self._dumpattr(configorder, order, "nulls")
+			if list(configorder) == ["expression"]:
+				configorder = configorder["expression"]
+			configorders.append(configorder)
+		return configorders
+
+	def save_viewtemplate(self, viewtemplate, recursive=True):
+		# type: (la.ViewTemplate, bool) -> None
+
+		# Save the template itself
+		dir = f"{self.basepath}/{viewtemplate.app.fullname}/viewtemplates"
+		ext = self._guessext(dir, viewtemplate)
+		path = pathlib.Path(dir, f"{viewtemplate.identifier}.{ext}")
+		self._save(path, viewtemplate.source)
+
+		# Save the template meta data
+		config = {} # type: T.Dict[str, T.Any]
+		self._dumpattr(config, viewtemplate, "type")
+		self._dumpattr(config, viewtemplate, "mimetype")
+		self._dumpattr(config, viewtemplate, "permission")
+		if recursive:
+			configalldatasources = {}
+			for datasource in viewtemplate.datasources.values():
+				configalldatasources[datasource.identifier] = self._datasource_as_config(datasource)
+			if configalldatasources:
+				config["datasources"] = configalldatasources
+		# Only save a configuration if any of the values differs from the default
+		configpath = path.with_suffix(".json")
+		if config:
+			self._save(configpath, json.dumps(config, indent="\t"))
+		else:
+			try:
+				configpath.unlink()
+			except FileNotFoundError:
+				pass
