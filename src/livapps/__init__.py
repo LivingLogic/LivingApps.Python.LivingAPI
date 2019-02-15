@@ -1684,8 +1684,8 @@ class ViewTemplate(Template):
 	# Data sources
 	datasources = Attr(ul4on=True)
 
-	def __init__(self, *args, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype=None, permission=None):
-		# type:  (*DataSourceConfig, str, str, str, str, str, T.Union[None, str, T.Type], str, T.Union[None, int, Permission]) -> None
+	def __init__(self, *args, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype="text/html", permission=None):
+		# type:  (*DataSourceConfig, str, str, str, str, str, T.Union[None, str, Type], str, T.Union[None, int, Permission]) -> None
 		super().__init__(identifier=identifier, source=source, whitespace=whitespace, signature=signature, doc=doc)
 		self.type = type
 		self.mimetype = mimetype
