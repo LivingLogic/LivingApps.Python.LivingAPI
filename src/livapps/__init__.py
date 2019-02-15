@@ -1676,7 +1676,7 @@ class ViewTemplate(Template):
 	type = EnumAttr(Type, required=True, default=Type.LIST, ul4on=True)
 
 	# The MIME type of the HTTP response of the view template
-	mimetype = Attr(str, ul4on=True)
+	mimetype = Attr(str, default="text/html", ul4on=True)
 
 	# Who can access the template?
 	permission = IntEnumAttr(Permission, required=True, default=Permission.ALL, ul4on=True)
