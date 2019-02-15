@@ -1772,6 +1772,7 @@ class DataSourceConfig(Base):
 
 	# Which fields of the app should be included (in ``controls`` and ``records``)?
 	includecontrols = IntEnumAttr(IncludeControls, required=True, default=IncludeControls.NONE, ul4on=True)
+
 	includerecords = IntEnumAttr(IncludeRecords, required=True, default=IncludeRecords.NONE, ul4on=True)
 	includecount = Attr(int, required=True, default=False, ul4on=True)
 	recordpermission = IntEnumAttr(RecordPermission, required=True, default=RecordPermission.NONE, ul4on=True)
