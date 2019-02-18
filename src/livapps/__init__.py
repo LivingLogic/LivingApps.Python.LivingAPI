@@ -612,8 +612,8 @@ class App(Base):
 			if name.startswith("c_"):
 				return self.controls[name[2:]]
 		except KeyError:
-			raise AttributeError(name) from None
-		return super().__getattr__(name)
+			pass
+		raise AttributeError(name) from None
 
 	def ul4getattr(self, name):
 		if self.ul4hasattr(name):
