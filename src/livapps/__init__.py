@@ -107,9 +107,10 @@ def makeattrs(value):
 	r"""
 	Convert :class:`dict`\s into :class:`attrdict`\s.
 
-	If :obj:`value` is not a :class:`dict` it will be returned unchanged.
+	If :obj:`value` is not a :class:`dict` (or it already is an :class:`attrdict`)
+	it will be returned unchanged.
 	"""
-	if isinstance(value, dict):
+	if isinstance(value, dict) and not isinstance(value, attrdict):
 		value = attrdict(value)
 	return value
 
