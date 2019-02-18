@@ -697,7 +697,6 @@ class Globals(Base):
 @register("app")
 class App(Base):
 	ul4attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "createdat", "createdby", "updatedat", "updatedby", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier", "basetable", "primarykey", "insertprocedure", "updateprocedure", "deleteprocedure", "templates", "insert", "internaltemplates", "viewtemplates"}
-	ul4onattrs = ["id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "createdby", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier", "basetable", "primarykey", "insertprocedure", "updateprocedure", "deleteprocedure", "templates", "createdby", "updatedat", "updatedby", "internaltemplates", "viewtemplates"]
 
 	id = Attr(str, repr=True, ul4on=True)
 	globals = Attr(Globals, ul4on=True)
@@ -844,15 +843,6 @@ class App(Base):
 			field.value = value
 			field._dirty = False # The record is dirty anyway
 		return record
-
-	def ul4onload_setattr(self, name, value):
-		if name in {"controls", "params", "internaltemplates", "viewtemplates"}:
-			value = makeattrs(value)
-		setattr(self, name, value)
-
-	def ul4onload_setdefaultattr(self, name):
-		value = attrdict() if name in {"controls"} else None
-		setattr(self, name, value)
 
 
 class Control(Base):
@@ -1377,9 +1367,43 @@ class Record(Base):
 	updatedat = Attr(datetime.datetime, ul4on=True)
 	updatedby = Attr(User, ul4on=True)
 	updatecount = Attr(int, ul4on=True)
-	_values = Attr(ul4on=True)
+
+	class values(AttrDictAttr):
+		readonly = True
+		ul4on = True
+
+		def get(self, instance):
+			values = instance.__dict__["values"]
+			if values is None:
+				values = attrdict()
+				for control in instance.app.controls.values():
+					value = instance._sparsevalues.get(control.identifier)
+					(value, _) = control._convertvalue(value)
+					values[control.identifier] = value
+				instance._sparsevalues = None
+				instance.__dict__["values"] = values
+			return values
+
+		def ul4on_setattr(self, instance, value):
+			instance._sparsevalues = value
+			# Set the following attributes via ``__dict__``, as they are "read only".
+			instance.__dict__["values"] = None
+			instance.__dict__["fields"] = None
+
+	class fields(AttrDictAttr):
+		readonly = True
+		ul4on = False
+
+		def get(self, instance):
+			fields = instance.__dict__["fields"]
+			if fields is None:
+				values = instance.values
+				fields = attrdict((identifier, Field(instance.app.controls[identifier], instance, values[identifier])) for identifier in instance.app.controls)
+				instance.__dict__["fields"] = fields
+			return fields
+
 	attachments = Attr(ul4on=True)
-	children = Attr(ul4on=True)
+	children = AttrDictAttr(ul4on=True)
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
 		self.id = id
@@ -1390,8 +1414,8 @@ class Record(Base):
 		self.updatedby = updatedby
 		self.updatecount = updatecount
 		self._sparsevalues = attrdict()
-		self._values = None
-		self._fields = None
+		self.values = None
+		self.fields = None
 		self.children = attrdict()
 		self.attachments = None
 		self.errors = []
@@ -1431,8 +1455,6 @@ class Record(Base):
 				return self.values[name[2:]]
 			elif name == "fields":
 				return self.__class__.fields.__get__(self)
-			elif name == "values":
-				return self.__class__.values.__get__(self)
 		except KeyError:
 			pass
 		raise AttributeError(name) from None
@@ -1477,24 +1499,6 @@ class Record(Base):
 
 	def is_dirty(self):
 		return self.id is None or any(field._dirty for field in self.fields.values())
-
-	@property
-	def values(self):
-		if self._values is None:
-			self._values = attrdict()
-			for control in self.app.controls.values():
-				value = self._sparsevalues.get(control.identifier)
-				(value, _) = control._convertvalue(value)
-				self._values[control.identifier] = value
-			self._sparsevalues = None
-		return self._values
-
-	@property
-	def fields(self):
-		if self._fields is None:
-			values = self.values
-			self._fields = attrdict((identifier, Field(self.app.controls[identifier], self, values[identifier])) for identifier in self.app.controls)
-		return self._fields
 
 	def save(self):
 		self.app.globals.handler.save_record(self)
