@@ -819,6 +819,14 @@ class FileHandler(Handler):
 			basepath = pathlib.Path()
 		self.basepath = basepath
 
+	def save_app(self, app, recursive=True):
+		# FIXME: Save the app itself
+		if recursive:
+			for internaltemplate in app.internaltemplates.values():
+				internaltemplate.save(self)
+			for viewtemplate in app.viewtemplates.values():
+				viewtemplate.save(self)
+
 	def _save(self, path, content):
 		# type: (pathlib.Path, str) -> None
 		content = content or ""

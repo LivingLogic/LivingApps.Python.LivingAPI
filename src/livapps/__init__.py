@@ -623,6 +623,9 @@ class App(Base):
 	def ul4hasattr(self, name):
 		return name in self.ul4attrs or (name.startswith("c_") and name[2:] in self.controls)
 
+	def save(self, handler, recursive=True):
+		handler.save_app(self, recursive=recursive)
+
 	_saveletters = string.ascii_letters + string.digits + "()-+_ äöüßÄÖÜ"
 
 	@property
