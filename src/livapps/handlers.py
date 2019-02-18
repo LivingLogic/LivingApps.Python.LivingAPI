@@ -7,7 +7,6 @@
 ## All Rights Reserved
 
 import os, io, datetime, pathlib, itertools, json, mimetypes, operator
-import typing as T
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -26,20 +25,6 @@ from livapps import vsql
 __docformat__ = "reStructuredText"
 
 __all__ = ["Handler", "HTTPHandler", "DBHandler", "FileHandler"]
-
-###
-### Types
-###
-
-if T.TYPE_CHECKING:
-	OptStr = T.Optional[str]
-	OptInt = T.Optional[int]
-	OptFloat = T.Optional[float]
-	OptBool = T.Optional[bool]
-	OptDatetime = T.Optional[datetime.datetime]
-	PK = str
-	OptPK = T.Optional[PK]
-	ReqParams = T.Dict[str, T.Union[None, str, T.List[str]]]
 
 
 ###
@@ -71,18 +56,15 @@ class Handler:
 	"""
 
 	def __init__(self):
-		# type: () -> None
 		self.globals = None
 
 	def get(self, *path, **params):
-		# type: (*str, **T.Union[str, T.List[str]]) -> T.Any
 		pass
 
 	def file(self, source):
-		# type: (T.Union[str, os.PathLike, pathlib.Path, url.URL, T.IO[bytes]]) -> la.File
-		path = None # type: OptStr
-		stream = None # type: T.Optional[T.IO[bytes]]
-		mimetype = None # type: OptStr
+		path = None
+		stream = None
+		mimetype = None
 		if isinstance(source, pathlib.Path):
 			content = source.read_bytes()
 			filename = source.name
@@ -124,7 +106,6 @@ class Handler:
 		return file
 
 	def _geofrominfo(self, info):
-		# type: (str) -> T.Optional[la.Geo]
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
 		for provider in (geocoder.google, geocoder.osm):
 			result = provider(info, language="de")
@@ -133,7 +114,6 @@ class Handler:
 		return None
 
 	def _geofromlatlong(self, lat, long):
-		# type: (float, float) -> T.Optional[la.Geo]
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
 		for provider in (geocoder.google, geocoder.osm):
 			result = provider([lat, long], method="reverse", language="de")
@@ -157,55 +137,43 @@ class Handler:
 			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
 
 	def save_record(self, record):
-		# type: (la.Record) -> None
 		raise NotImplementedError
 
 	def _delete(self, record):
-		# type: (la.Record) -> None
 		raise NotImplementedError
 
 	def _executeaction(self, record, actionidentifier):
-		# type: (la.Record, str) -> None
 		raise NotImplementedError
 
 	def file_content(self, file):
-		# type: (la.File) -> bytes
 		raise NotImplementedError
 
 	def save_file(self, file):
-		# type: (la.File) -> None
 		raise NotImplementedError
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
-		# type: (la.InternalTemplate, bool) -> None
 		raise NotImplementedError
 
 	def save_viewtemplate(self, viewtemplate, recursive=True):
-		# type: (la.ViewTemplate, bool) -> None
 		raise NotImplementedError
 
 	def save_datasourceconfig(self, datasourceconfig, recursive=True):
-		# type: (la.DataSourceConfig, bool) -> None
 		raise NotImplementedError
 
 	def save_datasourcechildrenconfig(self, datasourcechildrenconfig, recursive=True):
-		# type: (la.DataSourceChildrenConfig, bool) -> None
 		raise NotImplementedError
 
 	def _loadfile(self):
-		# type: () -> la.File
 		file = la.File()
 		file.handler = self
 		return file
 
 	def _loadglobals(self):
-		# type: () -> la.Globals
 		globals = la.Globals()
 		globals.handler = self
 		return globals
 
 	def _loaddump(self, dump):
-		# type: (str) -> T.Mapping[str, T.Any]
 		registry = {
 			"de.livingapps.appdd.file": self._loadfile,
 			"de.livinglogic.livingapi.file": self._loadfile,
@@ -221,7 +189,6 @@ class Handler:
 
 class DBHandler(Handler):
 	def __init__(self, connectstring, uploaddirectory, account):
-		# type: (str, T.Union[str, url.URL], OptStr) -> None
 		super().__init__()
 		if orasql is None:
 			raise ImportError("ll.orasql required")
@@ -245,7 +212,7 @@ class DBHandler(Handler):
 		self.proc_vsqlsource_insert = orasql.Procedure("VSQL_PKG.VSQLSOURCE_INSERT")
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
 
-		self.custom_procs = {} # type: T.Dict[str, orasql.Procedure]
+		self.custom_procs = {}
 
 		if account is None:
 			self.ide_id = None
@@ -258,19 +225,15 @@ class DBHandler(Handler):
 			self.ide_id = r.ide_id
 
 	def __repr__(self):
-		# type: () -> str
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} at {id(self):#x}>"
 
 	def cursor(self):
-		# type: () -> orasql.Cursor
 		return self.db.cursor()
 
 	def commit(self):
-		# type: () -> None
 		self.db.commit()
 
 	def save_file(self, file):
-		# type: (la.File) -> None
 		if file.internalid is None:
 			if file._content is None:
 				raise ValueError(f"Can't save {file!r} without content!")
@@ -291,7 +254,6 @@ class DBHandler(Handler):
 			file.internalid = r.p_upl_id
 
 	def file_content(self, file):
-		# type: (la.File) -> bytes
 		upr_id = file.url.rsplit("/")[-1]
 		c = self.cursor()
 		c.execute(
@@ -306,11 +268,9 @@ class DBHandler(Handler):
 			return u.openread().read()
 
 	def save_vsql(self, cursor, source, function, datatype=None, **queryargs):
-		# type: (orasql.Cursor, OptStr, str, OptStr, T.Any) -> OptPK
 		return vsql.compile_and_save(self, cursor, source, datatype, function, **queryargs)
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
-		# type: (la.InternalTemplate, bool) -> None
 		template = ul4c.Template(internaltemplate.source, name=internaltemplate.identifier)
 		cursor = self.cursor()
 		self.proc_internaltemplate_import(
@@ -325,7 +285,6 @@ class DBHandler(Handler):
 		)
 
 	def save_viewtemplate(self, viewtemplate, recursive=True):
-		# type: (la.ViewTemplate, bool) -> None
 		template = ul4c.Template(viewtemplate.source, name=viewtemplate.identifier)
 		cursor = self.cursor()
 		r = self.proc_viewtemplate_import(
@@ -349,7 +308,6 @@ class DBHandler(Handler):
 				datasource.save(self, recursive=recursive)
 
 	def save_datasourceconfig(self, datasourceconfig, recursive=True):
-		# type: (la.DataSourceConfig, bool) -> None
 		cursor = self.cursor()
 
 		# Compile and save the app filter
@@ -406,7 +364,6 @@ class DBHandler(Handler):
 				children.save(self, recursive=recursive)
 
 	def save_datasourcechildrenconfig(self, datasourcechildrenconfig, recursive=True):
-		# type: (la.DataSourceChildrenConfig, bool) -> None
 		cursor = self.cursor()
 
 		# Find the ``ctl_id`` for the target control
@@ -459,7 +416,6 @@ class DBHandler(Handler):
 			)
 
 	def _save_dataorderconfigs(self, cursor, orders, function, **kwargs):
-		# type: (orasql.Cursor, T.List[la.DataOrderConfig], str, **str) -> None
 		queryargs = " and ".join(f"{k}=:{k}" for k in kwargs)
 		procargs = {"p_" + k: v for (k, v) in kwargs.items()}
 		query = f"select do_id, do_order from dataorder where {queryargs} order by do_order"
@@ -496,7 +452,6 @@ class DBHandler(Handler):
 				self.proc_dataorder_delete(cursor, c_user=self.ide_id, p_do_id=do_id)
 
 	def getmeta(self, *appids):
-		# type: (*str) -> T.Mapping[str, T.Any]
 		cursor = self.cursor()
 
 		tpl_uuids = self.varchars(appids)
@@ -507,11 +462,12 @@ class DBHandler(Handler):
 		)
 		r = cursor.fetchone()
 		dump = r[0].decode("utf-8")
+		with open("gurk.ul4on", "w", encoding="utf-8") as f:
+			f.write(dump)
 		dump = self._loaddump(dump)
 		return dump
 
 	def get(self, *path, **params):
-		# type: (*str, **T.Union[str, T.List[str]]) -> T.Mapping[str, T.Any]
 		if not 1 <= len(path) <= 2:
 			raise ValueError(f"need one or two path components, got {len(path)}")
 
@@ -652,7 +608,6 @@ class DBHandler(Handler):
 
 class HTTPHandler(Handler):
 	def __init__(self, url, username=None, password=None):
-		# type: (str, OptStr, OptStr) -> None
 		super().__init__()
 		if not url.endswith("/"):
 			url += "/"
@@ -661,7 +616,7 @@ class HTTPHandler(Handler):
 
 		self.session = requests.Session()
 
-		self.auth_token = None # type: OptStr
+		self.auth_token = None
 
 		# If :obj:`username` or :obj:`password` are not given, we don't log in
 		# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
@@ -679,19 +634,16 @@ class HTTPHandler(Handler):
 				raise_403(r)
 
 	def __repr__(self):
-		# type: () -> str
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} url={self.url!r} username={self.username!r} at {id(self):#x}>"
 
 	def _add_auth_token(self, kwargs):
-		# type: (T.Dict[str, T.Any]) -> None
 		if self.auth_token:
 			if "headers" not in kwargs:
 				kwargs["headers"] = {}
 			kwargs["headers"]["X-La-Auth-Token"] = self.auth_token
 
 	def file_content(self, file):
-		# type: (la.File) -> bytes
-		kwargs = {} # type: ReqParams
+		kwargs = {}
 		self._add_auth_token(kwargs)
 		r = self.session.get(
 			self.url.rstrip("/") + file.url,
@@ -700,7 +652,6 @@ class HTTPHandler(Handler):
 		return r.content
 
 	def get(self, *path, **params):
-		# type: (*str, **T.Union[str, T.List[str]]) -> T.Dict[str, T.Any]
 		if not 1 <= len(path) <= 2:
 			raise ValueError(f"need one or two path components, got {len(path)}")
 		kwargs = {
@@ -729,7 +680,6 @@ class HTTPHandler(Handler):
 		return dump
 
 	def save_record(self, record):
-		# type: (la.Record) -> None
 		fields = {field.control.identifier: field.control._asjson(field.value) for field in record.fields.values() if record.id is None or field.is_dirty()}
 		app = record.app
 		recorddata = {"fields": fields}
@@ -794,7 +744,6 @@ class HTTPHandler(Handler):
 
 class FileHandler(Handler):
 	def __init__(self, basepath=None):
-		# type: (T.Union[None, str, pathlib.Path]) -> None
 		if basepath is None:
 			basepath = pathlib.Path()
 		self.basepath = basepath
@@ -808,7 +757,11 @@ class FileHandler(Handler):
 				viewtemplate.save(self)
 
 	def _save(self, path, content):
-		# type: (pathlib.Path, str) -> None
+		"""
+		Save the text ``context`` to the path ``path``.
+
+		This method creates the parent directory of ``path`` is neccessary.
+		"""
 		content = content or ""
 		try:
 			path.write_text(content, encoding="utf-8")
@@ -820,10 +773,9 @@ class FileHandler(Handler):
 		htmlul4=("</", "<span", "<p>", "<p ", "<div>", "<div ", "<td>", "<td ", "<th>", "<th ", "<!--"),
 		cssul4=("font-size", "background-color", "{"),
 		jsul4=("$(", "var ", "let ", "{"),
-	) # type: T.Dict[str, T.Tuple[str, ...]]
+	)
 
 	def _guessext(self, basedir, template):
-		# type: (T.Union[str, pathlib.Path], la.Template) -> str
 		"""
 		Try to guess an extension for the template ``template``.
 
@@ -852,11 +804,11 @@ class FileHandler(Handler):
 		return bestguess[0]
 
 	def _dumpattr(self, config, obj, name):
-		"""
+		r"""
 		Put the attribute named ``name`` into the JSON configuration ``config``.
 
 		This means that if the attribute has the default value it will not be put
-		into the config. All other values (e.g. ``enum``\\s) have to be converted
+		into the config. All other values (e.g. ``enum``\s) have to be converted
 		to a JSON compatible type.
 		"""
 		value = getattr(obj, name)
@@ -867,7 +819,6 @@ class FileHandler(Handler):
 			config[name] = value
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
-		# type: (la.InternalTemplate, bool) -> None
 		dir = f"{self.basepath}/{internaltemplate.app.fullname}/internaltemplates"
 		ext = self._guessext(dir, internaltemplate)
 		path = pathlib.Path(dir, f"{internaltemplate.identifier}.{ext}")
@@ -914,7 +865,7 @@ class FileHandler(Handler):
 	def _dataorders_as_config(self, orders):
 		configorders = []
 		for order in orders:
-			configorder = {} # type: T.Union[str, T.Dict[str, str]]
+			configorder = {}
 			self._dumpattr(configorder, order, "expression")
 			self._dumpattr(configorder, order, "direction")
 			self._dumpattr(configorder, order, "nulls")
@@ -924,8 +875,6 @@ class FileHandler(Handler):
 		return configorders
 
 	def save_viewtemplate(self, viewtemplate, recursive=True):
-		# type: (la.ViewTemplate, bool) -> None
-
 		# Save the template itself
 		dir = f"{self.basepath}/{viewtemplate.app.fullname}/viewtemplates"
 		ext = self._guessext(dir, viewtemplate)
@@ -933,7 +882,7 @@ class FileHandler(Handler):
 		self._save(path, viewtemplate.source)
 
 		# Save the template meta data
-		config = {} # type: T.Dict[str, T.Any]
+		config = {}
 		self._dumpattr(config, viewtemplate, "type")
 		self._dumpattr(config, viewtemplate, "mimetype")
 		self._dumpattr(config, viewtemplate, "permission")

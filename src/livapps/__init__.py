@@ -6,8 +6,7 @@
 ##
 ## All Rights Reserved
 
-import sys, os, os.path, io, datetime, mimetypes, operator, string, enum, pathlib
-import typing as T
+import datetime, operator, string, enum, pathlib, inspect
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
@@ -18,31 +17,14 @@ __docformat__ = "reStructuredText"
 
 
 ###
-### Types
-###
-
-if T.TYPE_CHECKING:
-	OptStr = T.Optional[str]
-	OptInt = T.Optional[int]
-	OptFloat = T.Optional[float]
-	OptBool = T.Optional[bool]
-	OptDatetime = T.Optional[datetime.datetime]
-	PK = str
-	OptPK = T.Optional[PK]
-	ReqParams = T.Dict[str, T.Union[None, str, T.List[str]]]
-
-
-###
 ### Utility functions and classes
 ###
 
 def register(name):
-	# type: (str) -> T.Callable[[T.Type], T.Type]
 	"""
 	Shortcut for registering a LivingAPI class with the UL4ON machinery.
 	"""
 	def registration(cls):
-		# type: (T.Type) -> T.Type
 		ul4on.register("de.livingapps.appdd." + name)(cls)
 		ul4on.register("de.livinglogic.livingapi." + name)(cls)
 		return cls
@@ -50,7 +32,6 @@ def register(name):
 
 
 def format_class(cls):
-	# type: (T.Type) -> str
 	"""
 	Format the name of the class object :obj:`cls`.
 
@@ -66,7 +47,6 @@ def format_class(cls):
 
 
 def format_list(items):
-	# type: (T.List[str]) -> str
 	"""
 	Format a list of strings for text output.
 
@@ -423,7 +403,7 @@ class AttrDictAttr(Attr):
 
 class UnsavedError(Exception):
 	"""
-	Exception that is thrown when an object is saved which references an object that hasn't been saved yet.
+	Raised when an object is saved which references an unsaved object.
 	"""
 
 	def __init__(self, object):
@@ -435,9 +415,7 @@ class UnsavedError(Exception):
 
 class DeletedError(Exception):
 	"""
-		# type: (OptDatetime, T.Union[str, T.Type], OptStr, OptStr) -> None
-		# type: (OptDatetime, T.Union[str, T.Type], OptStr, OptStr) -> None
-	Exception that is thrown when an object is saved which references an object which has been deleted previously.
+	Raised when an object is saved which references a deleted object.
 	"""
 
 	def __init__(self, object):
@@ -575,14 +553,12 @@ class File(Base):
 		self._content = None
 
 	def save(self, handler):
-		# type: (Handler) -> None
 		if self.internalid is None:
 			if self.handler is None:
 				raise ValueError(f"Can't save file {self!r}")
 			self.handler.save_file(self)
 
 	def content(self):
-		# type: () -> bytes
 		"""
 		Return the file content as a :class:`bytes` object.
 		"""
@@ -603,7 +579,6 @@ class Geo(Base):
 	info = Attr(str, repr=True, ul4on=True)
 
 	def __init__(self, lat=None, long=None, info=None):
-		# type: (OptFloat, OptFloat, OptStr) -> None
 		self.lat = lat
 		self.long = long
 		self.info = info
@@ -627,7 +602,6 @@ class User(Base):
 	keyviews = Attr(ul4on=True)
 
 	def __init__(self, gender=None, firstname=None, surname=None, initials=None, email=None, language=None, avatar_small=None, avatar_large=None):
-		# type: (OptStr, OptStr, OptStr, OptStr, OptStr, OptStr, T.Optional[File],T. Optional[File]) -> None
 		self.internalid = None
 		self.id = None
 		self.gender = gender
@@ -638,7 +612,7 @@ class User(Base):
 		self.language = language
 		self.avatar_small = avatar_small
 		self.avatar_large = avatar_large
-		self.keyviews = attrdict() # type: T.Mapping[str, KeyView]
+		self.keyviews = attrdict()
 
 
 @register("keyview")
@@ -653,7 +627,6 @@ class KeyView(Base):
 	user = Attr(User, ul4on=True)
 
 	def __init__(self, identifier=None, name=None, key=None, user=None):
-		# type: (str, str, str, T.Optional[User]) -> None
 		self.id = None
 		self.identifier = identifier
 		self.name = name
@@ -674,20 +647,18 @@ class Globals(Base):
 	flashes = Attr(ul4on=True)
 
 	def __init__(self, version=None, platform=None):
-		# type: (OptStr, OptStr) -> None
 		self.version = version
 		self.platform = platform
 		self.user = None
 		self.maxdbactions = None
 		self.maxtemplateruntime = None
-		self.flashes = [] # type: T.List[FlashMessage]
-		self.handler = None # type: T.Optional[Handler] # The handler from which we've got the data (required for insert/update/delete/executeaction methods)
+		self.flashes = []
+		self.handler = None
 
 	def geo(self, lat=None, long=None, info=None):
 		return self.handler.geo(lat, long, info)
 
 	def ul4onload_setdefaultattr(self, name):
-		# type: (str) -> None
 		if name == "flashes":
 			self.flashes = []
 		else:
@@ -758,7 +729,6 @@ class App(Base):
 		self.viewtemplates = None
 
 	def __str__(self):
-		# type: () -> str
 		return self.fullname
 
 	def __getattr__(self, name):
@@ -784,7 +754,6 @@ class App(Base):
 
 	@property
 	def fullname(self):
-		# type: () -> str
 		if self.name:
 			safename = "".join(c for c in self.name if c in self._saveletters)
 			return f"{safename} ({self.id})"
@@ -792,7 +761,6 @@ class App(Base):
 			return self.id
 
 	def addtemplate(self, template):
-		# type: (Template) -> None
 		"""
 		Add :obj:`template` as a child for :obj:`self`.
 
@@ -815,7 +783,6 @@ class App(Base):
 			raise TypeError(f"don't know what to do with positional argument {template!r}")
 
 	def insert(self, **kwargs):
-		# type: (**T.Any) -> Record
 		record = Record(
 			id=None,
 			app=self,
@@ -834,7 +801,6 @@ class App(Base):
 		return record
 
 	def __call__(self, **kwargs):
-		# type: (**T.Any) -> Record
 		record = Record(app=self)
 		for (identifier, value) in kwargs.items():
 			if identifier not in self.controls:
@@ -846,8 +812,8 @@ class App(Base):
 
 
 class Control(Base):
-	type = None # type: OptStr
-	subtype = None # type: OptStr
+	type = None
+	subtype = None
 	ul4attrs = {"id", "identifier", "app", "label", "type", "subtype", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"}
 	ul4onattrs = ["id", "identifier", "field", "app", "label", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"]
 
@@ -863,7 +829,6 @@ class Control(Base):
 	inupdateprocedure = BoolAttr(ul4on=True)
 
 	def __init__(self, identifier=None, field=None, label=None, priority=None, order=None, default=None):
-		# type: (str, str, str, int, int, T.Any) -> None
 		self.id = None
 		self.app = None
 		self.identifier = identifier
@@ -1422,7 +1387,6 @@ class Record(Base):
 		self._deleted = False
 
 	def __repr__(self):
-		# type: () -> str
 		attrs = " ".join(f"v_{identifier}={value!r}" for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} {attrs} at {id(self):#x}>"
 
@@ -1608,7 +1572,6 @@ class Field:
 		self.errors = []
 
 	def __repr__(self):
-		# type: () -> str
 		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self.value!r}"
 		if self._dirty:
 			s += " is_dirty()=True"
@@ -1706,25 +1669,21 @@ class Template(Base):
 	doc = Attr(str, ul4on=True)
 
 	def __init__(self, identifier=None, source=None, whitespace="keep", signature=None, doc=None):
-		# type: (str, str, str, OptStr, OptStr) -> None
 		self.id = None # Type: OptStr
-		self.app = None # type: T.Optional[App]
-		self.identifier = identifier # type: str
-		self.source = source # type: str
+		self.app = None
+		self.identifier = identifier
+		self.source = source
 		self.signature = signature
 		self.whitespace = whitespace
 		self.doc = doc
 
 	def __repr__(self):
-		# type: () -> str
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
 
 	def template(self):
-		# type: () -> ul4c.Template
 		return ul4c.Template(self.source, name=self.identifier, signature=self.signature, whitespace=self.whitespace)
 
 	def _save(self, path, content):
-		# type: (pathlib.Path, str) -> None
 		content = content or ""
 		try:
 			path.write_text(content, encoding="utf-8")
@@ -1736,7 +1695,7 @@ class Template(Base):
 		htmlul4=("</", "<span", "<p>", "<p ", "<div>", "<div ", "<td>", "<td ", "<th>", "<th ", "<!--"),
 		cssul4=("font-size", "background-color", "{"),
 		jsul4=("$(", "var ", "let ", "{"),
-	) # type: T.Dict[str, T.Tuple[str, ...]]
+	)
 
 	def _guessext(self, basedir) -> str:
 		"""
@@ -1770,11 +1729,9 @@ class Template(Base):
 @register("internaltemplate")
 class InternalTemplate(Template):
 	def __str__(self):
-		# type: () -> str
 		return f"{self.app or '?'}/internaltemplate={self.identifier}"
 
 	def save(self, handler, recursive=True):
-		# type: (Handler, bool) -> None
 		handler.save_internaltemplate(self)
 
 
@@ -1847,7 +1804,6 @@ class ViewTemplate(Template):
 	datasources = Attr(ul4on=True)
 
 	def __init__(self, *args, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype="text/html", permission=None):
-		# type:  (*DataSourceConfig, str, str, str, str, str, T.Union[None, str, Type], str, T.Union[None, int, Permission]) -> None
 		super().__init__(identifier=identifier, source=source, whitespace=whitespace, signature=signature, doc=doc)
 		self.type = type
 		self.mimetype = mimetype
@@ -1860,7 +1816,6 @@ class ViewTemplate(Template):
 				raise TypeError(f"don't know what to do with positional argument {arg!r}")
 
 	def __str__(self):
-		# type: () -> str
 		return f"{self.app or '?'}/viewtemplate={self.identifier}"
 
 	def adddatasource(self, *datasources):
@@ -1869,18 +1824,15 @@ class ViewTemplate(Template):
 			self.datasources[datasource.identifier] = datasource
 
 	def ul4onload_setattr(self, name, value):
-		# type: (str, T.Any) -> None
 		if name == "datasources":
 			value = makeattrs(value)
 		setattr(self, name, value)
 
 	def ul4onload_setdefaultattr(self, name):
-		# type: (str) -> None
 		value = attrdict() if name == "datasources" else None
 		setattr(self, name, value)
 
 	def save(self, handler, recursive=True):
-		# type: (Handler, bool) -> None
 		handler.save_viewtemplate(self)
 
 
@@ -1946,12 +1898,11 @@ class DataSourceConfig(Base):
 	includeviews = BoolAttr(required=True, default=False, ul4on=True)
 	includecategories = IntEnumAttr(IncludeCategories, required=True, default=IncludeCategories.NO, ul4on=True)
 	orders = Attr(ul4on=True)
-	children = Attr(ul4on=True)
+	children = AttrDictAttr(required=True, ul4on=True)
 
 	def __init__(self, *args, identifier=None, app=None, includecloned=False, appfilter=None, includecontrols=None, includerecords=None, includecount=False, recordpermission=None, recordfilter=None, includepermissions=False, includeattachments=False, includetemplates=False, includeparams=False, includeviews=False, includecategories=None):
-		# type: (T.Union[DataOrderConfig, DataSourceChildrenConfig], str, T.Optional[App], OptBool, OptStr, T.Union[None, int, IncludeControls], T.Union[None, int, IncludeRecords], bool, T.Union[None, int, RecordPermission], str, bool, bool, bool, bool, bool, T.Union[None, int, IncludeCategories]) -> None
 		self.id = None
-		self.parent = None # type: T.Optional[ViewTemplate]
+		self.parent = None
 		self.identifier = identifier
 		self.app = app
 		self.includecloned = includecloned
@@ -1967,8 +1918,8 @@ class DataSourceConfig(Base):
 		self.includeparams = includeparams
 		self.includeviews = includeviews
 		self.includecategories = includecategories
-		self.orders = [] # type: T.List[DataOrderConfig]
-		self.children = attrdict() # type: T.Mapping[str, DataSourceChildrenConfig]
+		self.orders = []
+		self.children = None
 		for arg in args:
 			if isinstance(arg, DataOrderConfig):
 				self.addorder(arg)
@@ -1978,21 +1929,17 @@ class DataSourceConfig(Base):
 				raise TypeError(f"don't know what to do with positional argument {arg!r}")
 
 	def __str__(self):
-		# type: () -> str
 		return f"{self.parent or '?'}/datasource={self.identifier}"
 
 	def __repr__(self):
-		# type: () -> str
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
 
 	def addorder(self, *orders):
-		# type: (*DataOrderConfig) -> None
 		for order in orders:
 			order.parent = self
 			self.orders.append(order)
 
 	def addchildren(self, children):
-		# type: (DataSourceChildrenConfig) -> None
 		children.datasourceconfig = self
 		self.children[children.identifier] = children
 
@@ -2006,7 +1953,6 @@ class DataSourceConfig(Base):
 		setattr(self, name, value)
 
 	def save(self, handler, recursive=True):
-		# type: (handlers.Handler, bool) -> None
 		handler.save_datasourceconfig(self)
 
 
@@ -2022,13 +1968,12 @@ class DataSourceChildrenConfig(Base):
 	filter = VSQLAttr("vsqlfield_pkg.dsc_recordfilter_ful4on", ul4on=True)
 
 	def __init__(self, *args, identifier=None, control=None, filter=None):
-		# type: (T.List[DataOrderConfig], str, Control, OptStr) -> None
-		self.id = None # type: str
-		self.datasourceconfig = None # type: DataSourceConfig
+		self.id = None
+		self.datasourceconfig = None
 		self.identifier = identifier
 		self.control = control
 		self.filter = filter
-		self.orders = [] # type: T.List[DataOrderConfig]
+		self.orders = []
 		for arg in args:
 			if isinstance(arg, DataOrderConfig):
 				self.addorder(arg)
@@ -2036,21 +1981,17 @@ class DataSourceChildrenConfig(Base):
 				raise TypeError(f"don't know what to do with positional argument {arg!r}")
 
 	def __str__(self):
-		# type: () -> str
 		return f"{self.datasourceconfig or '?'}/datasourcechildren={self.identifier}"
 
 	def __repr__(self):
-		# type: () -> str
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
 
 	def addorder(self, *orders):
-		# type: (*DataOrderConfig) -> None
 		for order in orders:
 			order.parent = self
 			self.orders.append(order)
 
 	def save(self, handler, recursive=True):
-		# type: (Handler, bool) -> None
 		handler.save_datasourcechildrenconfig(self)
 
 
@@ -2075,15 +2016,13 @@ class DataOrderConfig(Base):
 	nulls = EnumAttr(Nulls, required=True, default=Nulls.LAST, repr=True, ul4on=True)
 
 	def __init__(self, expression=None, direction=Direction.ASC, nulls=Nulls.LAST):
-		# type: (str, T.Union[str, Direction], T.Union[str, Nulls]) -> None
 		self.id = None
-		self.parent = None # type: T.Union[None, DataSourceConfig, DataSourceChildrenConfig]
+		self.parent = None
 		self.expression = expression
 		self.direction = direction
 		self.nulls = nulls
 
 	def __str__(self):
-		# type: () -> str
 		if self.parent is None:
 			return "?/order=?"
 		else:
@@ -2093,7 +2032,6 @@ class DataOrderConfig(Base):
 			return f"{self.parent}/order=?"
 
 	def __repr__(self):
-		# type: () -> str
 		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} expression={self.expression!r}"
 		s += f" direction={self.direction}"
 		s += f" nulls={self.nulls}"
@@ -2101,7 +2039,6 @@ class DataOrderConfig(Base):
 		return s
 
 	def save(self, handler, recursive=True):
-		# type: (handlers.Handler, bool) -> None
 		raise NotImplementedError("DataOrderConfig objects can only be saved by their parent")
 
 
@@ -2114,7 +2051,6 @@ class Installation(Base):
 	name = Attr(str, repr=True, ul4on=True)
 
 	def __init__(self, id=None, name=None):
-		# type: (str, OptStr) -> None
 		self.id = id
 		self.name = name
 
@@ -2134,7 +2070,6 @@ class View(Base):
 	end = Attr(datetime.datetime, ul4on=True)
 
 	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None):
-		# type: (OptStr, OptStr, T.Optional[App], OptInt, OptInt, OptInt, OptDatetime, OptDatetime) -> None
 		self.id = id
 		self.name = name
 		self.app = app
@@ -2156,7 +2091,6 @@ class DataSource(Base):
 	app = Attr(ul4on=True)
 
 	def __init__(self, id=None, identifier=None, app=None, apps=None):
-		# type: (str, str, T.Optional[App], T.Mapping[str, App]) -> None
 		self.id = id
 		self.identifier = identifier
 		self.app = app
@@ -2176,7 +2110,6 @@ class LookupItem(Base):
 	label = Attr(str, repr=True, ul4on=True)
 
 	def __init__(self, key=None, label=None):
-		# type: (str, str) -> None
 		self.key = key
 		self.label = label
 
@@ -2216,7 +2149,6 @@ class AppParameter(Base):
 	value = Attr(ul4on=True)
 
 	def __init__(self, id=None, app=None, identifier=None, description=None, value=None):
-		# type: (str, App, str, OptStr, T.Union[None, str, File, App]) -> None
 		self.id = id
 		self.app = app
 		self.identifier = identifier
