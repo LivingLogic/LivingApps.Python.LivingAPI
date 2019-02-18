@@ -57,26 +57,6 @@ def raise_403(response):
 	raise requests.exceptions.HTTPError(http_error_msg, response=response)
 
 
-def error_wrong_type(value):
-	return f"{misc.format_class(value)} is not supported"
-
-
-def error_lookupitem_unknown(value):
-	return f"Lookup item {value!r} is unknown"
-
-
-def error_lookupitem_foreign(value):
-	return f"Wrong lookup item {value!r}"
-
-
-def error_applookuprecord_unknown(value):
-	return f"Unknown record {value!r}"
-
-
-def error_applookuprecord_foreign(value):
-	return f"{value!r} is from wrong app"
-
-
 ###
 ### Handler classes
 ###

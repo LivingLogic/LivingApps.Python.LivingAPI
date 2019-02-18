@@ -114,6 +114,54 @@ def makeattrs(value):
 	return value
 
 
+def error_wrong_type(value):
+	"""
+	Return an error message for an unsupported field type.
+
+	Used when setting a field to a value of the wrong type.
+	"""
+	return f"{misc.format_class(value)} is not supported"
+
+
+def error_lookupitem_unknown(value):
+	r"""
+	Return an error message for an unknown identifier for :class:`LookupItem`\s.
+
+	Used when setting the field of a lookup control to an unknown identifier.
+	"""
+	return f"Lookup item {value!r} is unknown"
+
+
+def error_lookupitem_foreign(value):
+	"""
+	Return an error message for a foreign :class:`LookupItem`.
+
+	Used when setting the field of a lookup control to a :`class`LookupItem` that
+	belongs to another :class:`LookupControl`.
+	"""
+	return f"Wrong lookup item {value!r}"
+
+
+def error_applookuprecord_unknown(value):
+	"""
+	Return an error message for a unknown record identifier.
+
+	Used when setting the field of an applookup control to a record identifier
+	that can't be found in the target app.
+	"""
+	return f"Unknown record {value!r}"
+
+
+def error_applookuprecord_foreign(value):
+	"""
+	Return an error message for a foreign :class:`Record`.
+
+	Used when setting the field of an applookup control to a :class:`Record`
+	object that belongs to the wrong app.
+	"""
+	return f"{value!r} is from wrong app"
+
+
 ###
 ### Data descriptors
 ###
