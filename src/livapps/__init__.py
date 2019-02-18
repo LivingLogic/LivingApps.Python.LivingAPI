@@ -170,48 +170,102 @@ class Attr:
 	"""
 	Data descriptor class for many of our instance attributes.
 
-	It supports the following features:
+	For :class:`Attr` to work the class for which it is used must inherit from
+	:class:`Base`.
 
-	*	Type checking when setting the attribute;
-	*	A default value when ``None`` is used as the value.
-
-	Subclasses might support additional features.
+	Such a descriptor does type checking and it's possible to configure
+	support for :meth:`__repr__` and for automatic :mod:`ll.ul4on` support.
 	"""
 
-	def __init__(self, *types, required=False, default=None, repr=False, ul4on=False):
-		# type: (*T.Type, bool, T.Any, bool, bool) -> None
-		self.name = None # type: OptStr # Will be set by the metaclass
+	def __init__(self, *types, required=False, default=None, default_factory=None, readonly=False, repr=False, ul4on=False):
+		"""
+		Create a new :class:`Attr` data descriptor.
+
+		The type of the attribute will be checked when the attribute is set, it
+		must be any of the types in :obj`types`. If no type is passed any
+		(i.e. any :class:`object`) is allowed. (Furthermore subclasses might
+		e.g. implement certain type conversion on setting).
+
+		If :object:`required` is :const:`False` the value :const:`None` is
+		allowed too.
+
+		:obj:`default` specifies the default value for the attribute (which is
+		used by :const:`None` is used as the value).
+
+		:obj:`default_factotry` (if not :class:`None`) can be a callable that is
+		used instead of :obj:`default` to create a default value.
+
+		If :obj:`repr` is true, the attribute will automatically be included
+		in the :meth:`__repr__` output.
+
+		If :obj:`readonly` is true, the attribute can only be set once (usually
+		in the constructor). After that, setting the attribute will raise a
+		:exc:`TypeError`.
+
+		If :obj:`ul4on` is true, this attribute will automatically be serialized
+		and deserialized in UL4ON dumps.
+		"""
+		self.name = None
 		typecount = len(types)
 		if typecount == 0:
-			self.types = object # type: T.Union[T.Type, T.Tuple[T.Type, ...]]
+			self.types = object
 		elif typecount == 1:
 			self.types = types[0]
 		else:
 			self.types = types
 		self.required = required
 		self.default = default
+		self.default_factory = default_factory
+		self.readonly = readonly
 		self.repr = repr
 		self.ul4on = ul4on
 
 	def __repr__(self):
-		# type: () -> str
-		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} name={self.name!r} types={self.types!r} required={self.required!r} default={self.default!r} at {id(self):#x}>"
+		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} name={self.name!r} types={self.types!r} required={self.required!r}"
+		if self.default_factory is not None:
+			s += f" default_factory={self.default_factory!r}"
+		elif self.default is not None:
+			s += f" default={self.default!r}"
+		s += f" at {id(self):#x}>"
+		return s
 
 	def __get__(self, instance, type):
 		if instance is not None:
-			return instance.__dict__[self.name]
+			return self.get(instance)
 		else:
 			return type.__dict__[self.name]
 
 	def __set__(self, instance, value):
+		if self.readonly and self.name in instance.__dict__:
+			raise TypeError(f"can't set attribute {self.name!r} of type {misc.format_class(instance)}")
+		self.set(instance, value)
+
+	def get(self, instance):
+		return instance.__dict__[self.name]
+
+	def makedefault(self):
+		if self.default_factory is not None:
+			return self.default_factory()
+		else:
+			return self.default
+
+	def set(self, instance, value):
 		if value is None:
-			value = self.default
-		if not isinstance(value, self.types) and (self.required and value is None):
+			value = self.makedefault()
+		if not isinstance(value, self.types) and (self.required or value is not None):
 			raise TypeError(f"attribute {self.name!r} must be {self._format_types()}, but is {misc.format_class(value)}")
 		instance.__dict__[self.name] = value
 
+	def ul4on_getattr(self, instance):
+		return self.get(instance)
+
+	def ul4on_setattr(self, instance, value):
+		self.set(instance, value)
+
+	def ul4on_setdefaultattr(self, instance):
+		self.ul4on_setattr(instance, None)
+
 	def _format_types(self):
-		# type: () -> str
 		if isinstance(self.types, tuple):
 			types = [format_class(t) for t in self.types]
 			if not self.required:
@@ -231,14 +285,25 @@ class BoolAttr(Attr):
 	Setting such an attribute also supports an integer as the value.
 	"""
 
-	def __init__(self, required=False, default=None, repr=False, ul4on=False):
-		# type: (bool, OptBool, bool, bool) -> None
-		super().__init__(bool, required=required, default=default, repr=repr, ul4on=ul4on)
+	def __init__(self, required=False, default=None, readonly=False, repr=False, ul4on=False):
+		"""
+		Create a :class:`BoolAttr` data descriptor.
 
-	def __set__(self, instance, value):
+		The supported type will be :class:`bool`. All other arguments have the
+		same meaning as in :meth:`Attr.__init__`.
+		"""
+		super().__init__(bool, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
+
+	def set(self, instance, value):
+		"""
+		Set the value of this attribute of :obj:`instance` to :obj:`value`.
+
+		If :obj:`value` is an :class:`int` it will be converted to :class:`bool`
+		automatically.
+		"""
 		if isinstance(value, int):
 			value = bool(value)
-		super().__set__(instance, value)
+		super().set(instance, value)
 
 
 class FloatAttr(Attr):
@@ -248,14 +313,25 @@ class FloatAttr(Attr):
 	Setting such an attribute also supports an integer as the value.
 	"""
 
-	def __init__(self, required=False, default=None, repr=False, ul4on=False):
-		# type: (bool, float, bool, bool) -> None
-		super().__init__(bool, required=required, default=default, repr=repr, ul4on=ul4on)
+	def __init__(self, required=False, default=None, readonly=False, repr=False, ul4on=False):
+		"""
+		Create a :class:`BoolAttr` data descriptor.
 
-	def __set__(self, instance, value):
+		The supported type will be :class:`float`. All other arguments have the
+		same meaning as in :meth:`Attr.__init__`.
+		"""
+		super().__init__(float, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
+
+	def set(self, instance, value):
+		"""
+		Set the value of this attribute of :obj:`instance` to :obj:`value`.
+
+		If :obj:`value` is an :class:`int` it will be converted to :class:`float`
+		automatically.
+		"""
 		if isinstance(value, int):
 			value = float(value)
-		super().__set__(instance, value)
+		super().set(instance, value)
 
 
 class EnumAttr(Attr):
@@ -265,18 +341,30 @@ class EnumAttr(Attr):
 	Setting such an attribute also supports a string as the value.
 	"""
 
-	def __init__(self, type, required=False, default=None, repr=False, ul4on=False):
-		# type: (T.Type[enum.Enum], bool, T.Any, bool, bool) -> None
-		super().__init__(type, required=required, default=default, repr=repr, ul4on=ul4on)
+	def __init__(self, type, required=False, default=None, readonly=False, repr=False, ul4on=False):
+		"""
+		Create an :class:`EnumAttr` data descriptor.
 
-	def __set__(self, instance, value):
+		:obj:`type` must be a subclass of :class:`enum.Enum`. All other
+		arguments have the same meaning as in :meth:`Attr.__init__`.
+		"""
+		super().__init__(type, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
+
+	def set(self, instance, value):
+		"""
+		Set the value of this attribute of :obj:`instance` to :obj:`value`.
+
+		:obj:`value` may also be the (:class:`str`) value of one of the
+		:class:`~enum.Enum` members and will be converted to the appropriate
+		member automatically.
+		"""
 		if isinstance(value, str):
 			try:
 				value = self.types(value)
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
 				raise ValueError(f"value for attribute {self.name!r} must be {values}, but is {value!r}") from None
-		super().__set__(instance, value)
+		super().set(instance, value)
 
 
 class IntEnumAttr(EnumAttr):
@@ -286,14 +374,21 @@ class IntEnumAttr(EnumAttr):
 	Setting such an attribute also supports an integer as the value.
 	"""
 
-	def __set__(self, instance, value):
+	def set(self, instance, value):
+		"""
+		Set the value of this attribute of :obj:`instance` to :obj:`value`.
+
+		:obj:`value` may also be the (:class:`int`) value of one of the
+		:class:`~enum.IntEnum` members and will be converted to the appropriate
+		member automatically.
+		"""
 		if isinstance(value, int):
 			try:
 				value = self.types(value)
 			except ValueError:
-				values = format_list([repr(e.value) for e in self.type])
+				values = format_list([repr(e.value) for e in self.types])
 				raise ValueError(f"value for attribute {self.name!r} must be {values}, but is {value!r}") from None
-		super().__set__(instance, value)
+		super().set(instance, value)
 
 
 class VSQLAttr(Attr):
@@ -301,10 +396,24 @@ class VSQLAttr(Attr):
 	Data descriptor for an attribute containing a vSQL expression.
 	"""
 
-	def __init__(self, function, required=False, repr=False, ul4on=False):
-		# type: (str, bool, bool, bool) -> None
-		super().__init__(str, required=required, repr=repr, ul4on=ul4on)
+	def __init__(self, function, required=False, readonly=False, repr=False, ul4on=False):
+		"""
+		Create an :class:`VSQLAttr` data descriptor.
+
+		The supported type will be :class:`str`. :obj:`function` must be the
+		name of a PL/SQL function for returning the UL4ON dump of the allowed
+		vSQL variables.
+		"""
+		super().__init__(str, required=required, readonly=readonly, repr=repr, ul4on=ul4on)
 		self.function = function
+
+
+class AttrDictAttr(Attr):
+	def __init__(self, required=False, readonly=False, ul4on=False):
+		if required:
+			super().__init__(dict, required=True, default_factory=attrdict, readonly=readonly, repr=False, ul4on=ul4on)
+		else:
+			super().__init__(dict, required=False, readonly=readonly, repr=False, ul4on=ul4on)
 
 
 ###
@@ -325,6 +434,8 @@ class UnsavedError(Exception):
 
 class DeletedError(Exception):
 	"""
+		# type: (OptDatetime, T.Union[str, T.Type], OptStr, OptStr) -> None
+		# type: (OptDatetime, T.Union[str, T.Type], OptStr, OptStr) -> None
 	Exception that is thrown when an object is saved which references an object which has been deleted previously.
 	"""
 
@@ -346,21 +457,32 @@ class BaseMetaClass(type):
 	"""
 
 	def __new__(cls, name, bases, dict):
-		# type: (str, T.Tuple[T.Type], T.Dict[str, T.Any]) -> T.Type
+		newdict = {}
 		for (key, value) in dict.items():
 			if isinstance(value, Attr):
 				value.name = key
-		return type.__new__(cls, name, bases, dict)
+			if isinstance(value, type) and issubclass(value, Attr):
+				(initargnames, initvarargname, initvarkwname) = inspect.getargs(value.__init__.__code__)
+				if initvarkwname is not None:
+					raise TypeError(f"** arguments for {value.__init__} not supported")
+				if initvarargname is not None and initvarargname in value.__dict__:
+					initargs = value.__dict__[initvarargname]
+				else:
+					initargs = ()
+				initkwargs = {k: v for (k, v) in value.__dict__.items() if k in initargnames and k != initargnames[0]}
+				value = value(*initargs, **initkwargs)
+				value.name = key
+			newdict[key] = value
+		return type.__new__(cls, name, bases, newdict)
 
 
 class Base(metaclass=BaseMetaClass):
-	ul4onattrs = [] # type: T.List[str]
-	ul4attrs = set() # type: T.Set[str]
+	ul4onattrs = []
+	ul4attrs = set()
 
 	@classmethod
 	def attrs(cls):
-		# type: () -> T.Iterable[Attr]
-		attrs = {} # type: T.Dict[str, Attr]
+		attrs = {}
 		for checkcls in reversed(cls.__mro__):
 			for attr in checkcls.__dict__.values():
 				if isinstance(attr, Attr):
@@ -368,37 +490,30 @@ class Base(metaclass=BaseMetaClass):
 		return attrs.values()
 
 	def __repr__(self):
-		# type: () -> str
 		v = [f"<{self.__class__.__module__}.{self.__class__.__qualname__}"]
 
 		for attr in self.attrs():
 			if attr.repr:
-				attrvalue = getattr(self, attr.name)
+				attrvalue = attr.get(self)
 				if attrvalue is not None:
 					v.append(f" {attr.name}={attrvalue!r}")
 		v.append(f" at {id(self):#x}>")
 		return "".join(v)
 
 	def ul4ondump(self, encoder):
-		# type: (ul4on.Encoder) -> None
 		for attr in self.attrs():
 			if attr.ul4on:
-				value = self.ul4ondump_getattr(attr.name)
+				value = attr.ul4on_getattr(self)
 				encoder.dump(value)
 
-	def ul4ondump_getattr(self, name):
-		# type: (str) -> T.Any
-		return getattr(self, name)
-
 	def ul4onload(self, decoder):
-		# type: (ul4on.Decode) -> None
 		attrs = (attr for attr in self.attrs() if attr.ul4on)
 		dump = decoder.loadcontent()
 
 		# Load all attributes that we get from the UL4ON dump
 		# Stop when the dump is exhausted or we've loaded all known attributes.
 		for (attr, value) in zip(attrs, dump):
-			self.ul4onload_setattr(attr.name, value)
+			attr.ul4on_setattr(self, value)
 
 		# Exhaust the UL4ON dump
 		for value in dump:
@@ -406,15 +521,7 @@ class Base(metaclass=BaseMetaClass):
 
 		# Initialize the rest of the attributes with default values
 		for attr in attrs:
-			self.ul4onload_setdefaultattr(attr.name)
-
-	def ul4onload_setattr(self, name, value):
-		# type: (str, T.Any) -> None
-		setattr(self, name, value)
-
-	def ul4onload_setdefaultattr(self, name):
-		# type: (str) -> None
-		setattr(self, name, None)
+			attr.ul4on_setdefaultattr(self)
 
 
 @register("flashmessage")
@@ -434,7 +541,6 @@ class FlashMessage(Base):
 	message = Attr(str, ul4on=True)
 
 	def __init__(self, timestamp=None, type=Type.INFO, title=None, message=None):
-		# type: (OptDatetime, T.Union[str, T.Type], OptStr, OptStr) -> None
 		self.timestamp = timestamp
 		self.type = type
 		self.title = title
