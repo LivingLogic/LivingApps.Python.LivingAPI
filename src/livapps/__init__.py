@@ -708,12 +708,12 @@ class App(Base):
 	iconlarge = Attr(ul4on=True)
 	iconsmall = Attr(ul4on=True)
 	createdby = Attr(User, ul4on=True)
-	controls = Attr(ul4on=True)
-	records = Attr(ul4on=True)
+	controls = AttrDictAttr(ul4on=True)
+	records = AttrDictAttr(ul4on=True)
 	recordcount = Attr(int, ul4on=True)
 	installation = Attr(ul4on=True)
 	categories = Attr(ul4on=True)
-	params = Attr(ul4on=True)
+	params = AttrDictAttr(ul4on=True)
 	views = Attr(ul4on=True)
 	datamanagement_identifier = Attr(str, ul4on=True)
 	basetable = Attr(str, ul4on=True)
@@ -725,10 +725,10 @@ class App(Base):
 	createdat = Attr(datetime.datetime, ul4on=True)
 	updatedat = Attr(datetime.datetime, ul4on=True)
 	updatedby = Attr(User, ul4on=True)
-	internaltemplates = Attr(ul4on=True)
-	viewtemplates = Attr(ul4on=True)
+	internaltemplates = AttrDictAttr(ul4on=True)
+	viewtemplates = AttrDictAttr(ul4on=True)
 
-	def __init__(self, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, controls=None, records=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
+	def __init__(self, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = None
 		self.globals = None
 		self.name = name
@@ -742,8 +742,8 @@ class App(Base):
 		self.updatedat = updatedat
 		self.updatedby = updatedby
 		self.templates = None
-		self.controls = controls
-		self.records = records
+		self.controls = None
+		self.records = None
 		self.recordcount = recordcount
 		self.installation = installation
 		self.categories = categories
