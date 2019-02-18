@@ -598,8 +598,8 @@ class Geo(Base):
 	ul4attrs = {"lat", "long", "info"}
 	ul4onattrs = ["lat", "long", "info"]
 
-	lat = Attr(float, repr=True, ul4on=True)
-	long = Attr(float, repr=True, ul4on=True)
+	lat = FloatAttr(repr=True, ul4on=True)
+	long = FloatAttr(repr=True, ul4on=True)
 	info = Attr(str, repr=True, ul4on=True)
 
 	def __init__(self, lat=None, long=None, info=None):
