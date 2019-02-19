@@ -1378,6 +1378,12 @@ class Record(Base):
 				instance.__dict__["values"] = values
 			return values
 
+		def ul4on_get_value(self, instance):
+			values = instance._sparsevalues
+			if values is None:
+				values = {identifier: value for (identifier, value) in instance.values.items() if value is not None}
+			return values
+
 		def ul4on_set_value(self, instance, value):
 			instance._sparsevalues = value
 			# Set the following attributes via ``__dict__``, as they are "read only".
