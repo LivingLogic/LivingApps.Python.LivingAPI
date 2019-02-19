@@ -1709,7 +1709,7 @@ class Template(Base):
 			return str(instance)
 
 	def __init__(self, identifier=None, source=None, whitespace="keep", signature=None, doc=None):
-		self.id = None # Type: OptStr
+		self.id = None
 		self.app = None
 		self.identifier = identifier
 		self.source = source
