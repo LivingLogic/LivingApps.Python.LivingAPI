@@ -152,7 +152,7 @@ class Handler:
 		"""
 		Create a :class:`~ll.la.Geo` object from :obj:`lat`/:obj`long` or :obj:`info`.
 
-		::
+		Example::
 
 			>>> from ll import la
 			>>> h = la.FileHandler()
@@ -176,7 +176,7 @@ class Handler:
 	def save_record(self, record):
 		raise NotImplementedError
 
-	def _delete(self, record):
+	def delete_record(self, record):
 		raise NotImplementedError
 
 	def _executeaction(self, record, actionidentifier):
@@ -194,10 +194,10 @@ class Handler:
 	def save_viewtemplate(self, viewtemplate, recursive=True):
 		raise NotImplementedError
 
-	def save_datasourceconfig(self, datasourceconfig, recursive=True):
+	def save_datasource(self, datasource, recursive=True):
 		raise NotImplementedError
 
-	def save_datasourcechildrenconfig(self, datasourcechildrenconfig, recursive=True):
+	def save_datasourcechildren(self, datasourcechildren, recursive=True):
 		raise NotImplementedError
 
 	def _loadfile(self):
@@ -344,63 +344,63 @@ class DBHandler(Handler):
 			for datasource in viewtemplate.datasources.values():
 				datasource.save(self, recursive=recursive)
 
-	def save_datasourceconfig(self, datasourceconfig, recursive=True):
+	def save_datasource(self, datasource, recursive=True):
 		cursor = self.cursor()
 
 		# Compile and save the app filter
 		vs_id_appfilter = self.save_vsql(
 			cursor,
-			datasourceconfig.appfilter,
-			la.DataSourceConfig.appfilter.function,
-			p_vt_id=datasourceconfig.parent.id,
+			datasource.appfilter,
+			la.DataSource.appfilter.function,
+			p_vt_id=datasource.parent.id,
 			p_tpl_uuid_a=None,
 		)
 
 		# Compile and save the record filter
 		vs_id_recordfilter = self.save_vsql(
 			cursor,
-			datasourceconfig.recordfilter,
-			la.DataSourceConfig.recordfilter.function,
-			p_vt_id=datasourceconfig.parent.id,
-			p_tpl_uuid_r=datasourceconfig.app.id if datasourceconfig.app is not None else None,
+			datasource.recordfilter,
+			la.DataSource.recordfilter.function,
+			p_vt_id=datasource.parent.id,
+			p_tpl_uuid_r=datasource.app.id if datasource.app is not None else None,
 		)
 
 		# FIXME: Support for system apps?
 		r = self.proc_datasource_import(
 			cursor,
 			c_user=self.ide_id,
-			p_vt_id=datasourceconfig.parent.id,
-			p_tpl_uuid=datasourceconfig.app.id if datasourceconfig.app is not None else None,
+			p_vt_id=datasource.parent.id,
+			p_tpl_uuid=datasource.app.id if datasource.app is not None else None,
 			p_dmv_id=None,
 			p_tpl_uuid_systemplate=None,
-			p_ds_includetemplates=int(datasourceconfig.includetemplates),
-			p_ds_includerecords=int(datasourceconfig.includerecords),
-			p_ds_includecontrols=int(datasourceconfig.includecontrols),
-			p_ds_includecount=int(datasourceconfig.includecount),
-			p_ds_includecloned=int(datasourceconfig.includecloned),
-			p_ds_identifier=datasourceconfig.identifier,
-			p_ds_includepermissions=int(datasourceconfig.includepermissions),
-			p_ds_includeattachments=int(datasourceconfig.includeattachments),
-			p_ds_includecategories=int(datasourceconfig.includecategories),
-			p_ds_includeparams=int(datasourceconfig.includeparams),
-			p_ds_includeviews=int(datasourceconfig.includeviews),
-			p_ds_recordpermission=int(datasourceconfig.recordpermission),
+			p_ds_includetemplates=int(datasource.includetemplates),
+			p_ds_includerecords=int(datasource.includerecords),
+			p_ds_includecontrols=int(datasource.includecontrols),
+			p_ds_includecount=int(datasource.includecount),
+			p_ds_includecloned=int(datasource.includecloned),
+			p_ds_identifier=datasource.identifier,
+			p_ds_includepermissions=int(datasource.includepermissions),
+			p_ds_includeattachments=int(datasource.includeattachments),
+			p_ds_includecategories=int(datasource.includecategories),
+			p_ds_includeparams=int(datasource.includeparams),
+			p_ds_includeviews=int(datasource.includeviews),
+			p_ds_recordpermission=int(datasource.recordpermission),
 			p_vs_id_appfilter=vs_id_appfilter,
 			p_vs_id_recordfilter=vs_id_recordfilter,
 		)
-		datasourceconfig.id = r.p_ds_id
+		datasource.id = r.p_ds_id
 
 		if recursive:
-			self._save_dataorderconfigs(
+			self._save_dataorders(
 				cursor,
-				datasourceconfig.orders,
+				datasource.orders,
 				"VSQLFIELD_PKG.DS_ORDER_FUL4ON",
 				ds_id=r.p_ds_id,
 			)
-			for children in datasourceconfig.children.values():
+			for children in datasource.children.values():
 				children.save(self, recursive=recursive)
 
-	def save_datasourcechildrenconfig(self, datasourcechildrenconfig, recursive=True):
+	def save_datasourcechildren(self, datasourcechildren, recursive=True):
 		cursor = self.cursor()
 
 		# Find the ``ctl_id`` for the target control
@@ -418,17 +418,17 @@ class DBHandler(Handler):
 
 		cursor.execute(
 			query,
-			tpl_uuid=datasourcechildrenconfig.control.app.id,
-			ctl_identifier=datasourcechildrenconfig.control.identifier,
+			tpl_uuid=datasourcechildren.control.app.id,
+			ctl_identifier=datasourcechildren.control.identifier,
 		)
 		ctl_id = cursor.fetchone()[0]
 
 		# Compile and save the record filter
 		vs_id_filter = self.save_vsql(
 			cursor,
-			datasourcechildrenconfig.filter,
-			la.DataSourceChildrenConfig.filter,
-			p_ds_id=datasourcechildrenconfig.datasourceconfig.id,
+			datasourcechildren.filter,
+			la.DataSourceChildren.filter,
+			p_ds_id=datasourcechildren.datasource.id,
 			p_ctl_id=ctl_id,
 		)
 
@@ -436,39 +436,39 @@ class DBHandler(Handler):
 		r = self.proc_datasourcechildren_import(
 			cursor,
 			c_user=self.ide_id,
-			p_ds_id=datasourcechildrenconfig.datasourceconfig.id,
-			p_dsc_identifier=datasourcechildrenconfig.identifier,
+			p_ds_id=datasourcechildren.datasource.id,
+			p_dsc_identifier=datasourcechildren.identifier,
 			p_ctl_id=ctl_id,
 			p_ctl_id_syscontrol=None,
 			p_vs_id_filter=vs_id_filter,
 		)
-		datasourcechildrenconfig.id = r.p_dsc_id
+		datasourcechildren.id = r.p_dsc_id
 
 		if recursive:
-			self._save_dataorderconfigs(
+			self._save_dataorders(
 				cursor,
-				datasourcechildrenconfig.orders,
+				datasourcechildren.orders,
 				"VSQLFIELD_PKG.DSC_ORDER_FUL4ON",
 				dsc_id=r.p_dsc_id,
 			)
 
-	def _save_dataorderconfigs(self, cursor, orders, function, **kwargs):
+	def _save_dataorders(self, cursor, orders, function, **kwargs):
 		queryargs = " and ".join(f"{k}=:{k}" for k in kwargs)
 		procargs = {"p_" + k: v for (k, v) in kwargs.items()}
 		query = f"select do_id, do_order from dataorder where {queryargs} order by do_order"
 		cursor.execute(query, **kwargs)
 		old_records = [(r2.do_id, r2.do_order) for r2 in cursor]
 		last_order = 0
-		for (old_record, dataorderconfig) in itertools.zip_longest(old_records, orders):
+		for (old_record, dataorder) in itertools.zip_longest(old_records, orders):
 			if old_record is not None:
 				(do_id, do_order) = old_record
 			else:
 				(do_id, do_order) = (None, last_order + 10)
-			if dataorderconfig is not None:
+			if dataorder is not None:
 				# Compile and save the order expression
 				vs_id_expression = self.save_vsql(
 					cursor,
-					dataorderconfig.expression,
+					dataorder.expression,
 					function,
 					**procargs,
 				)
@@ -478,12 +478,12 @@ class DBHandler(Handler):
 					cursor,
 					c_user=self.ide_id,
 					p_vs_id_expression=vs_id_expression,
-					p_do_direction=dataorderconfig.direction.value,
-					p_do_nulls=dataorderconfig.nulls.value,
+					p_do_direction=dataorder.direction.value,
+					p_do_nulls=dataorder.nulls.value,
 					p_do_order=do_order,
 					**procargs,
 				)
-				dataorderconfig.id = r.p_do_id
+				dataorder.id = r.p_do_id
 				last_order = do_order
 			else:
 				self.proc_dataorder_delete(cursor, c_user=self.ide_id, p_do_id=do_id)
@@ -603,7 +603,7 @@ class DBHandler(Handler):
 			field.errors = []
 		record.errors = []
 
-	def _delete(self, record):
+	def delete_record(self, record):
 		app = record.app
 		if app.basetable in {"data_select", "data"}:
 			proc = self.proc_data_delete
@@ -753,7 +753,7 @@ class HTTPHandler(Handler):
 			field.errors = []
 		record.errors = []
 
-	def _delete(self, record):
+	def delete_record(self, record):
 		kwargs = {}
 		self._add_auth_token(kwargs)
 

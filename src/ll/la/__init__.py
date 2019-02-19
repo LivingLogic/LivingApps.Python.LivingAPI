@@ -149,6 +149,16 @@ def error_applookuprecord_foreign(value):
 
 
 ###
+### Exceptions
+###
+
+
+class NoHandlerError(ValueError):
+	def __str__(self):
+		return "no handler available"
+
+
+###
 ### Data descriptors
 ###
 
@@ -606,21 +616,23 @@ class File(Base):
 		self.handler = None
 		self._content = None
 
-	def save(self, handler):
-		if self.internalid is None:
-			if self.handler is None:
-				raise ValueError(f"Can't save file {self!r}")
-			self.handler.save_file(self)
+	def _gethandler(self, handler):
+		if handler is None:
+			handler = self.handler
+			if handler is None:
+				raise NoHandlerError()
+		return handler
 
-	def content(self):
+	def save(self, handler=None):
+		self._gethandler(handler).save_file(self)
+
+	def content(self, handler=None):
 		"""
 		Return the file content as a :class:`bytes` object.
 		"""
 		if self._content is not None:
 			return self._content
-		elif self.handler is None:
-			raise ValueError(f"Can't load content of {self!r}")
-		return self.handler.file_content(self)
+		return self._gethandler(handler).file_content(self)
 
 
 @register("geo")
@@ -797,8 +809,15 @@ class App(Base):
 	def ul4hasattr(self, name):
 		return name in self.ul4attrs or (name.startswith("c_") and name[2:] in self.controls)
 
-	def save(self, handler, recursive=True):
-		handler.save_app(self, recursive=recursive)
+	def _gethandler(self, handler):
+		if handler is None:
+			handler = self.globals.handler
+			if handler is None:
+				raise NoHandlerError()
+		return handler
+
+	def save(self, handler=None, recursive=True):
+		self._gethandler(handler).save_app(self, recursive=recursive)
 
 	_saveletters = string.ascii_letters + string.digits + "()-+_ äöüßÄÖÜ"
 
@@ -1499,8 +1518,11 @@ class Record(Base):
 	def is_dirty(self):
 		return self.id is None or any(field._dirty for field in self.fields.values())
 
-	def save(self):
-		self.app.globals.handler.save_record(self)
+	def _gethandler(self, handler):
+		return self.app._gethandler(handler)
+
+	def save(self, handler=None):
+		self._gethandler(handler).save_record(self)
 
 	def update(self, **kwargs):
 		for (identifier, value) in kwargs.items():
@@ -1509,11 +1531,11 @@ class Record(Base):
 			self.fields[identifier].value = value
 		self.save()
 
-	def delete(self):
-		self.app.globals.handler._delete(self)
+	def delete(self, handler=None):
+		self._gethandler(handler).delete_record(self)
 
-	def executeaction(self, actionidentifier):
-		self.app.globals.handler._executeaction(self, actionidentifier)
+	def executeaction(self, handler=None, identifier=None):
+		self._gethandler(handler)._executeaction(self, identifier)
 
 	def has_errors(self):
 		return bool(self.errors) or any(field.has_errors for field in self.fields.values())
@@ -1695,6 +1717,9 @@ class Template(Base):
 	def template(self):
 		return ul4c.Template(self.source, name=self.identifier, signature=self.signature, whitespace=self.whitespace)
 
+	def _gethandler(self, handler):
+		return self.app._gethandler(handler)
+
 	def _save(self, path, content):
 		content = content or ""
 		try:
@@ -1743,8 +1768,8 @@ class InternalTemplate(Template):
 	def __str__(self):
 		return f"{self.app or '?'}/internaltemplate={self.identifier}"
 
-	def save(self, handler, recursive=True):
-		handler.save_internaltemplate(self)
+	def save(self, handler=None, recursive=True):
+		self._gethandler(handler).save_internaltemplate(self)
 
 
 @register("viewtemplate")
@@ -1810,7 +1835,7 @@ class ViewTemplate(Template):
 	permission = IntEnumAttr(Permission, required=True, default=Permission.ALL, ul4on=True)
 
 	# Data sources
-	datasources = Attr(ul4on=True)
+	datasources = AttrDictAttr(required=True, ul4on=True)
 
 	def __init__(self, *args, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype="text/html", permission=None):
 		super().__init__(identifier=identifier, source=source, whitespace=whitespace, signature=signature, doc=doc)
@@ -1819,7 +1844,7 @@ class ViewTemplate(Template):
 		self.permission = permission
 		self.datasources = attrdict()
 		for arg in args:
-			if isinstance(arg, DataSourceConfig):
+			if isinstance(arg, DataSource):
 				self.adddatasource(arg)
 			else:
 				raise TypeError(f"don't know what to do with positional argument {arg!r}")
@@ -1841,12 +1866,12 @@ class ViewTemplate(Template):
 		value = attrdict() if name == "datasources" else None
 		setattr(self, name, value)
 
-	def save(self, handler, recursive=True):
-		handler.save_viewtemplate(self)
+	def save(self, handler=None, recursive=True):
+		self._gethandler(handler).save_viewtemplate(self)
 
 
-@register("datasourceconfig")
-class DataSourceConfig(Base):
+@register("datasource")
+class DataSource(Base):
 	ul4attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includetemplates", "includeparams", "includeviews", "includecategories", "orders", "children"}
 
 	class IncludeControls(enum.IntEnum):
@@ -1929,9 +1954,9 @@ class DataSourceConfig(Base):
 		self.orders = []
 		self.children = None
 		for arg in args:
-			if isinstance(arg, DataOrderConfig):
+			if isinstance(arg, DataOrder):
 				self.addorder(arg)
-			elif isinstance(arg, DataSourceChildrenConfig):
+			elif isinstance(arg, DataSourceChildren):
 				self.addchildren(arg)
 			else:
 				raise TypeError(f"don't know what to do with positional argument {arg!r}")
@@ -1948,7 +1973,7 @@ class DataSourceConfig(Base):
 			self.orders.append(order)
 
 	def addchildren(self, children):
-		children.datasourceconfig = self
+		children.datasource = self
 		self.children[children.identifier] = children
 
 	def ul4onload_setattr(self, name, value):
@@ -1960,16 +1985,19 @@ class DataSourceConfig(Base):
 		value = attrdict() if name == "children" else None
 		setattr(self, name, value)
 
-	def save(self, handler, recursive=True):
-		handler.save_datasourceconfig(self)
+	def _gethandler(self, handler):
+		return self.parent._gethandler(handler)
+
+	def save(self, handler=None, recursive=True):
+		self._gethandler(handler).save_datasource(self)
 
 
-@register("datasourcechildrenconfig")
-class DataSourceChildrenConfig(Base):
+@register("datasourcechildren")
+class DataSourceChildren(Base):
 	ul4attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
 
 	id = Attr(str, ul4on=True)
-	datasourceconfig = Attr(ul4on=True)
+	datasource = Attr(ul4on=True)
 	identifier = Attr(str, ul4on=True)
 	control = Attr(Control, ul4on=True)
 	filter = VSQLAttr("vsqlfield_pkg.dsc_recordfilter_ful4on", ul4on=True)
@@ -1977,19 +2005,19 @@ class DataSourceChildrenConfig(Base):
 
 	def __init__(self, *args, identifier=None, control=None, filter=None):
 		self.id = None
-		self.datasourceconfig = None
+		self.datasource = None
 		self.identifier = identifier
 		self.control = control
 		self.filter = filter
 		self.orders = []
 		for arg in args:
-			if isinstance(arg, DataOrderConfig):
+			if isinstance(arg, DataOrder):
 				self.addorder(arg)
 			else:
 				raise TypeError(f"don't know what to do with positional argument {arg!r}")
 
 	def __str__(self):
-		return f"{self.datasourceconfig or '?'}/datasourcechildren={self.identifier}"
+		return f"{self.datasource or '?'}/datasourcechildren={self.identifier}"
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
@@ -1999,12 +2027,15 @@ class DataSourceChildrenConfig(Base):
 			order.parent = self
 			self.orders.append(order)
 
+	def _gethandler(self, handler):
+		return self.datasource._gethandler(handler)
+
 	def save(self, handler, recursive=True):
-		handler.save_datasourcechildrenconfig(self)
+		self._gethandler(handler).save_datasourcechildren(self)
 
 
-@register("dataorderconfig")
-class DataOrderConfig(Base):
+@register("dataorder")
+class DataOrder(Base):
 	ul4attrs = {"id", "parent", "expression", "direction", "nulls"}
 
 	class Direction(enum.Enum):
@@ -2017,7 +2048,7 @@ class DataOrderConfig(Base):
 
 	# Types and defaults for instance attributes
 	id = Attr(str, ul4on=True)
-	parent = Attr(DataSourceConfig, DataSourceChildrenConfig, ul4on=True)
+	parent = Attr(DataSource, DataSourceChildren, ul4on=True)
 	expression = VSQLAttr("?", repr=True, ul4on=True)
 	direction = EnumAttr(Direction, required=True, default=Direction.ASC, repr=True, ul4on=True)
 	nulls = EnumAttr(Nulls, required=True, default=Nulls.LAST, repr=True, ul4on=True)
@@ -2045,8 +2076,8 @@ class DataOrderConfig(Base):
 		s += f" at {id(self):#x}>"
 		return s
 
-	def save(self, handler, recursive=True):
-		raise NotImplementedError("DataOrderConfig objects can only be saved by their parent")
+	def save(self, handler=None, recursive=True):
+		raise NotImplementedError("DataOrder objects can only be saved by their parent")
 
 
 @register("installation")
@@ -2085,8 +2116,8 @@ class View(Base):
 		self.end = end
 
 
-@register("datasource")
-class DataSource(Base):
+@register("datasourcedata")
+class DataSourceData(Base):
 	ul4attrs = {"id", "identifier", "app", "apps"}
 
 	id = Attr(str, repr=True, ul4on=True)

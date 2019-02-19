@@ -166,13 +166,13 @@ def norecords():
 
 	# Remove all persons
 	for r in personen_app.records.values():
-		r.delete()
+		r.delete(handler)
 
 	# Recursively remove areas of activity
 	def removeaa(r):
 		for r2 in r.c_children.values():
 			removeaa(r2)
-		r.delete()
+		r.delete(handler)
 
 	for r in taetigkeitsfelder_app.records.values():
 		if r.v_parent is None:
@@ -189,6 +189,9 @@ def arearecords(norecords):
 	removing all existing records).
 	"""
 	attrs = norecords
+
+	handler = attrs.handler
+
 	attrs.vars = attrs.handler.get(testappid, template="export")
 
 	taetigkeitsfelder_app = attrs.vars.datasources.fieldsofactivity.app
@@ -197,7 +200,7 @@ def arearecords(norecords):
 
 	def aa(**values):
 		aa = taetigkeitsfelder_app(**values)
-		aa.save()
+		aa.save(handler)
 		return aa
 
 	attrs.areas.science = aa(name="Science")
@@ -212,7 +215,7 @@ def arearecords(norecords):
 	attrs.areas.industry = aa(name="Industry")
 	attrs.areas.sport = aa(name="Sport")
 
-	attrs.handler.commit()
+	handler.commit()
 
 	return attrs
 
@@ -228,20 +231,22 @@ def personrecords(arearecords):
 
 	personen_app = attrs.vars.datasources.persons.app
 
+	handler = attrs.handler
+
 	attrs.persons = attrdict()
 
 	def p(**values):
 		p = personen_app(**values)
 		if p.v_portrait is not None and p.v_portrait.id is None:
-			p.v_portrait.save()
-		p.save()
+			p.v_portrait.save(handler)
+		p.save(handler)
 		return p
 
 	def u(u):
-		return attrs.handler.file(url_.URL(u))
+		return handler.file(url_.URL(u))
 
 	def g(lat=None, long=None, info=None):
-		return attrs.handler.geo(lat, long, info)
+		return handler.geo(lat, long, info)
 
 	attrs.persons.ae = p(
 		firstname="Albert",
@@ -340,7 +345,7 @@ def personrecords(arearecords):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
 	)
 
-	attrs.handler.commit()
+	handler.commit()
 
 	return attrs
 
