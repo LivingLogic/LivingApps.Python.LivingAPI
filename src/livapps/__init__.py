@@ -214,6 +214,16 @@ class Attr:
 		s += f" at {id(self):#x}>"
 		return s
 
+	def repr_value(self, instance):
+		"""
+		Format the attribute of :obj:`instance` for :meth:`__repr__` output.
+		"""
+		value = self.get_value(instance)
+		if value is not None:
+			return f"{self.name}={value!r}"
+		else:
+			return None
+
 	def __get__(self, instance, type):
 		if instance is not None:
 			return self.get(instance)
@@ -495,11 +505,11 @@ class Base(metaclass=BaseMetaClass):
 
 		for attr in self.attrs():
 			if attr.repr:
-				attrvalue = attr.get(self)
-				if attrvalue is not None:
-					v.append(f" {attr.name}={attrvalue!r}")
-		v.append(f" at {id(self):#x}>")
-		return "".join(v)
+				repr_value = attr.repr_value(self)
+				if repr_value is not None:
+					v.append(repr_value)
+		v.append(f"at {id(self):#x}>")
+		return " ".join(v)
 
 	def ul4ondump(self, encoder):
 		for attr in self.attrs():
