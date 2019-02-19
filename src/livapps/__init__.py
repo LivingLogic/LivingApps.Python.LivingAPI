@@ -342,7 +342,8 @@ class EnumAttr(Attr):
 		"""
 		if isinstance(value, str):
 			try:
-				value = self.types(value)
+				type = misc.first(t for t in self.types if issubclass(t, enum.Enum))
+				value = type(value)
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
 				raise ValueError(f"value for attribute {self.name!r} must be {values}, but is {value!r}") from None
@@ -366,7 +367,8 @@ class IntEnumAttr(EnumAttr):
 		"""
 		if isinstance(value, int):
 			try:
-				value = self.types(value)
+				type = misc.first(t for t in self.types if issubclass(t, enum.Enum))
+				value = type(value)
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
 				raise ValueError(f"value for attribute {self.name!r} must be {values}, but is {value!r}") from None
