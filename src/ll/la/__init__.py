@@ -16,7 +16,6 @@ import datetime, operator, string, enum, json, pathlib, inspect
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
-
 from .handlers import *
 
 
@@ -350,7 +349,7 @@ class FloatAttr(Attr):
 
 class EnumAttr(Attr):
 	"""
-	Subclass of :class:`Attr` for values that are :class:`enum.Enum` instances.
+	Subclass of :class:`Attr` for values that are :class:`~enum.Enum` instances.
 
 	Setting such an attribute also supports a string as the value.
 	"""
@@ -359,7 +358,7 @@ class EnumAttr(Attr):
 		"""
 		Create an :class:`EnumAttr` data descriptor.
 
-		:obj:`type` must be a subclass of :class:`enum.Enum`. All other
+		:obj:`type` must be a subclass of :class:`~enum.Enum`. All other
 		arguments have the same meaning as in :meth:`Attr.__init__`.
 		"""
 		super().__init__(type, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
@@ -384,7 +383,7 @@ class EnumAttr(Attr):
 
 class IntEnumAttr(EnumAttr):
 	"""
-	Subclass of :class:`Attr` for values that are :class:`enum.IntEnum` instances.
+	Subclass of :class:`Attr` for values that are :class:`~enum.IntEnum` instances.
 
 	Setting such an attribute also supports an integer as the value.
 	"""
@@ -1882,11 +1881,41 @@ class DataSource(Base):
 	ul4attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includetemplates", "includeparams", "includeviews", "includecategories", "orders", "children"}
 
 	class IncludeControls(enum.IntEnum):
+		"""
+		Specify which controls should be included in the app and the records.
+
+		Enum values have the following meaning:
+
+		``NONE``
+			Don't include any controls;
+
+		``PRIORITY``
+			Include only list/priority controls;
+
+		``ALL``
+			Include all controls.
+		"""
+
 		NONE = 0
 		PRIORITY = 1
 		ALL = 2
 
 	class IncludeRecords(enum.IntEnum):
+		"""
+		Specify wether controls and/or records should be included in the :class:`App` object.
+
+		Enum values have the following meaning:
+
+		``NONE``
+			Don't include controls or records;
+
+		``CONTROLS``
+			Include control, but not records;
+
+		``RECORDS``
+			Include controls and records.
+		"""
+
 		NONE = 0
 		CONTROLS = 1
 		RECORDS = 2
@@ -1898,6 +1927,20 @@ class DataSource(Base):
 		ALL = 2
 
 	class IncludeCategories(enum.IntEnum):
+		"""
+		Specify how much information about app categories should be included in the :class:`App` object.
+
+		Enum values have the following meaning:
+
+		``NO``
+
+		``PATH``
+
+		``TREE``
+
+		``APPS``
+		"""
+
 		NO = 0
 		PATH = 1
 		TREE = 2
