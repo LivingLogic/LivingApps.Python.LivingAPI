@@ -4,7 +4,7 @@ import pytest
 
 from ll import ul4c, url as url_, ul4on
 
-import livapps
+from ll import la
 
 
 ###
@@ -55,7 +55,7 @@ def passwd():
 def python_db(source, *path, **params):
 	template = ul4c.Template(source)
 
-	handler = livapps.DBHandler(connect(), uploaddir(), user())
+	handler = la.DBHandler(connect(), uploaddir(), user())
 
 	vars = handler.get(*path, **params)
 	result = template.renders(**vars)
@@ -66,7 +66,7 @@ def python_db(source, *path, **params):
 def python_http(source, *path, **params):
 	template = ul4c.Template(source)
 
-	handler = livapps.HTTPHandler(url(), user(), passwd())
+	handler = la.HTTPHandler(url(), user(), passwd())
 
 	vars = handler.get(*path, **params)
 	result = template.renders(**vars)
@@ -158,7 +158,7 @@ def norecords():
 	"""
 	A test fixture that ensures that both test apps contain no records.
 	"""
-	handler = livapps.DBHandler(connect(), uploaddir(), user())
+	handler = la.DBHandler(connect(), uploaddir(), user())
 	vars = handler.get(testappid, template="export")
 
 	personen_app = vars.datasources.persons.app

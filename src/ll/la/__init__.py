@@ -6,6 +6,12 @@
 ##
 ## All Rights Reserved
 
+"""
+:mod:`ll.la` provides a Python API for the LivingApps system.
+
+See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
+"""
+
 import datetime, operator, string, enum, json, pathlib, inspect
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
@@ -444,6 +450,11 @@ class UnsavedError(Exception):
 	"""
 
 	def __init__(self, object):
+		"""
+		Create an :exc:`UnsavedError` exception.
+
+		:obj:`object` is the unsaved object.
+		"""
 		self.object = object
 
 	def __str__(self):
@@ -456,6 +467,11 @@ class DeletedError(Exception):
 	"""
 
 	def __init__(self, object):
+		"""
+		Create an :exc:`UnsavedError` exception.
+
+		:obj:`object` is the deleted object.
+		"""
 		self.object = object
 
 	def __str__(self):
@@ -493,7 +509,6 @@ class BaseMetaClass(type):
 
 
 class Base(metaclass=BaseMetaClass):
-	ul4onattrs = []
 	ul4attrs = set()
 
 	@classmethod
@@ -543,7 +558,6 @@ class Base(metaclass=BaseMetaClass):
 @register("flashmessage")
 class FlashMessage(Base):
 	ul4attrs = {"timestamp", "type", "title", "message"}
-	ul4onattrs = ["timestamp", "type", "title", "message"]
 
 	class Type(enum.Enum):
 		INFO = "info"
@@ -566,7 +580,6 @@ class FlashMessage(Base):
 @register("file")
 class File(Base):
 	ul4attrs = {"id", "url", "filename", "mimetype", "width", "height", "createdat"}
-	ul4onattrs = ["id", "url", "filename", "mimetype", "width", "height", "internalid", "createdat"]
 
 	id = Attr(str, repr=True, ul4on=True)
 	url = Attr(str, ul4on=True)
@@ -609,7 +622,6 @@ class File(Base):
 @register("geo")
 class Geo(Base):
 	ul4attrs = {"lat", "long", "info"}
-	ul4onattrs = ["lat", "long", "info"]
 
 	lat = FloatAttr(repr=True, ul4on=True)
 	long = FloatAttr(repr=True, ul4on=True)
@@ -624,7 +636,6 @@ class Geo(Base):
 @register("user")
 class User(Base):
 	ul4attrs = {"id", "gender", "firstname", "surname", "initials", "email", "language", "avatar_small", "avatar_large", "keyviews"}
-	ul4onattrs = ["internalid", "id", "gender", "firstname", "surname", "initials", "email", "language", "avatar_small", "avatar_large", "keyviews"]
 
 	internalid = Attr(str, ul4on=True)
 	id = Attr(str, repr=True, ul4on=True)
@@ -655,7 +666,6 @@ class User(Base):
 @register("keyview")
 class KeyView(Base):
 	ul4attrs = {"id", "identifier", "name", "key", "user"}
-	ul4onattrs = ["id", "identifier", "name", "key", "user"]
 
 	id = Attr(str, repr=True, ul4on=True)
 	identifier = Attr(str, repr=True, ul4on=True)
@@ -674,7 +684,6 @@ class KeyView(Base):
 @register("globals")
 class Globals(Base):
 	ul4attrs = {"version", "platform", "user", "flashes", "geo"}
-	ul4onattrs = ["version", "platform", "user", "maxdbactions", "maxtemplateruntime", "flashes"]
 
 	version = Attr(str, repr=True, ul4on=True)
 	platform = Attr(str, repr=True, ul4on=True)
@@ -852,7 +861,6 @@ class Control(Base):
 	type = None
 	subtype = None
 	ul4attrs = {"id", "identifier", "app", "label", "type", "subtype", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"}
-	ul4onattrs = ["id", "identifier", "field", "app", "label", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"]
 
 	id = Attr(str, repr=True, ul4on=True)
 	identifier = Attr(str, repr=True, ul4on=True)
@@ -1050,9 +1058,8 @@ class LookupControl(Control):
 	type = "lookup"
 
 	ul4attrs = Control.ul4attrs.union({"lookupdata"})
-	ul4onattrs = Control.ul4onattrs + ["lookupdata"]
 
-	lookupdata = Attr(ul4on=True)
+	lookupdata = AttrDictAttr(required=True, ul4on=True)
 
 	def __init__(self, identifier=None, field=None, label=None, priority=None, order=None, default=None, lookupdata=None):
 		super().__init__(identifier=identifier, field=field, label=label, priority=priority, order=order, default=default)
@@ -1117,10 +1124,9 @@ class AppLookupControl(Control):
 	type = "applookup"
 
 	ul4attrs = Control.ul4attrs.union({"lookupapp", "lookupcontrols"})
-	ul4onattrs = Control.ul4onattrs + ["lookupapp", "lookupcontrols"]
 
 	lookupapp = Attr(App, ul4on=True)
-	lookupcontrols = Attr(ul4on=True)
+	lookupcontrols = AttrDictAttr(ul4on=True)
 
 	def __init__(self, identifier=None, field=None, label=None, priority=None, order=None, default=None, lookupapp=None, lookupcontrols=None):
 		super().__init__(identifier=identifier, field=field, label=label, priority=priority, order=order, default=default)
@@ -1343,7 +1349,6 @@ class GeoControl(Control):
 @register("record")
 class Record(Base):
 	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update"}
-	ul4onattrs = ["id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "values", "attachments", "children"]
 
 	id = Attr(str, ul4on=True)
 	app = Attr(App, ul4on=True)
@@ -1603,7 +1608,6 @@ class Field:
 
 class Attachment(Base):
 	ul4attrs = {"id", "type", "record", "label", "active"}
-	ul4onattrs = ["id", "record", "label", "active"]
 
 	id = Attr(str, repr=True, ul4on=True)
 	record = Attr(Record, ul4on=True)
@@ -1620,7 +1624,6 @@ class Attachment(Base):
 @register("imageattachment")
 class ImageAttachment(Attachment):
 	ul4attrs = Attachment.ul4attrs.union({"original", "thumb", "small", "medium", "large"})
-	ul4onattrs = Attachment.ul4onattrs + ["original", "thumb", "small", "medium", "large"]
 	type = "imageattachment"
 
 	original = Attr(File, ul4on=True)
@@ -1640,7 +1643,8 @@ class ImageAttachment(Attachment):
 
 class SimpleAttachment(Attachment):
 	ul4attrs = Attachment.ul4attrs.union({"value"})
-	ul4onattrs = Attachment.ul4onattrs + ["value"]
+
+	value = Attr(ul4on=True)
 
 	def __init__(self, id=None, record=None, label=None, active=None, value=None):
 		super().__init__(id=id, record=record, label=label, active=active)
@@ -1650,24 +1654,28 @@ class SimpleAttachment(Attachment):
 @register("fileattachment")
 class FileAttachment(SimpleAttachment):
 	type = "fileattachment"
+
 	value = Attr(File, ul4on=True)
 
 
 @register("urlattachment")
 class URLAttachment(SimpleAttachment):
 	type = "urlattachment"
+
 	value = Attr(str, ul4on=True)
 
 
 @register("noteattachment")
 class NoteAttachment(SimpleAttachment):
 	type = "noteattachment"
+
 	value = Attr(str, ul4on=True)
 
 
 @register("jsonattachment")
 class JSONAttachment(SimpleAttachment):
 	type = "jsonattachment"
+
 	class value(Attr):
 		ul4on = True
 
@@ -1677,9 +1685,7 @@ class JSONAttachment(SimpleAttachment):
 
 
 class Template(Base):
-	ul4onattrs = ["id", "app", "identifier", "source", "whitespace", "signature", "doc"]
-	ul4attrs = {"id", "app", "identifier", "source", "whitespace", "signature", "doc"}
-
+	# Data descriptors for instance attributes
 	id = Attr(str, ul4on=True)
 	app = Attr(App, ul4on=True)
 	identifier = Attr(str, ul4on=True)
@@ -1687,6 +1693,7 @@ class Template(Base):
 	whitespace = Attr(str, ul4on=True)
 	signature = Attr(str, ul4on=True)
 	doc = Attr(str, ul4on=True)
+
 	class path(Attr):
 		types = (str,)
 		readonly = True
@@ -1761,9 +1768,6 @@ class InternalTemplate(Template):
 
 @register("viewtemplate")
 class ViewTemplate(Template):
-	ul4onattrs = Template.ul4onattrs + ["type", "mimetype", "permission", "datasources"]
-	ul4attrs = Template.ul4attrs.union({"type", "mimetype", "permission", "datasources"})
-
 	class Type(enum.Enum):
 		"""
 		The type of a view template.
@@ -1863,7 +1867,6 @@ class ViewTemplate(Template):
 @register("datasourceconfig")
 class DataSourceConfig(Base):
 	ul4attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includetemplates", "includeparams", "includeviews", "includecategories", "orders", "children"}
-	ul4onattrs = ["id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includetemplates", "includeparams", "includeviews", "includecategories", "orders", "children"]
 
 	class IncludeControls(enum.IntEnum):
 		NONE = 0
@@ -1983,13 +1986,13 @@ class DataSourceConfig(Base):
 @register("datasourcechildrenconfig")
 class DataSourceChildrenConfig(Base):
 	ul4attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
-	ul4onattrs = ["id", "datasource", "identifier", "control", "filters", "orders"]
 
 	id = Attr(str, ul4on=True)
 	datasourceconfig = Attr(ul4on=True)
 	identifier = Attr(str, ul4on=True)
 	control = Attr(Control, ul4on=True)
 	filter = VSQLAttr("vsqlfield_pkg.dsc_recordfilter_ful4on", ul4on=True)
+	orders = Attr(ul4on=True)
 
 	def __init__(self, *args, identifier=None, control=None, filter=None):
 		self.id = None
@@ -2022,7 +2025,6 @@ class DataSourceChildrenConfig(Base):
 @register("dataorderconfig")
 class DataOrderConfig(Base):
 	ul4attrs = {"id", "parent", "expression", "direction", "nulls"}
-	ul4onattrs = ["id", "parent", "expression", "direction", "nulls"]
 
 	class Direction(enum.Enum):
 		ASC = "asc"
@@ -2069,7 +2071,6 @@ class DataOrderConfig(Base):
 @register("installation")
 class Installation(Base):
 	ul4attrs = {"id", "name"}
-	ul4onattrs = ["id", "name"]
 
 	id = Attr(str, repr=True, ul4on=True)
 	name = Attr(str, repr=True, ul4on=True)
@@ -2082,7 +2083,6 @@ class Installation(Base):
 @register("view")
 class View(Base):
 	ul4attrs = {"id", "name", "app", "order", "width", "height", "start", "end"}
-	ul4onattrs = ["id", "name", "app", "order", "width", "height", "start", "end"]
 
 	id = Attr(str, repr=True, ul4on=True)
 	name = Attr(str, repr=True, ul4on=True)
@@ -2107,12 +2107,11 @@ class View(Base):
 @register("datasource")
 class DataSource(Base):
 	ul4attrs = {"id", "identifier", "app", "apps"}
-	ul4onattrs = ["id", "identifier", "app", "apps"]
 
 	id = Attr(str, repr=True, ul4on=True)
 	identifier = Attr(str, repr=True, ul4on=True)
 	app = Attr(App, ul4on=True)
-	app = Attr(ul4on=True)
+	apps = AttrDictAttr(ul4on=True)
 
 	def __init__(self, id=None, identifier=None, app=None, apps=None):
 		self.id = id
@@ -2120,15 +2119,10 @@ class DataSource(Base):
 		self.app = app
 		self.apps = apps
 
-	def ul4onload_setdefaultattr(self, name):
-		value = {} if name == "apps" else None
-		setattr(self, name, value)
-
 
 @register("lookupitem")
 class LookupItem(Base):
 	ul4attrs = {"key", "label"}
-	ul4onattrs = ["key", "label"]
 
 	key = Attr(str, repr=True, ul4on=True)
 	label = Attr(str, repr=True, ul4on=True)
@@ -2141,7 +2135,6 @@ class LookupItem(Base):
 @register("category")
 class Category(Base):
 	ul4attrs = {"id", "identifier", "name", "order", "parent", "children", "apps"}
-	ul4onattrs = ["id", "identifier", "name", "order", "parent", "children", "apps"]
 
 	id = Attr(str, repr=True, ul4on=True)
 	identifier = Attr(str, repr=True, ul4on=True)
@@ -2164,7 +2157,6 @@ class Category(Base):
 @register("appparameter")
 class AppParameter(Base):
 	ul4attrs = {"id", "app", "identifier", "description", "value"}
-	ul4onattrs = ["id", "app", "identifier", "description", "value"]
 
 	id = Attr(str, repr=True, ul4on=True)
 	app = Attr(App, ul4on=True)

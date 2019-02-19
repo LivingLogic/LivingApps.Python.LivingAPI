@@ -8,7 +8,7 @@ import setuptools
 
 
 DESCRIPTION = """
-:mod:`livapps` is a Python module for accessing data from LivingApps
+:mod:`ll.la` is a Python module for accessing data from LivingApps
 (http://www.living-apps.de/)
 """
 
@@ -46,7 +46,7 @@ description = re.subn(":[a-z]+:`~?([-a-zA-Z0-9_./]+)`", "``\\1``", description)[
 description = description.expandtabs(2)
 
 args = dict(
-	name="livapps",
+	name="ll.la",
 	version="0.7.0",
 	description="Python API for LivingApps",
 	long_description=description,
@@ -58,7 +58,7 @@ args = dict(
 	classifiers=sorted({c for c in CLASSIFIERS.strip().splitlines() if c.strip() and not c.strip().startswith("#")}),
 	keywords=", ".join(sorted({k.strip() for k in KEYWORDS.strip().splitlines() if k.strip() and not k.strip().startswith("#")})),
 	package_dir={"": "src"},
-	py_modules=["livapps", "ul4on"],
+	packages=["ll.la"],
 	install_requires=[
 		"ll-xist >= 5.31",
 		"requests >= 2.18.4",

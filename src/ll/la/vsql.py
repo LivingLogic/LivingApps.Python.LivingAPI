@@ -14,7 +14,7 @@ except ImportError:
 	orasql = None
 
 
-import livapps as la
+from ll import la
 
 
 ###

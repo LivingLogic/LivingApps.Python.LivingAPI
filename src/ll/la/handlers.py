@@ -6,20 +6,44 @@
 ##
 ## All Rights Reserved
 
+"""
+:mod:`handlers` provides various handler classes for talking to LivingApps.
+
+:class:`Handler` is the base class of all handler classes. Subclasses are:
+
+:class:`DBHandler`
+	This provides direct communication to LivingApps via a database interface.
+
+	This means that you need to have your own custom installation of LivingApps
+	and you need to have direct access to the Oracle database.
+
+:class:`HTTPHandler`
+	This commuicates with LivingApps via an HTTP interface.
+
+	You need the URL of the LivingApps system, and account name and a password
+	to use an :class:`HTTPHandler`.
+
+:class:`FileHandler`
+	This is used to store LivingApps meta data in the local file system.
+
+	This makes it possible to import and export internal and view templates
+	and their configuration into and out of LivingApps.
+"""
+
 import os, io, datetime, pathlib, itertools, json, mimetypes, operator
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
-from ll import misc, url, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
+from ll import url, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
 try:
 	from ll import orasql
 except ImportError:
 	orasql = None
 
-import livapps as la
+from ll import la
 
-from livapps import vsql
+from ll.la import vsql
 
 
 __docformat__ = "reStructuredText"
@@ -49,10 +73,6 @@ def raise_403(response):
 class Handler:
 	"""
 	A :class:`Handler` object handles communication with a LivingApps system.
-
-	This can either be direct communication via a database interface
-	(see :class:`DBHandler`) or communication via an HTTP interface
-	(see :class:`HTTPHandler`).
 	"""
 
 	def __init__(self):
@@ -62,6 +82,13 @@ class Handler:
 		pass
 
 	def file(self, source):
+		"""
+		Create a :class:`~ll.la.File` object from :obj:`source`.
+
+		:obj:`source` can be :class:`pathlib.Path` or :class:`os.PathLike` object,
+		an :class:`~ll.url.URL` object or a stream (i.e. an object with a
+		:meth:`read` method and a :attr:`name` attribute.
+		"""
 		path = None
 		stream = None
 		mimetype = None
@@ -69,7 +96,7 @@ class Handler:
 			content = source.read_bytes()
 			filename = source.name
 			path = str(source.resolve())
-		if isinstance(source, str):
+		elif isinstance(source, str):
 			with open(source, "rb") as f:
 				content = f.read()
 			filename = os.path.basename(source)
@@ -122,8 +149,18 @@ class Handler:
 		return None
 
 	def geo(self, lat=None, long=None, info=None):
-		# overload: (str) -> la.Geo
-		# overload: (float, float) -> la.Geo
+		"""
+		Create a :class:`~ll.la.Geo` object from :obj:`lat`/:obj`long` or :obj:`info`.
+
+		::
+
+			>>> from ll import la
+			>>> h = la.FileHandler()
+			>>> h.geo('Bayreuth, Germany')
+			<ll.la.Geo lat=49.9427202 long=11.5763079 info='Bayreuth, Oberfranken, Bayern, 95444, Deutschland' at 0x1096e0d68>
+			>>> h.geo(49.95, 11.57)
+			<ll.la.Geo lat=49.9501244 long=11.5704134713533 info='Verwaltung Verkehrsbetrieb, 4, Eduard-Bayerlein-Straße, Gewerbegebiet Neue Spinnerei, Nördliche Innenstadt, Innenstadt, Bayreuth, Oberfranken, Bayern, 95445, Deutschland' at 0x1098706d8>
+		"""
 		# Get coordinates from description (passed via keyword ``info``)
 		if info is not None and lat is None and long is None:
 			return self._geofrominfo(info)
