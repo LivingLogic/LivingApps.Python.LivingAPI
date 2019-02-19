@@ -28,8 +28,7 @@ def url():
 
 def user():
 	"""
-	Return the account name of the user that should be used for connecting
-	to LivingApps.
+	Return the account name of the user that should be used for connecting to LivingApps.
 	"""
 	return os.environ["LA_LIVINGAPI_TEST_USER"]
 
@@ -128,11 +127,13 @@ params = [
 	pytest.param("java_db", marks=pytest.mark.java)
 ]
 
+
 all_handlers = dict(
 	python_db=python_db,
 	python_http=python_http,
 	java_db=java_db,
 )
+
 
 @pytest.fixture(scope="module", params=params)
 def handler(request):
@@ -842,7 +843,6 @@ def test_vsql_datasource_masterdetail_recordfilter(personrecords):
 	"""
 
 	output = python_db(source, testappid, template="export_masterdetail_recordfilter")
-
 
 	assert "True;Computer science;Mathematics;Physics;Literature" == output
 
