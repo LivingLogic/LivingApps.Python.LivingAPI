@@ -1980,7 +1980,11 @@ class DataSource(Base):
 	includeparams = BoolAttr(required=True, default=False, ul4on=True)
 	includeviews = BoolAttr(required=True, default=False, ul4on=True)
 	includecategories = IntEnumAttr(IncludeCategories, required=True, default=IncludeCategories.NO, ul4on=True)
+
+	# The sort expressions for sorting the records dict.
 	orders = Attr(ul4on=True)
+
+	# Children configuration for records that reference the record from this app.
 	children = AttrDictAttr(required=True, ul4on=True)
 
 	def __init__(self, *args, identifier=None, app=None, includecloned=False, appfilter=None, includecontrols=None, includerecords=None, includecount=False, recordpermission=None, recordfilter=None, includepermissions=False, includeattachments=False, includetemplates=False, includeparams=False, includeviews=False, includecategories=None):
@@ -2049,11 +2053,23 @@ class DataSource(Base):
 class DataSourceChildren(Base):
 	ul4attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
 
+	# Database identifier
 	id = Attr(str, ul4on=True)
+
+	# The :class:`DataSource` this object belongs to
 	datasource = Attr(ul4on=True)
+
+	# A unique identifier for this object (unique among the other :class:`DataSourceChildren` objects of the :class:`DataSource`)
 	identifier = Attr(str, ul4on=True)
+
+	# The :class:`AppLookupControl` object that references this app.
+	# All records from the controls app that reference our record will be added to the children dict.
 	control = Attr(Control, ul4on=True)
+
+	# Additional vSQL filter for the records.
 	filter = VSQLAttr("vsqlfield_pkg.dsc_recordfilter_ful4on", ul4on=True)
+
+	# The sort expressions for sorting the children dict.
 	orders = Attr(ul4on=True)
 
 	def __init__(self, *args, identifier=None, control=None, filter=None):
