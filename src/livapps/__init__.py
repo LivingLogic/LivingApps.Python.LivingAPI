@@ -201,10 +201,12 @@ class Attr:
 		self.ul4on = ul4on
 
 	def __repr__(self):
-		types = ", ".join(format_class(t) for t in self.types)
-		if len(self.types) > 1:
-			types = f"({types})"
-		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} name={self.name!r} types={types}"
+		if isinstance(self.types, tuple):
+			types = ", ".join(format_class(t) for t in self.types)
+			types = f"types=({types})"
+		else:
+			types = f"type={format_class(self.types)}"
+		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} name={self.name!r} {types}"
 		if self.default_factory is not None:
 			s += f" default_factory={self.default_factory!r}"
 		elif self.default is not None:
