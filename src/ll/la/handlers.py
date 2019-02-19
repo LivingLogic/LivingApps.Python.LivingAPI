@@ -342,7 +342,7 @@ class DBHandler(Handler):
 		viewtemplate.id = r.p_vt_id
 		if recursive:
 			for datasource in viewtemplate.datasources.values():
-				datasource.save(self, recursive=recursive)
+				self.save_datasource(datasource, recursive=recursive)
 
 	def save_datasource(self, datasource, recursive=True):
 		cursor = self.cursor()
@@ -398,7 +398,7 @@ class DBHandler(Handler):
 				ds_id=r.p_ds_id,
 			)
 			for children in datasource.children.values():
-				children.save(self, recursive=recursive)
+				self.save_datasourcechildre(children, recursive=recursive)
 
 	def save_datasourcechildren(self, datasourcechildren, recursive=True):
 		cursor = self.cursor()
@@ -561,7 +561,7 @@ class DBHandler(Handler):
 		dump = self._loaddump(dump)
 		return dump
 
-	def save_record(self, record):
+	def save_record(self, record, recursive=True):
 		app = record.app
 		real = app.basetable in {"data_select", "data"}
 		if real:
@@ -716,7 +716,7 @@ class HTTPHandler(Handler):
 		dump = self._loaddump(dump)
 		return dump
 
-	def save_record(self, record):
+	def save_record(self, record, recursive=True):
 		fields = {field.control.identifier: field.control._asjson(field.value) for field in record.fields.values() if record.id is None or field.is_dirty()}
 		app = record.app
 		recorddata = {"fields": fields}
@@ -789,9 +789,9 @@ class FileHandler(Handler):
 		# FIXME: Save the app itself
 		if recursive:
 			for internaltemplate in app.internaltemplates.values():
-				internaltemplate.save(self)
+				self.save_internaltemplate(internaltemplate, recursive=recursive)
 			for viewtemplate in app.viewtemplates.values():
-				viewtemplate.save(self)
+				self.save_viewtemplate(viewtemplate, recursive=recursive)
 
 	def _save(self, path, content):
 		"""
