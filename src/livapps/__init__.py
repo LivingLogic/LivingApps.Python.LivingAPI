@@ -217,7 +217,10 @@ class Attr:
 		if instance is not None:
 			return self.get(instance)
 		else:
-			return type.__dict__[self.name]
+			for cls in type.__mro__:
+				if self.name in cls.__dict__:
+					return cls.__dict__[self.name]
+			raise AttributeError(self.name)
 
 	def __set__(self, instance, value):
 		if self.readonly and self.name in instance.__dict__:
