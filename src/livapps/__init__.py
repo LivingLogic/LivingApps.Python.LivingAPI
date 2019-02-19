@@ -6,7 +6,7 @@
 ##
 ## All Rights Reserved
 
-import datetime, operator, string, enum, pathlib, inspect
+import datetime, operator, string, enum, json, pathlib, inspect
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
@@ -226,7 +226,7 @@ class Attr:
 
 	def __get__(self, instance, type):
 		if instance is not None:
-			return self.get(instance)
+			return self.get_value(instance)
 		else:
 			for cls in type.__mro__:
 				if self.name in cls.__dict__:
@@ -236,32 +236,37 @@ class Attr:
 	def __set__(self, instance, value):
 		if self.readonly and self.name in instance.__dict__:
 			raise TypeError(f"can't set attribute {self.name!r} of type {misc.format_class(instance)}")
-		self.set(instance, value)
+		self.set_value(instance, value)
 
-	def get(self, instance):
+	def get_value(self, instance):
 		return instance.__dict__[self.name]
 
-	def makedefault(self):
+	def make_default_value(self):
+		"""
+		Return the default value for this attribute.
+
+		This either calls :attr:`default_factory` or returns :attr:`default`.
+		"""
 		if self.default_factory is not None:
 			return self.default_factory()
 		else:
 			return self.default
 
-	def set(self, instance, value):
+	def set_value(self, instance, value):
 		if value is None:
-			value = self.makedefault()
+			value = self.make_default_value()
 		if not isinstance(value, self.types):
 			raise TypeError(f"attribute {self.name!r} must be {self._format_types()}, but is {misc.format_class(value)}")
 		instance.__dict__[self.name] = value
 
-	def ul4on_getattr(self, instance):
-		return self.get(instance)
+	def ul4on_get_value(self, instance):
+		return self.get_value(instance)
 
-	def ul4on_setattr(self, instance, value):
-		self.set(instance, value)
+	def ul4on_set_value(self, instance, value):
+		self.set_value(instance, value)
 
-	def ul4on_setdefaultattr(self, instance):
-		self.ul4on_setattr(instance, None)
+	def ul4on_set_default_value(self, instance):
+		self.ul4on_set_value(instance, None)
 
 	def _format_types(self):
 		if isinstance(self.types, tuple):
@@ -286,7 +291,7 @@ class BoolAttr(Attr):
 		"""
 		super().__init__(bool, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
 
-	def set(self, instance, value):
+	def set_value(self, instance, value):
 		"""
 		Set the value of this attribute of :obj:`instance` to :obj:`value`.
 
@@ -295,7 +300,7 @@ class BoolAttr(Attr):
 		"""
 		if isinstance(value, int):
 			value = bool(value)
-		super().set(instance, value)
+		super().set_value(instance, value)
 
 
 class FloatAttr(Attr):
@@ -314,7 +319,7 @@ class FloatAttr(Attr):
 		"""
 		super().__init__(float, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
 
-	def set(self, instance, value):
+	def set_value(self, instance, value):
 		"""
 		Set the value of this attribute of :obj:`instance` to :obj:`value`.
 
@@ -323,7 +328,7 @@ class FloatAttr(Attr):
 		"""
 		if isinstance(value, int):
 			value = float(value)
-		super().set(instance, value)
+		super().set_value(instance, value)
 
 
 class EnumAttr(Attr):
@@ -343,7 +348,7 @@ class EnumAttr(Attr):
 		super().__init__(type, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
 		self.type = type
 
-	def set(self, instance, value):
+	def set_value(self, instance, value):
 		"""
 		Set the value of this attribute of :obj:`instance` to :obj:`value`.
 
@@ -357,7 +362,7 @@ class EnumAttr(Attr):
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
 				raise ValueError(f"value for attribute {self.name!r} must be {values}, but is {value!r}") from None
-		super().set(instance, value)
+		super().set_value(instance, value)
 
 
 class IntEnumAttr(EnumAttr):
@@ -367,7 +372,7 @@ class IntEnumAttr(EnumAttr):
 	Setting such an attribute also supports an integer as the value.
 	"""
 
-	def set(self, instance, value):
+	def set_value(self, instance, value):
 		"""
 		Set the value of this attribute of :obj:`instance` to :obj:`value`.
 
@@ -381,7 +386,7 @@ class IntEnumAttr(EnumAttr):
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
 				raise ValueError(f"value for attribute {self.name!r} must be {values}, but is {value!r}") from None
-		super().set(instance, value)
+		super().set_value(instance, value)
 
 
 class VSQLAttr(Attr):
@@ -418,7 +423,7 @@ class AttrDictAttr(Attr):
 		else:
 			super().__init__(dict, required=False, readonly=readonly, repr=False, ul4on=ul4on)
 
-	def set(self, instance, value):
+	def set_value(self, instance, value):
 		"""
 		Set the value of this attribute of :obj:`instance` to :obj:`value`.
 
@@ -426,7 +431,7 @@ class AttrDictAttr(Attr):
 		be converted to an :class:`attrdict` automatically.
 		"""
 		value = makeattrs(value)
-		super().set(instance, value)
+		super().set_value(instance, value)
 
 
 ###
@@ -514,7 +519,7 @@ class Base(metaclass=BaseMetaClass):
 	def ul4ondump(self, encoder):
 		for attr in self.attrs():
 			if attr.ul4on:
-				value = attr.ul4on_getattr(self)
+				value = attr.ul4on_get_value(self)
 				encoder.dump(value)
 
 	def ul4onload(self, decoder):
@@ -524,7 +529,7 @@ class Base(metaclass=BaseMetaClass):
 		# Load all attributes that we get from the UL4ON dump
 		# Stop when the dump is exhausted or we've loaded all known attributes.
 		for (attr, value) in zip(attrs, dump):
-			attr.ul4on_setattr(self, value)
+			attr.ul4on_set_value(self, value)
 
 		# Exhaust the UL4ON dump
 		for value in dump:
@@ -532,7 +537,7 @@ class Base(metaclass=BaseMetaClass):
 
 		# Initialize the rest of the attributes with default values
 		for attr in attrs:
-			attr.ul4on_setdefaultattr(self)
+			attr.ul4on_set_default_value(self)
 
 
 @register("flashmessage")
@@ -1352,7 +1357,7 @@ class Record(Base):
 		readonly = True
 		ul4on = True
 
-		def get(self, instance):
+		def get_value(self, instance):
 			values = instance.__dict__["values"]
 			if values is None:
 				values = attrdict()
@@ -1364,7 +1369,7 @@ class Record(Base):
 				instance.__dict__["values"] = values
 			return values
 
-		def ul4on_setattr(self, instance, value):
+		def ul4on_set_value(self, instance, value):
 			instance._sparsevalues = value
 			# Set the following attributes via ``__dict__``, as they are "read only".
 			instance.__dict__["values"] = None
@@ -1374,7 +1379,7 @@ class Record(Base):
 		readonly = True
 		ul4on = False
 
-		def get(self, instance):
+		def get_value(self, instance):
 			fields = instance.__dict__["fields"]
 			if fields is None:
 				values = instance.values
@@ -1663,12 +1668,12 @@ class NoteAttachment(SimpleAttachment):
 @register("jsonattachment")
 class JSONAttachment(SimpleAttachment):
 	type = "jsonattachment"
-	value = Attr(ul4on=True)
+	class value(Attr):
+		ul4on = True
 
-	def ul4onload_setattr(self, name, value):
-		if name == "value":
+		def ul4on_set_value(self, instance, value):
 			value = json.loads(value)
-		super().ul4onload_setattr(name, value)
+			super().ul4on_set_value(instance, value)
 
 
 class Template(Base):
@@ -1682,6 +1687,13 @@ class Template(Base):
 	whitespace = Attr(str, ul4on=True)
 	signature = Attr(str, ul4on=True)
 	doc = Attr(str, ul4on=True)
+	class path(Attr):
+		types = (str,)
+		readonly = True
+		repr = True
+
+		def get_value(self, instance):
+			return str(instance)
 
 	def __init__(self, identifier=None, source=None, whitespace="keep", signature=None, doc=None):
 		self.id = None # Type: OptStr
@@ -1691,9 +1703,6 @@ class Template(Base):
 		self.signature = signature
 		self.whitespace = whitespace
 		self.doc = doc
-
-	def __repr__(self):
-		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
 
 	def template(self):
 		return ul4c.Template(self.source, name=self.identifier, signature=self.signature, whitespace=self.whitespace)
