@@ -788,10 +788,12 @@ class FileHandler(Handler):
 	def save_app(self, app, recursive=True):
 		# FIXME: Save the app itself
 		if recursive:
-			for internaltemplate in app.internaltemplates.values():
-				self.save_internaltemplate(internaltemplate, recursive=recursive)
-			for viewtemplate in app.viewtemplates.values():
-				self.save_viewtemplate(viewtemplate, recursive=recursive)
+			if app.internaltemplates is not None:
+				for internaltemplate in app.internaltemplates.values():
+					self.save_internaltemplate(internaltemplate, recursive=recursive)
+			if app.viewtemplates is not None:
+				for viewtemplate in app.viewtemplates.values():
+					self.save_viewtemplate(viewtemplate, recursive=recursive)
 
 	def _save(self, path, content):
 		"""
