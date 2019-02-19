@@ -2118,6 +2118,7 @@ class DataOrder(Base):
 		``LAST``
 			Null values come last.
 		"""
+
 		FIRST = "first"
 		LAST = "last"
 
