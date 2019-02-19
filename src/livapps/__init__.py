@@ -392,7 +392,17 @@ class VSQLAttr(Attr):
 
 
 class AttrDictAttr(Attr):
+	"""
+	Subclass of :class:`Attr` for values that are dictionaries.
+
+	Setting such an attribute convert a normal :class:`dict` into an
+	:class:`attrdict` object.
+	"""
+
 	def __init__(self, required=False, readonly=False, ul4on=False):
+		"""
+		Create an :class:`AttrDictAttr` data descriptor.
+		"""
 		if required:
 			super().__init__(dict, required=True, default_factory=attrdict, readonly=readonly, repr=False, ul4on=ul4on)
 		else:
