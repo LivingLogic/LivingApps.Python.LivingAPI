@@ -560,6 +560,10 @@ class FlashMessage(Base):
 	ul4attrs = {"timestamp", "type", "title", "message"}
 
 	class Type(enum.Enum):
+		"""
+		The severity level of a :class:`FlashMessage`.
+		"""
+
 		INFO = "info"
 		NOTICE = "notice"
 		WARNING = "warning"
