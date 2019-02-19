@@ -25,7 +25,6 @@ def register(name):
 	Shortcut for registering a LivingAPI class with the UL4ON machinery.
 	"""
 	def registration(cls):
-		ul4on.register("de.livingapps.appdd." + name)(cls)
 		ul4on.register("de.livinglogic.livingapi." + name)(cls)
 		return cls
 	return registration
