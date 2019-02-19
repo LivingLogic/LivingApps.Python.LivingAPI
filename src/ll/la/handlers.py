@@ -133,7 +133,7 @@ class Handler:
 		return file
 
 	def _geofrominfo(self, info):
-		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
+		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder``
 		for provider in (geocoder.google, geocoder.osm):
 			result = provider(info, language="de")
 			if not result.error and result.lat and result.lng and result.address:
@@ -141,7 +141,7 @@ class Handler:
 		return None
 
 	def _geofromlatlong(self, lat, long):
-		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder`
+		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder``
 		for provider in (geocoder.google, geocoder.osm):
 			result = provider([lat, long], method="reverse", language="de")
 			if not result.error and result.lat and result.lng and result.address:
@@ -161,10 +161,10 @@ class Handler:
 			>>> h.geo(49.95, 11.57)
 			<ll.la.Geo lat=49.9501244 long=11.5704134713533 info='Verwaltung Verkehrsbetrieb, 4, Eduard-Bayerlein-Straße, Gewerbegebiet Neue Spinnerei, Nördliche Innenstadt, Innenstadt, Bayreuth, Oberfranken, Bayern, 95445, Deutschland' at 0x1098706d8>
 		"""
-		# Get coordinates from description (passed via keyword ``info``)
+		# Get coordinates from description (passed via keyword :obj:`info`)
 		if info is not None and lat is None and long is None:
 			return self._geofrominfo(info)
-		# Get coordinates from description (passed positionally as ``lat``)
+		# Get coordinates from description (passed positionally as :obj:`lat`)
 		elif lat is not None and long is None and info is None:
 			return self._geofrominfo(lat)
 		# Get description from coordinates
@@ -797,9 +797,9 @@ class FileHandler(Handler):
 
 	def _save(self, path, content):
 		"""
-		Save the text ``context`` to the path ``path``.
+		Save the text :obj:`context` to the path :obj:`path`.
 
-		This method creates the parent directory of ``path`` is neccessary.
+		This method creates the parent directory of :obj:`path` if neccessary.
 		"""
 		content = content or ""
 		try:
@@ -816,15 +816,14 @@ class FileHandler(Handler):
 
 	def _guessext(self, basedir, template):
 		"""
-		Try to guess an extension for the template ``template``.
+		Try to guess an extension for the template :obj:`template`.
 
-		If there's only *one* file with a matching filename in the directory
-		``basedir``, always use its filename, else try to guess the extension
-		from the source.
+		If there's only *one* file with a matching filename in the directory :obj:`basedir`,
+		always use its filename, else try to guess the extension from the source.
 		"""
 		source = template.source or ""
 
-		# If we have exactly *one* file with this basename in ``basedir``, use this filename
+		# If we have exactly *one* file with this basename in :obj:`basedir`, use this filename.
 		candidates = list(pathlib.Path(basedir).glob(f"{template.identifier}.*ul4"))
 		if len(candidates) == 1:
 			return candidates[0].suffix[1:]
@@ -844,10 +843,10 @@ class FileHandler(Handler):
 
 	def _dumpattr(self, config, obj, name):
 		r"""
-		Put the attribute named ``name`` into the JSON configuration ``config``.
+		Put the attribute named :obj:`name` into the JSON configuration :obj:`config`.
 
 		This means that if the attribute has the default value it will not be put
-		into the config. All other values (e.g. ``enum``\s) have to be converted
+		into the config. All other values (e.g. :class:`Enum`\s) have to be converted
 		to a JSON compatible type.
 		"""
 		value = getattr(obj, name)
