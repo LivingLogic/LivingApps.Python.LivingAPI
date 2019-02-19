@@ -618,9 +618,9 @@ class File(Base):
 
 	def _gethandler(self, handler):
 		if handler is None:
-			handler = self.handler
-			if handler is None:
+			if self.handler is None:
 				raise NoHandlerError()
+			handler = self.handler
 		return handler
 
 	def save(self, handler=None):
@@ -811,9 +811,9 @@ class App(Base):
 
 	def _gethandler(self, handler):
 		if handler is None:
-			handler = self.globals.handler
-			if handler is None:
+			if self.globals is None or self.globals.handler is None:
 				raise NoHandlerError()
+			handler = self.globals.handler
 		return handler
 
 	def save(self, handler=None, recursive=True):
@@ -1519,6 +1519,9 @@ class Record(Base):
 		return self.id is None or any(field._dirty for field in self.fields.values())
 
 	def _gethandler(self, handler):
+		if handler is None:
+			if self.app is None:
+				raise NoHandlerError()
 		return self.app._gethandler(handler)
 
 	def save(self, handler=None):
@@ -1718,6 +1721,9 @@ class Template(Base):
 		return ul4c.Template(self.source, name=self.identifier, signature=self.signature, whitespace=self.whitespace)
 
 	def _gethandler(self, handler):
+		if handler is None:
+			if self.app is None:
+				raise NoHandlerError()
 		return self.app._gethandler(handler)
 
 	def _save(self, path, content):
@@ -1986,6 +1992,9 @@ class DataSource(Base):
 		setattr(self, name, value)
 
 	def _gethandler(self, handler):
+		if handler is None:
+			if self.parent is None:
+				raise NoHandlerError()
 		return self.parent._gethandler(handler)
 
 	def save(self, handler=None, recursive=True):
@@ -2028,6 +2037,9 @@ class DataSourceChildren(Base):
 			self.orders.append(order)
 
 	def _gethandler(self, handler):
+		if handler is None:
+			if self.datasource is None:
+				raise NoHandlerError()
 		return self.datasource._gethandler(handler)
 
 	def save(self, handler, recursive=True):
