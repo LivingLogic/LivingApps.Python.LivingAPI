@@ -186,6 +186,8 @@ class Attr:
 		and deserialized in UL4ON dumps.
 		"""
 		self.name = None
+		if not required:
+			types += (type(None),)
 		typecount = len(types)
 		if typecount == 0:
 			self.types = object
@@ -193,7 +195,6 @@ class Attr:
 			self.types = types[0]
 		else:
 			self.types = types
-		self.required = required
 		self.default = default
 		self.default_factory = default_factory
 		self.readonly = readonly
@@ -201,7 +202,10 @@ class Attr:
 		self.ul4on = ul4on
 
 	def __repr__(self):
-		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} name={self.name!r} types={self.types!r} required={self.required!r}"
+		types = ", ".join(format_class(t) for t in self.types)
+		if len(self.types) > 1:
+			types = f"({types})"
+		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} name={self.name!r} types={types}"
 		if self.default_factory is not None:
 			s += f" default_factory={self.default_factory!r}"
 		elif self.default is not None:
@@ -232,7 +236,7 @@ class Attr:
 	def set(self, instance, value):
 		if value is None:
 			value = self.makedefault()
-		if not isinstance(value, self.types) and (self.required or value is not None):
+		if not isinstance(value, self.types):
 			raise TypeError(f"attribute {self.name!r} must be {self._format_types()}, but is {misc.format_class(value)}")
 		instance.__dict__[self.name] = value
 
@@ -247,15 +251,9 @@ class Attr:
 
 	def _format_types(self):
 		if isinstance(self.types, tuple):
-			types = [format_class(t) for t in self.types]
-			if not self.required:
-				types.append("None")
-			return format_list(types)
+			return format_list([format_class(t) for t in self.types])
 		else:
-			if self.required:
-				return format_class(self.types)
-			else:
-				return format_list([format_class(self.types), "None"])
+			return format_class(self.types)
 
 
 class BoolAttr(Attr):
