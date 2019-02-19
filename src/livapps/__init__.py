@@ -399,6 +399,16 @@ class AttrDictAttr(Attr):
 		else:
 			super().__init__(dict, required=False, readonly=readonly, repr=False, ul4on=ul4on)
 
+	def set(self, instance, value):
+		"""
+		Set the value of this attribute of :obj:`instance` to :obj:`value`.
+
+		if :obj:`value` is a :class:`dict` (but not an :class:`attrdict`) it will
+		be converted to an :class:`attrdict` automatically.
+		"""
+		value = makeattrs(value)
+		super().set(instance, value)
+
 
 ###
 ### Exceptions
