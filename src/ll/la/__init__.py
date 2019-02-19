@@ -2095,10 +2095,29 @@ class DataOrder(Base):
 	ul4attrs = {"id", "parent", "expression", "direction", "nulls"}
 
 	class Direction(enum.Enum):
+		"""
+		The sort direction.
+
+		``ASC``
+			Sort ascending (i.e. A to Z)
+
+		``DESC``
+			Sort descending (i.e. Z to A)
+		"""
+
 		ASC = "asc"
 		DESC = "desc"
 
 	class Nulls(enum.Enum):
+		"""
+		Specify where to sort null values.
+
+		``FIRST``
+			Null values come first.
+
+		``LAST``
+			Null values come last.
+		"""
 		FIRST = "first"
 		LAST = "last"
 
