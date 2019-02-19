@@ -907,25 +907,8 @@ class EncryptionType(enum.IntEnum):
 class TextAreaControl(StringControl):
 	subtype = "textarea"
 	ul4attrs = StringControl.ul4attrs.union({"encrypted"})
-	ul4onattrs = StringControl.ul4onattrs + ["encrypted"]
 
-	encrypted = EnumAttr(EncryptionType, ul4on=True)
-
-	def ul4onload_setattr(self, name, value):
-		if name == "encrypted":
-			try:
-				value = EncryptionType(value)
-			except ValueError:
-				pass
-			self.encrypted = value
-		else:
-			super().ul4onload_setattr(name, value)
-
-	def ul4onload_setdefaultattr(self, name):
-		if name == "encrypted":
-			self.encrypted = EncryptionType.NONE
-		else:
-			return super().ul4onload_setdefaultattr(name)
+	encrypted = IntEnumAttr(EncryptionType, default=EncryptionType.NONE, ul4on=True)
 
 
 @register("intcontrol")
