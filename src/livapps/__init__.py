@@ -186,15 +186,14 @@ class Attr:
 		and deserialized in UL4ON dumps.
 		"""
 		self.name = None
-		if not required:
-			types += (type(None),)
-		typecount = len(types)
-		if typecount == 0:
-			self.types = object
-		elif typecount == 1:
-			self.types = types[0]
+		if not types:
+			types = object
 		else:
-			self.types = types
+			if not required:
+				types += (type(None),)
+			if len(types) == 1:
+				types = types[0]
+		self.types = types
 		self.default = default
 		self.default_factory = default_factory
 		self.readonly = readonly
