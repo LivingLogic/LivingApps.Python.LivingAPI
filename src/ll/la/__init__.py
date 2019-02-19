@@ -1529,35 +1529,6 @@ class Record(Base):
 	def is_deleted(self):
 		return self._deleted
 
-	def ul4ondump_getattr(self, name):
-		if name == "values":
-			if self._sparsevalues is not None:
-				return self._sparsevalues
-			else:
-				return {identifier: value for (identifier, value) in self.values.items() if value is not None}
-		else:
-			return getattr(self, name)
-
-	def ul4onload_setattr(self, name, value):
-		if name == "values":
-			self._sparsevalues = value
-			self._values = None
-			self._fields = None
-		elif name == "children":
-			self.children = makeattrs(value)
-		else:
-			setattr(self, name, value)
-
-	def ul4onload_setdefaultattr(self, name, value):
-		if name == "values":
-			self._sparsevalues = {}
-			self._values = None
-			self._fields = None
-		elif name == "children":
-			self.children = attrdict()
-		else:
-			setattr(self, name, value)
-
 
 class Field:
 	ul4attrs = {"control", "record", "value", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
