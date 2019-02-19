@@ -331,6 +331,7 @@ class EnumAttr(Attr):
 		arguments have the same meaning as in :meth:`Attr.__init__`.
 		"""
 		super().__init__(type, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
+		self.type = type
 
 	def set(self, instance, value):
 		"""
@@ -342,8 +343,7 @@ class EnumAttr(Attr):
 		"""
 		if isinstance(value, str):
 			try:
-				type = misc.first(t for t in self.types if issubclass(t, enum.Enum))
-				value = type(value)
+				value = self.type(value)
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
 				raise ValueError(f"value for attribute {self.name!r} must be {values}, but is {value!r}") from None
@@ -367,8 +367,7 @@ class IntEnumAttr(EnumAttr):
 		"""
 		if isinstance(value, int):
 			try:
-				type = misc.first(t for t in self.types if issubclass(t, enum.Enum))
-				value = type(value)
+				value = self.type(value)
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
 				raise ValueError(f"value for attribute {self.name!r} must be {values}, but is {value!r}") from None
