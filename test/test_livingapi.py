@@ -14,6 +14,17 @@ from ll import la
 testappid = "5bffc841c26a4b5902b2278c"
 
 
+class attrdict(dict):
+	def __getattr__(self, key):
+		try:
+			return self[key]
+		except KeyError:
+			raise AttributeError(key)
+
+	def __setattr__(self, key, value):
+		self[key] = value
+
+
 def connect():
 	return os.environ["LA_LIVINGAPI_TEST_CONNECT"]
 
@@ -170,7 +181,7 @@ def norecords():
 			removeaa(r)
 
 	handler.commit()
-	return la.attrdict(handler=handler)
+	return attrdict(handler=handler)
 
 
 @pytest.fixture(scope="module")
@@ -187,7 +198,7 @@ def arearecords(norecords):
 
 	taetigkeitsfelder_app = attrs.vars.datasources.fieldsofactivity.app
 
-	attrs.areas = la.attrdict()
+	attrs.areas = attrdict()
 
 	def aa(**values):
 		aa = taetigkeitsfelder_app(**values)
@@ -224,7 +235,7 @@ def personrecords(arearecords):
 
 	handler = attrs.handler
 
-	attrs.persons = la.attrdict()
+	attrs.persons = attrdict()
 
 	def p(**values):
 		p = personen_app(**values)
