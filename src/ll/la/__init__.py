@@ -828,27 +828,28 @@ class App(Base):
 		else:
 			return self.id
 
-	def addtemplate(self, template):
+	def addtemplate(self, *templates):
 		"""
-		Add :obj:`template` as a child for :obj:`self`.
+		Add each object in :obj:`templates` as a child for :obj:`self`.
 
-		:obj:`template` may either be an :class:`Internaltemplate` (which will
+		This object may either be an :class:`Internaltemplate` (which will
 		get added to the attribute ``internaltemplates``) or a
 		:class:`ViewTemplate` (which will get added to the attribute
 		``viewtemplates``).
 		"""
-		if isinstance(template, InternalTemplate):
-			if self.internaltemplates is None:
-				self.internaltemplates = attrdict()
-			template.app = self
-			self.internaltemplates[template.identifier] = template
-		elif isinstance(template, ViewTemplate):
-			if self.viewtemplates is None:
-				self.viewtemplates = attrdict()
-			template.app = self
-			self.viewtemplates[template.identifier] = template
-		else:
-			raise TypeError(f"don't know what to do with positional argument {template!r}")
+		for template in templates:
+			if isinstance(template, InternalTemplate):
+				if self.internaltemplates is None:
+					self.internaltemplates = attrdict()
+				template.app = self
+				self.internaltemplates[template.identifier] = template
+			elif isinstance(template, ViewTemplate):
+				if self.viewtemplates is None:
+					self.viewtemplates = attrdict()
+				template.app = self
+				self.viewtemplates[template.identifier] = template
+			else:
+				raise TypeError(f"don't know what to do with positional argument {template!r}")
 
 	def insert(self, **kwargs):
 		record = Record(
