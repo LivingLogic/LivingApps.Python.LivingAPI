@@ -2030,15 +2030,6 @@ class DataSource(Base):
 		children.datasource = self
 		self.children[children.identifier] = children
 
-	def ul4onload_setattr(self, name, value):
-		if name == "children":
-			value = makeattrs(value)
-		setattr(self, name, value)
-
-	def ul4onload_setdefaultattr(self, name):
-		value = attrdict() if name == "children" else None
-		setattr(self, name, value)
-
 	def _gethandler(self, handler):
 		if handler is None:
 			if self.parent is None:
