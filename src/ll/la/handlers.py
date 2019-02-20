@@ -30,7 +30,7 @@
 	and their configuration into and out of LivingApps.
 """
 
-import os, io, datetime, pathlib, itertools, json, mimetypes, operator
+import os, io, datetime, pathlib, itertools, json, mimetypes, operator, warnings
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -79,7 +79,14 @@ class Handler:
 		self.globals = None
 
 	def get(self, *path, **params):
-		pass
+		warnings.warn("The method get() is deprecated, please use viewtemplate_data() instead.")
+		return self.viewtemplate_data(*path, **params)
+
+	def viewtemplate_data(self, *path, **params):
+		raise NotImplementedError
+
+	def meta_data(self, *appids):
+		raise NotImplementedError
 
 	def file(self, source):
 		"""
@@ -488,7 +495,7 @@ class DBHandler(Handler):
 			else:
 				self.proc_dataorder_delete(cursor, c_user=self.ide_id, p_do_id=do_id)
 
-	def getmeta(self, *appids):
+	def meta_data(self, *appids):
 		cursor = self.cursor()
 
 		tpl_uuids = self.varchars(appids)
@@ -504,7 +511,7 @@ class DBHandler(Handler):
 		dump = self._loaddump(dump)
 		return dump
 
-	def get(self, *path, **params):
+	def viewtemplate_data(self, *path, **params):
 		if not 1 <= len(path) <= 2:
 			raise ValueError(f"need one or two path components, got {len(path)}")
 
@@ -688,7 +695,7 @@ class HTTPHandler(Handler):
 		)
 		return r.content
 
-	def get(self, *path, **params):
+	def viewtemplate_data(self, *path, **params):
 		if not 1 <= len(path) <= 2:
 			raise ValueError(f"need one or two path components, got {len(path)}")
 		kwargs = {
