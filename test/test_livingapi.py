@@ -336,6 +336,17 @@ def personrecords(arearecords):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
 	)
 
+	attrs.persons.am = p(
+		firstname="Angela",
+		lastname="Merkel",
+		sex=personen_app.c_sex.lookupdata.female,
+		field_of_activity=[attrs.areas.politics],
+		date_of_birth=datetime.date(1954, 6, 17),
+		date_of_death=None,
+		grave=None,
+		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg/220px-2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg"),
+	)
+
 	handler.commit()
 
 	return attrs
