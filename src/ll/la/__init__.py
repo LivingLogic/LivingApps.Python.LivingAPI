@@ -1965,7 +1965,7 @@ class DataSource(Base):
 	# If more than one app is included (when either ``app`` is ``None`` or
 	# ``includecloned`` is ``True``), a vSQL expression for filtering which
 	# apps might be included.
-	appfilter = VSQLAttr("vsqlfield_pkg.ds_recordfilter_ful4on", ul4on=True)
+	appfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", ul4on=True)
 
 	# Which fields of the app should be included (in ``controls`` and ``records``)?
 	includecontrols = IntEnumAttr(IncludeControls, required=True, default=IncludeControls.NONE, ul4on=True)
@@ -1973,7 +1973,7 @@ class DataSource(Base):
 	includerecords = IntEnumAttr(IncludeRecords, required=True, default=IncludeRecords.NONE, ul4on=True)
 	includecount = Attr(int, required=True, default=False, ul4on=True)
 	recordpermission = IntEnumAttr(RecordPermission, required=True, default=RecordPermission.NONE, ul4on=True)
-	recordfilter = VSQLAttr("vsqlfield_pkg.ds_recordfilter_ful4on", ul4on=True)
+	recordfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", ul4on=True)
 	includepermissions = BoolAttr(required=True, default=False, ul4on=True)
 	includeattachments = BoolAttr(required=True, default=False, ul4on=True)
 	includetemplates = BoolAttr(required=True, default=False, ul4on=True)
@@ -2067,7 +2067,7 @@ class DataSourceChildren(Base):
 	control = Attr(Control, ul4on=True)
 
 	# Additional vSQL filter for the records.
-	filter = VSQLAttr("vsqlfield_pkg.dsc_recordfilter_ful4on", ul4on=True)
+	filter = VSQLAttr("vsqlsupport_pkg3.dsc_recordfilter_ful4on", ul4on=True)
 
 	# The sort expressions for sorting the children dict.
 	orders = Attr(ul4on=True)
