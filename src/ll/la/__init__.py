@@ -1968,11 +1968,11 @@ class DataSource(Base):
 	appfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", ul4on=True)
 
 	# Which fields of the app should be included (in ``controls`` and ``records``)?
-	includecontrols = IntEnumAttr(IncludeControls, required=True, default=IncludeControls.NONE, ul4on=True)
+	includecontrols = IntEnumAttr(IncludeControls, required=True, default=IncludeControls.ALL, ul4on=True)
 
-	includerecords = IntEnumAttr(IncludeRecords, required=True, default=IncludeRecords.NONE, ul4on=True)
+	includerecords = IntEnumAttr(IncludeRecords, required=True, default=IncludeRecords.RECORDS, ul4on=True)
 	includecount = Attr(int, required=True, default=False, ul4on=True)
-	recordpermission = IntEnumAttr(RecordPermission, required=True, default=RecordPermission.NONE, ul4on=True)
+	recordpermission = IntEnumAttr(RecordPermission, required=True, default=RecordPermission.ALL, ul4on=True)
 	recordfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", ul4on=True)
 	includepermissions = BoolAttr(required=True, default=False, ul4on=True)
 	includeattachments = BoolAttr(required=True, default=False, ul4on=True)
