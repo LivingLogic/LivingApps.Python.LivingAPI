@@ -46,7 +46,7 @@ def python_db(source, *path, **params):
 
 	handler = la.DBHandler(connect(), uploaddir(), user())
 
-	vars = handler.get(*path, **params)
+	vars = handler.viewtemplate_data(*path, **params)
 	result = template.renders(**vars)
 	handler.commit()
 	return result
@@ -57,7 +57,7 @@ def python_http(source, *path, **params):
 
 	handler = la.HTTPHandler(url(), user(), passwd())
 
-	vars = handler.get(*path, **params)
+	vars = handler.viewtemplate_data(*path, **params)
 	result = template.renders(**vars)
 	return result
 
@@ -150,7 +150,7 @@ def norecords():
 	A test fixture that ensures that both test apps contain no records.
 	"""
 	handler = la.DBHandler(connect(), uploaddir(), user())
-	vars = handler.get(testappid, template="export")
+	vars = handler.viewtemplate_data(testappid, template="export")
 
 	personen_app = vars.datasources.persons.app
 	taetigkeitsfelder_app = vars.datasources.fieldsofactivity.app
@@ -183,7 +183,7 @@ def arearecords(norecords):
 
 	handler = attrs.handler
 
-	attrs.vars = attrs.handler.get(testappid, template="export")
+	attrs.vars = attrs.handler.viewtemplate_data(testappid, template="export")
 
 	taetigkeitsfelder_app = attrs.vars.datasources.fieldsofactivity.app
 
