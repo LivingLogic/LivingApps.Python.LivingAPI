@@ -277,6 +277,16 @@ class DBHandler(Handler):
 	def commit(self):
 		self.db.commit()
 
+	def save_app(self, app, recursive=True):
+		# FIXME: Save the app itself
+		if recursive:
+			if app.internaltemplates is not None:
+				for internaltemplate in app.internaltemplates.values():
+					self.save_internaltemplate(internaltemplate, recursive=recursive)
+			if app.viewtemplates is not None:
+				for viewtemplate in app.viewtemplates.values():
+					self.save_viewtemplate(viewtemplate, recursive=recursive)
+
 	def save_file(self, file):
 		if file.internalid is None:
 			if file._content is None:
