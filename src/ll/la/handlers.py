@@ -401,7 +401,7 @@ class DBHandler(Handler):
 			self._save_dataorders(
 				cursor,
 				datasource.orders,
-				"VSQLFIELD_PKG.DS_ORDER_FUL4ON",
+				"VSQLSUPPORT_PKG3.DS_ORDER_FUL4ON",
 				ds_id=r.p_ds_id,
 			)
 			for children in datasource.children.values():
@@ -455,7 +455,7 @@ class DBHandler(Handler):
 			self._save_dataorders(
 				cursor,
 				datasourcechildren.orders,
-				"VSQLFIELD_PKG.DSC_ORDER_FUL4ON",
+				"VSQLSUPPORT_PKG3.DSC_ORDER_FUL4ON",
 				dsc_id=r.p_dsc_id,
 			)
 
