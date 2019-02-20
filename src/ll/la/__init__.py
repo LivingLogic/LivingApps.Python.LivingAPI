@@ -706,7 +706,12 @@ class Globals(Base):
 	user = Attr(User, ul4on=True)
 	maxdbactions = Attr(int, ul4on=True)
 	maxtemplateruntime = Attr(int, ul4on=True)
-	flashes = Attr(ul4on=True)
+
+	class flashes(Attr):
+		ul4on = True
+
+		def ul4on_set_default_value(self, instance):
+			instance.flashes = []
 
 	def __init__(self, version=None, platform=None):
 		self.version = version
@@ -719,12 +724,6 @@ class Globals(Base):
 
 	def geo(self, lat=None, long=None, info=None):
 		return self.handler.geo(lat, long, info)
-
-	def ul4onload_setdefaultattr(self, name):
-		if name == "flashes":
-			self.flashes = []
-		else:
-			setattr(self, name, None)
 
 
 @register("app")
