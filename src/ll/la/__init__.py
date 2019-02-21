@@ -1971,7 +1971,7 @@ class DataSource(Base):
 	includecontrols = IntEnumAttr(IncludeControls, required=True, default=IncludeControls.ALL, ul4on=True)
 
 	includerecords = IntEnumAttr(IncludeRecords, required=True, default=IncludeRecords.RECORDS, ul4on=True)
-	includecount = Attr(int, required=True, default=False, ul4on=True)
+	includecount = BoolAttr(required=True, default=False, ul4on=True)
 	recordpermission = IntEnumAttr(RecordPermission, required=True, default=RecordPermission.ALL, ul4on=True)
 	recordfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", ul4on=True)
 	includepermissions = BoolAttr(required=True, default=False, ul4on=True)
