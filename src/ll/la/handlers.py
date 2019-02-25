@@ -444,7 +444,7 @@ class DBHandler(Handler):
 		vs_id_filter = self.save_vsql(
 			cursor,
 			datasourcechildren.filter,
-			la.DataSourceChildren.filter,
+			la.DataSourceChildren.filter.function,
 			p_ds_id=datasourcechildren.datasource.id,
 			p_ctl_id=ctl_id,
 		)
