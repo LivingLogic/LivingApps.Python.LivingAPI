@@ -1965,7 +1965,7 @@ class DataSource(Base):
 	# If more than one app is included (when either ``app`` is ``None`` or
 	# ``includecloned`` is ``True``), a vSQL expression for filtering which
 	# apps might be included.
-	appfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", ul4on=True)
+	appfilter = VSQLAttr("vsqlsupport_pkg3.ds_appfilter_ful4on", ul4on=True)
 
 	# Which fields of the app should be included (in ``controls`` and ``records``)?
 	includecontrols = IntEnumAttr(IncludeControls, required=True, default=IncludeControls.ALL, ul4on=True)
