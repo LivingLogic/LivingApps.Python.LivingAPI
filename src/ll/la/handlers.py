@@ -415,7 +415,7 @@ class DBHandler(Handler):
 				ds_id=r.p_ds_id,
 			)
 			for children in datasource.children.values():
-				self.save_datasourcechildre(children, recursive=recursive)
+				self.save_datasourcechildren(children, recursive=recursive)
 
 	def save_datasourcechildren(self, datasourcechildren, recursive=True):
 		cursor = self.cursor()
