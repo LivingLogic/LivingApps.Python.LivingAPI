@@ -170,36 +170,6 @@ class Group(Def):
 		self.fields = decoder.load()
 
 
-@ul4on.register("de.livinglogic.vsql.unknownfield")
-class UnknownField(Def):
-	# All :class:`UnknownField` objects have no datatype
-	datatype = None
-
-	def __init__(self, parent=None, identifier=None):
-		self.parent = parent
-		self.identifier = identifier
-
-	def _ll_repr_(self):
-		yield f"parent={self.parent!r}"
-		yield f"identifier={self.identifier!r}"
-
-	def _ll_repr_pretty_(self, p):
-		p.breakable()
-		p.text("parent=")
-		p.pretty(self.parent)
-		p.breakable()
-		p.text("identifier=")
-		p.pretty(self.identifier)
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.parent)
-		encoder.dump(self.identifier)
-
-	def ul4onload(self, decoder):
-		self.parent = decoder.load()
-		self.identifier = decoder.load()
-
-
 class AST(Repr):
 	dbnodetype = None
 	dbnodevalue = None
@@ -285,20 +255,22 @@ class AST(Repr):
 			else:
 				return vsqltype.fromul4(source, node, vars)
 		if isinstance(node, ul4c.Var):
-			try:
-				field = vars[node.name]
-			except KeyError:
-				field = UnknownField(None, node.name)
-			return FieldRef(source, _offset(node.pos), None, field)
+			field = vars.get(node.name, None)
+			return FieldRef(source, _offset(node.pos), None, node.name, field)
 		elif isinstance(node, ul4c.Attr):
 			vsqlnode = cls.fromul4(source, node.obj, vars)
 			if isinstance(vsqlnode, FieldRef) and isinstance(vsqlnode.field, Field) and vsqlnode.field.refgroup:
 				try:
 					field = vsqlnode.field.refgroup.fields[node.attrname]
 				except KeyError:
-					pass # Fall through to return a generic :class:`Attr` node
+					try:
+						field = vsqlnode.field.refgroup.fields["*"]
+					except KeyError:
+						pass # Fall through to return a generic :class:`Attr` node
+					else:
+						return FieldRef(source, _offset(node.pos), vsqlnode, node.attrname, field)
 				else:
-					return FieldRef(source, _offset(node.pos), vsqlnode, field)
+					return FieldRef(source, _offset(node.pos), vsqlnode, node.attrname, field)
 			return Attr(source, _offset(node.pos), vsqlnode, node.attrname)
 		elif isinstance(node, ul4c.Call):
 			vsqlnode = cls.fromul4(source, node.obj, vars)
@@ -309,9 +281,9 @@ class AST(Repr):
 				args.append(AST.fromul4(source, arg.value, vars))
 			if isinstance(vsqlnode, FieldRef):
 				if vsqlnode.parent is not None:
-					return Meth(source, _offset(node.pos), vsqlnode.parent, vsqlnode.field.identifier, args)
+					return Meth(source, _offset(node.pos), vsqlnode.parent, vsqlnode.identifier, args)
 				else:
-					return Func(source, _offset(node.pos), vsqlnode.field.identifier, args)
+					return Func(source, _offset(node.pos), vsqlnode.identifier, args)
 			elif isinstance(vsqlnode, Attr):
 				return Meth(source, _offset(node.pos), vsqlnode.obj, vsqlnode.attrname, args)
 		raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(node)}!")
@@ -484,8 +456,33 @@ class List(AST):
 class FieldRef(AST):
 	dbnodetype = "field"
 
+	def __init__(self, source=None, pos=None, parent=None, identifier=None, field=None):
+		"""
+		Create a :class:`FieldRef` object.
+
+		There are three possible scenarios with respect to :obj`identifier` and
+		:obj:`field`:
+
+		``field is not None and field.identifier == identifier``
+			In this case we have a valid :class:`Field` that describes a real
+			field.
+
+		``field is not None and field.identifier != identifier and field.identifier == "*"``
+			In this case :obj:`field` is the :class:`Field` object for the generic
+			typed request parameters. E.g. when the vSQL expression is
+			``params.str.foo`` then :obj:`field` references the :class:`Field` for
+			``params.str.*``, so ``field.identifier == "*" and
+			``identifier == "foo"``.
+
+		``field is None``
+			In this case the field is unknown.
+		"""
 		super().__init__(source, pos)
 		self.parent = parent
+		# Note that ``identifier`` might be different from ``field.identifier``
+		# if ``field.identifier == "*"``.
+		self.identifier = identifier
+		# Note that ``field`` might be ``None`` when the field can't be found.
 		self.field = field
 
 	@property
@@ -494,17 +491,20 @@ class FieldRef(AST):
 
 	@property
 	def dbnodevalue(self):
-		identifierpath = [self.field.identifier]
-		node = self.parent
+		identifierpath = []
+		node = self
 		while node is not None:
-			identifierpath.insert(0, node.field.identifier)
+			identifierpath.insert(0, node.identifier)
 			node = node.parent
 		return ".".join(identifierpath)
 
 	def _ll_repr_(self):
 		if self.parent is not None:
 			yield f"parent={self.parent!r}"
-		yield f"field={self.field!r}"
+		if self.field is None or self.field.identifier != self.identifier:
+			yield f"identifier={self.identifier!r}"
+		if self.field is not None:
+			yield f"field={self.field!r}"
 
 	def _ll_repr_pretty_(self, p):
 		p.text(" ")
@@ -513,18 +513,25 @@ class FieldRef(AST):
 			p.breakable()
 			p.text("parent=")
 			p.pretty(self.parent)
-		p.breakable()
-		p.text("field=")
-		p.pretty(self.field)
+		if self.field is None or self.field.identifier != self.identifier:
+			p.breakable()
+			p.text("identifier=")
+			p.pretty(self.identifier)
+		if self.field is not None:
+			p.breakable()
+			p.text("field=")
+			p.pretty(self.field)
 
 	def ul4ondump(self, encoder):
 		super().ul4ondump(encoder)
 		encoder.dump(self.parent)
+		encoder.dump(self.identifier)
 		encoder.dump(self.field)
 
 	def ul4onload(self, decoder):
 		super().ul4onload(decoder)
 		self.parent = decoder.load()
+		self.identifier = decoder.load()
 		self.field = decoder.load()
 
 
