@@ -2277,6 +2277,10 @@ class AppParameter(Base):
 	identifier = Attr(str, repr=True, ul4on=True)
 	description = Attr(str, ul4on=True)
 	value = Attr(ul4on=True)
+	createdat = Attr(datetime.datetime, ul4on=True)
+	createdby = Attr(User, ul4on=True)
+	updatedat = Attr(datetime.datetime, ul4on=True)
+	updatedby = Attr(User, ul4on=True)
 
 	def __init__(self, id=None, app=None, identifier=None, description=None, value=None):
 		self.id = id
@@ -2284,3 +2288,7 @@ class AppParameter(Base):
 		self.identifier = identifier
 		self.description = description
 		self.value = value
+		self.createdat = None
+		self.createdby = None
+		self.updatedat = None
+		self.updatedby = None
