@@ -2270,7 +2270,7 @@ class Category(Base):
 
 @register("appparameter")
 class AppParameter(Base):
-	ul4attrs = {"id", "app", "identifier", "description", "value"}
+	ul4attrs = {"id", "app", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
 
 	id = Attr(str, repr=True, ul4on=True)
 	app = Attr(App, ul4on=True)
