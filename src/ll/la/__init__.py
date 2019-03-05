@@ -818,7 +818,14 @@ class App(Base):
 		raise AttributeError(name) from None
 
 	def ul4hasattr(self, name):
-		return name in self.ul4attrs or (name.startswith("c_") and name[2:] in self.controls)
+		if name in self.ul4attrs:
+			return True
+		elif name.startswith("c_") and name[2:] in self.controls:
+			return True
+		elif name.startswith("p_") and self.params and name[2:] in self.params:
+			return True
+		else:
+			return False
 
 	def _gethandler(self, handler):
 		if handler is None:
