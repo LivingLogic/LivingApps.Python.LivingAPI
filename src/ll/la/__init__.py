@@ -802,6 +802,16 @@ class App(Base):
 			pass
 		raise AttributeError(name) from None
 
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		attrs |= {f"c_{identifier}" for identifier in self.controls}
+		if self.params:
+			attrs |= {f"p_{identifier}" for identifier in self.params}
+		return attrs
+
 	def ul4getattr(self, name):
 		if self.ul4hasattr(name):
 			return getattr(self, name)
