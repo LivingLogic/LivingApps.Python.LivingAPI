@@ -796,6 +796,8 @@ class App(Base):
 		try:
 			if name.startswith("c_"):
 				return self.controls[name[2:]]
+			elif name.startswith("p_") and self.params:
+				return self.params[name[2:]]
 		except KeyError:
 			pass
 		raise AttributeError(name) from None
