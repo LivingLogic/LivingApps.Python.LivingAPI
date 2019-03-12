@@ -478,7 +478,7 @@ class DeletedError(Exception):
 
 	def __init__(self, object):
 		"""
-		Create an :exc:`UnsavedError` exception.
+		Create an :exc:`DeletedError` exception.
 
 		:obj:`object` is the deleted object.
 		"""
