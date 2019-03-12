@@ -211,7 +211,7 @@ def handler(request):
 
 
 @pytest.fixture(scope="module")
-def apps():
+def config_apps():
 	"""
 	A test fixture gives us a dictionary with a :class:`la.DBHandler` and the
 	two :class:`la.App` objects.
@@ -233,239 +233,233 @@ def apps():
 
 
 @pytest.fixture(scope="module")
-def norecords(apps):
+def config_norecords(config_apps):
 	"""
 	A test fixture that ensures that both test apps contain no records.
 	"""
-	attrs = apps
-
-	handler = attrs.handler
+	c = config_apps
 
 	identifier = "makerecords"
 
-	attrs.apps.persons.addtemplate(
+	c.apps.persons.addtemplate(
 		la.ViewTemplate(
 			la.DataSource(
 				identifier="persons",
-				app=attrs.apps.persons,
+				app=c.apps.persons,
 			),
 			la.DataSource(
 				la.DataSourceChildren(
-					control=attrs.apps.fields.c_parent,
+					control=c.apps.fields.c_parent,
 					identifier="children",
 				),
 				identifier="fields",
-				app=attrs.apps.fields,
+				app=c.apps.fields,
 			),
 			identifier=identifier,
 		)
 	)
-	attrs.apps.persons.save(handler)
+	c.apps.persons.save(c.handler)
 
-	handler.commit()
+	c.handler.commit()
 
-	vars = attrs.handler.viewtemplate_data(person_app_id, template=identifier)
+	vars = c.handler.viewtemplate_data(person_app_id, template=identifier)
 
 	persons_app = vars.datasources.persons.app
 	fields_app = vars.datasources.fields.app
 
 	# Remove all persons
 	for r in persons_app.records.values():
-		r.delete(handler)
+		r.delete(c.handler)
 
 	# Recursively remove areas of activity
 	def removeaa(r):
 		for r2 in r.c_children.values():
 			removeaa(r2)
-		r.delete(handler)
+		r.delete(c.handler)
 
 	for r in fields_app.records.values():
 		if r.v_parent is None:
 			removeaa(r)
 
-	handler.commit()
+	c.handler.commit()
 
 	# Replace both :class:`la.App` objects with ones that have records.
-	attrs.apps.persons = persons_app
-	attrs.apps.fields = fields_app
+	c.apps.persons = persons_app
+	c.apps.fields = fields_app
 
-	return attrs
+	return c
 
 
 @pytest.fixture(scope="module")
-def arearecords(norecords):
+def config_fields(config_norecords):
 	"""
 	A fixture that creates the records in the "area of activity" app (after
 	removing all existing records).
 	"""
-	attrs = norecords
+	c = config_norecords
 
-	handler = attrs.handler
+	fields_app = c.apps.fields
 
-	fields_app = attrs.apps.fields
-
-	attrs.areas = attrdict()
+	c.areas = attrdict()
 
 	def aa(**values):
 		aa = fields_app(**values)
-		aa.save(handler)
+		aa.save(c.handler)
 		return aa
 
-	attrs.areas.science = aa(name="Science")
-	attrs.areas.mathematics = aa(name="Mathematics", parent=attrs.areas.science)
-	attrs.areas.physics = aa(name="Physics", parent=attrs.areas.science)
-	attrs.areas.computerscience = aa(name="Computer science", parent=attrs.areas.science)
-	attrs.areas.art = aa(name="Art")
-	attrs.areas.film = aa(name="Film", parent=attrs.areas.art)
-	attrs.areas.music = aa(name="Music", parent=attrs.areas.art)
-	attrs.areas.literature = aa(name="Literature", parent=attrs.areas.art)
-	attrs.areas.politics = aa(name="Politics")
-	attrs.areas.industry = aa(name="Industry")
-	attrs.areas.sport = aa(name="Sport")
+	c.areas.science = aa(name="Science")
+	c.areas.mathematics = aa(name="Mathematics", parent=c.areas.science)
+	c.areas.physics = aa(name="Physics", parent=c.areas.science)
+	c.areas.computerscience = aa(name="Computer science", parent=c.areas.science)
+	c.areas.art = aa(name="Art")
+	c.areas.film = aa(name="Film", parent=c.areas.art)
+	c.areas.music = aa(name="Music", parent=c.areas.art)
+	c.areas.literature = aa(name="Literature", parent=c.areas.art)
+	c.areas.politics = aa(name="Politics")
+	c.areas.industry = aa(name="Industry")
+	c.areas.sport = aa(name="Sport")
 
-	handler.commit()
+	c.handler.commit()
 
-	return attrs
+	return c
 
 
 @pytest.fixture(scope="module")
-def personrecords(arearecords):
+def config_persons(config_fields):
 	"""
 	A fixture that creates the records in the "persons" app (after making sure
 	we have records in the "area of activity" app).
 	"""
-	attrs = arearecords
+	c = config_fields
 
-	personen_app = attrs.apps.persons
+	personen_app = c.apps.persons
 
-	handler = attrs.handler
-
-	attrs.persons = attrdict()
+	c.persons = attrdict()
 
 	def p(**values):
 		p = personen_app(**values)
 		if p.v_portrait is not None and p.v_portrait.id is None:
-			p.v_portrait.save(handler)
-		p.save(handler)
+			p.v_portrait.save(c.handler)
+		p.save(c.handler)
 		return p
 
 	def u(u):
-		return handler.file(url_.URL(u))
+		return c.handler.file(url_.URL(u))
 
 	def g(lat=None, long=None, info=None):
-		return handler.geo(lat, long, info)
+		return c.handler.geo(lat, long, info)
 
-	attrs.persons.ae = p(
+	c.persons.ae = p(
 		firstname="Albert",
 		lastname="Einstein",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[attrs.areas.physics],
+		field_of_activity=[c.areas.physics],
 		date_of_birth=datetime.date(1879, 3, 14),
 		date_of_death=datetime.date(1955, 4, 15),
 		grave=g(40.216085, -74.7917151),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Einstein_1921_portrait2.jpg/330px-Einstein_1921_portrait2.jpg"),
 	)
 
-	attrs.persons.mc = p(
+	c.persons.mc = p(
 		firstname="Marie",
 		lastname="Curie",
 		sex=personen_app.c_sex.lookupdata.female,
-		field_of_activity=[attrs.areas.physics],
+		field_of_activity=[c.areas.physics],
 		date_of_birth=datetime.date(1867, 11, 7),
 		date_of_death=datetime.date(1934, 7, 4),
 		grave=g(48.84672, 2.34631),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
 	)
 
-	attrs.persons.ma = p(
+	c.persons.ma = p(
 		firstname="Muhammad",
 		lastname="Ali",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[attrs.areas.sport],
+		field_of_activity=[c.areas.sport],
 		date_of_birth=datetime.date(1942, 1, 17),
 		date_of_death=datetime.date(2016, 6, 3),
 		grave=g(38.2454051, -85.7170115),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Muhammad_Ali_NYWTS.jpg/200px-Muhammad_Ali_NYWTS.jpg"),
 	)
 
-	attrs.persons.mm = p(
+	c.persons.mm = p(
 		firstname="Marilyn",
 		lastname="Monroe",
 		sex=personen_app.c_sex.lookupdata.female,
-		field_of_activity=[attrs.areas.film],
+		field_of_activity=[c.areas.film],
 		date_of_birth=datetime.date(1926, 6, 1),
 		date_of_death=datetime.date(1962, 8, 4),
 		grave=g(34.05827, -118.44096),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg/220px-Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg"),
 	)
 
-	attrs.persons.ep = p(
+	c.persons.ep = p(
 		firstname="Elvis",
 		lastname="Presley",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[attrs.areas.music],
+		field_of_activity=[c.areas.music],
 		date_of_birth=datetime.date(1935, 1, 8),
 		date_of_death=datetime.date(1977, 8, 16),
 		grave=g(35.04522870295311, -90.02283096313477),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
 	)
 
-	attrs.persons.br = p(
+	c.persons.br = p(
 		firstname="Bernhard",
 		lastname="Riemann",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[attrs.areas.mathematics],
+		field_of_activity=[c.areas.mathematics],
 		date_of_birth=datetime.date(1826, 6, 17),
 		date_of_death=datetime.date(1866, 6, 20),
 		grave=g(45.942127, 8.5870263),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/BernhardRiemannAWeger.jpg/330px-BernhardRiemannAWeger.jpg"),
 	)
 
-	attrs.persons.cfg = p(
+	c.persons.cfg = p(
 		firstname="Carl Friedrich",
 		lastname="Gauß",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[attrs.areas.mathematics],
+		field_of_activity=[c.areas.mathematics],
 		date_of_birth=datetime.date(1777, 4, 30),
 		date_of_death=datetime.date(1855, 2, 23),
 		grave=g(51.53157404627684, 9.94189739227295),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carl_Friedrich_Gauss.jpg/255px-Carl_Friedrich_Gauss.jpg"),
 	)
 
-	attrs.persons.dk = p(
+	c.persons.dk = p(
 		firstname="Donald",
 		lastname="Knuth",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[attrs.areas.computerscience],
+		field_of_activity=[c.areas.computerscience],
 		date_of_birth=datetime.date(1938, 1, 10),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/KnuthAtOpenContentAlliance.jpg/255px-KnuthAtOpenContentAlliance.jpg"),
 	)
 
-	attrs.persons.rr = p(
+	c.persons.rr = p(
 		firstname="Ronald",
 		lastname="Reagan",
 		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[attrs.areas.film, attrs.areas.politics],
+		field_of_activity=[c.areas.film, c.areas.politics],
 		date_of_birth=datetime.date(1911, 2, 6),
 		date_of_death=datetime.date(2004, 6, 5),
 		grave=g(34.2590025, -118.8226249),
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
 	)
 
-	attrs.persons.am = p(
+	c.persons.am = p(
 		firstname="Angela",
 		lastname="Merkel",
 		sex=personen_app.c_sex.lookupdata.female,
-		field_of_activity=[attrs.areas.politics],
+		field_of_activity=[c.areas.politics],
 		date_of_birth=datetime.date(1954, 6, 17),
 		date_of_death=None,
 		grave=None,
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg/220px-2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg"),
 	)
 
-	handler.commit()
+	c.handler.commit()
 
-	return attrs
+	return c
 
 
 ###
@@ -506,21 +500,21 @@ def test_livingapi_app_attributes(handler):
 	assert f"{person_app_id};LA-Demo: Persons" == handler.renders(person_app_id, template=vt.identifier)
 
 
-def test_livingapi_datasources(handler, apps):
+def test_livingapi_datasources(handler, config_apps):
 	"""
 	Check that the datasources have the identifiers we expect.
 	"""
 
-	attrs = apps
+	c = config_apps
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 		),
 		la.DataSource(
 			identifier="fieldsofactivity",
-			app=attrs.apps.fields,
+			app=c.apps.fields,
 		),
 		identifier="livingapi_datasources",
 		source="<?print ';'.join(sorted(datasources))?>",
@@ -528,14 +522,14 @@ def test_livingapi_datasources(handler, apps):
 	assert "fieldsofactivity;persons" == handler.renders(person_app_id, template=vt.identifier)
 
 
-def test_livingapi_output_all_records(handler, personrecords):
+def test_livingapi_output_all_records(handler, config_persons):
 	"""
 	Simply output all records from all datasources.
 
 	This checks that we don't get any exceptions.
 	"""
 
-	attrs = personrecords
+	c = config_persons
 
 	source = """
 		<?for ds in datasources.values()?>
@@ -560,11 +554,11 @@ def test_livingapi_output_all_records(handler, personrecords):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 		),
 		la.DataSource(
 			identifier="fieldsofactivity",
-			app=attrs.apps.fields,
+			app=c.apps.fields,
 		),
 		identifier="livingapi_output_all_records",
 		source=source,
@@ -597,7 +591,7 @@ def test_livingapi_output_all_controls(handler):
 	handler.renders(person_app_id, template="livingapi_output_all_controls")
 
 
-def test_livingapi_detail(handler, personrecords):
+def test_livingapi_detail(handler, config_persons):
 	"""
 	Simply test that detail templates work.
 	"""
@@ -612,15 +606,19 @@ def test_livingapi_detail(handler, personrecords):
 		source=source,
 	)
 
-	assert "Albert Einstein" == handler.renders(person_app_id, personrecords.persons.ae.id, template=vt.identifier)
+	assert "Albert Einstein" == handler.renders(
+		person_app_id,
+		config_persons.persons.ae.id,
+		template=vt.identifier,
+	)
 
 
-def test_livingapi_sort_default_order_is_newest_first(handler, personrecords):
+def test_livingapi_sort_default_order_is_newest_first(handler, config_persons):
 	"""
 	Check the the default sort order is descending by creation date.
 	"""
 
-	attrs = personrecords
+	c = config_persons
 
 	source = """
 		<?whitespace strip?>
@@ -635,7 +633,7 @@ def test_livingapi_sort_default_order_is_newest_first(handler, personrecords):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			includecontrols=0,
 		),
 		identifier="livingapi_sort_default_order_is_newest_first",
@@ -645,11 +643,11 @@ def test_livingapi_sort_default_order_is_newest_first(handler, personrecords):
 	assert not handler.renders(person_app_id, template=vt.identifier)
 
 
-def test_livingapi_record_shortcutattributes(handler, personrecords):
+def test_livingapi_record_shortcutattributes(handler, config_persons):
 	"""
 	Find. "Albert Einstein" and output one of his fields in multiple ways
 	"""
-	attrs = personrecords
+	c = config_persons
 
 	source = """
 		<?whitespace strip?>
@@ -664,7 +662,7 @@ def test_livingapi_record_shortcutattributes(handler, personrecords):
 	handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 		),
 		identifier="livingapi_record_shortcutattributes",
 		source=source,
@@ -689,11 +687,11 @@ def test_livingapi_app_shortcutattributes(handler):
 	assert "'firstname';'firstname'" == handler.renders(person_app_id, template=vt.identifier)
 
 
-def test_livingapi_insert_record(handler, apps):
+def test_livingapi_insert_record(handler, config_apps):
 	"""
 	Insert a record into the person app.
 	"""
-	attrs = apps
+	c = config_apps
 
 	source = """
 		<?whitespace strip?>
@@ -719,7 +717,7 @@ def test_livingapi_insert_record(handler, apps):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 		),
 		identifier="livingapi_insert_record_check_result",
 		source=source,
@@ -779,8 +777,8 @@ def test_livingapi_no_appparams(handler):
 	assert "None" == handler.renders(person_app_id, template=vt.identifier)
 
 
-def test_livingapi_appparam_bool(handler, apps):
-	attrs = apps
+def test_livingapi_appparam_bool(handler, config_apps):
+	c = config_apps
 
 	source = """
 		<?whitespace strip?>
@@ -795,7 +793,7 @@ def test_livingapi_appparam_bool(handler, apps):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			includeparams=True,
 		),
 		identifier="livingapi_appparam_bool",
@@ -806,8 +804,8 @@ def test_livingapi_appparam_bool(handler, apps):
 	assert "None;desc bool_none;False;desc bool_false;True;desc bool_true" == output
 
 
-def test_livingapi_appparam_int(handler, apps):
-	attrs = apps
+def test_livingapi_appparam_int(handler, config_apps):
+	c = config_apps
 
 	source = """
 		<?whitespace strip?>
@@ -820,7 +818,7 @@ def test_livingapi_appparam_int(handler, apps):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			includeparams=True,
 		),
 		identifier="livingapi_appparam_int",
@@ -831,8 +829,8 @@ def test_livingapi_appparam_int(handler, apps):
 	assert "None;desc int_none;1777;desc int_value" == output
 
 
-def test_livingapi_appparam_number(handler, apps):
-	attrs = apps
+def tcest_livingapi_appparam_number(handler, config_apps):
+	c = config_apps
 
 	source = """
 		<?whitespace strip?>
@@ -845,7 +843,7 @@ def test_livingapi_appparam_number(handler, apps):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			includeparams=True,
 		),
 		identifier="livingapi_appparam_number",
@@ -856,8 +854,8 @@ def test_livingapi_appparam_number(handler, apps):
 	assert "None;desc number_none;42.5;desc number_value" == output
 
 
-def test_livingapi_appparam_str(handler, apps):
-	attrs = apps
+def test_livingapi_appparam_str(handler, config_apps):
+	c = config_apps
 
 	source = """
 		<?whitespace strip?>
@@ -870,7 +868,7 @@ def test_livingapi_appparam_str(handler, apps):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			includeparams=True,
 		),
 		identifier="livingapi_appparam_str",
@@ -882,8 +880,8 @@ def test_livingapi_appparam_str(handler, apps):
 	assert "None;desc str_none;'gurk';desc str_value" == output
 
 
-def test_livingapi_appparam_color(handler, apps):
-	attrs = apps
+def test_livingapi_appparam_color(handler, config_apps):
+	c = config_apps
 
 	source = """
 		<?whitespace strip?>
@@ -896,7 +894,7 @@ def test_livingapi_appparam_color(handler, apps):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			includeparams=True,
 		),
 		identifier="livingapi_appparam_color",
@@ -908,8 +906,8 @@ def test_livingapi_appparam_color(handler, apps):
 	assert "None;desc color_none;#369c;desc color_value" == output
 
 
-def test_livingapi_appparam_upload(handler, apps):
-	attrs = apps
+def test_livingapi_appparam_upload(handler, config_apps):
+	c = config_apps
 
 	source = """
 		<?whitespace strip?>
@@ -922,7 +920,7 @@ def test_livingapi_appparam_upload(handler, apps):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			includeparams=True,
 		),
 		identifier="livingapi_appparam_upload",
@@ -934,8 +932,8 @@ def test_livingapi_appparam_upload(handler, apps):
 	assert "None;desc upload_none;'image/jpeg';desc upload_value" == output
 
 
-def test_livingapi_appparam_app(handler, apps):
-	attrs = apps
+def test_livingapi_appparam_app(handler, config_apps):
+	c = config_apps
 
 	source = """
 		<?whitespace strip?>
@@ -948,7 +946,7 @@ def test_livingapi_appparam_app(handler, apps):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			includeparams=True,
 		),
 		identifier="livingapi_appparam_app",
@@ -960,8 +958,8 @@ def test_livingapi_appparam_app(handler, apps):
 	assert f"None;desc app_none;'{person_app_id}';desc app_value" == output
 
 
-def test_livingapi_appparam_otherattributes(handler, apps):
-	attrs = apps
+def test_livingapi_appparam_otherattributes(handler, config_apps):
+	c = config_apps
 
 	source = """
 		<?whitespace strip?>
@@ -977,7 +975,7 @@ def test_livingapi_appparam_otherattributes(handler, apps):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			includeparams=True,
 		),
 		identifier="livingapi_appparam_otherattributes",
@@ -1027,11 +1025,11 @@ template_sorted_children = """
 """
 
 
-def test_vsql_global_variables(personrecords):
+def test_vsql_global_variables(config_persons):
+	c = config_persons
+
 	handler = PythonDB()
 
-	attrs = personrecords
-	areas = attrs.areas
 	source = f"""
 		<?whitespace strip?>
 		<?for r in datasources.fieldsofactivity.app.records.values()?>
@@ -1058,11 +1056,11 @@ def test_vsql_global_variables(personrecords):
 				la.DataOrder(expression="params.str.nix"),
 				la.DataOrder(expression="len(params.strlist.nix)"),
 				identifier="children",
-				control=attrs.apps.fields.c_parent,
+				control=c.apps.fields.c_parent,
 				filter="r.app.id != app.p_app_value.id and user.email is not None and record.id is None and params.str.nix is None and len(params.strlist.nix) == 0",
 			),
 			identifier="fieldsofactivity",
-			app=attrs.apps.fields,
+			app=c.apps.fields,
 			recordfilter="r.app.id != app.p_app_value.id and user.email is not None and record.id is None and params.str.nix is None and len(params.strlist.nix) == 0",
 			includeparams=True,
 		),
@@ -1074,16 +1072,16 @@ def test_vsql_global_variables(personrecords):
 
 	expected = []
 	key = operator.attrgetter("v_name")
-	for a in sorted(areas.values(), key=key):
+	for a in sorted(c.areas.values(), key=key):
 		expected.append(a.v_name)
-		for a2 in sorted((a2 for a2 in areas.values() if a2.v_parent is a), key=key):
+		for a2 in sorted((a2 for a2 in c.areas.values() if a2.v_parent is a), key=key):
 			expected.append(a2.v_name)
 	expected = ";" + ";".join(expected)
 
 	assert expected == output
 
 
-def test_vsql_datasource_appfilter(personrecords):
+def test_vsql_datasource_appfilter(config_persons):
 	handler = PythonDB()
 
 	source = """
@@ -1109,15 +1107,15 @@ def test_vsql_datasource_appfilter(personrecords):
 	assert f"None;{person_app_id}" == output
 
 
-def test_vsql_datasource_recordfilter(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_recordfilter(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_lastname == 'Einstein'",
 		),
 		identifier="vsql_datasource_recordfilter",
@@ -1128,15 +1126,15 @@ def test_vsql_datasource_recordfilter(personrecords):
 	assert "Albert Einstein" == output
 
 
-def test_vsql_datasource_recordfilter_param_str(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_recordfilter_param_str(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_lastname == params.str.lastname",
 		),
 		identifier="vsql_datasource_recordfilter_param_str",
@@ -1147,15 +1145,15 @@ def test_vsql_datasource_recordfilter_param_str(personrecords):
 	assert "Marie Curie" == output
 
 
-def test_vsql_datasource_recordfilter_param_int(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_recordfilter_param_int(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_date_of_birth.year == params.int.year",
 		),
 		identifier="vsql_datasource_recordfilter_param_int",
@@ -1166,15 +1164,15 @@ def test_vsql_datasource_recordfilter_param_int(personrecords):
 	assert "Elvis Presley" == output
 
 
-def test_vsql_datasource_recordfilter_param_date(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_recordfilter_param_date(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_date_of_birth == params.date.date_of_birth",
 		),
 		identifier="vsql_datasource_recordfilter_param_date",
@@ -1185,15 +1183,15 @@ def test_vsql_datasource_recordfilter_param_date(personrecords):
 	assert "Marilyn Monroe" == output
 
 
-def test_vsql_datasource_recordfilter_param_datetime(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_recordfilter_param_datetime(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="datetime(r.v_date_of_birth) + hours(12) + minutes(34) + seconds(56) == params.datetime.date_of_birth",
 		),
 		identifier="vsql_datasource_recordfilter_param_datetime",
@@ -1204,15 +1202,15 @@ def test_vsql_datasource_recordfilter_param_datetime(personrecords):
 	assert "Marilyn Monroe" == output
 
 
-def test_vsql_datasource_recordfilter_param_strlist(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_recordfilter_param_strlist(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_lastname in params.strlist.lastname",
 		),
 		identifier="vsql_datasource_recordfilter_param_strlist",
@@ -1223,15 +1221,15 @@ def test_vsql_datasource_recordfilter_param_strlist(personrecords):
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
-def test_vsql_datasource_recordfilter_param_intlist(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_recordfilter_param_intlist(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_date_of_birth.year in params.intlist.year",
 		),
 		identifier="vsql_datasource_recordfilter_param_intlist",
@@ -1242,15 +1240,15 @@ def test_vsql_datasource_recordfilter_param_intlist(personrecords):
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
-def test_vsql_datasource_recordfilter_param_datelist(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_recordfilter_param_datelist(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_date_of_birth in params.datelist.date_of_birth",
 		),
 		identifier="vsql_datasource_recordfilter_param_datelist",
@@ -1261,15 +1259,15 @@ def test_vsql_datasource_recordfilter_param_datelist(personrecords):
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
-def test_vsql_datasource_recordfilter_param_datetimelist(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_recordfilter_param_datetimelist(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="datetime(r.v_date_of_birth) + hours(12) + minutes(34) + seconds(56) == params.datetimelist.date_of_birth[0]",
 		),
 		identifier="vsql_datasource_recordfilter_param_datelist",
@@ -1280,15 +1278,15 @@ def test_vsql_datasource_recordfilter_param_datetimelist(personrecords):
 	assert "Carl Friedrich Gauß" == output
 
 
-def test_vsql_datasource_recordfilter_appparam_int(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_recordfilter_appparam_int(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_date_of_birth.year == app.p_int_value.value",
 		),
 		identifier="vsql_datasource_recordfilter_appparam_int",
@@ -1299,8 +1297,8 @@ def test_vsql_datasource_recordfilter_appparam_int(personrecords):
 	assert "Carl Friedrich Gauß" == output
 
 
-def test_vsql_datasource_sort_asc_nullsfirst(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_sort_asc_nullsfirst(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
@@ -1308,7 +1306,7 @@ def test_vsql_datasource_sort_asc_nullsfirst(personrecords):
 		la.DataSource(
 			la.DataOrder(expression="r.v_date_of_death", direction="asc", nulls="first"),
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_lastname in ['Knuth', 'Gauß', 'Einstein', 'Riemann']",
 		),
 		identifier="vsql_datasource_sort_asc_nullsfirst",
@@ -1319,8 +1317,8 @@ def test_vsql_datasource_sort_asc_nullsfirst(personrecords):
 	assert "Donald Knuth;Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein" == output
 
 
-def test_vsql_datasource_sort_asc_nullslast(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_sort_asc_nullslast(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
@@ -1328,7 +1326,7 @@ def test_vsql_datasource_sort_asc_nullslast(personrecords):
 		la.DataSource(
 			la.DataOrder(expression="r.v_date_of_death", direction="asc", nulls="last"),
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_lastname in ['Knuth', 'Gauß', 'Einstein', 'Riemann']",
 		),
 		identifier="vsql_datasource_sort_asc_nullslast",
@@ -1340,8 +1338,8 @@ def test_vsql_datasource_sort_asc_nullslast(personrecords):
 	assert "Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein;Donald Knuth" == output
 
 
-def test_vsql_datasource_sort_desc_nullsfirst(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_sort_desc_nullsfirst(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
@@ -1349,7 +1347,7 @@ def test_vsql_datasource_sort_desc_nullsfirst(personrecords):
 		la.DataSource(
 			la.DataOrder(expression="r.v_date_of_death", direction="desc", nulls="first"),
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_lastname in ['Knuth', 'Gauß', 'Einstein', 'Riemann']",
 		),
 		identifier="vsql_datasource_sort_desc_nullsfirst",
@@ -1361,8 +1359,8 @@ def test_vsql_datasource_sort_desc_nullsfirst(personrecords):
 	assert "Donald Knuth;Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß" == output
 
 
-def test_vsql_datasource_sort_desc_nullslast(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_sort_desc_nullslast(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
@@ -1370,7 +1368,7 @@ def test_vsql_datasource_sort_desc_nullslast(personrecords):
 		la.DataSource(
 			la.DataOrder(expression="r.v_date_of_death", direction="desc", nulls="last"),
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="r.v_lastname in ['Knuth', 'Gauß', 'Einstein', 'Riemann']",
 		),
 		identifier="vsql_datasource_sort_desc_nullslast",
@@ -1382,15 +1380,15 @@ def test_vsql_datasource_sort_desc_nullslast(personrecords):
 	assert "Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß;Donald Knuth" == output
 
 
-def test_vsql_datasource_masterdetail_recordfilter(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_masterdetail_recordfilter(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	source = f"""
 		<?whitespace strip?>
 		<?print all(r.v_parent is None for r in datasources.fieldsofactivity.app.records.values())?>
-		<?for id in ['{attrs.areas.science.id}', '{attrs.areas.art.id}']?>
+		<?for id in ['{c.areas.science.id}', '{c.areas.art.id}']?>
 			;{template_sorted_children}
 		<?end for?>
 	"""
@@ -1399,11 +1397,11 @@ def test_vsql_datasource_masterdetail_recordfilter(personrecords):
 		la.DataSource(
 			la.DataSourceChildren(
 				identifier="children",
-				control=attrs.apps.fields.c_parent,
+				control=c.apps.fields.c_parent,
 				filter="len(r.v_name) >= 6",
 			),
 			identifier="fieldsofactivity",
-			app=attrs.apps.fields,
+			app=c.apps.fields,
 			recordfilter="r.v_parent.id is None",
 		),
 		identifier="vsql_datasource_masterdetail_recordfilter",
@@ -1415,15 +1413,15 @@ def test_vsql_datasource_masterdetail_recordfilter(personrecords):
 	assert "True;Computer science;Mathematics;Physics;Literature" == output
 
 
-def test_vsql_datasource_masterdetail_sort_asc(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_masterdetail_sort_asc(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	source = f"""
 		<?whitespace strip?>
 		<?print all(r.v_parent is None for r in datasources.fieldsofactivity.app.records.values())?>
-		<?for id in ['{attrs.areas.science.id}', '{attrs.areas.art.id}']?>
+		<?for id in ['{c.areas.science.id}', '{c.areas.art.id}']?>
 			;{template_unsorted_children}
 		<?end for?>
 	"""
@@ -1433,10 +1431,10 @@ def test_vsql_datasource_masterdetail_sort_asc(personrecords):
 			la.DataSourceChildren(
 				la.DataOrder(expression="r.v_name", direction="asc", nulls="first"),
 				identifier="children",
-				control=attrs.apps.fields.c_parent,
+				control=c.apps.fields.c_parent,
 			),
 			identifier="fieldsofactivity",
-			app=attrs.apps.fields,
+			app=c.apps.fields,
 			recordfilter="r.v_parent.id is None",
 		),
 		identifier="vsql_datasource_masterdetail_sort_asc",
@@ -1448,15 +1446,15 @@ def test_vsql_datasource_masterdetail_sort_asc(personrecords):
 	assert "True;Computer science;Mathematics;Physics;Film;Literature;Music" == output
 
 
-def test_vsql_datasource_masterdetail_sort_desc(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_masterdetail_sort_desc(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	source = f"""
 		<?whitespace strip?>
 		<?print all(r.v_parent is None for r in datasources.fieldsofactivity.app.records.values())?>
-		<?for id in ['{attrs.areas.science.id}', '{attrs.areas.art.id}']?>
+		<?for id in ['{c.areas.science.id}', '{c.areas.art.id}']?>
 			;{template_unsorted_children}
 		<?end for?>
 	"""
@@ -1466,10 +1464,10 @@ def test_vsql_datasource_masterdetail_sort_desc(personrecords):
 			la.DataSourceChildren(
 				la.DataOrder(expression="r.v_name", direction="desc", nulls="first"),
 				identifier="children",
-				control=attrs.apps.fields.c_parent,
+				control=c.apps.fields.c_parent,
 			),
 			identifier="fieldsofactivity",
-			app=attrs.apps.fields,
+			app=c.apps.fields,
 			recordfilter="r.v_parent.id is None",
 		),
 		identifier="vsql_datasource_masterdetail_sort_desc",
@@ -1481,8 +1479,8 @@ def test_vsql_datasource_masterdetail_sort_desc(personrecords):
 	assert "True;Physics;Mathematics;Computer science;Music;Literature;Film" == output
 
 
-def test_vsql_color_attributes(personrecords):
-	attrs = personrecords
+def test_vsql_color_attributes(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
@@ -1494,7 +1492,7 @@ def test_vsql_color_attributes(personrecords):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="app.p_color_value.value.r == 0x33 and app.p_color_value.value.g == 0x66 and app.p_color_value.value.b == 0x99 and app.p_color_value.value.a == 0xcc",
 		),
 		identifier="vsql_color_attributes",
@@ -1506,8 +1504,8 @@ def test_vsql_color_attributes(personrecords):
 	assert "0" != output
 
 
-def test_vsql_color_methods(personrecords):
-	attrs = personrecords
+def test_vsql_color_methods(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
@@ -1519,7 +1517,7 @@ def test_vsql_color_methods(personrecords):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter="app.p_color_value.value.lum() == 0.4",
 		),
 		identifier="vsql_color_methods",
@@ -1531,8 +1529,8 @@ def test_vsql_color_methods(personrecords):
 	assert "0" != output
 
 
-def test_vsql_repr_color(personrecords):
-	attrs = personrecords
+def test_vsql_repr_color(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
@@ -1544,7 +1542,7 @@ def test_vsql_repr_color(personrecords):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 			recordfilter='repr(#369) == "#369" and repr(#369c) == "#369c" and repr(#123456) == "#123456" and repr(#12345678) == "#12345678"',
 		),
 		identifier="vsql_repr_color",
@@ -1556,8 +1554,8 @@ def test_vsql_repr_color(personrecords):
 	assert "0" != output
 
 
-def test_vsql_datasource_paging(personrecords):
-	attrs = personrecords
+def test_vsql_datasource_paging(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
@@ -1566,7 +1564,7 @@ def test_vsql_datasource_paging(personrecords):
 			la.DataOrder("r.v_lastname"),
 			la.DataOrder("r.v_firstname"),
 			identifier="persons",
-			app=attrs.apps.persons,
+			app=c.apps.persons,
 		),
 		identifier="vsql_datasource_paging",
 		source=template_unsorted_persons,
@@ -1581,14 +1579,14 @@ def test_vsql_datasource_paging(personrecords):
 	assert "Muhammad Ali;Marie Curie" == output
 
 
-def test_vsql_datasourcechildren_paging(personrecords):
-	attrs = personrecords
+def test_vsql_datasourcechildren_paging(config_persons):
+	c = config_persons
 
 	handler = PythonDB()
 
 	source = f"""
 		<?whitespace strip?>
-		<?for (f, r) in isfirst(datasources.fieldsofactivity.app.records['{attrs.areas.film.id}'].c_persons.values())?>
+		<?for (f, r) in isfirst(datasources.fieldsofactivity.app.records['{c.areas.film.id}'].c_persons.values())?>
 			<?if not f?>;<?end if?><?print r.v_firstname?> <?print r.v_lastname?>
 		<?end for?>
 	"""
@@ -1600,10 +1598,10 @@ def test_vsql_datasourcechildren_paging(personrecords):
 				la.DataOrder("r.v_lastname"),
 				la.DataOrder("r.v_firstname"),
 				identifier="persons",
-				control=attrs.apps.persons.c_field_of_activity,
+				control=c.apps.persons.c_field_of_activity,
 			),
 			identifier="fieldsofactivity",
-			app=attrs.apps.fields,
+			app=c.apps.fields,
 		),
 		identifier="vsql_datasourcechildren_paging",
 		source=source,
@@ -1612,7 +1610,7 @@ def test_vsql_datasourcechildren_paging(personrecords):
 	output = handler.renders(
 		person_app_id,
 		template=vt.identifier,
-		**{f"la-dsc-fieldsofactivity-{attrs.areas.film.id}-persons-paging": "1_1"},
+		**{f"la-dsc-fieldsofactivity-{c.areas.film.id}-persons-paging": "1_1"},
 	)
 
 	assert "Ronald Reagan" == output
