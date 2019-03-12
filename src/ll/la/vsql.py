@@ -11,8 +11,6 @@ try:
 except ImportError:
 	orasql = None
 
-from ll import la
-
 
 ###
 ### Helper functions and classes
