@@ -16,8 +16,6 @@ import datetime, operator, string, enum, json, pathlib, inspect
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
-from .handlers import *
-
 
 __docformat__ = "reStructuredText"
 
@@ -2292,3 +2290,6 @@ class AppParameter(Base):
 		self.createdby = None
 		self.updatedat = None
 		self.updatedby = None
+
+
+from .handlers import *
