@@ -251,7 +251,7 @@ class Attr:
 
 	def __set__(self, instance, value):
 		if self.readonly and self.name in instance.__dict__:
-			raise TypeError(f"can't set attribute {self.name!r} of type {misc.format_class(instance)}")
+			raise TypeError(f"Attribute {misc.format_class(instance)}.{self.name} is read only")
 		self.set_value(instance, value)
 
 	def get_value(self, instance):
@@ -272,7 +272,7 @@ class Attr:
 		if value is None:
 			value = self.make_default_value()
 		if not isinstance(value, self.types):
-			raise TypeError(f"attribute {self.name!r} must be {self._format_types()}, but is {misc.format_class(value)}")
+			raise TypeError(f"Attribute {misc.format_class(instance)}.{self.name} must be {self._format_types()}, but is {misc.format_class(value)}")
 		instance.__dict__[self.name] = value
 
 	def ul4on_get_value(self, instance):
@@ -377,7 +377,7 @@ class EnumAttr(Attr):
 				value = self.type(value)
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
-				raise ValueError(f"value for attribute {self.name!r} must be {values}, but is {value!r}") from None
+				raise ValueError(f"Value for attribute {misc.format_class(instance)}.{self.name} must be {values}, but is {value!r}") from None
 		super().set_value(instance, value)
 
 
@@ -401,7 +401,7 @@ class IntEnumAttr(EnumAttr):
 				value = self.type(value)
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
-				raise ValueError(f"value for attribute {self.name!r} must be {values}, but is {value!r}") from None
+				raise ValueError(f"Value for attribute {misc.format_class(instance)}.{self.name} must be {values}, but is {value!r}") from None
 		super().set_value(instance, value)
 
 
