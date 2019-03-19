@@ -591,7 +591,7 @@ class FlashMessage(Base):
 
 @register("file")
 class File(Base):
-	ul4attrs = {"id", "url", "filename", "mimetype", "width", "height", "createdat"}
+	ul4attrs = {"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"}
 
 	id = Attr(str, repr=True, ul4on=True)
 	url = Attr(str, ul4on=True)
@@ -601,14 +601,16 @@ class File(Base):
 	height = Attr(int, repr=True, ul4on=True)
 	internalid = Attr(str, ul4on=True)
 	createdat = Attr(datetime.datetime, ul4on=True)
+	size = Attr(int, ul4on=True)
 
-	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None, internalid=None, createdat=None):
+	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None, size=None, internalid=None, createdat=None):
 		self.id = id
 		self.url = url
 		self.filename = filename
 		self.mimetype = mimetype
 		self.width = width
 		self.height = height
+		self.size = size
 		self.internalid = internalid
 		self.createdat = createdat
 		self.handler = None
