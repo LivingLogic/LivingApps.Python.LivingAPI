@@ -184,7 +184,7 @@ class Attr:
 		allowed too.
 
 		:obj:`default` specifies the default value for the attribute (which is
-		used by :const:`None` is used as the value).
+		used if :const:`None` is used as the value).
 
 		:obj:`default_factotry` (if not :class:`None`) can be a callable that is
 		used instead of :obj:`default` to create a default value.
