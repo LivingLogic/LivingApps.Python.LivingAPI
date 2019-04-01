@@ -1989,21 +1989,40 @@ class DataSource(Base):
 	# Which fields of the app should be included (in ``controls`` and ``records``)?
 	includecontrols = IntEnumAttr(IncludeControls, required=True, default=IncludeControls.ALL, ul4on=True)
 
+	# Should the app include neither records nor control information, or just control information or both?
 	includerecords = IntEnumAttr(IncludeRecords, required=True, default=IncludeRecords.RECORDS, ul4on=True)
+
+	# Should the number of record by output in ``recordcount``?
 	includecount = BoolAttr(required=True, default=False, ul4on=True)
+
+	# Whose records should be output?
 	recordpermission = IntEnumAttr(RecordPermission, required=True, default=RecordPermission.ALL, ul4on=True)
+
+	# A vSQL expression for filtering when records to include
 	recordfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", ul4on=True)
+
+	# Include permisson information (ignored)
 	includepermissions = BoolAttr(required=True, default=False, ul4on=True)
+
+	# Include record attachments?
 	includeattachments = BoolAttr(required=True, default=False, ul4on=True)
+
+	# Include internal templates?
 	includetemplates = BoolAttr(required=True, default=False, ul4on=True)
+
+	# Include app parameter?
 	includeparams = BoolAttr(required=True, default=False, ul4on=True)
+
+	# Include views?
 	includeviews = BoolAttr(required=True, default=False, ul4on=True)
+
+	# Include navigation categories?
 	includecategories = IntEnumAttr(IncludeCategories, required=True, default=IncludeCategories.NO, ul4on=True)
 
-	# The sort expressions for sorting the records dict.
+	# The sort expressions for sorting the records dict
 	orders = Attr(ul4on=True)
 
-	# Children configuration for records that reference the record from this app.
+	# Children configuration for records that reference the record from this app
 	children = AttrDictAttr(required=True, ul4on=True)
 
 	def __init__(self, *args, identifier=None, app=None, includecloned=False, appfilter=None, includecontrols=None, includerecords=None, includecount=False, recordpermission=None, recordfilter=None, includepermissions=False, includeattachments=False, includetemplates=False, includeparams=False, includeviews=False, includecategories=None):
