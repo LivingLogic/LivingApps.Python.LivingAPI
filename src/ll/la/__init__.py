@@ -728,7 +728,7 @@ class Globals(Base):
 
 @register("app")
 class App(Base):
-	ul4attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "createdat", "createdby", "updatedat", "updatedby", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier", "basetable", "primarykey", "insertprocedure", "updateprocedure", "deleteprocedure", "templates", "insert", "internaltemplates", "viewtemplates"}
+	ul4attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "createdat", "createdby", "updatedat", "updatedby", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier", "basetable", "primarykey", "insertprocedure", "updateprocedure", "deleteprocedure", "templates", "insert", "internaltemplates", "viewtemplates", "dataactions"}
 
 	id = Attr(str, repr=True, ul4on=True)
 	globals = Attr(Globals, ul4on=True)
@@ -758,6 +758,7 @@ class App(Base):
 	updatedby = Attr(User, ul4on=True)
 	internaltemplates = AttrDictAttr(ul4on=True)
 	viewtemplates = AttrDictAttr(ul4on=True)
+	dataactions = AttrDictAttr(ul4on=True)
 
 	def __init__(self, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = None
@@ -788,6 +789,7 @@ class App(Base):
 		self.deleteprocedure = None
 		self.internaltemplates = None
 		self.viewtemplates = None
+		self.dataactions = None
 
 	def __str__(self):
 		return self.fullname
@@ -2199,6 +2201,248 @@ class DataOrder(Base):
 
 	def save(self, handler=None, recursive=True):
 		raise NotImplementedError("DataOrder objects can only be saved by their parent")
+
+
+@register("dataaction")
+class DataAction(Base):
+	ul4attrs = {
+		"id",
+		"app",
+		"identifier",
+		"name",
+		"order",
+		"active",
+		"icon",
+		"description",
+		"message",
+		"filter",
+		"commands",
+	}
+
+	id = Attr(str, repr=True, ul4on=True)
+	app = Attr(App, ul4on=True)
+	identifier = Attr(str, repr=True, ul4on=True)
+	name = Attr(str, repr=True, ul4on=True)
+	order = Attr(int, ul4on=True)
+	active = BoolAttr(ul4on=True)
+	icon = Attr(str, ul4on=True)
+	description = Attr(str, ul4on=True)
+	message = Attr(str, ul4on=True)
+	filter = VSQLAttr("vsqlsupport_pkg3.da_filter_ful4on", ul4on=True)
+	as_multiple_action = BoolAttr(required=True, default=False, ul4on=True)
+	as_single_action = BoolAttr(required=True, default=False, ul4on=True)
+	as_mail_link = BoolAttr(required=True, default=False, ul4on=True)
+	before_form = BoolAttr(required=True, default=False, ul4on=True)
+	after_update = BoolAttr(required=True, default=False, ul4on=True)
+	after_insert = BoolAttr(required=True, default=False, ul4on=True)
+	before_delete = BoolAttr(required=True, default=False, ul4on=True)
+
+	commands = Attr(ul4on=True)
+
+	def __init__(self, identifier=None, name=None, order=None, active=True, icon=None, description=None, filter=None, as_multiple_action=None, as_single_action=None, as_mail_link=None, before_form=None, after_update=None, after_insert=None, before_delete=None):
+		self.id = None
+		self.app = None
+		self.identifier = identifier
+		self.name = name
+		self.order = order
+		self.active = active
+		self.icon = icon
+		self.description = description
+		self.filter = filter
+		self.as_multiple_action = as_multiple_action
+		self.as_single_action = as_single_action
+		self.as_mail_link = as_mail_link
+		self.before_form = before_form
+		self.after_update = after_update
+		self.after_insert = after_insert
+		self.before_delete = before_delete
+		self.commands = []
+
+	def addcommand(self, *commands):
+		for command in commands:
+			command.parent = self
+			self.commands.append(command)
+
+
+class DataActionCommand(Base):
+	ul4attrs = {
+		"id",
+		"parent",
+		"condition",
+		"details",
+	}
+
+	id = Attr(str, repr=True, ul4on=True)
+	parent = Attr(ul4on=True)
+	condition = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", ul4on=True)
+	details = Attr(ul4on=True)
+
+	def __init__(self, condition=None):
+		self.id = None
+		self.parent = None
+		self.condition = condition
+		self.details = []
+
+
+@register("dataactioncommand_update")
+class DataActionCommandUpdate(DataActionCommand):
+	pass
+
+
+@register("dataactioncommand_task")
+class DataActionCommandTask(DataActionCommand):
+	pass
+
+
+@register("dataactioncommand_delete")
+class DataActionCommandDelete(DataActionCommand):
+	pass
+
+
+@register("dataactioncommand_onboarding")
+class DataActionCommandOnboarding(DataActionCommand):
+	pass
+
+
+@register("dataactioncommand_daterepeater")
+class DataActionCommandDateRepeater(DataActionCommand):
+	pass
+
+
+class DataActionCommandWithIdentifier(DataActionCommand):
+	ul4attrs = DataActionCommand.ul4attrs.union({
+		"app",
+		"identifier",
+		"children",
+	})
+
+	app = Attr(App, ul4on=True)
+	identifier = Attr(str, ul4on=True)
+	children = Attr(ul4on=True)
+
+	def __init__(self, condition=None, app=None, identifier=None):
+		super().__init__(condition)
+		self.app = app
+		self.identifier = identifier
+		self.children = []
+
+	def addcommand(self, *commands):
+		for command in commands:
+			command.parent = self
+			self.commands.append(command)
+
+
+@register("dataactioncommand_insert")
+class DataActionCommandInsert(DataActionCommandWithIdentifier):
+	pass
+
+
+@register("dataactioncommand_insertform")
+class DataActionCommandInsertForm(DataActionCommandWithIdentifier):
+	pass
+
+
+@register("dataactioncommand_insertformstatic")
+class DataActionCommandInsertFormStatic(DataActionCommandWithIdentifier):
+	pass
+
+
+@register("dataactioncommand_loop")
+class DataActionCommandLoop(DataActionCommandWithIdentifier):
+	pass
+
+
+@register("dataactiondetail")
+class DataActionDetail(Base):
+	ul4attrs = {
+		"id",
+		"control",
+		"type",
+		"children",
+	}
+
+	class Type(enum.Enum):
+		"""
+		The type of action for this field/parameter.
+
+		``SETNULL``
+			Set to ``None``;
+
+		``SETNOW``
+			Set to the current date/time (for ``date`` or ``datetime`` fields);
+
+		``SET``
+			Set to a constant (in :attr:`value`);
+
+		``ADD``
+			Add a constant to the curent value (in :attr:`value`);
+
+		``EXPR``
+			Set the field to the value of a vSQL expression (in :attr:`expression`);
+		"""
+
+		SETNULL = "setnull"
+		SETNOW = "setnow"
+		SET = "set"
+		ADD = "add"
+		EXPR = "expr"
+
+	class FormMode(enum.Enum):
+		"""
+		How to use the field in an interactive data action form.
+
+		``EDIT``
+			The value can be edited (the configured value is the default);
+
+		``DISABLE``
+			The value will be displayed, but can't be edited (the configured value
+			will be the field value);
+
+		``HIDE``
+			The value will not be dsiplayed and can't be edited (the configured
+			value will be the field value);
+		"""
+
+		EDIT = "edit"
+		DISABLE = "disable"
+		HIDE = "hide"
+
+	id = Attr(str, repr=True, ul4on=True)
+	control = Attr(Control, ul4on=True)
+	type = EnumAttr(Type, ul4on=True)
+	value = Attr(ul4on=True)
+	expression = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", ul4on=True)
+	formmode = EnumAttr(FormMode, ul4on=True)
+
+	class code(Attr):
+		repr = True
+		readonly = True
+
+		def repr_value(self, instance):
+			if instance.type is DataActionDetail.Type.SETNULL:
+				return f"(r.v_{instance.control.identifier} = None)"
+			elif instance.type is DataActionDetail.Type.SETNOW:
+				if instance.control.subtype == "date":
+					return f"(r.v_{instance.control.identifier} = today())"
+				else:
+					return f"(r.v_{instance.control.identifier} = now())"
+			elif instance.type is DataActionDetail.Type.SET:
+				return f"(r.v_{instance.control.identifier} = {instance.value!r})"
+			elif instance.type is DataActionDetail.Type.ADD:
+				return f"(r.v_{instance.control.identifier} += {instance.value!r})"
+			elif instance.type is DataActionDetail.Type.EXPR:
+				return f"(r.v_{instance.control.identifier} = {instance.expression})"
+			else:
+				return None
+
+
+	def __init__(self, type=None, value=None, formmode=None):
+		self.id = None
+		self.control = None
+		self.type = type
+		self.value = value
+		self.expression = None
+		self.formmode = None
 
 
 @register("installation")
