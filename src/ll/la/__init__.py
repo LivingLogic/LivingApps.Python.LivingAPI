@@ -1198,10 +1198,7 @@ class AppLookupControl(Control):
 
 	def _asjson(self, value):
 		if value is not None:
-			if value.id is None:
-				raise UnsavedError(value)
-			elif value._deleted:
-				raise DeletedError(value)
+			value.check_valid()
 			value = value.id
 		return value
 
@@ -1319,10 +1316,7 @@ class MultipleAppLookupControl(AppLookupControl):
 	def _asjson(self, value):
 		newvalue = []
 		for item in value:
-			if item.id is None:
-				raise UnsavedError(item)
-			elif item._deleted:
-				raise DeletedError(item)
+			item.check_valid()
 			newvalue.append(item.id)
 		return newvalue
 
@@ -1538,6 +1532,12 @@ class Record(Base):
 
 	def is_dirty(self):
 		return self.id is None or any(field._dirty for field in self.fields.values())
+
+	def check_valid(self):
+		if self.id is None:
+			raise UnsavedError(self)
+		elif self._deleted:
+			raise DeletedError(self)
 
 	def _gethandler(self, handler):
 		if handler is None:
