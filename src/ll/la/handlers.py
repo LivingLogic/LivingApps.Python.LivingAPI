@@ -803,7 +803,9 @@ class FileHandler(Handler):
 		self.basepath = basepath
 
 	def save_app(self, app, recursive=True):
-		# FIXME: Save the app itself
+		configcontrols = self._controls_as_config(app)
+		path = self.basepath/"index.json"
+		self._save(path, json.dumps(configcontrols, indent="\t", ensure_ascii=False))
 		if recursive:
 			if app.internaltemplates is not None:
 				for internaltemplate in app.internaltemplates.values():
@@ -889,6 +891,16 @@ class FileHandler(Handler):
 		ext = self._guessext(dir, internaltemplate)
 		path = pathlib.Path(dir, f"{internaltemplate.identifier}.{ext}")
 		self._save(path, internaltemplate.source)
+
+	def _controls_as_config(self, app):
+		configcontrols = {}
+		for control in app.controls.values():
+			# We don't have to include the identifier as this will be used as the key
+			configcontrol = {
+				"type": f"{control.type}/{control.subtype}" if control.subtype else control.type,
+			}
+			configcontrols[control.identifier] = configcontrol
+		return configcontrols
 
 	def _datasource_as_config(self, datasource):
 		configdatasource = {}
