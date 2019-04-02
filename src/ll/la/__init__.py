@@ -2356,6 +2356,7 @@ class DataActionCommandLoop(DataActionCommandWithIdentifier):
 class DataActionDetail(Base):
 	ul4attrs = {
 		"id",
+		"parent",
 		"control",
 		"type",
 		"children",
@@ -2408,6 +2409,7 @@ class DataActionDetail(Base):
 		HIDE = "hide"
 
 	id = Attr(str, repr=True, ul4on=True)
+	parent = Attr(DataActionCommand, ul4on=True)
 	control = Attr(Control, ul4on=True)
 	type = EnumAttr(Type, ul4on=True)
 	value = Attr(ul4on=True)
@@ -2437,6 +2439,7 @@ class DataActionDetail(Base):
 
 	def __init__(self, type=None, value=None, formmode=None):
 		self.id = None
+		self.parent = None
 		self.control = None
 		self.type = type
 		self.value = value
