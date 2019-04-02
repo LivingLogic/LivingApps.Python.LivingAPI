@@ -810,7 +810,43 @@ class FileHandler(Handler):
 	def __init__(self, basepath=None):
 		if basepath is None:
 			basepath = pathlib.Path()
-		self.basepath = basepath
+		self.basepath = pathlib.Path(basepath)
+
+	def meta_data(self, *appids):
+		apps = {}
+		for childpath in self.basepath.iterdir():
+			if childpath.is_dir() and childpath.name.endswith(")") and " (" in childpath.name:
+				pos = childpath.name.rfind(" (")
+				id = childpath.name[pos+2:-1]
+				name = childpath.name[:pos]
+				app = la.App(name=name)
+				app.id = id
+				self._loadcontrols(app)
+				self._loadinternaltemplates(app)
+				apps[app.id] = app
+		return apps
+
+	def _loadcontrols(self, app):
+		path = self.basepath/f"{app.name} ({app.id})/index.json"
+		if path.exists():
+			dump = json.loads(path.read_text(encoding="utf-8"))
+
+
+	def _loadinternaltemplates(self, app):
+		dir = self.basepath/f"{app.name} ({app.id})/internaltemplates"
+		if dir.exists():
+			for filepath in dir.iterdir():
+				identifier = filepath.with_suffix("").name
+				source = filepath.read_text(encoding="utf-8")
+				template = ul4c.Template(source, name=identifier)
+				internaltemplate = la.InternalTemplate(
+					identifier=identifier,
+					source=source,
+					signature=str(template.signature) if template.signature is not None else None,
+					whitespace=template.whitespace,
+					doc=template.doc
+				)
+				app.addtemplate(internaltemplate)
 
 	def save_app(self, app, recursive=True):
 		configcontrols = self._controls_as_config(app)
