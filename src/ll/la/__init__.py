@@ -2283,6 +2283,11 @@ class DataActionCommand(Base):
 		self.condition = condition
 		self.details = []
 
+	def adddetail(self, *details):
+		for detail in details:
+			detail.parent = self
+			self.details.append(detail)
+
 
 @register("dataactioncommand_update")
 class DataActionCommandUpdate(DataActionCommand):
