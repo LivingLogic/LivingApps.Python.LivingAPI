@@ -797,6 +797,16 @@ class HTTPHandler(Handler):
 
 
 class FileHandler(Handler):
+	controltypes = {}
+	for c in la.Control.__subclasses__():
+		if hasattr(c, "fulltype"):
+			controltypes[c.fulltype] = c
+		for c2 in c.__subclasses__():
+			if hasattr(c2, "fulltype"):
+				controltypes[c2.fulltype] = c2
+			del c2
+		del c
+
 	def __init__(self, basepath=None):
 		if basepath is None:
 			basepath = pathlib.Path()
