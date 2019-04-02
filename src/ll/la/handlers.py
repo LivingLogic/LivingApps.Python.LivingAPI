@@ -871,6 +871,14 @@ class FileHandler(Handler):
 		if value != attr.default:
 			if isinstance(attr, la.EnumAttr):
 				value = value.name.lower()
+			elif isinstance(value, la.LookupItem):
+				value = value.key
+			elif isinstance(value, datetime.date):
+				value = format(value, "%Y-%m-%d")
+			elif isinstance(value, datetime.datetime):
+				value = format(value, "%Y-%m-%d %H:%M:%S")
+			elif isinstance(value, la.Record):
+				value = value.id
 			config[name] = value
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
