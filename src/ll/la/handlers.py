@@ -958,7 +958,7 @@ class FileHandler(Handler):
 		# Only save a configuration if any of the values differs from the default
 		configpath = path.with_suffix(".json")
 		if config:
-			self._save(configpath, json.dumps(config, indent="\t"))
+			self._save(configpath, json.dumps(config, indent="\t", ensure_ascii=False))
 		else:
 			try:
 				configpath.unlink()
