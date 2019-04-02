@@ -811,6 +811,9 @@ class FileHandler(Handler):
 			if app.viewtemplates is not None:
 				for viewtemplate in app.viewtemplates.values():
 					self.save_viewtemplate(viewtemplate, recursive=recursive)
+			if app.dataactions is not None:
+				for dataaction in app.dataactions.values():
+					self.save_dataaction(dataaction)
 
 	def _save(self, path, content):
 		"""
@@ -964,3 +967,68 @@ class FileHandler(Handler):
 				configpath.unlink()
 			except FileNotFoundError:
 				pass
+
+	def save_dataaction(self, dataaction, recursive=True):
+		dir = f"{self.basepath}/{dataaction.app.fullname}/dataactions"
+		path = pathlib.Path(dir, f"{dataaction.identifier}.json")
+		config = self._dataaction_as_config(dataaction)
+		self._save(path, json.dumps(config, indent="\t", ensure_ascii=False))
+
+	def _dataaction_as_config(self, dataaction):
+		configdataaction = {}
+		self._dumpattr(configdataaction, dataaction, "name")
+		self._dumpattr(configdataaction, dataaction, "order")
+		self._dumpattr(configdataaction, dataaction, "active")
+		self._dumpattr(configdataaction, dataaction, "icon")
+		self._dumpattr(configdataaction, dataaction, "description")
+		self._dumpattr(configdataaction, dataaction, "message")
+		self._dumpattr(configdataaction, dataaction, "filter")
+		self._dumpattr(configdataaction, dataaction, "as_multiple_action")
+		self._dumpattr(configdataaction, dataaction, "as_single_action")
+		self._dumpattr(configdataaction, dataaction, "as_mail_link")
+		self._dumpattr(configdataaction, dataaction, "before_form")
+		self._dumpattr(configdataaction, dataaction, "after_update")
+		self._dumpattr(configdataaction, dataaction, "after_insert")
+
+		configcommands = [self._dataactioncommand_as_config(dac) for dac in dataaction.commands]
+		if configcommands:
+			configdataaction["commands"] = configcommands
+		# configdatasourcechildren = {}
+		# for datasourcechildren in datasource.children.values():
+		# 	configdatasourcechildren[datasourcechildren.identifier] = self._datasourcechildren_as_config(datasourcechildren)
+		# if configdatasourcechildren:
+		# 	configdatasource["children"] = configdatasourcechildren
+		return configdataaction
+
+	def _dataactioncommand_as_config(self, dataactioncommand):
+		configdataactioncommand = {}
+		type = dataactioncommand.ul4onname.rpartition("_")[-1]
+		configdataactioncommand["type"] = type
+		self._dumpattr(configdataactioncommand, dataactioncommand, "condition")
+		configdetails = [
+			self._dataactiondetail_as_config(d)
+			for d in dataactioncommand.details
+			if d.type
+		]
+		if configdetails:
+			configdataactioncommand["details"] = configdetails
+		if isinstance(dataactioncommand, la.DataActionCommandWithIdentifier):
+			configdataactioncommand["app"] = dataactioncommand.app.fullname
+			self._dumpattr(configdataactioncommand, dataactioncommand, "identifier")
+			configchildren = [
+				self._dataactioncommand_as_config(c)
+				for c in dataactioncommand.children
+			]
+			if configchildren:
+				dataactioncommand["children"] = configchildren
+
+		return configdataactioncommand
+
+	def _dataactiondetail_as_config(self, dataactiondetail):
+		configdataactiondetail = {}
+		configdataactiondetail["control"] = dataactiondetail.control.identifier
+		self._dumpattr(configdataactiondetail, dataactiondetail, "type")
+		self._dumpattr(configdataactiondetail, dataactiondetail, "value")
+		self._dumpattr(configdataactiondetail, dataactiondetail, "expression")
+		self._dumpattr(configdataactiondetail, dataactiondetail, "formmode")
+		return configdataactiondetail
