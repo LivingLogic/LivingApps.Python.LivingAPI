@@ -849,9 +849,19 @@ class App(Base):
 		else:
 			return self.id
 
+	def addcontrol(self, *controls):
+		"""
+		Add each control object in :obj:`controls` to :obj:`self`.
+		"""
+		if self.controls is None:
+			self.controls = attrdict()
+		for control in controls:
+			control.app = self
+			self.controls[control.identifier] = control
+
 	def addtemplate(self, *templates):
 		"""
-		Add each object in :obj:`templates` as a child for :obj:`self`.
+		Add each template in :obj:`templates` as a child for :obj:`self`.
 
 		This object may either be an :class:`Internaltemplate` (which will
 		get added to the attribute ``internaltemplates``) or a
