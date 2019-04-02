@@ -2435,7 +2435,6 @@ class DataActionDetail(Base):
 			else:
 				return None
 
-
 	def __init__(self, type=None, value=None, formmode=None):
 		self.id = None
 		self.control = None
