@@ -961,26 +961,31 @@ class StringControl(Control):
 @register("textcontrol")
 class TextControl(StringControl):
 	subtype = "text"
+	fulltype = f"{StringControl.type}/{subtype}"
 
 
 @register("urlcontrol")
 class URLControl(StringControl):
 	subtype = "url"
+	fulltype = f"{StringControl.type}/{subtype}"
 
 
 @register("emailcontrol")
 class EmailControl(StringControl):
 	subtype = "email"
+	fulltype = f"{StringControl.type}/{subtype}"
 
 
 @register("passwordcontrol")
 class PasswordControl(StringControl):
 	subtype = "password"
+	fulltype = f"{StringControl.type}/{subtype}"
 
 
 @register("telcontrol")
 class TelControl(StringControl):
 	subtype = "tel"
+	fulltype = f"{StringControl.type}/{subtype}"
 
 
 class EncryptionType(enum.IntEnum):
@@ -992,6 +997,8 @@ class EncryptionType(enum.IntEnum):
 @register("textareacontrol")
 class TextAreaControl(StringControl):
 	subtype = "textarea"
+	fulltype = f"{StringControl.type}/{subtype}"
+
 	ul4attrs = StringControl.ul4attrs.union({"encrypted"})
 
 	encrypted = IntEnumAttr(EncryptionType, default=EncryptionType.NONE, ul4on=True)
@@ -1000,6 +1007,7 @@ class TextAreaControl(StringControl):
 @register("intcontrol")
 class IntControl(Control):
 	type = "int"
+	fulltype = type
 
 	def _convertvalue(self, value):
 		error = None
@@ -1012,6 +1020,7 @@ class IntControl(Control):
 @register("numbercontrol")
 class NumberControl(Control):
 	type = "number"
+	fulltype = type
 
 	def _convertvalue(self, value):
 		error = None
@@ -1025,6 +1034,7 @@ class NumberControl(Control):
 class DateControl(Control):
 	type = "date"
 	subtype = "date"
+	fulltype = f"{type}/{subtype}"
 
 	def _convertvalue(self, value):
 		error = None
@@ -1046,6 +1056,7 @@ class DateControl(Control):
 @register("datetimeminutecontrol")
 class DatetimeMinuteControl(DateControl):
 	subtype = "datetimeminute"
+	fulltype = f"{DateControl.type}/{subtype}"
 
 	def _convertvalue(self, value):
 		error = None
@@ -1069,6 +1080,7 @@ class DatetimeMinuteControl(DateControl):
 @register("datetimesecondcontrol")
 class DatetimeSecondControl(DateControl):
 	subtype = "datetimesecond"
+	fulltype = f"{DateControl.type}/{subtype}"
 
 	def _convertvalue(self, value):
 		error = None
@@ -1094,6 +1106,7 @@ class DatetimeSecondControl(DateControl):
 @register("boolcontrol")
 class BoolControl(Control):
 	type = "bool"
+	fulltype = type
 
 	def _convertvalue(self, value):
 		error = None
@@ -1162,16 +1175,19 @@ class LookupControl(Control):
 @register("lookupselectcontrol")
 class LookupSelectControl(LookupControl):
 	subtype = "select"
+	fulltype = f"{LookupControl.type}/{subtype}"
 
 
 @register("lookupradiocontrol")
 class LookupRadioControl(LookupControl):
 	subtype = "radio"
+	fulltype = f"{LookupControl.type}/{subtype}"
 
 
 @register("lookupchoicecontrol")
 class LookupChoiceControl(LookupControl):
 	subtype = "choice"
+	fulltype = f"{LookupControl.type}/{subtype}"
 
 
 class AppLookupControl(Control):
@@ -1231,16 +1247,19 @@ class AppLookupControl(Control):
 @register("applookupselectcontrol")
 class AppLookupSelectControl(AppLookupControl):
 	subtype = "select"
+	fulltype = f"{AppLookupControl.type}/{subtype}"
 
 
 @register("applookupradiocontrol")
 class AppLookupRadioControl(AppLookupControl):
 	subtype = "radio"
+	fulltype = f"{AppLookupControl.type}/{subtype}"
 
 
 @register("applookupchoicecontrol")
 class AppLookupChoiceControl(AppLookupControl):
 	subtype = "choice"
+	fulltype = f"{AppLookupControl.type}/{subtype}"
 
 
 class MultipleLookupControl(LookupControl):
@@ -1282,16 +1301,19 @@ class MultipleLookupControl(LookupControl):
 @register("multiplelookupselectcontrol")
 class MultipleLookupSelectControl(MultipleLookupControl):
 	subtype = "select"
+	fulltype = f"{MultipleLookupControl}/{subtype}"
 
 
 @register("multiplelookupcheckboxcontrol")
 class MultipleLookupCheckboxControl(MultipleLookupControl):
 	subtype = "checkbox"
+	fulltype = f"{MultipleLookupControl}/{subtype}"
 
 
 @register("multiplelookupchoicecontrol")
 class MultipleLookupChoiceControl(MultipleLookupControl):
 	subtype = "choice"
+	fulltype = f"{MultipleLookupControl}/{subtype}"
 
 
 class MultipleAppLookupControl(AppLookupControl):
@@ -1338,21 +1360,25 @@ class MultipleAppLookupControl(AppLookupControl):
 @register("multipleapplookupselectcontrol")
 class MultipleAppLookupSelectControl(MultipleAppLookupControl):
 	subtype = "select"
+	fulltype = f"{MultipleAppLookupControl.type}/{subtype}"
 
 
 @register("multipleapplookupcheckboxcontrol")
 class MultipleAppLookupCheckboxControl(MultipleAppLookupControl):
 	subtype = "checkbox"
+	fulltype = f"{MultipleAppLookupControl.type}/{subtype}"
 
 
 @register("multipleapplookupchoicecontrol")
 class MultipleAppLookupChoiceControl(MultipleAppLookupControl):
 	subtype = "choice"
+	fulltype = f"{MultipleAppLookupControl.type}/{subtype}"
 
 
 @register("filecontrol")
 class FileControl(Control):
 	type = "file"
+	fulltype = type
 
 	def _convertvalue(self, value):
 		error = None
@@ -1377,6 +1403,7 @@ class FileControl(Control):
 @register("geocontrol")
 class GeoControl(Control):
 	type = "geo"
+	fulltype = type
 
 	def _convertvalue(self, value):
 		error = None
