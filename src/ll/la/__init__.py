@@ -699,13 +699,16 @@ class KeyView(Base):
 
 @register("globals")
 class Globals(Base):
-	ul4attrs = {"version", "platform", "user", "flashes", "geo"}
+	ul4attrs = {"version", "platform", "datasources", "user", "flashes", "lang", "geo"}
 
 	version = Attr(str, repr=True, ul4on=True)
 	platform = Attr(str, repr=True, ul4on=True)
 	user = Attr(User, ul4on=True)
 	maxdbactions = Attr(int, ul4on=True)
 	maxtemplateruntime = Attr(int, ul4on=True)
+	flashes = Attr(ul4on=True)
+	lang = Attr(str, repr=True, ul4on=True)
+	datasources = AttrDictAttr(ul4on=True)
 
 	class flashes(Attr):
 		ul4on = True
@@ -716,10 +719,12 @@ class Globals(Base):
 	def __init__(self, version=None, platform=None):
 		self.version = version
 		self.platform = platform
+		self.datasources = None
 		self.user = None
 		self.maxdbactions = None
 		self.maxtemplateruntime = None
 		self.flashes = []
+		self.lang = None
 		self.handler = None
 
 	def geo(self, lat=None, long=None, info=None):
