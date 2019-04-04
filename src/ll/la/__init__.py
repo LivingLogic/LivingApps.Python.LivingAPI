@@ -719,7 +719,7 @@ class Globals(Base):
 	def __init__(self, version=None, platform=None):
 		self.version = version
 		self.platform = platform
-		self.datasources = None
+		self.datasources = attrdict()
 		self.user = None
 		self.maxdbactions = None
 		self.maxtemplateruntime = None
