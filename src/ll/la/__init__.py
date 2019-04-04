@@ -730,6 +730,36 @@ class Globals(Base):
 	def geo(self, lat=None, long=None, info=None):
 		return self.handler.geo(lat, long, info)
 
+	def __getattr__(self, name):
+		try:
+			if name.startswith("d_"):
+				return self.datasources[name[2:]]
+		except KeyError:
+			pass
+		raise AttributeError(name) from None
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		if seld.datasources:
+			attrs |= {f"c_{identifier}" for identifier in self.datasources}
+		return attrs
+
+	def ul4getattr(self, name):
+		if self.ul4hasattr(name):
+			return getattr(self, name)
+		raise AttributeError(name) from None
+
+	def ul4hasattr(self, name):
+		if name in self.ul4attrs:
+			return True
+		elif name.startswith("d_") and name[2:] in self.datasources:
+			return True
+		else:
+			return False
+
 
 @register("app")
 class App(Base):
