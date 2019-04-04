@@ -489,6 +489,41 @@ def test_livingapi_user(handler):
 	assert f" email='{u}'" in handler.renders(person_app_id, template=vt.identifier)
 
 
+def test_livingapi_global_datasources(handler, config_apps):
+	"""
+	Check that ``globals.datasources`` works.
+	"""
+	c = config_apps
+
+	# Check that the logged in user is the user we've used to log in
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+		),
+		la.DataSource(
+			identifier="fieldsofactivity",
+			app=c.apps.fields,
+		),
+		identifier="livingapi_global_datasources",
+		source="""
+			<?whitespace strip?>
+			<?print len(globals.datasources)?>
+			;
+			<?print "persons" in globals.datasources?>
+			;
+			<?print "fieldsofactivity" in globals.datasources?>
+			;
+			<?print globals.d_persons.app.id?>
+			;
+			<?print globals.d_fieldsofactivity.app.id?>
+		""",
+	)
+
+	output = handler.renders(person_app_id, template=vt.identifier)
+	assert f"2;True;True;{person_app_id};{fields_app_id}" == output
+
+
 def test_livingapi_app_attributes(handler):
 	"""
 	Check that ``app`` is the correct one.
