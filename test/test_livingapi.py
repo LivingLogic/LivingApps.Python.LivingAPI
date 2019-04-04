@@ -1096,7 +1096,7 @@ def test_vsql_datasource_appfilter(config_persons):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="all",
-			appfilter=f"a.id == '{person_app_id}'"
+			appfilter=f"a.uuid == '{person_app_id}'"
 		),
 		identifier="vsql_datasource_appfilter",
 		source=source,
