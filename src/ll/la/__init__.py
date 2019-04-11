@@ -897,6 +897,7 @@ class App(Base):
 		self.insertprocedure = None
 		self.updateprocedure = None
 		self.deleteprocedure = None
+		self.templates = None
 		self.internaltemplates = None
 		self.viewtemplates = None
 		self.dataactions = None
