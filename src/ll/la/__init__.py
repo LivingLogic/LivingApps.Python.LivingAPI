@@ -862,7 +862,7 @@ class App(Base):
 	insertprocedure = Attr(str, ul4on=True)
 	updateprocedure = Attr(str, ul4on=True)
 	deleteprocedure = Attr(str, ul4on=True)
-	templates = BoolAttr(ul4on=True)
+	templates = AttrDictAttr(ul4on=True)
 	createdat = Attr(datetime.datetime, ul4on=True)
 	updatedat = Attr(datetime.datetime, ul4on=True)
 	updatedby = Attr(User, ul4on=True)
