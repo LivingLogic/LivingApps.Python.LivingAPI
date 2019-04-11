@@ -754,6 +754,16 @@ class Globals(Base):
 			return getattr(self, name)
 		raise AttributeError(name) from None
 
+	def ul4setattr(self, name, value):
+		if name == "lang":
+			if value is not None and not isinstance(value, str):
+				raise TypeError(f"attribute {name} does not support type {misc.format_class(value)}")
+			self.lang = value
+		elif self.ul4hasattr(name):
+			raise TypeError(f"Attribute {misc.format_class(self)}.{name} is read only")
+		else:
+			raise AttributeError(name)
+
 	def ul4hasattr(self, name):
 		if name in self.ul4attrs:
 			return True
