@@ -357,6 +357,7 @@ def config_persons(config_fields):
 		date_of_birth=datetime.date(1879, 3, 14),
 		date_of_death=datetime.date(1955, 4, 15),
 		grave=g(40.216085, -74.7917151),
+		url="https://de.wikipedia.org/wiki/Albert_Einstein",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Einstein_1921_portrait2.jpg/330px-Einstein_1921_portrait2.jpg"),
 	)
 
@@ -368,6 +369,7 @@ def config_persons(config_fields):
 		date_of_birth=datetime.date(1867, 11, 7),
 		date_of_death=datetime.date(1934, 7, 4),
 		grave=g(48.84672, 2.34631),
+		url="https://de.wikipedia.org/wiki/Marie_Curie",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
 	)
 
@@ -379,6 +381,7 @@ def config_persons(config_fields):
 		date_of_birth=datetime.date(1942, 1, 17),
 		date_of_death=datetime.date(2016, 6, 3),
 		grave=g(38.2454051, -85.7170115),
+		url="https://de.wikipedia.org/wiki/Muhammad_Ali",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Muhammad_Ali_NYWTS.jpg/200px-Muhammad_Ali_NYWTS.jpg"),
 	)
 
@@ -390,6 +393,7 @@ def config_persons(config_fields):
 		date_of_birth=datetime.date(1926, 6, 1),
 		date_of_death=datetime.date(1962, 8, 4),
 		grave=g(34.05827, -118.44096),
+		url="https://de.wikipedia.org/wiki/Marilyn_Monroe",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg/220px-Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg"),
 	)
 
@@ -401,6 +405,7 @@ def config_persons(config_fields):
 		date_of_birth=datetime.date(1935, 1, 8),
 		date_of_death=datetime.date(1977, 8, 16),
 		grave=g(35.04522870295311, -90.02283096313477),
+		url="https://de.wikipedia.org/wiki/Elvis_Presley",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
 	)
 
@@ -412,6 +417,7 @@ def config_persons(config_fields):
 		date_of_birth=datetime.date(1826, 6, 17),
 		date_of_death=datetime.date(1866, 6, 20),
 		grave=g(45.942127, 8.5870263),
+		url="https://de.wikipedia.org/wiki/Bernhard_Riemann",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/BernhardRiemannAWeger.jpg/330px-BernhardRiemannAWeger.jpg"),
 	)
 
@@ -423,6 +429,7 @@ def config_persons(config_fields):
 		date_of_birth=datetime.date(1777, 4, 30),
 		date_of_death=datetime.date(1855, 2, 23),
 		grave=g(51.53157404627684, 9.94189739227295),
+		url="https://de.wikipedia.org/wiki/Carl_Friedrich_Gau%C3%9F",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carl_Friedrich_Gauss.jpg/255px-Carl_Friedrich_Gauss.jpg"),
 	)
 
@@ -432,6 +439,7 @@ def config_persons(config_fields):
 		sex=personen_app.c_sex.lookupdata.male,
 		field_of_activity=[c.areas.computerscience],
 		date_of_birth=datetime.date(1938, 1, 10),
+		url="https://de.wikipedia.org/wiki/Donald_E._Knuth",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/KnuthAtOpenContentAlliance.jpg/255px-KnuthAtOpenContentAlliance.jpg"),
 	)
 
@@ -443,6 +451,7 @@ def config_persons(config_fields):
 		date_of_birth=datetime.date(1911, 2, 6),
 		date_of_death=datetime.date(2004, 6, 5),
 		grave=g(34.2590025, -118.8226249),
+		url="https://de.wikipedia.org/wiki/Ronald_Reagan",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
 	)
 
