@@ -699,7 +699,23 @@ class KeyView(Base):
 
 @register("globals")
 class Globals(Base):
-	ul4attrs = {"version", "platform", "datasources", "user", "flashes", "lang", "templates", "request", "response", "geo"}
+	ul4attrs = {
+		"version",
+		"platform",
+		"datasources",
+		"user",
+		"flashes",
+		"log_debug",
+		"log_info",
+		"log_notice",
+		"log_warning",
+		"log_error",
+		"lang",
+		"templates",
+		"request",
+		"response",
+		"geo",
+	}
 
 	version = Attr(str, repr=True, ul4on=True)
 	platform = Attr(str, repr=True, ul4on=True)
@@ -732,6 +748,21 @@ class Globals(Base):
 
 	def geo(self, lat=None, long=None, info=None):
 		return self.handler.geo(lat, long, info)
+
+	def log_debug(self, *args):
+		pass
+
+	def log_info(self, *args):
+		pass
+
+	def log_notice(self, *args):
+		pass
+
+	def log_warning(self, *args):
+		pass
+
+	def log_error(self, *args):
+		pass
 
 	def __getattr__(self, name):
 		try:
