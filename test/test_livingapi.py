@@ -258,7 +258,7 @@ def config_norecords(config_apps):
 			identifier=identifier,
 		)
 	)
-	c.apps.persons.save(c.handler)
+	c.apps.persons.viewtemplates.makerecords.save(c.handler)
 
 	c.handler.commit()
 
