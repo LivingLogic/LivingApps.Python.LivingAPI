@@ -699,7 +699,7 @@ class KeyView(Base):
 
 @register("globals")
 class Globals(Base):
-	ul4attrs = {"version", "platform", "datasources", "user", "flashes", "lang", "geo"}
+	ul4attrs = {"version", "platform", "datasources", "user", "flashes", "lang", "request", "response", "geo"}
 
 	version = Attr(str, repr=True, ul4on=True)
 	platform = Attr(str, repr=True, ul4on=True)
@@ -726,6 +726,8 @@ class Globals(Base):
 		self.flashes = []
 		self.lang = None
 		self.handler = None
+		self.request = None
+		self.response = None
 
 	def geo(self, lat=None, long=None, info=None):
 		return self.handler.geo(lat, long, info)
