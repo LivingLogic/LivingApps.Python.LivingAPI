@@ -738,7 +738,7 @@ class Globals(Base):
 				return self.datasources[name[2:]]
 		except KeyError:
 			pass
-		raise AttributeError(name) from None
+		raise AttributeError(name)
 
 	def __dir__(self):
 		"""
