@@ -807,7 +807,38 @@ class Globals(Base):
 
 @register("app")
 class App(Base):
-	ul4attrs = {"id", "globals", "name", "description", "language", "startlink", "iconlarge", "iconsmall", "createdat", "createdby", "updatedat", "updatedby", "controls", "records", "recordcount", "installation", "categories", "params", "views", "datamanagement_identifier", "basetable", "primarykey", "insertprocedure", "updateprocedure", "deleteprocedure", "templates", "insert", "internaltemplates", "viewtemplates", "dataactions"}
+	ul4attrs = {
+		"id",
+		"globals",
+		"name",
+		"description",
+		"language",
+		"startlink",
+		"iconlarge",
+		"iconsmall",
+		"createdat",
+		"createdby",
+		"updatedat",
+		"updatedby",
+		"controls",
+		"records",
+		"recordcount",
+		"installation",
+		"categories",
+		"params",
+		"views",
+		"datamanagement_identifier",
+		"basetable",
+		"primarykey",
+		"insertprocedure",
+		"updateprocedure",
+		"deleteprocedure",
+		"templates",
+		"insert",
+		"internaltemplates",
+		"viewtemplates",
+		"dataactions",
+	}
 
 	id = Attr(str, repr=True, ul4on=True)
 	globals = Attr(Globals, ul4on=True)
