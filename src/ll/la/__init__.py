@@ -909,6 +909,8 @@ class App(Base):
 		try:
 			if name.startswith("c_"):
 				return self.controls[name[2:]]
+			elif name.startswith("t_") and self.templates:
+				return self.templates[name[2:]]
 			elif name.startswith("p_") and self.params:
 				return self.params[name[2:]]
 		except KeyError:
@@ -923,6 +925,8 @@ class App(Base):
 		attrs |= {f"c_{identifier}" for identifier in self.controls}
 		if self.params:
 			attrs |= {f"p_{identifier}" for identifier in self.params}
+		if self.templates:
+			attrs |= {f"t_{identifier}" for identifier in self.templates}
 		return attrs
 
 	def ul4getattr(self, name):
@@ -936,6 +940,8 @@ class App(Base):
 		elif name.startswith("c_") and name[2:] in self.controls:
 			return True
 		elif name.startswith("p_") and self.params and name[2:] in self.params:
+			return True
+		elif name.startswith("t_") and self.templates and name[2:] in self.templates:
 			return True
 		else:
 			return False
