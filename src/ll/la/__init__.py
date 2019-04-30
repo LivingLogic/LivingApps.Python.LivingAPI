@@ -1731,7 +1731,7 @@ class Record(Base):
 
 
 class Field:
-	ul4attrs = {"control", "record", "value", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
+	ul4attrs = {"control", "record", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
 
 	def __init__(self, control, record, value):
 		self.control = control
