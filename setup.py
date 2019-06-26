@@ -53,8 +53,8 @@ description = re.subn(":[a-z]+:`~?([-a-zA-Z0-9_./]+)`", "``\\1``", description)[
 description = description.expandtabs(2)
 
 args = dict(
-	name="ll.la",
-	version="0.8.2",
+	name="ll-la",
+	version="0.9",
 	description="Python API for LivingApps",
 	long_description=description,
 	author="Walter Doerwald",
