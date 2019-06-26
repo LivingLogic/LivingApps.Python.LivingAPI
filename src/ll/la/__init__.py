@@ -765,11 +765,16 @@ class Globals(Base):
 		pass
 
 	def __getattr__(self, name):
-		try:
-			if name.startswith("d_"):
+		if self.datasources and name.startswith("d_"):
+			try:
 				return self.datasources[name[2:]]
-		except KeyError:
-			pass
+			except KeyError:
+				pass
+		elif self.templates and name.startswith("t_"):
+			try:
+				return self.templates[name[2:]]
+			except KeyError:
+				pass
 		raise AttributeError(name)
 
 	def __dir__(self):
@@ -777,8 +782,12 @@ class Globals(Base):
 		Make keys completeable in IPython.
 		"""
 		attrs = set(super().__dir__())
-		if seld.datasources:
-			attrs |= {f"c_{identifier}" for identifier in self.datasources}
+		if self.datasources:
+			for identifier in self.datasources:
+				attrs.add(f"d_{identifier}")
+		if self.templates:
+			for identifier in self.templates:
+				attrs.add(f"t_{identifier}")
 		return attrs
 
 	def ul4getattr(self, name):
@@ -789,7 +798,7 @@ class Globals(Base):
 	def ul4setattr(self, name, value):
 		if name == "lang":
 			if value is not None and not isinstance(value, str):
-				raise TypeError(f"attribute {name} does not support type {misc.format_class(value)}")
+				raise TypeError(f"Attribute {misc.format_class(self)}.{name} does not support type {misc.format_class(value)}")
 			self.lang = value
 		elif self.ul4hasattr(name):
 			raise TypeError(f"Attribute {misc.format_class(self)}.{name} is read only")
@@ -799,7 +808,9 @@ class Globals(Base):
 	def ul4hasattr(self, name):
 		if name in self.ul4attrs:
 			return True
-		elif name.startswith("d_") and name[2:] in self.datasources:
+		elif self.datasources and name.startswith("d_") and name[2:] in self.datasources:
+			return True
+		elif self.templates and name.startswith("t_") and name[2:] in self.templates:
 			return True
 		else:
 			return False
@@ -922,11 +933,14 @@ class App(Base):
 		Make keys completeable in IPython.
 		"""
 		attrs = set(super().__dir__())
-		attrs |= {f"c_{identifier}" for identifier in self.controls}
+		for identifier in self.controls:
+			attrs.add(f"c_{identifier}")
 		if self.params:
-			attrs |= {f"p_{identifier}" for identifier in self.params}
+			for identifier in self.params:
+				attrs.add(f"p_{identifier}")
 		if self.templates:
-			attrs |= {f"t_{identifier}" for identifier in self.templates}
+			for identifier in self.templates:
+				attrs.add(f"t_{identifier}")
 		return attrs
 
 	def ul4getattr(self, name):

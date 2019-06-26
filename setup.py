@@ -8,8 +8,15 @@ import setuptools
 
 
 DESCRIPTION = """
-:mod:`ll.la` is a Python module for accessing data from LivingApps
-(http://www.living-apps.de/)
+:mod:`ll.la` provides a Python API for the LivingApps system
+(see http://www.living-apps.de/ or http://www.living-apps.com/ for more info).
+
+:mod:`ll.la` allows you to fetch the configured data sources from a template,
+create new records, and update and delete existing records all from your Python
+prompt (or script).
+
+For more info about LivingApps and this Python SDK, see
+https://my.living-apps.de/docs/PythonSDK.html (in german).
 """
 
 CLASSIFIERS = """
@@ -30,14 +37,14 @@ LivingApps
 """
 
 try:
-	news = list(open("docs/NEWS.rst", "r", encoding="utf-8"))
+	news = list(open("CHANGELOG.rst", "r", encoding="utf-8"))
 except IOError:
 	description = DESCRIPTION.strip()
 else:
 	# Extract the first section (which are the changes for the current version)
 	underlines = [i for (i, line) in enumerate(news) if line.startswith("---")]
 	news = news[underlines[0]-1:underlines[1]-1]
-	description = "{DESCRIPTION.strip()}\n\n\n{}".format("".join(news))
+	description = f"{DESCRIPTION.strip()}\n\n\n{{}}".format("".join(news))
 
 # Get rid of text roles PyPI doesn't know about
 description = re.subn(":[a-z]+:`~?([-a-zA-Z0-9_./]+)`", "``\\1``", description)[0]
@@ -46,8 +53,8 @@ description = re.subn(":[a-z]+:`~?([-a-zA-Z0-9_./]+)`", "``\\1``", description)[
 description = description.expandtabs(2)
 
 args = dict(
-	name="ll.la",
-	version="0.8.2",
+	name="ll-la",
+	version="0.9",
 	description="Python API for LivingApps",
 	long_description=description,
 	author="Walter Doerwald",
@@ -60,8 +67,8 @@ args = dict(
 	package_dir={"": "src"},
 	packages=["ll.la"],
 	install_requires=[
-		"ll-xist >= 5.31",
-		"requests >= 2.18.4",
+		"ll-xist >= 5.45",
+		"requests >= 2.21.0",
 		"geocoder >= 1.30.1"
 	],
 	zip_safe=False,
