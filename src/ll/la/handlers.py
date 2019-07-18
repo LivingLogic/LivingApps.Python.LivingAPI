@@ -127,6 +127,8 @@ class Handler:
 			stream = source
 		if mimetype is None:
 			mimetype = mimetypes.guess_type(filename, strict=False)[0]
+			if mimetype is None:
+				mimetype = "application/octet-stream"
 		file = la.File(filename=filename, mimetype=mimetype)
 		if file.mimetype.startswith("image/"):
 			from PIL import Image # This requires :mod:`Pillow`, which you can install with ``pip install pillow``
