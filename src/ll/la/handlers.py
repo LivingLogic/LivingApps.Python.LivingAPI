@@ -705,6 +705,7 @@ class HTTPHandler(Handler):
 			self.url.rstrip("/") + file.url,
 			**kwargs,
 		)
+		r.raise_for_status()
 		return r.content
 
 	def viewtemplate_data(self, *path, **params):
