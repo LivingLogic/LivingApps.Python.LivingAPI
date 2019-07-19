@@ -1520,7 +1520,9 @@ class FileControl(Control):
 
 	def _asjson(self, value):
 		if value is not None:
-			raise NotImplementedError
+			if value.internalid is None:
+				raise UnsavedError(value)
+			value = value.internalid
 		return value
 
 	def _asdbarg(self, value):
