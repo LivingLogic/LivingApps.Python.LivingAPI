@@ -1,3 +1,11 @@
+0.10 (2019-07-24)
+-----------------
+
+* Added support for saving uploads via the ``HTTPHandler``.
+
+* Added support for the attribute ``Globals.hostname``.
+
+
 0.9 (2019-06-26)
 ----------------
 

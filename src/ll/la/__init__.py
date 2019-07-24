@@ -701,6 +701,7 @@ class KeyView(Base):
 class Globals(Base):
 	ul4attrs = {
 		"version",
+		"hostname",
 		"platform",
 		"datasources",
 		"user",
@@ -725,6 +726,7 @@ class Globals(Base):
 	flashes = Attr(ul4on=True)
 	lang = Attr(str, repr=True, ul4on=True)
 	datasources = AttrDictAttr(ul4on=True)
+	hostname = Attr(str, repr=True, ul4on=True)
 
 	class flashes(Attr):
 		ul4on = True
@@ -732,8 +734,9 @@ class Globals(Base):
 		def ul4on_set_default_value(self, instance):
 			instance.flashes = []
 
-	def __init__(self, version=None, platform=None):
+	def __init__(self, version=None, hostname=None, platform=None):
 		self.version = version
+		self.hostname = hostname
 		self.platform = platform
 		self.datasources = attrdict()
 		self.user = None
