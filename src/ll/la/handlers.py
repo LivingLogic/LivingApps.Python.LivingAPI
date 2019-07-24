@@ -127,6 +127,8 @@ class Handler:
 			stream = source
 		if mimetype is None:
 			mimetype = mimetypes.guess_type(filename, strict=False)[0]
+			if mimetype is None:
+				mimetype = "application/octet-stream"
 		file = la.File(filename=filename, mimetype=mimetype)
 		if file.mimetype.startswith("image/"):
 			from PIL import Image # This requires :mod:`Pillow`, which you can install with ``pip install pillow``
@@ -696,6 +698,31 @@ class HTTPHandler(Handler):
 				kwargs["headers"] = {}
 			kwargs["headers"]["X-La-Auth-Token"] = self.auth_token
 
+	def save_file(self, file):
+		if file.internalid is None:
+			if file._content is None:
+				raise ValueError(f"Can't save {file!r} without content!")
+			kwargs = {
+				"files": {
+					"files[]": (file.filename, file._content),
+				},
+			}
+			self._add_auth_token(kwargs)
+			r = self.session.post(
+				self.url.rstrip("/") + "/gateway/upload/tempfiles",
+				**kwargs,
+			)
+			r.raise_for_status()
+			result = r.json()[0]
+			file.name = result["orgname"]
+			file.id = result["upr_id"]
+			file.width = result["width"]
+			file.height = result["height"]
+			file.size = result["size"]
+			file.mimetype = result["mimetype"]
+			file.internalid = result["upl_id"]
+			file.url = f"/gateway/files/{file.id}"
+
 	def file_content(self, file):
 		kwargs = {}
 		self._add_auth_token(kwargs)
@@ -703,6 +730,7 @@ class HTTPHandler(Handler):
 			self.url.rstrip("/") + file.url,
 			**kwargs,
 		)
+		r.raise_for_status()
 		return r.content
 
 	def viewtemplate_data(self, *path, **params):

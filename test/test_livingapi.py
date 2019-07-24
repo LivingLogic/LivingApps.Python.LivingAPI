@@ -34,8 +34,12 @@ def uploaddir():
 	return os.environ["LA_LIVINGAPI_TEST_UPLOADDIR"]
 
 
+def hostname():
+	return os.environ["LA_LIVINGAPI_TEST_HOSTNAME"]
+
+
 def url():
-	return os.environ["LA_LIVINGAPI_TEST_URL"]
+	return f"https://{hostname()}/"
 
 
 def user():
@@ -496,6 +500,24 @@ def test_livingapi_user(handler):
 	)
 
 	assert f" email='{u}'" in handler.renders(person_app_id, template=vt.identifier)
+
+
+def test_livingapi_global_hostname(handler):
+	"""
+	Check that ``globals.hostname`` works.
+	"""
+
+	# Check that ``globals.hostname`` is the host we're talking to.
+	vt = handler.make_viewtemplate(
+		identifier="livingapi_global_hostname",
+		source="""
+			<?whitespace strip?>
+			<?print repr(globals.hostname)?>
+		""",
+	)
+
+	output = handler.renders(person_app_id, template=vt.identifier)
+	assert repr(hostname()) == output
 
 
 def test_livingapi_global_datasources(handler, config_apps):

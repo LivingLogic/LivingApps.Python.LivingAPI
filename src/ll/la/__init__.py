@@ -12,7 +12,7 @@
 See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 """
 
-import datetime, operator, string, enum, json, pathlib, inspect
+import datetime, operator, string, json, pathlib, inspect
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
@@ -567,7 +567,7 @@ class Base(metaclass=BaseMetaClass):
 class FlashMessage(Base):
 	ul4attrs = {"timestamp", "type", "title", "message"}
 
-	class Type(enum.Enum):
+	class Type(misc.Enum):
 		"""
 		The severity level of a :class:`FlashMessage`.
 		"""
@@ -701,6 +701,7 @@ class KeyView(Base):
 class Globals(Base):
 	ul4attrs = {
 		"version",
+		"hostname",
 		"platform",
 		"datasources",
 		"user",
@@ -725,6 +726,7 @@ class Globals(Base):
 	flashes = Attr(ul4on=True)
 	lang = Attr(str, repr=True, ul4on=True)
 	datasources = AttrDictAttr(ul4on=True)
+	hostname = Attr(str, repr=True, ul4on=True)
 
 	class flashes(Attr):
 		ul4on = True
@@ -732,8 +734,9 @@ class Globals(Base):
 		def ul4on_set_default_value(self, instance):
 			instance.flashes = []
 
-	def __init__(self, version=None, platform=None):
+	def __init__(self, version=None, hostname=None, platform=None):
 		self.version = version
+		self.hostname = hostname
 		self.platform = platform
 		self.datasources = attrdict()
 		self.user = None
@@ -1119,7 +1122,7 @@ class TelControl(StringControl):
 	fulltype = f"{StringControl.type}/{subtype}"
 
 
-class EncryptionType(enum.IntEnum):
+class EncryptionType(misc.IntEnum):
 	NONE = 0
 	FORCE = 1
 	OPTIONAL = 2
@@ -1520,7 +1523,9 @@ class FileControl(Control):
 
 	def _asjson(self, value):
 		if value is not None:
-			raise NotImplementedError
+			if value.internalid is None:
+				raise UnsavedError(value)
+			value = value.internalid
 		return value
 
 	def _asdbarg(self, value):
@@ -1969,7 +1974,7 @@ class InternalTemplate(Template):
 
 @register("viewtemplate")
 class ViewTemplate(Template):
-	class Type(enum.Enum):
+	class Type(misc.Enum):
 		"""
 		The type of a view template.
 
@@ -2013,7 +2018,7 @@ class ViewTemplate(Template):
 		DETAILRESULT = "detailresult"
 		SUPPORT = "support"
 
-	class Permission(enum.IntEnum):
+	class Permission(misc.IntEnum):
 		ALL = 0
 		LOGGEDIN = 1
 		APP = 2
@@ -2069,7 +2074,7 @@ class ViewTemplate(Template):
 class DataSource(Base):
 	ul4attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includetemplates", "includeparams", "includeviews", "includecategories", "orders", "children"}
 
-	class IncludeControls(enum.IntEnum):
+	class IncludeControls(misc.IntEnum):
 		"""
 		Specify which controls should be included in the app and the records.
 
@@ -2089,7 +2094,7 @@ class DataSource(Base):
 		PRIORITY = 1
 		ALL = 2
 
-	class IncludeRecords(enum.IntEnum):
+	class IncludeRecords(misc.IntEnum):
 		"""
 		Specify wether controls and/or records should be included in the :class:`App` object.
 
@@ -2109,13 +2114,13 @@ class DataSource(Base):
 		CONTROLS = 1
 		RECORDS = 2
 
-	class RecordPermission(enum.IntEnum):
+	class RecordPermission(misc.IntEnum):
 		NONE = -1
 		CREATED = 0
 		OWNED = 1
 		ALL = 2
 
-	class IncludeCategories(enum.IntEnum):
+	class IncludeCategories(misc.IntEnum):
 		"""
 		Specify how much information about app categories should be included in the :class:`App` object.
 
@@ -2309,7 +2314,7 @@ class DataSourceChildren(Base):
 class DataOrder(Base):
 	ul4attrs = {"id", "parent", "expression", "direction", "nulls"}
 
-	class Direction(enum.Enum):
+	class Direction(misc.Enum):
 		"""
 		The sort direction.
 
@@ -2323,7 +2328,7 @@ class DataOrder(Base):
 		ASC = "asc"
 		DESC = "desc"
 
-	class Nulls(enum.Enum):
+	class Nulls(misc.Enum):
 		"""
 		Specify where to sort null values.
 
@@ -2535,7 +2540,7 @@ class DataActionDetail(Base):
 		"children",
 	}
 
-	class Type(enum.Enum):
+	class Type(misc.Enum):
 		"""
 		The type of action for this field/parameter.
 
@@ -2561,7 +2566,7 @@ class DataActionDetail(Base):
 		ADD = "add"
 		EXPR = "expr"
 
-	class FormMode(enum.Enum):
+	class FormMode(misc.Enum):
 		"""
 		How to use the field in an interactive data action form.
 
