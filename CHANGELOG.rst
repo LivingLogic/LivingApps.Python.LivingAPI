@@ -1,3 +1,13 @@
+HEAD (2019-08-??)
+-----------------
+
+*	The ``HTTPHandler`` now delays logging into LivingApps until the first real
+	request. Furthermore it automatically appends ``gateway/`` to the base URL
+	and omits that part when constructing request URLs. The result of that it
+	that it's possible to replace to base URL with something else after the
+	``HTTPHandler`` has been created and before the first request is made.
+
+
 0.10 (2019-07-24)
 -----------------
 

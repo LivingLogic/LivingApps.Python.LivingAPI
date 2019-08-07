@@ -667,32 +667,38 @@ class HTTPHandler(Handler):
 		super().__init__()
 		if not url.endswith("/"):
 			url += "/"
+		url += "gateway/"
 		self.url = url
 		self.username = username
+		self.password = password
 
-		self.session = requests.Session()
+		self.session = None
 
 		self.auth_token = None
-
-		# If :obj:`username` or :obj:`password` are not given, we don't log in
-		# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
-		if username is not None and password is not None:
-			# Login to the LivingApps installation and store the auth token we get
-			r = self.session.post(
-				f"{self.url}gateway/login",
-				data=json.dumps({"username": username, "password": password}),
-				headers={"Content-Type": "application/json"},
-			)
-			result = r.json()
-			if result.get("status") == "success":
-				self.auth_token = result["auth_token"]
-			else:
-				raise_403(r)
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} url={self.url!r} username={self.username!r} at {id(self):#x}>"
 
+	def _login(self):
+		if self.session is None:
+			self.session = requests.Session()
+			# If :obj:`username` or :obj:`password` are not given, we don't log in
+			# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
+			if self.username is not None and self.password is not None:
+				# Login to the LivingApps installation and store the auth token we get
+				r = self.session.post(
+					f"{self.url}login",
+					data=json.dumps({"username": self.username, "password": self.password}),
+					headers={"Content-Type": "application/json"},
+				)
+				result = r.json()
+				if result.get("status") == "success":
+					self.auth_token = result["auth_token"]
+				else:
+					raise_403(r)
+
 	def _add_auth_token(self, kwargs):
+		self._login()
 		if self.auth_token:
 			if "headers" not in kwargs:
 				kwargs["headers"] = {}
@@ -709,7 +715,7 @@ class HTTPHandler(Handler):
 			}
 			self._add_auth_token(kwargs)
 			r = self.session.post(
-				self.url.rstrip("/") + "/gateway/upload/tempfiles",
+				f"{self.url}upload/tempfiles",
 				**kwargs,
 			)
 			r.raise_for_status()
@@ -748,7 +754,7 @@ class HTTPHandler(Handler):
 		path = "/".join(path)
 		self._add_auth_token(kwargs)
 		r = self.session.get(
-			f"{self.url}gateway/apps/{path}",
+			f"{self.url}apps/{path}",
 			**kwargs,
 		)
 		r.raise_for_status()
@@ -776,7 +782,7 @@ class HTTPHandler(Handler):
 		}
 		self._add_auth_token(kwargs)
 		r = self.session.post(
-			f"{self.url}gateway/v1/appdd/{app.id}.json",
+			f"{self.url}v1/appdd/{app.id}.json",
 			**kwargs,
 		)
 		r.raise_for_status()
@@ -803,7 +809,7 @@ class HTTPHandler(Handler):
 		self._add_auth_token(kwargs)
 
 		r = self.session.delete(
-			f"{self.url}gateway/v1/appdd/{record.app.id}/{record.id}.json",
+			f"{self.url}v1/appdd/{record.app.id}/{record.id}.json",
 			**kwargs,
 		)
 		r.raise_for_status()
@@ -818,7 +824,7 @@ class HTTPHandler(Handler):
 		self._add_auth_token(kwargs)
 
 		r = self.session.post(
-			f"{self.url}gateway/api/v1/apps/{record.app.id}/actions/{actionidentifier}",
+			f"{self.url}api/v1/apps/{record.app.id}/actions/{actionidentifier}",
 			**kwargs,
 		)
 		r.raise_for_status()
