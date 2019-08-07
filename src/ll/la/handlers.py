@@ -671,9 +671,7 @@ class HTTPHandler(Handler):
 		self.url = url
 		self.username = username
 		self.password = password
-
 		self.session = None
-
 		self.auth_token = None
 
 	def __repr__(self):
