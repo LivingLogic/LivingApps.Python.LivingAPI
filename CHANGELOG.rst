@@ -6,6 +6,8 @@ HEAD (2019-08-??)
 	and omits that part when constructing request URLs. The result of that it
 	that it's possible to replace to base URL with something else after the
 	``HTTPHandler`` has been created and before the first request is made.
+	(This makes it possible to talk to the gateway host directly on custom
+	LivingApps installations.)
 
 
 0.10 (2019-07-24)
