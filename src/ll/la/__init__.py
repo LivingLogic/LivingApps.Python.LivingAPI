@@ -146,6 +146,22 @@ def error_applookuprecord_foreign(value):
 	return f"{value!r} is from wrong app"
 
 
+def error_object_unsaved(value):
+	"""
+	Return an error message for an unsaved referenced object.
+	"""
+
+	return f"Referenced object {value!r} hasn't been saved yet!"
+
+
+def error_object_deleted(value):
+	"""
+	Return an error message for an deleted referenced object.
+	"""
+
+	return f"Referenced object {value!r} has been deleted!"
+
+
 ###
 ### Exceptions
 ###
@@ -154,6 +170,20 @@ def error_applookuprecord_foreign(value):
 class NoHandlerError(ValueError):
 	def __str__(self):
 		return "no handler available"
+
+
+class RecordValidationError(ValueError):
+	"""
+	Exception that is raised when a record is invalid and saved without
+	``force=True``.
+	"""
+
+
+class FieldValidationError(ValueError):
+	"""
+	Exception that is raised when a field of a record is invalid and the record
+	is saved without ``force=True``.
+	"""
 
 
 ###
@@ -446,44 +476,6 @@ class AttrDictAttr(Attr):
 		"""
 		value = makeattrs(value)
 		super().set_value(instance, value)
-
-
-###
-### Exceptions
-###
-
-class UnsavedError(Exception):
-	"""
-	Raised when an object is saved which references an unsaved object.
-	"""
-
-	def __init__(self, object):
-		"""
-		Create an :exc:`UnsavedError` exception.
-
-		:obj:`object` is the unsaved object.
-		"""
-		self.object = object
-
-	def __str__(self):
-		return f"Referenced object {self.object!r} hasn't been saved yet!"
-
-
-class DeletedError(Exception):
-	"""
-	Raised when an object is saved which references a deleted object.
-	"""
-
-	def __init__(self, object):
-		"""
-		Create an :exc:`DeletedError` exception.
-
-		:obj:`object` is the deleted object.
-		"""
-		self.object = object
-
-	def __str__(self):
-		return f"Referenced object {self.object!r} has been deleted!"
 
 
 ###
@@ -1031,7 +1023,7 @@ class App(Base):
 			if identifier not in self.controls:
 				raise TypeError(f"insert() got an unexpected keyword argument {identifier!r}")
 			record.fields[identifier].value = value
-		record.save()
+		record.save(force=True)
 		return record
 
 	def __call__(self, **kwargs):
@@ -1071,25 +1063,24 @@ class Control(Base):
 		self.order = order
 		self.default = default
 
-	def _convertvalue(self, value):
-		return (value, None)
+	def _set_value(self, field, value):
+		field._value = value
 
-	def _asjson(self, value):
-		return value
+	def _asdbarg(self, field):
+		return field._value
 
-	def _asdbarg(self, value):
-		return value
+	def _asjson(self, field):
+		return self._asdbarg(field)
 
 
 class StringControl(Control):
 	type = "string"
 
-	def _convertvalue(self, value):
-		error = None
+	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, str):
-			error = error_wrong_type(value)
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
 
 @register("textcontrol")
@@ -1143,12 +1134,11 @@ class IntControl(Control):
 	type = "int"
 	fulltype = type
 
-	def _convertvalue(self, value):
-		error = None
+	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, int):
-			error = error_wrong_type(value)
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
 
 @register("numbercontrol")
@@ -1156,12 +1146,11 @@ class NumberControl(Control):
 	type = "number"
 	fulltype = type
 
-	def _convertvalue(self, value):
-		error = None
+	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, (int, float)):
-			error = error_wrong_type(value)
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
 
 @register("datecontrol")
@@ -1170,18 +1159,16 @@ class DateControl(Control):
 	subtype = "date"
 	fulltype = f"{type}/{subtype}"
 
-	def _convertvalue(self, value):
-		error = None
+	def _set_value(self, field, value):
 		if isinstance(value, datetime.datetime):
 			value = value.date()
-		elif value is None or isinstance(value, datetime.date):
-			pass
-		else:
-			error = error_wrong_type(value)
+		elif value is not None and not isinstance(value, datetime.date):
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
-	def _asjson(self, value):
+	def _asjson(self, field):
+		value = field._value
 		if isinstance(value, datetime.date):
 			value = value.strftime("%Y-%m-%d")
 		return value
@@ -1192,20 +1179,18 @@ class DatetimeMinuteControl(DateControl):
 	subtype = "datetimeminute"
 	fulltype = f"{DateControl.type}/{subtype}"
 
-	def _convertvalue(self, value):
-		error = None
-		if value is None:
-			pass
-		elif isinstance(value, datetime.datetime):
+	def _set_value(self, field, value):
+		if isinstance(value, datetime.datetime):
 			value = value.replace(second=0, microsecond=0)
 		elif isinstance(value, datetime.date):
 			value = datetime.datetime.combine(value, datetime.time())
-		else:
-			error = error_wrong_type(value)
+		elif value is not None:
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
-	def _asjson(self, value):
+	def _asjson(self, field):
+		value = field._value
 		if isinstance(value, datetime.datetime):
 			value = value.strftime("%Y-%m-%d %H:%M")
 		return value
@@ -1216,20 +1201,18 @@ class DatetimeSecondControl(DateControl):
 	subtype = "datetimesecond"
 	fulltype = f"{DateControl.type}/{subtype}"
 
-	def _convertvalue(self, value):
-		error = None
-		if value is None:
-			pass
-		elif isinstance(value, datetime.datetime):
+	def _set_value(self, field, value):
+		if isinstance(value, datetime.datetime):
 			value = value.replace(microsecond=0)
 		elif isinstance(value, datetime.date):
 			value = datetime.datetime.combine(value, datetime.time())
-		else:
-			error = error_wrong_type(value)
+		elif value is not None:
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
-	def _asjson(self, value):
+	def _asjson(self, field):
+		value = field._value
 		if isinstance(value, datetime.date):
 			value = value.strftime("%Y-%m-%d 00:00:00")
 		elif isinstance(value, datetime.datetime):
@@ -1242,14 +1225,14 @@ class BoolControl(Control):
 	type = "bool"
 	fulltype = type
 
-	def _convertvalue(self, value):
-		error = None
+	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, bool):
-			error = error_wrong_type(value)
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
-	def _asdbarg(self, value):
+	def _asdbarg(self, field):
+		value = field._value
 		if value is not None:
 			value = int(value)
 		return value
@@ -1266,32 +1249,27 @@ class LookupControl(Control):
 		super().__init__(identifier=identifier, field=field, label=label, priority=priority, order=order, default=default)
 		self.lookupdata = lookupdata
 
-	def _convertvalue(self, value):
-		error = None
-		if value is None:
-			pass
-		elif isinstance(value, str):
+	def _set_value(self, field, value):
+		if isinstance(value, str):
 			if value in self.lookupdata:
 				value = self.lookupdata[value]
 			else:
-				error = error_lookupitem_unknown(value)
+				field.add_error(error_lookupitem_unknown(value))
 				value = None
 		elif isinstance(value, LookupItem):
 			if value.key not in self.lookupdata or self.lookupdata[value.key] is not value:
-				error = error_lookupitem_foreign(value)
+				field.add_error(error_lookupitem_foreign(value))
 				value = None
-		else:
-			error = error_wrong_type(value)
+		elif value is not None:
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
-	def _asjson(self, value):
+	def _asdbarg(self, field):
+		value = field._value
 		if isinstance(value, LookupItem):
 			value = value.key
 		return value
-
-	def _asdbarg(self, value):
-		return self._asjson(value)
 
 	def ul4onload_setattr(self, name, value):
 		if name == "lookupdata":
@@ -1337,33 +1315,34 @@ class AppLookupControl(Control):
 		self.lookupapp = lookupapp
 		self.lookupcontrols = lookupcontrols
 
-	def _convertvalue(self, value):
-		error = None
-		if value is None:
-			pass
-		elif isinstance(value, str):
+	def _set_value(self, field, value):
+		if isinstance(value, str):
 			if self.lookupapp.records and value in self.lookupapp.records:
 				value = self.lookupapp.records[value]
 			else:
-				error = error_applookuprecord_unknown(value)
+				field.add_error(error_applookuprecord_unknown(value))
 				value = None
 		elif isinstance(value, Record):
 			if value.app is not self.lookupapp:
-				error = error_applookuprecord_foreign(value)
+				field.add_error(error_applookuprecord_foreign(value))
 				value = None
-		else:
-			error = error_wrong_type(value)
+		elif value is not None:
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
-	def _asjson(self, value):
+	def _asdbarg(self, field):
+		value = field._value
 		if value is not None:
-			value.check_valid()
-			value = value.id
+			if value.id is None:
+				field.add_error(error_object_unsaved(value))
+				value = field._value = None
+			elif value._deleted:
+				field.add_error(error_object_deleted(value))
+				value = field._value = None
+			else:
+				value = value.id
 		return value
-
-	def _asdbarg(self, value):
-		return self._asjson(value)
 
 	def ul4onload_setattr(self, name, value):
 		if name == "lookupcontrols":
@@ -1399,37 +1378,33 @@ class AppLookupChoiceControl(AppLookupControl):
 class MultipleLookupControl(LookupControl):
 	type = "multiplelookup"
 
-	def _convertvalue(self, value):
-		error = None
+	def _set_value(self, field, value):
 		if value is None:
-			value = []
+			field._value = []
 		elif isinstance(value, (str, LookupItem)):
-			(value, error) = super()._convertvalue(value)
-			if error:
-				value = []
-			else:
-				value = [value]
+			self._set_value(self, field, [value])
 		elif isinstance(value, list):
-			realvalue = []
-			allerrors = []
+			field._value = []
 			for v in value:
-				(v, error) = super()._convertvalue(v)
-				if error:
-					allerrors.append(error)
-				else:
-					realvalue.append(v)
-			error = allerrors
-			value = realvalue
+				if isinstance(v, str):
+					if self.lookupapp.records and v in self.lookupapp.records:
+						v = self.lookupapp.records[v]
+						field._value.append(v)
+					else:
+						field.add_error(error_applookuprecord_unknown(v))
+				elif isinstance(v, Record):
+					if v.app is not self.lookupapp:
+						field.add_error(error_applookuprecord_foreign(v))
+					else:
+						field._value.append(v)
+				elif v is not None:
+					field.add_error(error_wrong_type(v))
 		else:
-			error = error_wrong_type(value)
-			value = []
-		return (value, error)
+			field.add_error(error_wrong_type(value))
+			field._value = []
 
-	def _asjson(self, value):
-		return [item.key for item in value]
-
-	def _asdbarg(self, value):
-		return self._asjson(value)
+	def _asdbarg(self, field):
+		return [item.key for item in field._value]
 
 
 @register("multiplelookupselectcontrol")
@@ -1453,41 +1428,49 @@ class MultipleLookupChoiceControl(MultipleLookupControl):
 class MultipleAppLookupControl(AppLookupControl):
 	type = "multipleapplookup"
 
-	def _convertvalue(self, value):
-		error = None
+	def _set_value(self, field, value):
 		if value is None:
-			value = []
+			field._value = []
 		elif isinstance(value, (str, Record)):
-			(value, error) = super()._convertvalue(value)
-			if error:
-				value = []
-			else:
-				value = [value]
+			self._set_value(field, [value])
 		elif isinstance(value, list):
-			realvalue = []
-			allerrors = []
+			field._value = []
 			for v in value:
-				(v, error) = super()._convertvalue(v)
-				if error:
-					allerrors.append(error)
-				else:
-					realvalue.append(v)
-			error = allerrors
-			value = realvalue
+				if isinstance(v, str):
+					if self.lookupapp.records and v in self.lookupapp.records:
+						v = self.lookupapp.records[v]
+						field._value.append(v)
+					else:
+						field.add_error(error_applookuprecord_unknown(v))
+				elif isinstance(v, Record):
+					if v.app is not self.lookupapp:
+						field.add_error(error_applookuprecord_foreign(v))
+					else:
+						field._value.append(v)
+				elif v is not None:
+					field.add_error(error_wrong_type(v))
 		else:
-			error = error_wrong_type(value)
-			value = []
-		return (value, error)
+			field.add_error(error_wrong_type(value))
+			field._value = []
 
-	def _asjson(self, value):
-		newvalue = []
-		for item in value:
-			item.check_valid()
-			newvalue.append(item.id)
-		return newvalue
+	def _asjson(self, field):
+		value = []
+		i = 0
+		while i < len(field._value):
+			item = field._value[i]
+			if item.id is None:
+				field.add_error(error_object_unsaved(item))
+				del field._value[i]
+			elif item._deleted:
+				del field._value[i]
+				field.add_error(error_object_deleted(item))
+			else:
+				value.append(item.id)
+				i += 1
+		return value
 
-	def _asdbarg(self, value):
-		value = self._asjson(value)
+	def _asdbarg(self, field):
+		value = self._asjson(field)
 		return self.app.globals.handler.varchars(value)
 
 
@@ -1514,25 +1497,20 @@ class FileControl(Control):
 	type = "file"
 	fulltype = type
 
-	def _convertvalue(self, value):
-		error = None
+	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, File):
-			error = error_wrong_type(value)
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
-	def _asjson(self, value):
+	def _asdbarg(self, field):
+		value = field._value
 		if value is not None:
 			if value.internalid is None:
-				raise UnsavedError(value)
-			value = value.internalid
-		return value
-
-	def _asdbarg(self, value):
-		if value is not None:
-			if value.internalid is None:
-				raise UnsavedError(value)
-			value = value.internalid
+				field.add_error(error_object_unsaved(value))
+				value = field._value = None
+			else:
+				value = value.internalid
 		return value
 
 
@@ -1541,20 +1519,17 @@ class GeoControl(Control):
 	type = "geo"
 	fulltype = type
 
-	def _convertvalue(self, value):
-		error = None
+	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, Geo):
-			error = error_wrong_type(value)
+			field.add_error(error_wrong_type(value))
 			value = None
-		return (value, error)
+		field._value = value
 
-	def _asjson(self, value):
+	def _asdbarg(self, field):
+		value = field._value
 		if value is not None:
 			value = f"{value.lat!r}, {value.long!r}, {value.info}"
 		return value
-
-	def _asdbarg(self, value):
-		return self._asjson(value)
 
 
 @register("record")
@@ -1569,6 +1544,21 @@ class Record(Base):
 	updatedby = Attr(User, ul4on=True)
 	updatecount = Attr(int, ul4on=True)
 
+	class fields(AttrDictAttr):
+		readonly = True
+		ul4on = False
+
+		def get_value(self, instance):
+			fields = instance.__dict__["fields"]
+			if fields is None:
+				fields = attrdict()
+				for control in instance.app.controls.values():
+					field = Field(control, instance, instance._sparsevalues.get(control.identifier))
+					fields[control.identifier] = field
+				instance._sparsevalues = None
+				instance.__dict__["fields"] = fields
+			return fields
+
 	class values(AttrDictAttr):
 		readonly = True
 		ul4on = True
@@ -1577,10 +1567,8 @@ class Record(Base):
 			values = instance.__dict__["values"]
 			if values is None:
 				values = attrdict()
-				for control in instance.app.controls.values():
-					value = instance._sparsevalues.get(control.identifier)
-					(value, _) = control._convertvalue(value)
-					values[control.identifier] = value
+				for field in instance.fields.values():
+					values[field.control.identifier] = field.value
 				instance._sparsevalues = None
 				instance.__dict__["values"] = values
 			return values
@@ -1596,18 +1584,6 @@ class Record(Base):
 			# Set the following attributes via ``__dict__``, as they are "read only".
 			instance.__dict__["values"] = None
 			instance.__dict__["fields"] = None
-
-	class fields(AttrDictAttr):
-		readonly = True
-		ul4on = False
-
-		def get_value(self, instance):
-			fields = instance.__dict__["fields"]
-			if fields is None:
-				values = instance.values
-				fields = attrdict((identifier, Field(instance.app.controls[identifier], instance, values[identifier])) for identifier in instance.app.controls)
-				instance.__dict__["fields"] = fields
-			return fields
 
 	attachments = Attr(ul4on=True)
 	children = AttrDictAttr(ul4on=True)
@@ -1706,27 +1682,26 @@ class Record(Base):
 	def is_dirty(self):
 		return self.id is None or any(field._dirty for field in self.fields.values())
 
-	def check_valid(self):
-		if self.id is None:
-			raise UnsavedError(self)
-		elif self._deleted:
-			raise DeletedError(self)
-
 	def _gethandler(self, handler):
 		if handler is None:
 			if self.app is None:
 				raise NoHandlerError()
 		return self.app._gethandler(handler)
 
-	def save(self, handler=None):
-		self._gethandler(handler).save_record(self)
+	def save(self, force=False, handler=None):
+		if not force:
+			self.check_errors()
+		result = self._gethandler(handler).save_record(self)
+		if not force:
+			self.check_errors()
+		return result
 
 	def update(self, **kwargs):
 		for (identifier, value) in kwargs.items():
 			if identifier not in self.app.controls:
 				raise TypeError(f"update() got an unexpected keyword argument {identifier!r}")
 			self.fields[identifier].value = value
-		self.save()
+		self.save(force=True)
 
 	def delete(self, handler=None):
 		self._gethandler(handler).delete_record(self)
@@ -1745,6 +1720,12 @@ class Record(Base):
 			field.clear_errors()
 		self.errors = []
 
+	def check_errors(self):
+		if self.errors:
+			raise RecordValidationError(self.errors[0])
+		for field in self.fields.values():
+			field.check_errors()
+
 	def is_deleted(self):
 		return self._deleted
 
@@ -1755,12 +1736,14 @@ class Field:
 	def __init__(self, control, record, value):
 		self.control = control
 		self.record = record
-		self._value = value
+		self._value = None
 		self._dirty = False
 		self.errors = []
 		self.enabled = True
 		self.writable = True
 		self.visible = True
+		control._set_value(self, value)
+		self._dirty = False
 
 	@property
 	def value(self):
@@ -1769,20 +1752,14 @@ class Field:
 	@value.setter
 	def value(self, value):
 		oldvalue = self._value
-		(value, error) = self.control._convertvalue(value)
-		if error:
-			self._value = self.record.values[self.control.identifier] = value
+		self.clear_errors()
+		self.control._set_value(self, value)
+		if value != oldvalue:
+			self.record.values[self.control.identifier] = self._value
 			self._dirty = True
-			if not isinstance(error, list):
-				error = [error]
-			self.errors = error
-		else:
-			if value != oldvalue:
-				self._value = self.record.values[self.control.identifier] = value
-				self._dirty = True
 
 	def is_empty(self):
-		return self.value is None or (isinstance(self.value, list) and not self.value)
+		return self._value is None or (isinstance(self._value, list) and not self._value)
 
 	def is_dirty(self):
 		return self._dirty
@@ -1796,8 +1773,18 @@ class Field:
 	def clear_errors(self):
 		self.errors = []
 
+	def check_errors(self):
+		if self.errors:
+			raise FieldValidationError(self.errors[0])
+
+	def _asjson(self):
+		return self.control._asjson(self)
+
+	def _asdbarg(self):
+		return self.control._asdbarg(self)
+
 	def __repr__(self):
-		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self.value!r}"
+		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self._value!r}"
 		if self._dirty:
 			s += " is_dirty()=True"
 		if self.errors:

@@ -581,6 +581,7 @@ class DBHandler(Handler):
 		return dump
 
 	def save_record(self, record, recursive=True):
+		record.clear_errors()
 		app = record.app
 		real = app.basetable in {"data_select", "data"}
 		if real:
@@ -599,14 +600,17 @@ class DBHandler(Handler):
 			args[f"p_{pk}"] = record.id
 		for field in record.fields.values():
 			if record.id is None or field._dirty:
-				args[f"p_{field.control.field}"] = field.control._asdbarg(field.value)
+				args[f"p_{field.control.field}"] = field._asdbarg()
 				if record.id is not None:
 					args[f"p_{field.control.field}_changed"] = 1
 		c = self.cursor()
 		result = proc(c, **args)
 
 		if result.p_errormessage:
-			raise ValueError(result.p_errormessage)
+			record.add_error(result.p_errormessage)
+			saved = False
+		else:
+			saved = True
 
 		if record.id is None:
 			record.id = result[f"p_{pk}"]
@@ -619,8 +623,8 @@ class DBHandler(Handler):
 			record.updatecount += 1
 		for field in record.fields.values():
 			field._dirty = False
-			field.errors = []
-		record.errors = []
+
+		return saved
 
 	def delete_record(self, record):
 		app = record.app
@@ -766,7 +770,8 @@ class HTTPHandler(Handler):
 		return dump
 
 	def save_record(self, record, recursive=True):
-		fields = {field.control.identifier: field.control._asjson(field.value) for field in record.fields.values() if record.id is None or field.is_dirty()}
+		record.clear_errors()
+		fields = {field.control.identifier: field._asjson() for field in record.fields.values() if record.id is None or field.is_dirty()}
 		app = record.app
 		recorddata = {"fields": fields}
 		if record.id is not None:
@@ -787,20 +792,21 @@ class HTTPHandler(Handler):
 		result = json.loads(r.text)
 		status = result["status"]
 		if status != "ok":
-			raise TypeError(f"Response status {status!r}")
-		if record.id is None:
-			record.id = result["id"]
-			record.createdat = datetime.datetime.now()
-			record.createdby = app.globals.user
-			record.updatecount = 0
+			record.add_error(f"Response status {status!r}")
+			return False
 		else:
-			record.updatedat = datetime.datetime.now()
-			record.updatedby = app.globals.user
-			record.updatecount += 1
-		for field in record.fields.values():
-			field._dirty = False
-			field.errors = []
-		record.errors = []
+			if record.id is None:
+				record.id = result["id"]
+				record.createdat = datetime.datetime.now()
+				record.createdby = app.globals.user
+				record.updatecount = 0
+			else:
+				record.updatedat = datetime.datetime.now()
+				record.updatedby = app.globals.user
+				record.updatecount += 1
+			for field in record.fields.values():
+				field._dirty = False
+			return True
 
 	def delete_record(self, record):
 		kwargs = {}

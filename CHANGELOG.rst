@@ -9,6 +9,15 @@ HEAD (2019-08-??)
 	(This makes it possible to talk to the gateway host directly on custom
 	LivingApps installations.)
 
+*	Added a ``force`` argument to the method ``Record.save()``. With
+	``force=False`` (the default) any errors on the record or any of the fields
+	will raise an exception. The ``force=True`` the record will be saved anyway.
+	The return way indicated whether the record was really saved or the database
+	or gateway returned an error. Referencing unsaved records or files now now be
+	handled in a similar way: ``force=False`` will raise an exception and
+	``force=True`` will replace those references with ``None`` and add an error
+	messsage to the field.
+
 
 0.10 (2019-07-24)
 -----------------
