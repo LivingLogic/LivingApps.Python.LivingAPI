@@ -1699,3 +1699,69 @@ def test_vsql_datasourcechildren_paging(config_persons):
 	)
 
 	assert "Ronald Reagan" == output
+
+
+def test_vsql_funcs(config_persons):
+	c = config_persons
+
+	handler = PythonDB()
+
+	source = f"""
+		<?whitespace strip?>
+		<?print len(datasources.persons.app.records)?>
+	"""
+
+	def check(identifier, code):
+		vt = handler.make_viewtemplate(
+			la.DataSource(
+				recordfilter=code,
+				identifier="persons",
+				app=c.apps.persons,
+			),
+			identifier=identifier,
+			source=source,
+		)
+
+		output = handler.renders(
+			person_app_id,
+			template=vt.identifier,
+		)
+
+		assert "0" != output
+
+	check("vsql_func_today", "today() >= @(2000-02-29)")
+
+	check("vsql_func_now", "now() >= @(2000-02-29T12:34:56)")
+
+	check("vsql_func_bool", "not bool()")
+	check("vsql_func_bool_none", "not bool(None)")
+	check("vsql_func_bool_false", "not bool(False)")
+	check("vsql_func_bool_true", "bool(True)")
+	check("vsql_func_bool_int_false", "not bool(0)")
+	check("vsql_func_bool_int_true", "bool(42)")
+	check("vsql_func_bool_number_false", "not bool(0.0)")
+	check("vsql_func_bool_number_true", "bool(42.5)")
+	check("vsql_func_bool_datedelta_false", "not bool(days(0))")
+	check("vsql_func_bool_datedelta_true", "bool(days(42))")
+	check("vsql_func_bool_datetimedelta_false", "not bool(minutes(0))")
+	check("vsql_func_bool_datetimedelta_true", "bool(minutes(42))")
+	check("vsql_func_bool_monthdelta_false", "not bool(monthdelta(0))")
+	check("vsql_func_bool_monthdelta_true", "bool(monthdelta(42))")
+	check("vsql_func_bool_date", "bool(@(2000-02-29))")
+	check("vsql_func_bool_datetime", "bool(@(2000-02-29T12:34:56))")
+	check("vsql_func_bool_str_false", "not bool('')")
+	check("vsql_func_bool_str_true", "bool('gurk')")
+	check("vsql_func_bool_intlist", "bool([42])")
+	check("vsql_func_bool_numberlist", "bool([42.5])")
+	check("vsql_func_bool_strlist", "bool(['gurk'])")
+	check("vsql_func_bool_datelist", "bool([today()])")
+	check("vsql_func_bool_datetimelist", "bool([now()])")
+	check("vsql_func_bool_intset", "bool({42})")
+	check("vsql_func_bool_numberset", "bool({42.5})")
+	check("vsql_func_bool_strset", "bool({'gurk'})")
+	check("vsql_func_bool_dateset", "bool({today()})")
+	check("vsql_func_bool_datetimeset", "bool({now()})")
+
+	check("vsql_func_date_int", "date(2000, 2, 29) == @(2000-02-29)")
+	check("vsql_func_date_datetime", "date(@(2000-02-29T12:34:56)) == @(2000-02-29)")
+
