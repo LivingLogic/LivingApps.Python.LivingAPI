@@ -123,7 +123,7 @@ class Handler:
 			if source.name:
 				filename = os.path.basename(source.name)
 			else:
-				filename = "Dummy"
+				filename = "Unnnamed"
 			stream = source
 		if mimetype is None:
 			mimetype = mimetypes.guess_type(filename, strict=False)[0]
