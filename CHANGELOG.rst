@@ -1,4 +1,4 @@
-HEAD (2019-08-??)
+0.11 (2019-08-15)
 -----------------
 
 *	The ``HTTPHandler`` now delays logging into LivingApps until the first real
