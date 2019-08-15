@@ -12,7 +12,7 @@
 See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 """
 
-import datetime, operator, string, json, pathlib, inspect
+import io, datetime, operator, string, json, pathlib, inspect
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
@@ -595,7 +595,7 @@ class File(Base):
 	createdat = Attr(datetime.datetime, ul4on=True)
 	size = Attr(int, ul4on=True)
 
-	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None, size=None, internalid=None, createdat=None):
+	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None, size=None, internalid=None, createdat=None, content=None):
 		self.id = id
 		self.url = url
 		self.filename = filename
@@ -606,7 +606,13 @@ class File(Base):
 		self.internalid = internalid
 		self.createdat = createdat
 		self.handler = None
-		self._content = None
+		self._content = content
+		if content is not None and mimetype.startswith("image/") and width is None and height is None:
+			from PIL import Image # This requires :mod:`Pillow`, which you can install with ``pip install pillow``
+			stream = io.BytesIO(content)
+			with Image.open(stream) as img:
+				self.width = img.size[0]
+				self.height = img.size[1]
 
 	def _gethandler(self, handler):
 		if handler is None:

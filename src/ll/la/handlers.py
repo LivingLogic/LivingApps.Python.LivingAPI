@@ -30,7 +30,7 @@
 	and their configuration into and out of LivingApps.
 """
 
-import os, io, datetime, pathlib, itertools, json, mimetypes, operator, warnings
+import os, datetime, pathlib, itertools, json, mimetypes, operator, warnings
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -97,7 +97,6 @@ class Handler:
 		:meth:`read` method and a :attr:`name` attribute.
 		"""
 		path = None
-		stream = None
 		mimetype = None
 		if isinstance(source, pathlib.Path):
 			content = source.read_bytes()
@@ -117,27 +116,17 @@ class Handler:
 			filename = source.file
 			with source.openread() as r:
 				content = r.read()
-				stream = io.BytesIO(content)
 		else:
 			content = source.read()
 			if source.name:
 				filename = os.path.basename(source.name)
 			else:
 				filename = "Unnnamed"
-			stream = source
 		if mimetype is None:
 			mimetype = mimetypes.guess_type(filename, strict=False)[0]
 			if mimetype is None:
 				mimetype = "application/octet-stream"
-		file = la.File(filename=filename, mimetype=mimetype)
-		if file.mimetype.startswith("image/"):
-			from PIL import Image # This requires :mod:`Pillow`, which you can install with ``pip install pillow``
-			if stream:
-				stream.seek(0)
-			with Image.open(path or stream) as img:
-				file.width = img.size[0]
-				file.height = img.size[1]
-		file._content = content
+		file = la.File(filename=filename, mimetype=mimetype, content=content)
 		file.handler = self
 		return file
 

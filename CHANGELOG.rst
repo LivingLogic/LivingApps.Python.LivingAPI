@@ -18,6 +18,13 @@ HEAD (2019-08-??)
 	``force=True`` will replace those references with ``None`` and add an error
 	messsage to the field.
 
+*	It is now possible to create a ``File`` object and pass the content to the
+	constructor. This is useful when a file has to be uploaded by none of the
+	supported methods for creating one via ``Handler.file`` do the right thing.
+	If a content is passed, the mime type is ``image`` and the arguments
+	``width`` and ``height`` are ``None`` the image size will be calculated
+	automatically from the data (using :mod:`Pillow`).
+
 
 0.10 (2019-07-24)
 -----------------
