@@ -30,7 +30,7 @@
 	and their configuration into and out of LivingApps.
 """
 
-import os, io, datetime, pathlib, itertools, json, mimetypes, operator, warnings
+import os, datetime, pathlib, itertools, json, mimetypes, operator, warnings
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -97,7 +97,6 @@ class Handler:
 		:meth:`read` method and a :attr:`name` attribute.
 		"""
 		path = None
-		stream = None
 		mimetype = None
 		if isinstance(source, pathlib.Path):
 			content = source.read_bytes()
@@ -117,27 +116,17 @@ class Handler:
 			filename = source.file
 			with source.openread() as r:
 				content = r.read()
-				stream = io.BytesIO(content)
 		else:
 			content = source.read()
 			if source.name:
 				filename = os.path.basename(source.name)
 			else:
-				filename = "Dummy"
-			stream = source
+				filename = "Unnnamed"
 		if mimetype is None:
 			mimetype = mimetypes.guess_type(filename, strict=False)[0]
 			if mimetype is None:
 				mimetype = "application/octet-stream"
-		file = la.File(filename=filename, mimetype=mimetype)
-		if file.mimetype.startswith("image/"):
-			from PIL import Image # This requires :mod:`Pillow`, which you can install with ``pip install pillow``
-			if stream:
-				stream.seek(0)
-			with Image.open(path or stream) as img:
-				file.width = img.size[0]
-				file.height = img.size[1]
-		file._content = content
+		file = la.File(filename=filename, mimetype=mimetype, content=content)
 		file.handler = self
 		return file
 
@@ -581,6 +570,7 @@ class DBHandler(Handler):
 		return dump
 
 	def save_record(self, record, recursive=True):
+		record.clear_errors()
 		app = record.app
 		real = app.basetable in {"data_select", "data"}
 		if real:
@@ -599,14 +589,17 @@ class DBHandler(Handler):
 			args[f"p_{pk}"] = record.id
 		for field in record.fields.values():
 			if record.id is None or field._dirty:
-				args[f"p_{field.control.field}"] = field.control._asdbarg(field.value)
+				args[f"p_{field.control.field}"] = field._asdbarg()
 				if record.id is not None:
 					args[f"p_{field.control.field}_changed"] = 1
 		c = self.cursor()
 		result = proc(c, **args)
 
 		if result.p_errormessage:
-			raise ValueError(result.p_errormessage)
+			record.add_error(result.p_errormessage)
+			saved = False
+		else:
+			saved = True
 
 		if record.id is None:
 			record.id = result[f"p_{pk}"]
@@ -619,8 +612,8 @@ class DBHandler(Handler):
 			record.updatecount += 1
 		for field in record.fields.values():
 			field._dirty = False
-			field.errors = []
-		record.errors = []
+
+		return saved
 
 	def delete_record(self, record):
 		app = record.app
@@ -667,32 +660,36 @@ class HTTPHandler(Handler):
 		super().__init__()
 		if not url.endswith("/"):
 			url += "/"
+		url += "gateway/"
 		self.url = url
 		self.username = username
-
-		self.session = requests.Session()
-
+		self.password = password
+		self.session = None
 		self.auth_token = None
-
-		# If :obj:`username` or :obj:`password` are not given, we don't log in
-		# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
-		if username is not None and password is not None:
-			# Login to the LivingApps installation and store the auth token we get
-			r = self.session.post(
-				f"{self.url}gateway/login",
-				data=json.dumps({"username": username, "password": password}),
-				headers={"Content-Type": "application/json"},
-			)
-			result = r.json()
-			if result.get("status") == "success":
-				self.auth_token = result["auth_token"]
-			else:
-				raise_403(r)
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} url={self.url!r} username={self.username!r} at {id(self):#x}>"
 
+	def _login(self):
+		if self.session is None:
+			self.session = requests.Session()
+			# If :obj:`username` or :obj:`password` are not given, we don't log in
+			# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
+			if self.username is not None and self.password is not None:
+				# Login to the LivingApps installation and store the auth token we get
+				r = self.session.post(
+					f"{self.url}login",
+					data=json.dumps({"username": self.username, "password": self.password}),
+					headers={"Content-Type": "application/json"},
+				)
+				result = r.json()
+				if result.get("status") == "success":
+					self.auth_token = result["auth_token"]
+				else:
+					raise_403(r)
+
 	def _add_auth_token(self, kwargs):
+		self._login()
 		if self.auth_token:
 			if "headers" not in kwargs:
 				kwargs["headers"] = {}
@@ -709,7 +706,7 @@ class HTTPHandler(Handler):
 			}
 			self._add_auth_token(kwargs)
 			r = self.session.post(
-				self.url.rstrip("/") + "/gateway/upload/tempfiles",
+				f"{self.url}upload/tempfiles",
 				**kwargs,
 			)
 			r.raise_for_status()
@@ -748,7 +745,7 @@ class HTTPHandler(Handler):
 		path = "/".join(path)
 		self._add_auth_token(kwargs)
 		r = self.session.get(
-			f"{self.url}gateway/apps/{path}",
+			f"{self.url}apps/{path}",
 			**kwargs,
 		)
 		r.raise_for_status()
@@ -762,7 +759,8 @@ class HTTPHandler(Handler):
 		return dump
 
 	def save_record(self, record, recursive=True):
-		fields = {field.control.identifier: field.control._asjson(field.value) for field in record.fields.values() if record.id is None or field.is_dirty()}
+		record.clear_errors()
+		fields = {field.control.identifier: field._asjson() for field in record.fields.values() if record.id is None or field.is_dirty()}
 		app = record.app
 		recorddata = {"fields": fields}
 		if record.id is not None:
@@ -776,34 +774,35 @@ class HTTPHandler(Handler):
 		}
 		self._add_auth_token(kwargs)
 		r = self.session.post(
-			f"{self.url}gateway/v1/appdd/{app.id}.json",
+			f"{self.url}v1/appdd/{app.id}.json",
 			**kwargs,
 		)
 		r.raise_for_status()
 		result = json.loads(r.text)
 		status = result["status"]
 		if status != "ok":
-			raise TypeError(f"Response status {status!r}")
-		if record.id is None:
-			record.id = result["id"]
-			record.createdat = datetime.datetime.now()
-			record.createdby = app.globals.user
-			record.updatecount = 0
+			record.add_error(f"Response status {status!r}")
+			return False
 		else:
-			record.updatedat = datetime.datetime.now()
-			record.updatedby = app.globals.user
-			record.updatecount += 1
-		for field in record.fields.values():
-			field._dirty = False
-			field.errors = []
-		record.errors = []
+			if record.id is None:
+				record.id = result["id"]
+				record.createdat = datetime.datetime.now()
+				record.createdby = app.globals.user
+				record.updatecount = 0
+			else:
+				record.updatedat = datetime.datetime.now()
+				record.updatedby = app.globals.user
+				record.updatecount += 1
+			for field in record.fields.values():
+				field._dirty = False
+			return True
 
 	def delete_record(self, record):
 		kwargs = {}
 		self._add_auth_token(kwargs)
 
 		r = self.session.delete(
-			f"{self.url}gateway/v1/appdd/{record.app.id}/{record.id}.json",
+			f"{self.url}v1/appdd/{record.app.id}/{record.id}.json",
 			**kwargs,
 		)
 		r.raise_for_status()
@@ -818,7 +817,7 @@ class HTTPHandler(Handler):
 		self._add_auth_token(kwargs)
 
 		r = self.session.post(
-			f"{self.url}gateway/api/v1/apps/{record.app.id}/actions/{actionidentifier}",
+			f"{self.url}api/v1/apps/{record.app.id}/actions/{actionidentifier}",
 			**kwargs,
 		)
 		r.raise_for_status()
