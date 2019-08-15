@@ -1,3 +1,11 @@
+HEAD (2019-08-??)
+-----------------
+
+*	Removed debug code from ``DBHandler.meta_data``.
+
+*	Add more tests.
+
+
 0.11 (2019-08-15)
 -----------------
 
