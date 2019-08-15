@@ -12,16 +12,16 @@
 *	Added a ``force`` argument to the method ``Record.save()``. With
 	``force=False`` (the default) any errors on the record or any of the fields
 	will raise an exception. The ``force=True`` the record will be saved anyway.
-	The return way indicated whether the record was really saved or the database
-	or gateway returned an error. Referencing unsaved records or files now now be
+	The return value indicated whether the record was really saved or the database
+	or gateway returned an error. Referencing unsaved records or files are now
 	handled in a similar way: ``force=False`` will raise an exception and
 	``force=True`` will replace those references with ``None`` and add an error
 	messsage to the field.
 
 *	It is now possible to create a ``File`` object and pass the content to the
 	constructor. This is useful when a file has to be uploaded but none of the
-	supported methods for creating one via ``Handler.file`` do the right thing.
-	If a content is passed, the mime type is ``image`` and the arguments
+	supported methods for creating one via ``Handler.file()`` do the right thing.
+	If content is passed, the mime type is ``image`` and the arguments
 	``width`` and ``height`` are ``None`` the image size will be calculated
 	automatically from the data (using :mod:`Pillow`).
 
