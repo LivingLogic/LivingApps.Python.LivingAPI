@@ -22,7 +22,7 @@ upload: build
 	twine upload dist/*
 
 
-livinglogic:
+livinglogic: build
 	rm -rf dist/*
 	python$(PYVERSION) setup.py sdist --formats=bztar,gztar,zip
 	python$(PYVERSION) setup.py bdist_wheel
