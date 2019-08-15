@@ -507,8 +507,6 @@ class DBHandler(Handler):
 		)
 		r = cursor.fetchone()
 		dump = r[0].decode("utf-8")
-		with open("gurk.ul4on", "w", encoding="utf-8") as f:
-			f.write(dump)
 		dump = self._loaddump(dump)
 		return dump
 
