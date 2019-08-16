@@ -5,6 +5,10 @@ HEAD (2019-08-??)
 
 *	Add support for sets in vSQL.
 
+*	When creating vSQL constants :class:`datetime` objects are no longer
+	converted to vSQL date objects when the time portion of the :class:`datetime`
+	object is zero.
+
 *	Add more tests.
 
 

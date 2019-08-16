@@ -401,13 +401,6 @@ class DateTime(_ConstWithValue):
 	dbnodetype = "const_datetime"
 	dbdatatype = "datetime"
 
-	@classmethod
-	def fromul4(cls, source, node, vars):
-		v = node.value
-		if not (v.hour or v.minute or v.second or v.microsecond):
-			return Date(source, _offset(node.pos), node.value.date())
-		return cls(source, _offset(node.pos), node.value)
-
 	@property
 	def dbnodevalue(self):
 		return f"{self.value:%Y-%m-%dT%H:%M:%S}"
