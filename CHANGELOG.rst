@@ -3,6 +3,8 @@ HEAD (2019-08-??)
 
 *	Removed debug code from ``DBHandler.meta_data``.
 
+*	Add support for sets in vSQL.
+
 *	Add more tests.
 
 

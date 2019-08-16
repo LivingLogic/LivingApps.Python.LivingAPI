@@ -450,6 +450,43 @@ class List(AST):
 		self.items = decoder.load()
 
 
+@ul4on.register("de.livinglogic.vsql.set")
+class Set(AST):
+	dbnodetype = "set"
+
+	def __init__(self, source=None, pos=None):
+		super().__init__(source, pos)
+		self.items = []
+
+	def _ll_repr_(self):
+		yield f"with {len(self.items):,} items"
+
+	def _ll_repr_pretty_(self, p):
+		for item in self.items:
+			p.breakable()
+			p.pretty(item)
+
+	@classmethod
+	def fromul4(cls, source, node, vars):
+		self = cls(source, _offset(node.pos))
+		for item in node.items:
+			if not isinstance(item, ul4c.SeqItem):
+				raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(item)}!")
+			self.items.append(AST.fromul4(source, item.value, vars))
+		return self
+
+	def dbchildren(self):
+		yield from self.items
+
+	def ul4ondump(self, encoder):
+		super().ul4ondump(encoder)
+		encoder.dump(self.items)
+
+	def ul4onload(self, decoder):
+		super().ul4onload(decoder)
+		self.items = decoder.load()
+
+
 @ul4on.register("de.livinglogic.vsql.fieldref")
 class FieldRef(AST):
 	dbnodetype = "field"
@@ -995,7 +1032,7 @@ _consts = {
 }
 
 # Set of UL4 AST nodes that directly map to their equivalent vSQL version
-_ops = {ul4c.If, ul4c.Not, ul4c.Neg, ul4c.BitNot, ul4c.List}
+_ops = {ul4c.If, ul4c.Not, ul4c.Neg, ul4c.BitNot, ul4c.List, ul4c.Set}
 _ops.update(ul4c.Binary.__subclasses__())
 
 # Create the mapping that maps the UL4 AST type to the vSQL AST type
