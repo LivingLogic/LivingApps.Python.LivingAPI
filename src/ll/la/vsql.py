@@ -189,7 +189,7 @@ class AST(Repr):
 		Save :obj:`self` to the :class:`DBHandler` :obj:`handler`.
 
 		``cursor``, ``vs_id_super``, ``vs_order`` and ``vss_id`` are used
-		internallay for recursive calls and should not be passed by the user.
+		internally for recursive calls and should not be passed by the user.
 		"""
 		if cursor is None:
 			cursor = handler.cursor()
@@ -346,7 +346,7 @@ class Bool(_ConstWithValue):
 
 	@property
 	def dbnodevalue(self):
-		return "1" if self.value else "0"
+		return "True" if self.value else "False"
 
 
 @ul4on.register("de.livinglogic.vsql.int")
