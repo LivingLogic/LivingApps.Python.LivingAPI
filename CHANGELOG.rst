@@ -1,3 +1,17 @@
+HEAD (2019-08-??)
+-----------------
+
+*	Removed debug code from ``DBHandler.meta_data``.
+
+*	Add support for sets in vSQL.
+
+*	When creating vSQL constants :class:`datetime` objects are no longer
+	converted to vSQL date objects when the time portion of the :class:`datetime`
+	object is zero.
+
+*	Add more tests.
+
+
 0.11 (2019-08-15)
 -----------------
 

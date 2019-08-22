@@ -189,7 +189,7 @@ class AST(Repr):
 		Save :obj:`self` to the :class:`DBHandler` :obj:`handler`.
 
 		``cursor``, ``vs_id_super``, ``vs_order`` and ``vss_id`` are used
-		internallay for recursive calls and should not be passed by the user.
+		internally for recursive calls and should not be passed by the user.
 		"""
 		if cursor is None:
 			cursor = handler.cursor()
@@ -346,7 +346,7 @@ class Bool(_ConstWithValue):
 
 	@property
 	def dbnodevalue(self):
-		return "1" if self.value else "0"
+		return "True" if self.value else "False"
 
 
 @ul4on.register("de.livinglogic.vsql.int")
@@ -401,13 +401,6 @@ class DateTime(_ConstWithValue):
 	dbnodetype = "const_datetime"
 	dbdatatype = "datetime"
 
-	@classmethod
-	def fromul4(cls, source, node, vars):
-		v = node.value
-		if not (v.hour or v.minute or v.second or v.microsecond):
-			return Date(source, _offset(node.pos), node.value.date())
-		return cls(source, _offset(node.pos), node.value)
-
 	@property
 	def dbnodevalue(self):
 		return f"{self.value:%Y-%m-%dT%H:%M:%S}"
@@ -416,6 +409,43 @@ class DateTime(_ConstWithValue):
 @ul4on.register("de.livinglogic.vsql.list")
 class List(AST):
 	dbnodetype = "list"
+
+	def __init__(self, source=None, pos=None):
+		super().__init__(source, pos)
+		self.items = []
+
+	def _ll_repr_(self):
+		yield f"with {len(self.items):,} items"
+
+	def _ll_repr_pretty_(self, p):
+		for item in self.items:
+			p.breakable()
+			p.pretty(item)
+
+	@classmethod
+	def fromul4(cls, source, node, vars):
+		self = cls(source, _offset(node.pos))
+		for item in node.items:
+			if not isinstance(item, ul4c.SeqItem):
+				raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(item)}!")
+			self.items.append(AST.fromul4(source, item.value, vars))
+		return self
+
+	def dbchildren(self):
+		yield from self.items
+
+	def ul4ondump(self, encoder):
+		super().ul4ondump(encoder)
+		encoder.dump(self.items)
+
+	def ul4onload(self, decoder):
+		super().ul4onload(decoder)
+		self.items = decoder.load()
+
+
+@ul4on.register("de.livinglogic.vsql.set")
+class Set(AST):
+	dbnodetype = "set"
 
 	def __init__(self, source=None, pos=None):
 		super().__init__(source, pos)
@@ -995,7 +1025,7 @@ _consts = {
 }
 
 # Set of UL4 AST nodes that directly map to their equivalent vSQL version
-_ops = {ul4c.If, ul4c.Not, ul4c.Neg, ul4c.BitNot, ul4c.List}
+_ops = {ul4c.If, ul4c.Not, ul4c.Neg, ul4c.BitNot, ul4c.List, ul4c.Set}
 _ops.update(ul4c.Binary.__subclasses__())
 
 # Create the mapping that maps the UL4 AST type to the vSQL AST type
