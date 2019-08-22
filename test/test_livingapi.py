@@ -1,3 +1,14 @@
+"""
+Tests for LivingAPI.
+
+This tests the Python and Java implementations of the LivingAPI as well as
+direct access via the gateway.
+
+To run the tests, :mod:`pytest` is required. For rerunning flaky tests the
+package ``pytest-rerunfailures`` is used.
+"""
+
+
 import sys, os, datetime, subprocess, operator, textwrap
 
 import pytest
@@ -191,9 +202,9 @@ class JavaDB(LocalTemplateHandler):
 
 params = [
 	"python_db",
-	"python_http",
+	pytest.param("python_http", marks=pytest.mark.flaky(reruns=3, reruns_delay=2)),
 	pytest.param("java_db", marks=pytest.mark.java),
-	"gateway_http",
+	pytest.param("gateway_http", marks=pytest.mark.flaky(reruns=3, reruns_delay=2)),
 ]
 
 
