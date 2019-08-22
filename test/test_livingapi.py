@@ -1002,6 +1002,81 @@ def test_livingapi_appparam_color(handler, config_apps):
 	assert "None;desc color_none;#369c;desc color_value" == output
 
 
+def test_livingapi_appparam_datedelta(handler, config_apps):
+	c = config_apps
+
+	source = """
+		<?whitespace strip?>
+		<?print repr(app.params.datedelta_none.value)?>
+		;<?print app.params.datedelta_none.description?>
+		;<?print repr(app.params.datedelta_value.value)?>
+		;<?print app.params.datedelta_value.description?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			includeparams=True,
+		),
+		identifier="livingapi_appparam_datedelta",
+		source=source,
+	)
+
+	output = handler.renders(person_app_id, template=vt.identifier)
+	assert "None;desc datedelta_none;timedelta(days=12);desc datedelta_value" == output
+
+
+def test_livingapi_appparam_datetimedelta(handler, config_apps):
+	c = config_apps
+
+	source = """
+		<?whitespace strip?>
+		<?print repr(app.params.datetimedelta_none.value)?>
+		;<?print app.params.datetimedelta_none.description?>
+		;<?print repr(app.params.datetimedelta_value.value)?>
+		;<?print app.params.datetimedelta_value.description?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			includeparams=True,
+		),
+		identifier="livingapi_appparam_datetimedelta",
+		source=source,
+	)
+
+	output = handler.renders(person_app_id, template=vt.identifier)
+	assert "None;desc datetimedelta_none;timedelta(days=1, seconds=45296);desc datetimedelta_value" == output
+
+
+def test_livingapi_appparam_monthdelta(handler, config_apps):
+	c = config_apps
+
+	source = """
+		<?whitespace strip?>
+		<?print repr(app.params.monthdelta_none.value)?>
+		;<?print app.params.monthdelta_none.description?>
+		;<?print repr(app.params.monthdelta_value.value)?>
+		;<?print app.params.monthdelta_value.description?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			includeparams=True,
+		),
+		identifier="livingapi_appparam_monthdelta",
+		source=source,
+	)
+
+	output = handler.renders(person_app_id, template=vt.identifier)
+	assert "None;desc monthdelta_none;monthdelta(3);desc monthdelta_value" == output
+
+
 def test_livingapi_appparam_upload(handler, config_apps):
 	c = config_apps
 
@@ -1712,8 +1787,12 @@ def test_vsql_datasourcechildren_paging(config_persons):
 	assert "Ronald Reagan" == output
 
 
-def test_vsql_funcs(config_persons):
+def check_vsql_func(config_persons, code, result=None):
 	c = config_persons
+
+	# Use the name of the calling function (without "test_")
+	# as the name of the view template.
+	identifier = sys._getframe(1).f_code.co_name[5:]
 
 	handler = PythonDB()
 
@@ -1722,57 +1801,1521 @@ def test_vsql_funcs(config_persons):
 		<?print len(datasources.persons.app.records)?>
 	"""
 
-	def check(identifier, code):
-		vt = handler.make_viewtemplate(
-			la.DataSource(
-				recordfilter=code,
-				identifier="persons",
-				app=c.apps.persons,
-			),
-			identifier=identifier,
-			source=source,
-		)
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			recordfilter=code,
+			identifier="persons",
+			app=c.apps.persons,
+			includeparams=True,
+		),
+		identifier=identifier,
+		source=source,
+	)
 
-		output = handler.renders(
-			person_app_id,
-			template=vt.identifier,
-		)
+	output = handler.renders(
+		person_app_id,
+		template=vt.identifier,
+	)
 
+	if result is None:
 		assert "0" != output
+	else:
+		assert result == output
 
-	check("vsql_func_today", "today() >= @(2000-02-29)")
 
-	check("vsql_func_now", "now() >= @(2000-02-29T12:34:56)")
+def test_vsql_func_today(config_persons):
+	check_vsql_func(config_persons, "today() >= @(2000-02-29)")
 
-	check("vsql_func_bool", "not bool()")
-	check("vsql_func_bool_none", "not bool(None)")
-	check("vsql_func_bool_false", "not bool(False)")
-	check("vsql_func_bool_true", "bool(True)")
-	check("vsql_func_bool_int_false", "not bool(0)")
-	check("vsql_func_bool_int_true", "bool(42)")
-	check("vsql_func_bool_number_false", "not bool(0.0)")
-	check("vsql_func_bool_number_true", "bool(42.5)")
-	check("vsql_func_bool_datedelta_false", "not bool(days(0))")
-	check("vsql_func_bool_datedelta_true", "bool(days(42))")
-	check("vsql_func_bool_datetimedelta_false", "not bool(minutes(0))")
-	check("vsql_func_bool_datetimedelta_true", "bool(minutes(42))")
-	check("vsql_func_bool_monthdelta_false", "not bool(monthdelta(0))")
-	check("vsql_func_bool_monthdelta_true", "bool(monthdelta(42))")
-	check("vsql_func_bool_date", "bool(@(2000-02-29))")
-	check("vsql_func_bool_datetime", "bool(@(2000-02-29T12:34:56))")
-	check("vsql_func_bool_str_false", "not bool('')")
-	check("vsql_func_bool_str_true", "bool('gurk')")
-	check("vsql_func_bool_intlist", "bool([42])")
-	check("vsql_func_bool_numberlist", "bool([42.5])")
-	check("vsql_func_bool_strlist", "bool(['gurk'])")
-	check("vsql_func_bool_datelist", "bool([today()])")
-	check("vsql_func_bool_datetimelist", "bool([now()])")
-	check("vsql_func_bool_intset", "bool({42})")
-	check("vsql_func_bool_numberset", "bool({42.5})")
-	check("vsql_func_bool_strset", "bool({'gurk'})")
-	check("vsql_func_bool_dateset", "bool({today()})")
-	check("vsql_func_bool_datetimeset", "bool({now()})")
+def test_vsql_func_now(config_persons):
+	check_vsql_func(config_persons, "now() >= @(2000-02-29T12:34:56)")
 
-	check("vsql_func_date_int", "date(2000, 2, 29) == @(2000-02-29)")
-	check("vsql_func_date_datetime", "date(@(2000-02-29T12:34:56)) == @(2000-02-29)")
+def test_vsql_func_bool(config_persons):
+	check_vsql_func(config_persons, "not bool()")
 
+def test_vsql_func_bool_none(config_persons):
+	check_vsql_func(config_persons, "not bool(None)")
+
+def test_vsql_func_bool_false(config_persons):
+	check_vsql_func(config_persons, "not bool(False)")
+
+def test_vsql_func_bool_true(config_persons):
+	check_vsql_func(config_persons, "bool(True)")
+
+def test_vsql_func_bool_int_false(config_persons):
+	check_vsql_func(config_persons, "not bool(0)")
+
+def test_vsql_func_bool_int_true(config_persons):
+	check_vsql_func(config_persons, "bool(42)")
+
+def test_vsql_func_bool_number_false(config_persons):
+	check_vsql_func(config_persons, "not bool(0.0)")
+
+def test_vsql_func_bool_number_true(config_persons):
+	check_vsql_func(config_persons, "bool(42.5)")
+
+def test_vsql_func_bool_datedelta_false(config_persons):
+	check_vsql_func(config_persons, "not bool(days(0))")
+
+def test_vsql_func_bool_datedelta_true(config_persons):
+	check_vsql_func(config_persons, "bool(days(42))")
+
+def test_vsql_func_bool_datetimedelta_false(config_persons):
+	check_vsql_func(config_persons, "not bool(minutes(0))")
+
+def test_vsql_func_bool_datetimedelta_true(config_persons):
+	check_vsql_func(config_persons, "bool(minutes(42))")
+
+def test_vsql_func_bool_monthdelta_false(config_persons):
+	check_vsql_func(config_persons, "not bool(monthdelta(0))")
+
+def test_vsql_func_bool_monthdelta_true(config_persons):
+	check_vsql_func(config_persons, "bool(monthdelta(42))")
+
+def test_vsql_func_bool_date(config_persons):
+	check_vsql_func(config_persons, "bool(@(2000-02-29))")
+
+def test_vsql_func_bool_datetime(config_persons):
+	check_vsql_func(config_persons, "bool(@(2000-02-29T12:34:56))")
+
+def test_vsql_func_bool_color(config_persons):
+	check_vsql_func(config_persons, "bool(#fff)")
+
+def test_vsql_func_bool_str_false(config_persons):
+	check_vsql_func(config_persons, "not bool('')")
+
+def test_vsql_func_bool_str_true(config_persons):
+	check_vsql_func(config_persons, "bool('gurk')")
+
+def test_vsql_func_bool_intlist(config_persons):
+	check_vsql_func(config_persons, "bool([42])")
+
+def test_vsql_func_bool_numberlist(config_persons):
+	check_vsql_func(config_persons, "bool([42.5])")
+
+def test_vsql_func_bool_strlist(config_persons):
+	check_vsql_func(config_persons, "bool(['gurk'])")
+
+def test_vsql_func_bool_datelist(config_persons):
+	check_vsql_func(config_persons, "bool([today()])")
+
+def test_vsql_func_bool_datetimelist(config_persons):
+	check_vsql_func(config_persons, "bool([now()])")
+
+def test_vsql_func_bool_intset(config_persons):
+	check_vsql_func(config_persons, "bool({42})")
+
+def test_vsql_func_bool_numberset(config_persons):
+	check_vsql_func(config_persons, "bool({42.5})")
+
+def test_vsql_func_bool_strset(config_persons):
+	check_vsql_func(config_persons, "bool({'gurk'})")
+
+def test_vsql_func_bool_dateset(config_persons):
+	check_vsql_func(config_persons, "bool({today()})")
+
+def test_vsql_func_bool_datetimeset(config_persons):
+	check_vsql_func(config_persons, "bool({now()})")
+
+def test_vsql_func_int(config_persons):
+	check_vsql_func(config_persons, "not int()")
+
+def test_vsql_func_int_bool_false(config_persons):
+	check_vsql_func(config_persons, "not int(False)")
+
+def test_vsql_func_int_bool_true(config_persons):
+	check_vsql_func(config_persons, "int(True)")
+
+def test_vsql_func_int_int(config_persons):
+	check_vsql_func(config_persons, "int(42) == 42")
+
+def test_vsql_func_int_number(config_persons):
+	check_vsql_func(config_persons, "int(42.4) == 42")
+
+def test_vsql_func_int_str_ok(config_persons):
+	check_vsql_func(config_persons, "int('42') == 42")
+
+def test_vsql_func_int_str_bad(config_persons):
+	check_vsql_func(config_persons, "int('42.5') is None")
+
+def test_vsql_func_float(config_persons):
+	check_vsql_func(config_persons, "float() == 0.0")
+
+def test_vsql_func_float_bool_false(config_persons):
+	check_vsql_func(config_persons, "float(False) == 0.0")
+
+def test_vsql_func_float_bool_true(config_persons):
+	check_vsql_func(config_persons, "float(True) == 1.0")
+
+def test_vsql_func_float_int(config_persons):
+	check_vsql_func(config_persons, "float(42) == 42.0")
+
+def test_vsql_func_float_number(config_persons):
+	check_vsql_func(config_persons, "float(42.5) == 42.5")
+
+def test_vsql_func_str(config_persons):
+	check_vsql_func(config_persons, "str() is None")
+
+def test_vsql_func_str_bool_false(config_persons):
+	check_vsql_func(config_persons, "str(False) == 'False'")
+
+def test_vsql_func_str_bool_true(config_persons):
+	check_vsql_func(config_persons, "str(True) == 'True'")
+
+def test_vsql_func_str_int(config_persons):
+	check_vsql_func(config_persons, "str(-42) == '-42'")
+
+def test_vsql_func_str_number(config_persons):
+	check_vsql_func(config_persons, "str(42.0) == '42.0' and str(-42.5) == '-42.5'")
+
+def test_vsql_func_str_str(config_persons):
+	check_vsql_func(config_persons, "str('foo') == 'foo'")
+
+def test_vsql_func_str_date(config_persons):
+	check_vsql_func(config_persons, "str(@(2000-02-29)) == '2000-02-29'")
+
+def test_vsql_func_str_datetime(config_persons):
+	check_vsql_func(config_persons, "str(@(2000-02-29T12:34:56)) == '2000-02-29 12:34:56'")
+
+def test_vsql_func_str_datedelta_1(config_persons):
+	check_vsql_func(config_persons, "str(days(1)) == '1 day'")
+
+def test_vsql_func_str_datedelta_2(config_persons):
+	check_vsql_func(config_persons, "str(days(42)) == '42 days'")
+
+def test_vsql_func_str_datetimedelta_1(config_persons):
+	check_vsql_func(config_persons, "str(seconds(42)) == '0:00:42'")
+
+def test_vsql_func_str_datetimedelta_2(config_persons):
+	check_vsql_func(config_persons, "str(minutes(42)) == '0:42:00'")
+
+def test_vsql_func_str_datetimedelta_3(config_persons):
+	check_vsql_func(config_persons, "str(hours(17) + minutes(23)) == '17:23:00'")
+
+def test_vsql_func_str_datetimedelta_4(config_persons):
+	check_vsql_func(config_persons, "str(hours(42) + seconds(0)) == '1 day, 18:00:00'")
+
+def test_vsql_func_str_datetimedelta_5(config_persons):
+	check_vsql_func(config_persons, "str(days(42) + seconds(0)) == '42 days, 0:00:00'")
+
+def test_vsql_func_str_datetimedelta_6(config_persons):
+	check_vsql_func(config_persons, "str(days(42) + hours(17) + minutes(23)) == '42 days, 17:23:00'")
+
+def test_vsql_func_str_monthdelta_1(config_persons):
+	check_vsql_func(config_persons, "str(monthdelta(0)) == '0 months'")
+
+def test_vsql_func_str_monthdelta_2(config_persons):
+	check_vsql_func(config_persons, "str(monthdelta(1)) == '1 month'")
+
+def test_vsql_func_str_monthdelta_3(config_persons):
+	check_vsql_func(config_persons, "str(monthdelta(42)) == '42 months'")
+
+def test_vsql_func_str_color_1(config_persons):
+	check_vsql_func(config_persons, "str(#000f) == '#000'")
+
+def test_vsql_func_str_color_2(config_persons):
+	check_vsql_func(config_persons, "str(#fff0) == 'rgba(255, 255, 255, 0.000)'")
+
+def test_vsql_func_str_color_3(config_persons):
+	check_vsql_func(config_persons, "str(#123456) == '#123456'")
+
+def test_vsql_func_str_color_4(config_persons):
+	check_vsql_func(config_persons, "str(#12345678) == 'rgba(18, 52, 86, 0.471)'")
+
+def test_vsql_func_str_intlist(config_persons):
+	check_vsql_func(config_persons, "str([1, 2, 3, None]) == '[1, 2, 3, None]'")
+
+def test_vsql_func_str_numberlist(config_persons):
+	check_vsql_func(config_persons, "str([1.2, 3.4, 5.6, None]) == '[1.2, 3.4, 5.6, None]'")
+
+def test_vsql_func_str_strlist(config_persons):
+	check_vsql_func(config_persons, "str(['foo', 'bar', None]) == '[\\'foo\\', \\'bar\\', None]'")
+
+def test_vsql_func_str_datelist(config_persons):
+	check_vsql_func(config_persons, "str([@(2000-02-29), None]) == '[@(2000-02-29), None]'")
+
+def test_vsql_func_str_datetimelist(config_persons):
+	check_vsql_func(config_persons, "str([@(2000-02-29T12:34:56), None]) == '[@(2000-02-29T12:34:56), None]'")
+
+# For the set test only include one non-``None`` value,
+# as the order of the other elements is undefined
+
+def test_vsql_func_str_intset(config_persons):
+	check_vsql_func(config_persons, "str({1, None}) == '{1, None}'")
+
+def test_vsql_func_str_numberset(config_persons):
+	check_vsql_func(config_persons, "str({1.2, None}) == '{1.2, None}'")
+
+def test_vsql_func_str_strset(config_persons):
+	check_vsql_func(config_persons, "str({'foo', None}) == '{\\'foo\\', None}'")
+
+def test_vsql_func_str_dateset(config_persons):
+	check_vsql_func(config_persons, "str({@(2000-02-29), None}) == '{@(2000-02-29), None}'")
+
+def test_vsql_func_str_datetimeset(config_persons):
+	check_vsql_func(config_persons, "str({@(2000-02-29T12:34:56), None}) == '{@(2000-02-29T12:34:56), None}'")
+
+def test_vsql_func_repr_none(config_persons):
+	check_vsql_func(config_persons, "repr(None) == 'None'")
+
+def test_vsql_func_repr_bool_false(config_persons):
+	check_vsql_func(config_persons, "repr(False) == 'False'")
+
+def test_vsql_func_repr_bool_True(config_persons):
+	check_vsql_func(config_persons, "repr(True) == 'True'")
+
+def test_vsql_func_repr_int(config_persons):
+	check_vsql_func(config_persons, "repr(-42) == '-42'")
+
+def test_vsql_func_repr_number_1(config_persons):
+	check_vsql_func(config_persons, "repr(42.0) == '42.0'")
+
+def test_vsql_func_repr_number_2(config_persons):
+	check_vsql_func(config_persons, "repr(-42.5) == '-42.5'")
+
+def test_vsql_func_repr_str(config_persons):
+	check_vsql_func(config_persons, "repr('foo\"bar') == '\\'foo\\\"bar\\''")
+
+def test_vsql_func_repr_date(config_persons):
+	check_vsql_func(config_persons, "repr(@(2000-02-29)) == '@(2000-02-29)'")
+
+def test_vsql_func_repr_datetime(config_persons):
+	check_vsql_func(config_persons, "repr(@(2000-02-29T12:34:56)) == '@(2000-02-29T12:34:56)'")
+
+def test_vsql_func_repr_datedelta_1(config_persons):
+	check_vsql_func(config_persons, "repr(days(1)) == 'timedelta(1)'")
+
+def test_vsql_func_repr_datedelta_2(config_persons):
+	check_vsql_func(config_persons, "repr(days(42)) == 'timedelta(42)'")
+
+def test_vsql_func_repr_datetimedelta_1(config_persons):
+	# FIXME: Oracle doesn't have enough precision for seconds
+	check_vsql_func(config_persons, "repr(seconds(42)) == 'timedelta(0, 42)'")
+
+def test_vsql_func_repr_datetimedelta_2(config_persons):
+	check_vsql_func(config_persons, "repr(minutes(42)) == 'timedelta(0, 2520)'")
+
+def test_vsql_func_repr_datetimedelta_3(config_persons):
+	check_vsql_func(config_persons, "repr(hours(17) + minutes(23)) == 'timedelta(0, 62580)'")
+
+def test_vsql_func_repr_datetimedelta_4(config_persons):
+	check_vsql_func(config_persons, "repr(hours(42) + seconds(0)) == 'timedelta(1, 64800)'")
+
+def test_vsql_func_repr_datetimedelta_5(config_persons):
+	check_vsql_func(config_persons, "repr(days(42) + seconds(0)) == 'timedelta(42)'")
+
+def test_vsql_func_repr_datetimedelta_6(config_persons):
+	check_vsql_func(config_persons, "repr(days(42) + hours(17) + minutes(23)) == 'timedelta(42, 62580)'")
+
+def test_vsql_func_repr_monthdelta(config_persons):
+	check_vsql_func(config_persons, "repr(monthdelta(42)) == 'monthdelta(42)'")
+
+def test_vsql_func_repr_color_1(config_persons):
+	check_vsql_func(config_persons, "repr(#000) == '#000'")
+
+def test_vsql_func_repr_color_2(config_persons):
+	check_vsql_func(config_persons, "repr(#369c) == '#369c'")
+
+def test_vsql_func_repr_color_3(config_persons):
+	check_vsql_func(config_persons, "repr(#123456) == '#123456'")
+
+def test_vsql_func_repr_color_4(config_persons):
+	check_vsql_func(config_persons, "repr(#12345678) == '#12345678'")
+
+def test_vsql_func_repr_intlist(config_persons):
+	check_vsql_func(config_persons, "repr([1, 2, 3, None]) == '[1, 2, 3, None]'")
+
+def test_vsql_func_repr_numberlist(config_persons):
+	check_vsql_func(config_persons, "repr([1.2, 3.4, 5.6, None]) == '[1.2, 3.4, 5.6, None]'")
+
+def test_vsql_func_repr_strlist(config_persons):
+	check_vsql_func(config_persons, "repr(['foo', 'bar', None]) == '[\\'foo\\', \\'bar\\', None]'")
+
+def test_vsql_func_repr_datelist(config_persons):
+	check_vsql_func(config_persons, "repr([@(2000-02-29), None]) == '[@(2000-02-29), None]'")
+
+def test_vsql_func_repr_datetimelist(config_persons):
+	check_vsql_func(config_persons, "repr([@(2000-02-29T12:34:56), None]) == '[@(2000-02-29T12:34:56), None]'")
+
+# For the set test only include one non-``None`` value,
+# as the order of the other elements is undefined
+
+def test_vsql_func_repr_intset(config_persons):
+	check_vsql_func(config_persons, "repr({1, None}) == '{1, None}'")
+
+def test_vsql_func_repr_numberset(config_persons):
+	check_vsql_func(config_persons, "repr({1.2, None}) == '{1.2, None}'")
+
+def test_vsql_func_repr_strset(config_persons):
+	check_vsql_func(config_persons, "repr({'foo', None}) == '{\\\'foo\\\', None}'")
+
+def test_vsql_func_repr_dateset(config_persons):
+	check_vsql_func(config_persons, "repr({@(2000-02-29), None}) == '{@(2000-02-29), None}'")
+
+def test_vsql_func_repr_datetimeset(config_persons):
+	check_vsql_func(config_persons, "repr({@(2000-02-29T12:34:56), None}) == '{@(2000-02-29T12:34:56), None}'")
+
+def test_vsql_func_date_int(config_persons):
+	check_vsql_func(config_persons, "date(2000, 2, 29) == @(2000-02-29)")
+
+def test_vsql_func_date_datetime(config_persons):
+	check_vsql_func(config_persons, "date(@(2000-02-29T12:34:56)) == @(2000-02-29)")
+
+def test_vsql_func_datetime_int3(config_persons):
+	check_vsql_func(config_persons, "datetime(2000, 2, 29) == @(2000-02-29T)")
+
+def test_vsql_func_datetime_int4(config_persons):
+	check_vsql_func(config_persons, "datetime(2000, 2, 29, 12) == @(2000-02-29T12:00:00)")
+
+def test_vsql_func_datetime_int5(config_persons):
+	check_vsql_func(config_persons, "datetime(2000, 2, 29, 12, 34) == @(2000-02-29T12:34:00)")
+
+def test_vsql_func_datetime_int6(config_persons):
+	check_vsql_func(config_persons, "datetime(2000, 2, 29, 12, 34, 56) == @(2000-02-29T12:34:56)")
+
+def test_vsql_func_len_str1(config_persons):
+	check_vsql_func(config_persons, "len('') == 0")
+
+def test_vsql_func_len_str2(config_persons):
+	check_vsql_func(config_persons, "len('gurk') == 4")
+
+def test_vsql_func_len_str3(config_persons):
+	check_vsql_func(config_persons, "len('\\t\\n') == 2")
+
+def test_vsql_func_len_intlist(config_persons):
+	check_vsql_func(config_persons, "len([1, 2, 3]) == 3")
+
+def test_vsql_func_len_numberlist(config_persons):
+	check_vsql_func(config_persons, "len([1.2, 3.4, 5.6]) == 3")
+
+def test_vsql_func_len_strlist(config_persons):
+	check_vsql_func(config_persons, "len(['foo', 'bar', 'baz']) == 3")
+
+def test_vsql_func_len_datelist(config_persons):
+	check_vsql_func(config_persons, "len([@(2000-02-29)]) == 1")
+
+def test_vsql_func_len_datetimelist(config_persons):
+	check_vsql_func(config_persons, "len([@(2000-02-29T12:34:56)]) == 1")
+
+def test_vsql_func_len_intset(config_persons):
+	check_vsql_func(config_persons, "len({1, 1, 2, 2, 3, 3, None, None}) == 4")
+
+def test_vsql_func_len_numberset(config_persons):
+	check_vsql_func(config_persons, "len({1.2, 3.4, 5.6, None, 1.2, 3.4, 5.6, None}) == 4")
+
+def test_vsql_func_len_strset(config_persons):
+	check_vsql_func(config_persons, "len({'foo', 'bar', 'baz', None, 'foo', 'bar', 'baz'}) == 4")
+
+def test_vsql_func_len_dateset(config_persons):
+	check_vsql_func(config_persons, "len({@(2000-02-29), @(2000-02-29), @(2000-03-21), None}) == 3")
+
+def test_vsql_func_len_datetimeset(config_persons):
+	check_vsql_func(config_persons, "len({@(2000-02-29T12:34:56), None, @(2000-02-29T12:34:56), None, @(2000-02-29T11:22:33)}) == 3")
+
+def test_vsql_func_timedelta(config_persons):
+	check_vsql_func(config_persons, "not timedelta()")
+
+def test_vsql_func_timedelta_int1(config_persons):
+	check_vsql_func(config_persons, "timedelta(42)")
+
+def test_vsql_func_timedelta_int2(config_persons):
+	check_vsql_func(config_persons, "timedelta(42, 12)")
+
+def test_vsql_func_monthdelta(config_persons):
+	check_vsql_func(config_persons, "not monthdelta()")
+
+def test_vsql_func_monthdelta_int(config_persons):
+	check_vsql_func(config_persons, "monthdelta(42)")
+
+def test_vsql_func_years(config_persons):
+	check_vsql_func(config_persons, "years(25)")
+
+def test_vsql_func_months(config_persons):
+	check_vsql_func(config_persons, "months(3)")
+
+def test_vsql_func_weeks(config_persons):
+	check_vsql_func(config_persons, "weeks(3)")
+
+def test_vsql_func_days(config_persons):
+	check_vsql_func(config_persons, "days(12)")
+
+def test_vsql_func_hours(config_persons):
+	check_vsql_func(config_persons, "hours(8)")
+
+def test_vsql_func_minutes(config_persons):
+	check_vsql_func(config_persons, "minutes(45)")
+
+def test_vsql_func_seconds(config_persons):
+	check_vsql_func(config_persons, "seconds(60)")
+
+def test_vsql_func_md5(config_persons):
+	check_vsql_func(config_persons, "md5('gurk') == '4b5b6a3fa4af2541daa569277c7ff4c5'")
+
+def test_vsql_func_random(config_persons):
+	check_vsql_func(config_persons, "random() + 1")
+
+def test_vsql_func_randrange(config_persons):
+	check_vsql_func(config_persons, "randrange(1, 10)")
+
+def test_vsql_func_seq(config_persons):
+	check_vsql_func(config_persons, "seq()")
+
+def test_vsql_func_rgb1(config_persons):
+	check_vsql_func(config_persons, "rgb(0.2, 0.4, 0.6) == #369")
+
+def test_vsql_func_rgb2(config_persons):
+	check_vsql_func(config_persons, "rgb(0.2, 0.4, 0.6, 0.8) == #369c")
+
+def test_vsql_func_list_str(config_persons):
+	check_vsql_func(config_persons, "list('gurk') == ['g', 'u', 'r', 'k']")
+
+def test_vsql_func_list_intlist(config_persons):
+	check_vsql_func(config_persons, "list([1, 2, 3]) == [1, 2, 3]")
+
+def test_vsql_func_list_numberlist(config_persons):
+	check_vsql_func(config_persons, "list([1.2, 3.4, 5.6]) == [1.2, 3.4, 5.6]")
+
+def test_vsql_func_list_strlist(config_persons):
+	check_vsql_func(config_persons, "list(['foo', 'bar', 'baz', None]) == ['foo', 'bar', 'baz', None]")
+
+def test_vsql_func_list_datelist(config_persons):
+	check_vsql_func(config_persons, "list([@(2000-02-29), @(2000-03-01), None]) == [@(2000-02-29), @(2000-03-01), None]")
+
+def test_vsql_func_list_datetimelist(config_persons):
+	check_vsql_func(config_persons, "list([@(2000-02-29T12:34:56), @(2000-02-29T11:22:33), None]) == [@(2000-02-29T12:34:56), @(2000-02-29T11:22:33), None]")
+
+def test_vsql_func_list_intset(config_persons):
+	check_vsql_func(config_persons, "list({1, None}) == [1, None]")
+
+def test_vsql_func_list_numberset(config_persons):
+	check_vsql_func(config_persons, "list({1.2, None}) == [1.2, None]")
+
+def test_vsql_func_list_strset(config_persons):
+	check_vsql_func(config_persons, "list({'foo', None}) == ['foo', None]")
+
+def test_vsql_func_list_dateset(config_persons):
+	check_vsql_func(config_persons, "list({@(2000-02-29), None}) == [@(2000-02-29), None]")
+
+def test_vsql_func_list_datetimeset(config_persons):
+	check_vsql_func(config_persons, "list({@(2000-02-29T12:34:56), None}) == [@(2000-02-29T12:34:56), None]")
+
+def test_vsql_func_set_str(config_persons):
+	check_vsql_func(config_persons, "set('mississippi') == {'i', 'm', 'p', 's'}")
+
+def test_vsql_func_set_intlist(config_persons):
+	check_vsql_func(config_persons, "set([1, 2, 3, 2, 1, None]) == {1, 2, 3, None}")
+
+def test_vsql_func_set_numberlist(config_persons):
+	check_vsql_func(config_persons, "set([1.2, 3.4, 5.6, 3.4, 1.2, None]) == {1.2, 3.4, 5.6, None}")
+
+def test_vsql_func_set_strlist(config_persons):
+	check_vsql_func(config_persons, "set(['foo', 'bar', 'baz', None, 'baz', 'bar', 'foo']) == {'foo', 'bar', 'baz', None}")
+
+def test_vsql_func_set_datelist(config_persons):
+	check_vsql_func(config_persons, "set([@(2000-02-29), @(2000-03-01), None, @(2000-03-01), @(2000-02-29)]) == {@(2000-02-29), @(2000-03-01), None}")
+
+def test_vsql_func_set_datetimelist(config_persons):
+	check_vsql_func(config_persons, "set([@(2000-02-29T12:34:56), @(2000-02-29T11:22:33), @(2000-02-29T11:22:33), None, @(2000-02-29T12:34:56)]) == {@(2000-02-29T12:34:56), @(2000-02-29T11:22:33), None}")
+
+def test_vsql_func_set_intset(config_persons):
+	check_vsql_func(config_persons, "set({1, None}) == {1, None}")
+
+def test_vsql_func_set_numberset(config_persons):
+	check_vsql_func(config_persons, "set({1.2, None}) == {1.2, None}")
+
+def test_vsql_func_set_strset(config_persons):
+	check_vsql_func(config_persons, "set({'foo', None}) == {'foo', None}")
+
+def test_vsql_func_set_dateset(config_persons):
+	check_vsql_func(config_persons, "set({@(2000-02-29), None}) == {@(2000-02-29), None}")
+
+def test_vsql_func_set_datetimeset(config_persons):
+	check_vsql_func(config_persons, "set({@(2000-02-29T12:34:56), None}) == {@(2000-02-29T12:34:56), None}")
+
+def test_vsql_meth_str_lower(config_persons):
+	check_vsql_func(config_persons, "'MISSISSIPPI'.lower() == 'mississippi'")
+
+def test_vsql_meth_str_upper(config_persons):
+	check_vsql_func(config_persons, "'mississippi'.upper() == 'MISSISSIPPI'")
+
+def test_vsql_meth_str_startswith(config_persons):
+	check_vsql_func(config_persons, "'mississippi'.startswith('missi')")
+
+def test_vsql_meth_str_endswith(config_persons):
+	check_vsql_func(config_persons, "'mississippi'.endswith('sippi')")
+
+def test_vsql_meth_str_strip1(config_persons):
+	check_vsql_func(config_persons, "'\\r\\t\\n foo \\r\\t\\n '.strip() == 'foo'")
+
+def test_vsql_meth_str_strip2(config_persons):
+	check_vsql_func(config_persons, "'xyzzygurkxyzzy'.strip('xyz') == 'gurk'")
+
+def test_vsql_meth_str_lstrip1(config_persons):
+	check_vsql_func(config_persons, "'\\r\\t\\n foo \\r\\t\\n '.lstrip() == 'foo \\r\\t\\n '")
+
+def test_vsql_meth_str_lstrip2(config_persons):
+	check_vsql_func(config_persons, "'xyzzygurkxyzzy'.lstrip('xyz') == 'gurkxyzzy'")
+
+def test_vsql_meth_str_rstrip1(config_persons):
+	check_vsql_func(config_persons, "'\\r\\t\\n foo \\r\\t\\n '.rstrip() == '\\r\\t\\n foo'")
+
+def test_vsql_meth_str_rstrip2(config_persons):
+	check_vsql_func(config_persons, "'xyzzygurkxyzzy'.rstrip('xyz') == 'xyzzygurk'")
+
+def test_vsql_meth_str_find1(config_persons):
+	check_vsql_func(config_persons, "'gurkgurk'.find('ks') == -1")
+
+def test_vsql_meth_str_find2(config_persons):
+	check_vsql_func(config_persons, "'gurkgurk'.find('rk') == 2")
+
+def test_vsql_meth_str_find3(config_persons):
+	check_vsql_func(config_persons, "'gurkgurk'.find('rk', 2) == 2")
+
+def test_vsql_meth_str_find4(config_persons):
+	check_vsql_func(config_persons, "'gurkgurk'.find('rk', -3) == 6")
+
+def test_vsql_meth_str_find5(config_persons):
+	check_vsql_func(config_persons, "'gurkgurk'.find('rk', 2, 4) == 2")
+
+def test_vsql_meth_str_find6(config_persons):
+	check_vsql_func(config_persons, "'gurkgurk'.find('rk', 4, 8) == 6")
+
+def test_vsql_meth_str_find7(config_persons):
+	check_vsql_func(config_persons, "'gurkgurk'.find('ur', -4, -1) == 5")
+
+def test_vsql_meth_str_find8(config_persons):
+	check_vsql_func(config_persons, "'gurkgurk'.find('rk', 2, 3) == -1")
+
+def test_vsql_meth_str_find9(config_persons):
+	check_vsql_func(config_persons, "'gurkgurk'.find('rk', 7) == -1")
+
+def test_vsql_meth_str_replace(config_persons):
+	check_vsql_func(config_persons, "'gurk'.replace('u', 'oo') == 'goork'")
+
+def test_vsql_meth_str_split1(config_persons):
+	check_vsql_func(config_persons, "' \\t\\r\\nf \\t\\r\\no \\t\\r\\no \\t\\r\\n'.split() == ['f', 'o', 'o']")
+
+def test_vsql_meth_str_split2(config_persons):
+	check_vsql_func(config_persons, "' \\t\\r\\nf \\t\\r\\no \\t\\r\\no \\t\\r\\n'.split(None, 1) == ['f', 'o \\t\\r\\no']")
+
+def test_vsql_meth_str_split3(config_persons):
+	check_vsql_func(config_persons, "'xxfxxoxxoxx'.split('xx') == [None, 'f', 'o', 'o', None]")
+
+def test_vsql_meth_str_split4(config_persons):
+	check_vsql_func(config_persons, "'xxfxxoxxoxx'.split('xx', 2) == [None, 'f', 'oxxoxx']")
+
+def test_vsql_meth_str_join_str(config_persons):
+	check_vsql_func(config_persons, "','.join('1234') == '1,2,3,4'")
+
+def test_vsql_meth_str_join_list(config_persons):
+	check_vsql_func(config_persons, "','.join(['1', '2', '3', '4']) == '1,2,3,4'")
+
+def test_vsql_meth_color_lum1(config_persons):
+	check_vsql_func(config_persons, "#000.lum() == 0.0")
+
+def test_vsql_meth_color_lum2(config_persons):
+	check_vsql_func(config_persons, "#fff.lum() == 1.0")
+
+def test_vsql_attr_date_year(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29).year == 2000")
+
+def test_vsql_attr_datetime_year(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29T12:34:56).year == 2000")
+
+def test_vsql_attr_date_month(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29).month == 2")
+
+def test_vsql_attr_datetime_month(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29T12:34:56).month == 2")
+
+def test_vsql_attr_date_day(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29).day == 29")
+
+def test_vsql_attr_datetime_day(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29T12:34:56).day == 29")
+
+def test_vsql_attr_datetime_hour(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29T12:34:56).hour == 12")
+
+def test_vsql_attr_datetime_minute(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29T12:34:56).minute == 34")
+
+def test_vsql_attr_datetime_second(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29T12:34:56).second == 56")
+
+def test_vsql_attr_date_weekday(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29).weekday == 1")
+
+def test_vsql_attr_datetime_weekday(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29T12:34:56).weekday == 1")
+
+def test_vsql_attr_date_yearday(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29).yearday == 60")
+
+def test_vsql_attr_datetime_yearday(config_persons):
+	check_vsql_func(config_persons, "@(2000-02-29T12:34:56).yearday == 60")
+
+def test_vsql_attr_datedelta_days(config_persons):
+	check_vsql_func(config_persons, "days(12).days == 12")
+
+def test_vsql_attr_datetimedelta_days(config_persons):
+	check_vsql_func(config_persons, "timedelta(12, 34).days == 12")
+
+def test_vsql_attr_datetimedelta_seconds(config_persons):
+	check_vsql_func(config_persons, "timedelta(12, 34).seconds == 34")
+
+def test_vsql_attr_datetimedelta_total_days(config_persons):
+	check_vsql_func(config_persons, "timedelta(12, 34).total_days * 60 * 60 * 24 == 12 * 60 * 60 * 24 + 34")
+
+def test_vsql_attr_datetimedelta_total_hours(config_persons):
+	check_vsql_func(config_persons, "timedelta(12, 34).total_hours * 60 * 60 == 12 * 60 * 60 * 24 + 34")
+
+def test_vsql_attr_datetimedelta_total_minutes(config_persons):
+	check_vsql_func(config_persons, "timedelta(12, 34).total_minutes * 60 == 12 * 60 * 60 * 24 + 34")
+
+def test_vsql_attr_datetimedelta_total_seconds(config_persons):
+	check_vsql_func(config_persons, "timedelta(12, 34).total_seconds == 12 * 60 * 60 * 24 + 34")
+
+def test_vsql_attr_color_r(config_persons):
+	check_vsql_func(config_persons, "app.p_color_value.value.r == 0x33")
+
+def test_vsql_attr_color_g(config_persons):
+	check_vsql_func(config_persons, "app.p_color_value.value.g == 0x66")
+
+def test_vsql_attr_color_b(config_persons):
+	check_vsql_func(config_persons, "app.p_color_value.value.b == 0x99")
+
+def test_vsql_attr_color_a(config_persons):
+	check_vsql_func(config_persons, "app.p_color_value.value.a == 0xcc")
+
+def test_vsql_cmp_eq_bool_none_false(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_none.value == None")
+
+def test_vsql_cmp_eq_bool_none_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_true.value == None)")
+
+def test_vsql_cmp_eq_int_none_false(config_persons):
+	check_vsql_func(config_persons, "app.p_int_none.value == None")
+
+def test_vsql_cmp_eq_int_none_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_int_value.value == None)")
+
+def test_vsql_cmp_eq_number_none_false(config_persons):
+	check_vsql_func(config_persons, "app.p_number_none.value == None")
+
+def test_vsql_cmp_eq_number_none_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_value.value == None)")
+
+def test_vsql_cmp_eq_str_none_false(config_persons):
+	check_vsql_func(config_persons, "app.p_str_none.value == None")
+
+def test_vsql_cmp_eq_str_none_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_str_value.value == None)")
+
+def test_vsql_cmp_eq_date_none_false(config_persons):
+	check_vsql_func(config_persons, "app.p_date_none.value == None")
+
+def test_vsql_cmp_eq_date_none_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_date_value.value == None)")
+
+def test_vsql_cmp_eq_datetime_none_false(config_persons):
+	check_vsql_func(config_persons, "app.p_datetime_none.value == None")
+
+def test_vsql_cmp_eq_datetime_none_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datetime_value.value == None)")
+
+def test_vsql_cmp_eq_color_none_false(config_persons):
+	check_vsql_func(config_persons, "app.p_color_none.value == None")
+
+def test_vsql_cmp_eq_color_none_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_color_value.value == None)")
+
+def test_vsql_cmp_eq_datedelta_none_false(config_persons):
+	check_vsql_func(config_persons, "app.p_datedelta_none.value == None")
+
+def test_vsql_cmp_eq_datedelta_none_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datedelta_value.value == None)")
+
+def test_vsql_cmp_eq_datetimedelta_none_false(config_persons):
+	check_vsql_func(config_persons, "app.p_datetimedelta_none.value == None")
+
+def test_vsql_cmp_eq_datetimedelta_none_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datetimedelta_value.value == None)")
+
+def test_vsql_cmp_eq_monthdelta_none_false(config_persons):
+	check_vsql_func(config_persons, "app.p_monthdelta_none.value == None")
+
+def test_vsql_cmp_eq_monthdelta_none_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_monthdelta_value.value == None)")
+
+def test_vsql_cmp_eq_bool_bool_false(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_false.value == False")
+
+def test_vsql_cmp_eq_bool_bool_true(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_true.value == True")
+
+def test_vsql_cmp_eq_bool_int_false(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_false.value == 0")
+
+def test_vsql_cmp_eq_bool_int_true(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_true.value == 1")
+
+def test_vsql_cmp_eq_int_bool_false(config_persons):
+	check_vsql_func(config_persons, "0 == app.p_bool_false.value")
+
+def test_vsql_cmp_eq_int_bool_true(config_persons):
+	check_vsql_func(config_persons, "1 == app.p_bool_true.value")
+
+def test_vsql_cmp_eq_number_bool_false(config_persons):
+	check_vsql_func(config_persons, "0.0 == app.p_bool_false.value")
+
+def test_vsql_cmp_eq_number_bool_true(config_persons):
+	check_vsql_func(config_persons, "1.0 == app.p_bool_true.value")
+
+def test_vsql_cmp_eq_number_int_false(config_persons):
+	check_vsql_func(config_persons, "not (42.5 == app.p_int_value.value)")
+
+def test_vsql_cmp_eq_number_int_true(config_persons):
+	check_vsql_func(config_persons, "1777.0 == app.p_int_value.value")
+
+def test_vsql_cmp_eq_number_number_false(config_persons):
+	check_vsql_func(config_persons, "not (17.23 == app.p_number_value.value)")
+
+def test_vsql_cmp_eq_number_number_true(config_persons):
+	check_vsql_func(config_persons, "42.5 == app.p_number_value.value")
+
+def test_vsql_cmp_eq_str_str_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_str_none.value == 'gurk')")
+
+def test_vsql_cmp_eq_str_str_true(config_persons):
+	check_vsql_func(config_persons, "app.p_str_value.value == 'gurk'")
+
+def test_vsql_cmp_eq_date_date_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_date_none.value == @(2000-02-29))")
+
+def test_vsql_cmp_eq_date_date_true(config_persons):
+	check_vsql_func(config_persons, "app.p_date_value.value == @(2000-02-29)")
+
+def test_vsql_cmp_eq_datetime_datetime_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datetime_none.value == @(2000-02-29T12:34:56))")
+
+def test_vsql_cmp_eq_datetime_datetime_true(config_persons):
+	check_vsql_func(config_persons, "app.p_datetime_value.value == @(2000-02-29T12:34:56)")
+
+def test_vsql_cmp_eq_datedelta_datedelta_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datedelta_none.value == days(12))")
+
+def test_vsql_cmp_eq_datedelta_datedelta_true(config_persons):
+	check_vsql_func(config_persons, "app.p_datedelta_value.value == days(12)")
+
+def test_vsql_cmp_eq_color_color_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_color_none.value == #369c)")
+
+def test_vsql_cmp_eq_color_color_true(config_persons):
+	check_vsql_func(config_persons, "app.p_color_value.value == #369c")
+
+def test_vsql_cmp_eq_datetimedelta_datetimedelta_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datetimedelta_none.value == timedelta(1, 45296))")
+
+def test_vsql_cmp_eq_datetimedelta_datetimedelta_true(config_persons):
+	check_vsql_func(config_persons, "app.p_datetimedelta_value.value == timedelta(1, 45296)")
+
+def test_vsql_cmp_eq_intlist_intlist1(config_persons):
+	check_vsql_func(config_persons, "not ([1] == [2])")
+
+def test_vsql_cmp_eq_intlist_intlist2(config_persons):
+	check_vsql_func(config_persons, "not ([1] == [1, 2])")
+
+def test_vsql_cmp_eq_intlist_intlist3(config_persons):
+	check_vsql_func(config_persons, "not ([1, 2] == [1])")
+
+def test_vsql_cmp_eq_intlist_intlist4(config_persons):
+	check_vsql_func(config_persons, "not ([1, None] == [1])")
+
+def test_vsql_cmp_eq_intlist_intlist5(config_persons):
+	check_vsql_func(config_persons, "[1, None, 2, None, 3] == [1, None, 2, None, 3]")
+
+def test_vsql_cmp_eq_intlist_numberlist1(config_persons):
+	check_vsql_func(config_persons, "not ([1] == [1.5])")
+
+def test_vsql_cmp_eq_intlist_numberlist2(config_persons):
+	check_vsql_func(config_persons, "not ([1] == [1.0, 2.0])")
+
+def test_vsql_cmp_eq_intlist_numberlist3(config_persons):
+	check_vsql_func(config_persons, "not ([1, 2] == [1.0])")
+
+def test_vsql_cmp_eq_intlist_numberlist4(config_persons):
+	check_vsql_func(config_persons, "not ([1, None] == [1.0])")
+
+def test_vsql_cmp_eq_intlist_numberlist5(config_persons):
+	check_vsql_func(config_persons, "[1, None, 2, None, 3] == [1.0, None, 2.0, None, 3.0]")
+
+def test_vsql_cmp_eq_numberlist_intlist1(config_persons):
+	check_vsql_func(config_persons, "not ([1.5] == [2])")
+
+def test_vsql_cmp_eq_numberlist_intlist2(config_persons):
+	check_vsql_func(config_persons, "not ([1.0] == [1, 2])")
+
+def test_vsql_cmp_eq_numberlist_intlist3(config_persons):
+	check_vsql_func(config_persons, "not ([1.0, 2.0] == [1])")
+
+def test_vsql_cmp_eq_numberlist_intlist4(config_persons):
+	check_vsql_func(config_persons, "not ([1.0, None] == [1])")
+
+def test_vsql_cmp_eq_numberlist_intlist5(config_persons):
+	check_vsql_func(config_persons, "[1.0, None, 2.0, None, 3.0] == [1, None, 2, None, 3]")
+
+def test_vsql_cmp_eq_numberlist_numberlist1(config_persons):
+	check_vsql_func(config_persons, "not ([1.5] == [2.5])")
+
+def test_vsql_cmp_eq_numberlist_numberlist2(config_persons):
+	check_vsql_func(config_persons, "not ([1.0] == [1.0, 2.0])")
+
+def test_vsql_cmp_eq_numberlist_numberlist3(config_persons):
+	check_vsql_func(config_persons, "not ([1.0, 2.0] == [1.0])")
+
+def test_vsql_cmp_eq_numberlist_numberlist4(config_persons):
+	check_vsql_func(config_persons, "not ([1.5, None] == [1.5])")
+
+def test_vsql_cmp_eq_numberlist_numberlist5(config_persons):
+	check_vsql_func(config_persons, "[1.5, None, 2.5, None, 3.5] == [1.5, None, 2.5, None, 3.5]")
+
+def test_vsql_cmp_eq_strlist_strlist1(config_persons):
+	check_vsql_func(config_persons, "not (['foo'] == ['bar'])")
+
+def test_vsql_cmp_eq_strlist_strlist2(config_persons):
+	check_vsql_func(config_persons, "not (['foo'] == ['foo', 'bar'])")
+
+def test_vsql_cmp_eq_strlist_strlist3(config_persons):
+	check_vsql_func(config_persons, "not (['foo', 'bar'] == ['foo'])")
+
+def test_vsql_cmp_eq_strlist_strlist4(config_persons):
+	check_vsql_func(config_persons, "not (['foo', None] == ['foo'])")
+
+def test_vsql_cmp_eq_strlist_strlist5(config_persons):
+	check_vsql_func(config_persons, "['foo', None, 'bar', None, 'baz'] == ['foo', None, 'bar', None, 'baz']")
+
+def test_vsql_cmp_eq_datelist_datelist1(config_persons):
+	check_vsql_func(config_persons, "not ([@(2000-02-29)] == [@(2000-03-01)])")
+
+def test_vsql_cmp_eq_datelist_datelist2(config_persons):
+	check_vsql_func(config_persons, "not ([@(2000-02-29)] == [@(2000-02-29), @(2000-03-01)])")
+
+def test_vsql_cmp_eq_datelist_datelist3(config_persons):
+	check_vsql_func(config_persons, "not ([@(2000-02-29), @(2000-03-01)] == [@(2000-02-29)])")
+
+def test_vsql_cmp_eq_datelist_datelist4(config_persons):
+	check_vsql_func(config_persons, "not ([@(2000-02-29), None] == [@(2000-02-29)])")
+
+def test_vsql_cmp_eq_datelist_datelist5(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29), None, @(2000-03-01), None, @(2000-03-02)] == [@(2000-02-29), None, @(2000-03-01), None, @(2000-03-02)]")
+
+def test_vsql_cmp_eq_datetimelist_datetimelist1(config_persons):
+	check_vsql_func(config_persons, "not ([@(2000-02-29T12:34:56)] == [@(2000-03-01T12:34:56)])")
+
+def test_vsql_cmp_eq_datetimelist_datetimelist2(config_persons):
+	check_vsql_func(config_persons, "not ([@(2000-02-29T12:34:56)] == [@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)])")
+
+def test_vsql_cmp_eq_datetimelist_datetimelist3(config_persons):
+	check_vsql_func(config_persons, "not ([@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)] == [@(2000-02-29T12:34:56)])")
+
+def test_vsql_cmp_eq_datetimelist_datetimelist4(config_persons):
+	check_vsql_func(config_persons, "not ([@(2000-02-29T12:34:56), None] == [@(2000-02-29T12:34:56)])")
+
+def test_vsql_cmp_eq_datetimelist_datetimelist5(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)] == [@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)]")
+
+def test_vsql_cmp_eq_intset_intset1(config_persons):
+	check_vsql_func(config_persons, "not ({1} == {2})")
+
+def test_vsql_cmp_eq_intset_intset2(config_persons):
+	check_vsql_func(config_persons, "not ({1} == {1, 2})")
+
+def test_vsql_cmp_eq_intset_intset3(config_persons):
+	check_vsql_func(config_persons, "not ({1, 2} == {1})")
+
+def test_vsql_cmp_eq_intset_intset4(config_persons):
+	check_vsql_func(config_persons, "not ({1, None} == {1})")
+
+def test_vsql_cmp_eq_intset_intset5(config_persons):
+	check_vsql_func(config_persons, "{1, None, 2, None, 3} == {None, 3, 2, 1, None}")
+
+def test_vsql_cmp_eq_numberset_numberset1(config_persons):
+	check_vsql_func(config_persons, "not ({1.5} == {2.5})")
+
+def test_vsql_cmp_eq_numberset_numberset2(config_persons):
+	check_vsql_func(config_persons, "not ({1.5} == {1.5, 2.5})")
+
+def test_vsql_cmp_eq_numberset_numberset3(config_persons):
+	check_vsql_func(config_persons, "not ({1.5, 2.5} == {1.5})")
+
+def test_vsql_cmp_eq_numberset_numberset4(config_persons):
+	check_vsql_func(config_persons, "not ({1.5, None} == {1.5})")
+
+def test_vsql_cmp_eq_numberset_numberset5(config_persons):
+	check_vsql_func(config_persons, "{1.5, None, 2.5, None, 3.5} == {None, 3.5, 2.5, 1.5, None}")
+
+def test_vsql_cmp_eq_strset_strset1(config_persons):
+	check_vsql_func(config_persons, "not ({1.5} == {2.5})")
+
+def test_vsql_cmp_eq_strset_strset2(config_persons):
+	check_vsql_func(config_persons, "not ({'foo'} == {'foo', 'bar'})")
+
+def test_vsql_cmp_eq_strset_strset3(config_persons):
+	check_vsql_func(config_persons, "not ({'foo', 'bar'} == {'foo'})")
+
+def test_vsql_cmp_eq_strset_strset4(config_persons):
+	check_vsql_func(config_persons, "not ({'foo', None} == {'foo'})")
+
+def test_vsql_cmp_eq_strset_strset5(config_persons):
+	check_vsql_func(config_persons, "{'foo', None, 'bar', None, 'baz'} == {None, 'baz', 'bar', 'foo', None}")
+
+def test_vsql_cmp_eq_dateset_dateset1(config_persons):
+	check_vsql_func(config_persons, "not ({@(2000-02-29)} == {@(2000-03-01)})")
+
+def test_vsql_cmp_eq_dateset_dateset2(config_persons):
+	check_vsql_func(config_persons, "not ({@(2000-02-29)} == {@(2000-02-29), @(2000-03-01)})")
+
+def test_vsql_cmp_eq_dateset_dateset3(config_persons):
+	check_vsql_func(config_persons, "not ({@(2000-02-29), @(2000-03-01)} == {@(2000-02-29)})")
+
+def test_vsql_cmp_eq_dateset_dateset4(config_persons):
+	check_vsql_func(config_persons, "not ({@(2000-02-29), None} == {@(2000-02-29)})")
+
+def test_vsql_cmp_eq_dateset_dateset5(config_persons):
+	check_vsql_func(config_persons, "{@(2000-02-29), None, @(2000-03-01), None, @(2000-03-02)} == {None, @(2000-03-02), @(2000-03-01), @(2000-02-29), None}")
+
+def test_vsql_cmp_eq_datetimeset_datetimeset1(config_persons):
+	check_vsql_func(config_persons, "not ({@(2000-02-29T12:34:56)} == {@(2000-03-01T12:34:56)})")
+
+def test_vsql_cmp_eq_datetimeset_datetimeset2(config_persons):
+	check_vsql_func(config_persons, "not ({@(2000-02-29T12:34:56)} == {@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)})")
+
+def test_vsql_cmp_eq_datetimeset_datetimeset3(config_persons):
+	check_vsql_func(config_persons, "not ({@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)} == {@(2000-02-29T12:34:56)})")
+
+def test_vsql_cmp_eq_datetimeset_datetimeset4(config_persons):
+	check_vsql_func(config_persons, "not ({@(2000-02-29T12:34:56), None} == {@(2000-02-29T12:34:56)})")
+
+def test_vsql_cmp_eq_datetimeset_datetimeset5(config_persons):
+	check_vsql_func(config_persons, "{@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)} == {None, @(2000-03-02T12:34:56), @(2000-03-01T12:34:56), @(2000-02-29T12:34:56), None}")
+
+# FIXME Implement mixed type comparisons?
+
+def test_vsql_cmp_ne_bool_none_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_none.value != None)")
+
+def test_vsql_cmp_ne_bool_none_true(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_true.value != None")
+
+def test_vsql_cmp_ne_int_none_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_int_none.value != None)")
+
+def test_vsql_cmp_ne_int_none_true(config_persons):
+	check_vsql_func(config_persons, "app.p_int_value.value != None")
+
+def test_vsql_cmp_ne_number_none_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_none.value != None)")
+
+def test_vsql_cmp_ne_number_none_true(config_persons):
+	check_vsql_func(config_persons, "app.p_number_value.value != None")
+
+def test_vsql_cmp_ne_str_none_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_str_none.value != None)")
+
+def test_vsql_cmp_ne_str_none_true(config_persons):
+	check_vsql_func(config_persons, "app.p_str_value.value != None")
+
+def test_vsql_cmp_ne_date_none_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_date_none.value != None)")
+
+def test_vsql_cmp_ne_date_none_true(config_persons):
+	check_vsql_func(config_persons, "app.p_date_value.value != None")
+
+def test_vsql_cmp_ne_datetime_none_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datetime_none.value != None)")
+
+def test_vsql_cmp_ne_datetime_none_true(config_persons):
+	check_vsql_func(config_persons, "app.p_datetime_value.value != None")
+
+def test_vsql_cmp_ne_color_none_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_color_none.value != None)")
+
+def test_vsql_cmp_ne_color_none_true(config_persons):
+	check_vsql_func(config_persons, "app.p_color_value.value != None")
+
+def test_vsql_cmp_ne_datedelta_none_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datedelta_none.value != None)")
+
+def test_vsql_cmp_ne_datedelta_none_true(config_persons):
+	check_vsql_func(config_persons, "app.p_datedelta_value.value != None")
+
+def test_vsql_cmp_ne_datetimedelta_none_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datetimedelta_none.value != None)")
+
+def test_vsql_cmp_ne_datetimedelta_none_true(config_persons):
+	check_vsql_func(config_persons, "app.p_datetimedelta_value.value != None")
+
+def test_vsql_cmp_ne_monthdelta_none_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_monthdelta_none.value != None)")
+
+def test_vsql_cmp_ne_monthdelta_none_true(config_persons):
+	check_vsql_func(config_persons, "app.p_monthdelta_value.value != None")
+
+def test_vsql_cmp_ne_bool_bool_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_false.value != False)")
+
+def test_vsql_cmp_ne_bool_bool_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_true.value != True)")
+
+def test_vsql_cmp_ne_bool_int_false(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_false.value != 0)")
+
+def test_vsql_cmp_ne_bool_int_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_true.value != 1)")
+
+def test_vsql_cmp_ne_int_bool_false(config_persons):
+	check_vsql_func(config_persons, "not (0 != app.p_bool_false.value)")
+
+def test_vsql_cmp_ne_int_bool_true(config_persons):
+	check_vsql_func(config_persons, "not (1 != app.p_bool_true.value)")
+
+def test_vsql_cmp_ne_number_bool_false(config_persons):
+	check_vsql_func(config_persons, "not (0.0 != app.p_bool_false.value)")
+
+def test_vsql_cmp_ne_number_bool_true(config_persons):
+	check_vsql_func(config_persons, "not (1.0 != app.p_bool_true.value)")
+
+def test_vsql_cmp_ne_number_int_false(config_persons):
+	check_vsql_func(config_persons, "42.5 != app.p_int_value.value")
+
+def test_vsql_cmp_ne_number_int_true(config_persons):
+	check_vsql_func(config_persons, "not (1777.0 != app.p_int_value.value)")
+
+def test_vsql_cmp_ne_number_number_false(config_persons):
+	check_vsql_func(config_persons, "17.23 != app.p_number_value.value")
+
+def test_vsql_cmp_ne_number_number_true(config_persons):
+	check_vsql_func(config_persons, "not (42.5 != app.p_number_value.value)")
+
+def test_vsql_cmp_ne_str_str_false(config_persons):
+	check_vsql_func(config_persons, "app.p_str_none.value != 'gurk'")
+
+def test_vsql_cmp_ne_str_str_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_str_value.value != 'gurk')")
+
+def test_vsql_cmp_ne_date_date_false(config_persons):
+	check_vsql_func(config_persons, "app.p_date_none.value != @(2000-02-29)")
+
+def test_vsql_cmp_ne_date_date_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_date_value.value != @(2000-02-29))")
+
+def test_vsql_cmp_ne_datetime_datetime_false(config_persons):
+	check_vsql_func(config_persons, "app.p_datetime_none.value != @(2000-02-29T12:34:56)")
+
+def test_vsql_cmp_ne_datetime_datetime_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datetime_value.value != @(2000-02-29T12:34:56))")
+
+def test_vsql_cmp_ne_datedelta_datedelta_false(config_persons):
+	check_vsql_func(config_persons, "app.p_datedelta_none.value != days(12)")
+
+def test_vsql_cmp_ne_datedelta_datedelta_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datedelta_value.value != days(12))")
+
+def test_vsql_cmp_ne_color_color_false(config_persons):
+	check_vsql_func(config_persons, "app.p_color_none.value != #369c")
+
+def test_vsql_cmp_ne_color_color_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_color_value.value != #369c)")
+
+def test_vsql_cmp_ne_datetimedelta_datetimedelta_false(config_persons):
+	check_vsql_func(config_persons, "app.p_datetimedelta_none.value != timedelta(1, 45296)")
+
+def test_vsql_cmp_ne_datetimedelta_datetimedelta_true(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datetimedelta_value.value != timedelta(1, 45296))")
+
+def test_vsql_cmp_ne_intlist_intlist1(config_persons):
+	check_vsql_func(config_persons, "[1] != [2]")
+
+def test_vsql_cmp_ne_intlist_intlist2(config_persons):
+	check_vsql_func(config_persons, "[1] != [1, 2]")
+
+def test_vsql_cmp_ne_intlist_intlist3(config_persons):
+	check_vsql_func(config_persons, "[1, 2] != [1]")
+
+def test_vsql_cmp_ne_intlist_intlist4(config_persons):
+	check_vsql_func(config_persons, "[1, None] != [1]")
+
+def test_vsql_cmp_ne_intlist_intlist5(config_persons):
+	check_vsql_func(config_persons, "not ([1, None, 2, None, 3] != [1, None, 2, None, 3])")
+
+def test_vsql_cmp_ne_intlist_numberlist1(config_persons):
+	check_vsql_func(config_persons, "[1] != [1.5]")
+
+def test_vsql_cmp_ne_intlist_numberlist2(config_persons):
+	check_vsql_func(config_persons, "[1] != [1.0, 2.0]")
+
+def test_vsql_cmp_ne_intlist_numberlist3(config_persons):
+	check_vsql_func(config_persons, "[1, 2] != [1.0]")
+
+def test_vsql_cmp_ne_intlist_numberlist4(config_persons):
+	check_vsql_func(config_persons, "[1, None] != [1.0]")
+
+def test_vsql_cmp_ne_intlist_numberlist5(config_persons):
+	check_vsql_func(config_persons, "not ([1, None, 2, None, 3] != [1.0, None, 2.0, None, 3.0])")
+
+def test_vsql_cmp_ne_numberlist_intlist1(config_persons):
+	check_vsql_func(config_persons, "[1.5] != [2]")
+
+def test_vsql_cmp_ne_numberlist_intlist2(config_persons):
+	check_vsql_func(config_persons, "[1.0] != [1, 2]")
+
+def test_vsql_cmp_ne_numberlist_intlist3(config_persons):
+	check_vsql_func(config_persons, "[1.0, 2.0] != [1]")
+
+def test_vsql_cmp_ne_numberlist_intlist4(config_persons):
+	check_vsql_func(config_persons, "[1.0, None] != [1]")
+
+def test_vsql_cmp_ne_numberlist_intlist5(config_persons):
+	check_vsql_func(config_persons, "not ([1.0, None, 2.0, None, 3.0] != [1, None, 2, None, 3])")
+
+def test_vsql_cmp_ne_numberlist_numberlist1(config_persons):
+	check_vsql_func(config_persons, "[1.5] != [2.5]")
+
+def test_vsql_cmp_ne_numberlist_numberlist2(config_persons):
+	check_vsql_func(config_persons, "[1.0] != [1.0, 2.0]")
+
+def test_vsql_cmp_ne_numberlist_numberlist3(config_persons):
+	check_vsql_func(config_persons, "[1.0, 2.0] != [1.0]")
+
+def test_vsql_cmp_ne_numberlist_numberlist4(config_persons):
+	check_vsql_func(config_persons, "[1.5, None] != [1.5]")
+
+def test_vsql_cmp_ne_numberlist_numberlist5(config_persons):
+	check_vsql_func(config_persons, "not ([1.5, None, 2.5, None, 3.5] != [1.5, None, 2.5, None, 3.5])")
+
+def test_vsql_cmp_ne_strlist_strlist1(config_persons):
+	check_vsql_func(config_persons, "['foo'] != ['bar']")
+
+def test_vsql_cmp_ne_strlist_strlist2(config_persons):
+	check_vsql_func(config_persons, "['foo'] != ['foo', 'bar']")
+
+def test_vsql_cmp_ne_strlist_strlist3(config_persons):
+	check_vsql_func(config_persons, "['foo', 'bar'] != ['foo']")
+
+def test_vsql_cmp_ne_strlist_strlist4(config_persons):
+	check_vsql_func(config_persons, "['foo', None] != ['foo']")
+
+def test_vsql_cmp_ne_strlist_strlist5(config_persons):
+	check_vsql_func(config_persons, "not (['foo', None, 'bar', None, 'baz'] != ['foo', None, 'bar', None, 'baz'])")
+
+def test_vsql_cmp_ne_datelist_datelist1(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29)] != [@(2000-03-01)]")
+
+def test_vsql_cmp_ne_datelist_datelist2(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29)] != [@(2000-02-29), @(2000-03-01)]")
+
+def test_vsql_cmp_ne_datelist_datelist3(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29), @(2000-03-01)] != [@(2000-02-29)]")
+
+def test_vsql_cmp_ne_datelist_datelist4(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29), None] != [@(2000-02-29)]")
+
+def test_vsql_cmp_ne_datelist_datelist5(config_persons):
+	check_vsql_func(config_persons, "not ([@(2000-02-29), None, @(2000-03-01), None, @(2000-03-02)] != [@(2000-02-29), None, @(2000-03-01), None, @(2000-03-02)])")
+
+def test_vsql_cmp_ne_datetimelist_datetimelist1(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29T12:34:56)] != [@(2000-03-01T12:34:56)]")
+
+def test_vsql_cmp_ne_datetimelist_datetimelist2(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29T12:34:56)] != [@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)]")
+
+def test_vsql_cmp_ne_datetimelist_datetimelist3(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)] != [@(2000-02-29T12:34:56)]")
+
+def test_vsql_cmp_ne_datetimelist_datetimelist4(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29T12:34:56), None] != [@(2000-02-29T12:34:56)]")
+
+def test_vsql_cmp_ne_datetimelist_datetimelist5(config_persons):
+	check_vsql_func(config_persons, "not ([@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)] != [@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)])")
+
+def test_vsql_cmp_ne_intset_intset1(config_persons):
+	check_vsql_func(config_persons, "{1} != {2}")
+
+def test_vsql_cmp_ne_intset_intset2(config_persons):
+	check_vsql_func(config_persons, "{1} != {1, 2}")
+
+def test_vsql_cmp_ne_intset_intset3(config_persons):
+	check_vsql_func(config_persons, "{1, 2} != {1}")
+
+def test_vsql_cmp_ne_intset_intset4(config_persons):
+	check_vsql_func(config_persons, "{1, None} != {1}")
+
+def test_vsql_cmp_ne_intset_intset5(config_persons):
+	check_vsql_func(config_persons, "not ({1, None, 2, None, 3} != {None, 3, 2, 1, None})")
+
+def test_vsql_cmp_ne_numberset_numberset1(config_persons):
+	check_vsql_func(config_persons, "{1.5} != {2.5}")
+
+def test_vsql_cmp_ne_numberset_numberset2(config_persons):
+	check_vsql_func(config_persons, "{1.5} != {1.5, 2.5}")
+
+def test_vsql_cmp_ne_numberset_numberset3(config_persons):
+	check_vsql_func(config_persons, "{1.5, 2.5} != {1.5}")
+
+def test_vsql_cmp_ne_numberset_numberset4(config_persons):
+	check_vsql_func(config_persons, "{1.5, None} != {1.5}")
+
+def test_vsql_cmp_ne_numberset_numberset5(config_persons):
+	check_vsql_func(config_persons, "not ({1.5, None, 2.5, None, 3.5} != {None, 3.5, 2.5, 1.5, None})")
+
+def test_vsql_cmp_ne_strset_strset1(config_persons):
+	check_vsql_func(config_persons, "{1.5} != {2.5}")
+
+def test_vsql_cmp_ne_strset_strset2(config_persons):
+	check_vsql_func(config_persons, "{'foo'} != {'foo', 'bar'}")
+
+def test_vsql_cmp_ne_strset_strset3(config_persons):
+	check_vsql_func(config_persons, "{'foo', 'bar'} != {'foo'}")
+
+def test_vsql_cmp_ne_strset_strset4(config_persons):
+	check_vsql_func(config_persons, "{'foo', None} != {'foo'}")
+
+def test_vsql_cmp_ne_strset_strset5(config_persons):
+	check_vsql_func(config_persons, "not ({'foo', None, 'bar', None, 'baz'} != {None, 'baz', 'bar', 'foo', None})")
+
+def test_vsql_cmp_ne_dateset_dateset1(config_persons):
+	check_vsql_func(config_persons, "{@(2000-02-29)} != {@(2000-03-01)}")
+
+def test_vsql_cmp_ne_dateset_dateset2(config_persons):
+	check_vsql_func(config_persons, "{@(2000-02-29)} != {@(2000-02-29), @(2000-03-01)}")
+
+def test_vsql_cmp_ne_dateset_dateset3(config_persons):
+	check_vsql_func(config_persons, "{@(2000-02-29), @(2000-03-01)} != {@(2000-02-29)}")
+
+def test_vsql_cmp_ne_dateset_dateset4(config_persons):
+	check_vsql_func(config_persons, "{@(2000-02-29), None} != {@(2000-02-29)}")
+
+def test_vsql_cmp_ne_dateset_dateset5(config_persons):
+	check_vsql_func(config_persons, "not ({@(2000-02-29), None, @(2000-03-01), None, @(2000-03-02)} != {None, @(2000-03-02), @(2000-03-01), @(2000-02-29), None})")
+
+def test_vsql_cmp_ne_datetimeset_datetimeset1(config_persons):
+	check_vsql_func(config_persons, "{@(2000-02-29T12:34:56)} != {@(2000-03-01T12:34:56)}")
+
+def test_vsql_cmp_ne_datetimeset_datetimeset2(config_persons):
+	check_vsql_func(config_persons, "{@(2000-02-29T12:34:56)} != {@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)}")
+
+def test_vsql_cmp_ne_datetimeset_datetimeset3(config_persons):
+	check_vsql_func(config_persons, "{@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)} != {@(2000-02-29T12:34:56)}")
+
+def test_vsql_cmp_ne_datetimeset_datetimeset4(config_persons):
+	check_vsql_func(config_persons, "{@(2000-02-29T12:34:56), None} != {@(2000-02-29T12:34:56)}")
+
+def test_vsql_cmp_ne_datetimeset_datetimeset5(config_persons):
+	check_vsql_func(config_persons, "not ({@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)} != {None, @(2000-03-02T12:34:56), @(2000-03-01T12:34:56), @(2000-02-29T12:34:56), None})")
+
+def test_vsql_cmp_gt_bool_none1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_none.value > None)")
+
+def test_vsql_cmp_gt_bool_none2(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_false.value > None")
+
+def test_vsql_cmp_gt_bool_none3(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_true.value > None")
+
+def test_vsql_cmp_gt_int_none1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_int_none.value > None)")
+
+def test_vsql_cmp_gt_int_none2(config_persons):
+	check_vsql_func(config_persons, "app.p_int_value.value > None")
+
+def test_vsql_cmp_gt_number_none1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_none.value > None)")
+
+def test_vsql_cmp_gt_number_none2(config_persons):
+	check_vsql_func(config_persons, "app.p_number_value.value > None")
+
+def test_vsql_cmp_gt_str_none1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_str_none.value > None)")
+
+def test_vsql_cmp_gt_str_none2(config_persons):
+	check_vsql_func(config_persons, "app.p_str_value.value > None")
+
+def test_vsql_cmp_gt_date_none1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_date_none.value > None)")
+
+def test_vsql_cmp_gt_date_none2(config_persons):
+	check_vsql_func(config_persons, "app.p_date_value.value > None")
+
+def test_vsql_cmp_gt_datetime_none1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datetime_none.value > None)")
+
+def test_vsql_cmp_gt_datetime_none2(config_persons):
+	check_vsql_func(config_persons, "app.p_datetime_value.value > None")
+
+def test_vsql_cmp_gt_color_none1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_color_none.value > None)")
+
+def test_vsql_cmp_gt_color_none2(config_persons):
+	check_vsql_func(config_persons, "app.p_color_value.value > None")
+
+def test_vsql_cmp_gt_datedelta_none1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datedelta_none.value > None)")
+
+def test_vsql_cmp_gt_datedelta_none2(config_persons):
+	check_vsql_func(config_persons, "app.p_datedelta_value.value > None")
+
+def test_vsql_cmp_gt_datetimedelta_none1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_datetimedelta_none.value > None)")
+
+def test_vsql_cmp_gt_datetimedelta_none2(config_persons):
+	check_vsql_func(config_persons, "app.p_datetimedelta_value.value > None")
+
+def test_vsql_cmp_gt_monthdelta_none1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_monthdelta_none.value > None)")
+
+def test_vsql_cmp_gt_monthdelta_none2(config_persons):
+	check_vsql_func(config_persons, "app.p_monthdelta_value.value > None")
+
+def test_vsql_cmp_gt_intlist_none(config_persons):
+	check_vsql_func(config_persons, "[1, 2] > None")
+
+def test_vsql_cmp_gt_numberlist_none(config_persons):
+	check_vsql_func(config_persons, "[1.2, 3.4] > None")
+
+def test_vsql_cmp_gt_strlist_none(config_persons):
+	check_vsql_func(config_persons, "['foo', 'bar'] > None")
+
+def test_vsql_cmp_gt_datelist_none(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29)] > None")
+
+def test_vsql_cmp_gt_datetimelist_none(config_persons):
+	check_vsql_func(config_persons, "[@(2000-02-29T12:34:56)] > None")
+
+def test_vsql_cmp_gt_none_bool1(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_bool_none.value)")
+
+def test_vsql_cmp_gt_none_bool2(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_bool_false.value)")
+
+def test_vsql_cmp_gt_none_bool3(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_bool_true.value)")
+
+def test_vsql_cmp_gt_none_int1(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_int_none.value)")
+
+def test_vsql_cmp_gt_none_int2(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_int_value.value)")
+
+def test_vsql_cmp_gt_none_number1(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_number_none.value)")
+
+def test_vsql_cmp_gt_none_number2(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_number_value.value)")
+
+def test_vsql_cmp_gt_none_str1(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_str_none.value)")
+
+def test_vsql_cmp_gt_none_str2(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_str_value.value)")
+
+def test_vsql_cmp_gt_none_date1(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_date_none.value)")
+
+def test_vsql_cmp_gt_none_date2(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_date_value.value)")
+
+def test_vsql_cmp_gt_none_datetime1(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_datetime_none.value)")
+
+def test_vsql_cmp_gt_none_datetime2(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_datetime_value.value)")
+
+def test_vsql_cmp_gt_none_color1(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_color_none.value)")
+
+def test_vsql_cmp_gt_none_color2(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_color_value.value)")
+
+def test_vsql_cmp_gt_none_datedelta1(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_datedelta_none.value)")
+
+def test_vsql_cmp_gt_none_datedelta2(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_datedelta_value.value)")
+
+def test_vsql_cmp_gt_none_datetimedelta1(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_datetimedelta_none.value)")
+
+def test_vsql_cmp_gt_none_datetimedelta2(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_datetimedelta_value.value)")
+
+def test_vsql_cmp_gt_none_monthdelta1(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_monthdelta_none.value)")
+
+def test_vsql_cmp_gt_none_monthdelta2(config_persons):
+	check_vsql_func(config_persons, "not (None > app.p_monthdelta_value.value)")
+
+def test_vsql_cmp_gt_none_intlist(config_persons):
+	check_vsql_func(config_persons, "not (None > [1, 2])")
+
+def test_vsql_cmp_gt_none_numberlist(config_persons):
+	check_vsql_func(config_persons, "not (None > [1.2, 3.4])")
+
+def test_vsql_cmp_gt_none_strlist(config_persons):
+	check_vsql_func(config_persons, "not (None > ['foo', 'bar'])")
+
+def test_vsql_cmp_gt_none_datelist(config_persons):
+	check_vsql_func(config_persons, "not (None > [@(2000-02-29)])")
+
+def test_vsql_cmp_gt_none_datetimelist(config_persons):
+	check_vsql_func(config_persons, "not (None > [@(2000-02-29T12:34:56)])")
+
+def test_vsql_cmp_gt_bool_bool1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_none.value > app.p_bool_none.value)")
+
+def test_vsql_cmp_gt_bool_bool2(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_none.value > app.p_bool_false.value)")
+
+def test_vsql_cmp_gt_bool_bool3(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_none.value > app.p_bool_true.value)")
+
+def test_vsql_cmp_gt_bool_bool4(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_false.value > app.p_bool_none.value")
+
+def test_vsql_cmp_gt_bool_bool5(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_false.value > app.p_bool_false.value)")
+
+def test_vsql_cmp_gt_bool_bool6(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_false.value > app.p_bool_true.value)")
+
+def test_vsql_cmp_gt_bool_bool7(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_true.value > app.p_bool_none.value")
+
+def test_vsql_cmp_gt_bool_bool8(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_true.value > app.p_bool_false.value")
+
+def test_vsql_cmp_gt_bool_bool9(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_true.value > app.p_bool_true.value)")
+
+def test_vsql_cmp_gt_bool_int1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_none.value > app.p_int_none.value)")
+
+def test_vsql_cmp_gt_bool_int2(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_none.value > -1)")
+
+def test_vsql_cmp_gt_bool_int3(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_false.value > app.p_int_none.value")
+
+def test_vsql_cmp_gt_bool_int4(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_false.value > 0)")
+
+def test_vsql_cmp_gt_bool_int5(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_false.value > 1)")
+
+def test_vsql_cmp_gt_bool_int6(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_true.value > app.p_int_none.value")
+
+def test_vsql_cmp_gt_bool_int7(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_true.value > 0")
+
+def test_vsql_cmp_gt_bool_int8(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_true.value > 1)")
