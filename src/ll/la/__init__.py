@@ -1901,6 +1901,7 @@ class Template(Base):
 		self.signature = signature
 		self.whitespace = whitespace
 		self.doc = doc
+		self._deleted = False
 
 	def template(self):
 		return ul4c.Template(self.source, name=self.identifier, signature=self.signature, whitespace=self.whitespace)
@@ -1961,6 +1962,9 @@ class InternalTemplate(Template):
 
 	def save(self, handler=None, recursive=True):
 		self._gethandler(handler).save_internaltemplate(self)
+
+	def delete(self, handler=None):
+		self._gethandler(handler).delete_internaltemplate(self)
 
 
 @register("viewtemplate")
@@ -2059,6 +2063,9 @@ class ViewTemplate(Template):
 
 	def save(self, handler=None, recursive=True):
 		self._gethandler(handler).save_viewtemplate(self)
+
+	def delete(self, handler=None):
+		self._gethandler(handler).delete_viewtemplate(self)
 
 
 @register("datasource")

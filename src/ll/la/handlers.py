@@ -192,6 +192,12 @@ class Handler:
 	def save_viewtemplate(self, viewtemplate, recursive=True):
 		raise NotImplementedError
 
+	def delete_viewtemplate(self, viewtemplate):
+		raise NotImplementedError
+
+	def delete_internaltemplate(self, internaltemplate):
+		raise NotImplementedError
+
 	def save_datasource(self, datasource, recursive=True):
 		raise NotImplementedError
 
@@ -239,7 +245,9 @@ class DBHandler(Handler):
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
 		self.proc_upload_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_INSERT")
 		self.proc_internaltemplate_import = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_IMPORT")
+		self.proc_internaltemplate_delete = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_DELETE")
 		self.proc_viewtemplate_import = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_IMPORT")
+		self.proc_viewtemplate_delete = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_DELETE")
 		self.proc_datasource_import = orasql.Procedure("DATASOURCE_PKG.DATASOURCE_IMPORT")
 		self.proc_datasourcechildren_import = orasql.Procedure("DATASOURCE_PKG.DATASOURCECHILDREN_IMPORT")
 		self.proc_dataorder_import = orasql.Procedure("DATASOURCE_PKG.DATAORDER_IMPORT")
@@ -351,6 +359,24 @@ class DBHandler(Handler):
 		if recursive:
 			for datasource in viewtemplate.datasources.values():
 				self.save_datasource(datasource, recursive=recursive)
+
+	def delete_viewtemplate(self, viewtemplate):
+		cursor = self.cursor()
+		self.proc_viewtemplate_import(
+			cursor,
+			c_user=self.ide_id,
+			p_vt_id=viewtemplate.id,
+		)
+		viewtemplate._deleted = True
+
+	def delete_internaltemplate(self, internaltemplate):
+		cursor = self.cursor()
+		self.proc_internaltemplate_import(
+			cursor,
+			c_user=self.ide_id,
+			p_it_id=internaltemplate.id,
+		)
+		internaltemplate._deleted = True
 
 	def save_datasource(self, datasource, recursive=True):
 		cursor = self.cursor()

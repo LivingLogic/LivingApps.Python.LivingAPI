@@ -12,6 +12,9 @@ HEAD (2019-08-??)
 *	Properly mark a record as deleted when it gets deleted via the
 	:class:`DBHandler`.
 
+*	View templates and internal templates can now be deleted via the
+	:class:`DBHandler`.
+
 *	Add more tests.
 
 
