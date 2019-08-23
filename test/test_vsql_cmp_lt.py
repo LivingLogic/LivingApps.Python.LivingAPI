@@ -321,3 +321,27 @@ def test_number_number3(config_persons):
 
 def test_number_number4(config_persons):
 	check_vsql(config_persons, "app.p_number_value.value < 73.0")
+
+def test_intlist_intlist1(config_persons):
+	check_vsql(config_persons, "[1] < [1, 2]")
+
+def test_intlist_intlist2(config_persons):
+	check_vsql(config_persons, "[1, 2] < [1, 3]")
+
+def test_intlist_intlist3(config_persons):
+	check_vsql(config_persons, "not ([1, 2] < [1])")
+
+def test_intlist_intlist4(config_persons):
+	check_vsql(config_persons, "not ([1, 2] < [1, 2])")
+
+def test_numberlist_numberlist1(config_persons):
+	check_vsql(config_persons, "[1.5] < [1.5, 2.5]")
+
+def test_numberlist_numberlist1(config_persons):
+	check_vsql(config_persons, "[1.5, 2.5] < [1.5, 3.5]")
+
+def test_numberlist_numberlist3(config_persons):
+	check_vsql(config_persons, "not ([1.5, 2.5] < [1.5])")
+
+def test_numberlist_numberlist4(config_persons):
+	check_vsql(config_persons, "not ([1.5, 2.5] < [1.5, 2.5])")
