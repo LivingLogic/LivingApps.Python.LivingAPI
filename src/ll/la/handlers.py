@@ -626,6 +626,7 @@ class DBHandler(Handler):
 			c_user=self.ide_id,
 			p_dat_id=record.id,
 		)
+		record._deleted = True
 
 		if r.p_errormessage:
 			raise ValueError(r.p_errormessage)

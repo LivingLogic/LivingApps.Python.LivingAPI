@@ -9,6 +9,9 @@ HEAD (2019-08-??)
 	converted to vSQL date objects when the time portion of the :class:`datetime`
 	object is zero.
 
+*	Properly mark a record a deleted when it gets deleted via the
+	:class:`DBHandler`.
+
 *	Add more tests.
 
 
