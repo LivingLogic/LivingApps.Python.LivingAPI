@@ -150,7 +150,6 @@ def error_object_unsaved(value):
 	"""
 	Return an error message for an unsaved referenced object.
 	"""
-
 	return f"Referenced object {value!r} hasn't been saved yet!"
 
 
@@ -158,7 +157,6 @@ def error_object_deleted(value):
 	"""
 	Return an error message for an deleted referenced object.
 	"""
-
 	return f"Referenced object {value!r} has been deleted!"
 
 
