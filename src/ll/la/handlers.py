@@ -362,7 +362,7 @@ class DBHandler(Handler):
 
 	def delete_viewtemplate(self, viewtemplate):
 		cursor = self.cursor()
-		self.proc_viewtemplate_import(
+		self.proc_viewtemplate_delete(
 			cursor,
 			c_user=self.ide_id,
 			p_vt_id=viewtemplate.id,
@@ -371,7 +371,7 @@ class DBHandler(Handler):
 
 	def delete_internaltemplate(self, internaltemplate):
 		cursor = self.cursor()
-		self.proc_internaltemplate_import(
+		self.proc_internaltemplate_delete(
 			cursor,
 			c_user=self.ide_id,
 			p_it_id=internaltemplate.id,
