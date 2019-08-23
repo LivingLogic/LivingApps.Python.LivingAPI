@@ -3319,3 +3319,105 @@ def test_vsql_cmp_gt_bool_int7(config_persons):
 
 def test_vsql_cmp_gt_bool_int8(config_persons):
 	check_vsql_func(config_persons, "not (app.p_bool_true.value > 1)")
+
+def test_vsql_cmp_gt_bool_number1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_none.value > app.p_number_none.value)")
+
+def test_vsql_cmp_gt_bool_number2(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_none.value > -1.0)")
+
+def test_vsql_cmp_gt_bool_number3(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_false.value > app.p_number_none.value")
+
+def test_vsql_cmp_gt_bool_number4(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_false.value > 0.0)")
+
+def test_vsql_cmp_gt_bool_number5(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_false.value > 1.0)")
+
+def test_vsql_cmp_gt_bool_number6(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_true.value > app.p_number_none.value")
+
+def test_vsql_cmp_gt_bool_number7(config_persons):
+	check_vsql_func(config_persons, "app.p_bool_true.value > 0.0")
+
+def test_vsql_cmp_gt_bool_number8(config_persons):
+	check_vsql_func(config_persons, "not (app.p_bool_true.value > 1.0)")
+
+def test_vsql_cmp_gt_int_bool1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_int_none.value > app.p_bool_none.value)")
+
+def test_vsql_cmp_gt_int_bool2(config_persons):
+	check_vsql_func(config_persons, "not (app.p_int_none.value > app.p_bool_false.value)")
+
+def test_vsql_cmp_gt_int_bool3(config_persons):
+	check_vsql_func(config_persons, "not (app.p_int_none.value > app.p_bool_true.value)")
+
+def test_vsql_cmp_gt_int_bool4(config_persons):
+	check_vsql_func(config_persons, "app.p_int_value.value > app.p_bool_none.value")
+
+def test_vsql_cmp_gt_int_bool5(config_persons):
+	check_vsql_func(config_persons, "app.p_int_value.value > app.p_bool_false.value")
+
+def test_vsql_cmp_gt_int_bool6(config_persons):
+	check_vsql_func(config_persons, "app.p_int_value.value > app.p_bool_true.value")
+
+def test_vsql_cmp_gt_int_bool7(config_persons):
+	check_vsql_func(config_persons, "-app.p_int_value.value > app.p_bool_none.value")
+
+def test_vsql_cmp_gt_int_bool8(config_persons):
+	check_vsql_func(config_persons, "not (-app.p_int_value.value > app.p_bool_false.value)")
+
+def test_vsql_cmp_gt_int_bool9(config_persons):
+	check_vsql_func(config_persons, "not (-app.p_int_value.value > app.p_bool_true.value)")
+
+def test_vsql_cmp_gt_int_int1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_int_none.value > app.p_int_none.value)")
+
+def test_vsql_cmp_gt_int_int2(config_persons):
+	check_vsql_func(config_persons, "not (app.p_int_none.value > 1)")
+
+def test_vsql_cmp_gt_int_int3(config_persons):
+	check_vsql_func(config_persons, "app.p_int_value.value > 1775")
+
+def test_vsql_cmp_gt_int_int4(config_persons):
+	check_vsql_func(config_persons, "not (app.p_int_value.value > 1777)")
+
+def test_vsql_cmp_gt_int_int5(config_persons):
+	check_vsql_func(config_persons, "42 > app.p_int_none.value")
+
+def test_vsql_cmp_gt_number_bool1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_none.value > app.p_bool_none.value)")
+
+def test_vsql_cmp_gt_number_bool2(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_none.value > False)")
+
+def test_vsql_cmp_gt_number_bool3(config_persons):
+	check_vsql_func(config_persons, "app.p_number_value.value > True")
+
+def test_vsql_cmp_gt_number_bool4(config_persons):
+	check_vsql_func(config_persons, "not (-app.p_number_value.value > True)")
+
+def test_vsql_cmp_gt_number_int1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_none.value > app.p_int_none.value)")
+
+def test_vsql_cmp_gt_number_int2(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_none.value > 1)")
+
+def test_vsql_cmp_gt_number_int3(config_persons):
+	check_vsql_func(config_persons, "app.p_number_value.value > 1")
+
+def test_vsql_cmp_gt_number_int4(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_value.value > 73)")
+
+def test_vsql_cmp_gt_number_number1(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_none.value > app.p_number_none.value)")
+
+def test_vsql_cmp_gt_number_number2(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_none.value > 1.0)")
+
+def test_vsql_cmp_gt_number_number3(config_persons):
+	check_vsql_func(config_persons, "app.p_number_value.value > 1.0")
+
+def test_vsql_cmp_gt_number_number4(config_persons):
+	check_vsql_func(config_persons, "not (app.p_number_value.value > 73.0)")
