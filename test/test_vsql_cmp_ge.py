@@ -332,7 +332,7 @@ def test_intlist_intlist3(config_persons):
 	check_vsql(config_persons, "not ([1] >= [1, 2])")
 
 def test_intlist_intlist4(config_persons):
-	check_vsql(config_persons, "([1, 2] >= [1, 2]")
+	check_vsql(config_persons, "[1, 2] >= [1, 2]")
 
 def test_numberlist_numberlist1(config_persons):
 	check_vsql(config_persons, "[1.5, 2.5] >= [1.5]")
