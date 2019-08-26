@@ -1,5 +1,5 @@
 """
-Tests for the vSQL "addition" comparison operator ``+``.
+Tests for the vSQL addition operator ``+``.
 
 The test are done via the Python DB interface.
 
