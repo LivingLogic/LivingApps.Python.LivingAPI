@@ -15,6 +15,8 @@ HEAD (2019-08-??)
 *	View templates and internal templates can now be deleted via the
 	:class:`DBHandler`.
 
+*	Fixed handling of vSQL slices with missing start or stop indexes.
+
 *	Add more tests.
 
 

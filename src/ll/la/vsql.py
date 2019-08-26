@@ -834,8 +834,16 @@ class Slice(AST):
 
 	def dbchildren(self):
 		yield self.obj
-		yield self.index1
-		yield self.index2
+		if self.index1 is None:
+			pos = self.obj.pos.stop
+			yield None_(self._source, slice(pos, pos))
+		else:
+			pos = self.index1.stop
+			yield self.index1
+		if self.index2 is None:
+			yield None_(self._source, slice(pos, pos))
+		else:
+			yield self.index2
 
 	def _ll_repr_(self):
 		yield f"obj={self.obj!r}"
