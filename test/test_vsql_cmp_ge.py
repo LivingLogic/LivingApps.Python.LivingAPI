@@ -337,7 +337,7 @@ def test_intlist_intlist4(config_persons):
 def test_numberlist_numberlist1(config_persons):
 	check_vsql(config_persons, "[1.5, 2.5] >= [1.5]")
 
-def test_numberlist_numberlist1(config_persons):
+def test_numberlist_numberlist2(config_persons):
 	check_vsql(config_persons, "[1.5, 3.5] >= [1.5, 2.5]")
 
 def test_numberlist_numberlist3(config_persons):
