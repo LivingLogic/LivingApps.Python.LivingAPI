@@ -345,3 +345,39 @@ def test_numberlist_numberlist3(config_persons):
 
 def test_numberlist_numberlist4(config_persons):
 	check_vsql(config_persons, "not ([1.5, 2.5] < [1.5, 2.5])")
+
+def test_strlist_strlist1(config_persons):
+	check_vsql(config_persons, "['foo'] < ['foo', 'bar']")
+
+def test_strlist_strlist2(config_persons):
+	check_vsql(config_persons, "['foo', 'bar'] < ['foo', 'baz']")
+
+def test_strlist_strlist3(config_persons):
+	check_vsql(config_persons, "['foo'] < ['foo', 'bar']")
+
+def test_strlist_strlist4(config_persons):
+	check_vsql(config_persons, "not (['foo', 'bar'] < ['foo', 'bar'])")
+
+def test_datelist_datelist1(config_persons):
+	check_vsql(config_persons, "[@(2000-02-29)] < [@(2000-02-29), @(2000-03-01)]")
+
+def test_datelist_datelist2(config_persons):
+	check_vsql(config_persons, "[@(2000-02-29), @(2000-03-01)] < [@(2000-02-29), @(2000-03-02)]")
+
+def test_datelist_datelist3(config_persons):
+	check_vsql(config_persons, "[@(2000-02-29)] < [@(2000-02-29), @(2000-03-01)]")
+
+def test_datelist_datelist4(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29), @(2000-03-01)] < [@(2000-02-29), @(2000-03-01)])")
+
+def test_datetimelist_datetimelist1(config_persons):
+	check_vsql(config_persons, "[@(2000-02-29T12:34:56)] < [@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)]")
+
+def test_datetimelist_datetimelist2(config_persons):
+	check_vsql(config_persons, "[@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)] < [@(2000-02-29T12:34:56), @(2000-03-02T12:34:56)]")
+
+def test_datetimelist_datetimelist3(config_persons):
+	check_vsql(config_persons, "[@(2000-02-29T12:34:56)] < [@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)]")
+
+def test_datetimelist_datetimelist4(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)] < [@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)])")
