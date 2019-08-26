@@ -324,3 +324,5 @@ def test_datetimeset_datetimeset4(config_persons):
 
 def test_datetimeset_datetimeset5(config_persons):
 	check_vsql(config_persons, "not ({@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)} != {None, @(2000-03-02T12:34:56), @(2000-03-01T12:34:56), @(2000-02-29T12:34:56), None})")
+
+# FIXME Add tests for mixed type comparisons?
