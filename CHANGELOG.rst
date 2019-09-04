@@ -17,7 +17,7 @@ HEAD (2019-08-??)
 
 *	Fixed handling of vSQL slices with missing start or stop indexes.
 
-*	Added dependency on :mod:`Pillow`.
+*	Add dependency on :mod:`Pillow`.
 
 *	Add more tests.
 
