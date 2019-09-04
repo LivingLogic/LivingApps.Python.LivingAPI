@@ -69,7 +69,8 @@ args = dict(
 	install_requires=[
 		"ll-xist >= 5.50",
 		"requests >= 2.21.0",
-		"geocoder >= 1.30.1"
+		"geocoder >= 1.30.1",
+		"Pillow >+ 6.1.0",
 	],
 	zip_safe=False,
 )
