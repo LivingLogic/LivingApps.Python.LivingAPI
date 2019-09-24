@@ -276,6 +276,9 @@ class DBHandler(Handler):
 	def commit(self):
 		self.db.commit()
 
+	def rollback(self):
+		self.db.rollback()
+
 	def save_app(self, app, recursive=True):
 		# FIXME: Save the app itself
 		if recursive:
