@@ -74,5 +74,5 @@ def test_datetimedelta_datedelta(config_persons):
 	check_vsql(config_persons, "app.p_datetimedelta_value.value - days(1) == timedelta(0, (12 * 60 + 34) * 60 + 56)")
 
 def test_datetimedelta_datetimedelta(config_persons):
-	check_vsql(config_persons, "app.p_datetimedelta_value.value - timedelta((12 * 60 + 34) * 60) + 56) == timedelta(0, 0)")
+	check_vsql(config_persons, "app.p_datetimedelta_value.value - timedelta((12 * 60 + 34) * 60 + 56) == timedelta(0, 0)")
 
