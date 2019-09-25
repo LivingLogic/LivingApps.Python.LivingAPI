@@ -61,8 +61,8 @@ def test_monthdelta_int(config_persons):
 def test_datetimedelta_bool(config_persons):
 	check_vsql(config_persons, "app.p_datetimedelta_value.value // True == days(1)")
 
-# def test_datetimedelta_int(config_persons):
-# 	check_vsql(config_persons, "app.p_datetimedelta_value.value // 2 == timedelta(0, (18 * 60 + 17) * 60 + 28)")
+def test_datetimedelta_int(config_persons):
+	check_vsql(config_persons, "app.p_datetimedelta_value.value // 2 == days(0)")
 
-# def test_datetimedelta_number(config_persons):
-# 	check_vsql(config_persons, "app.p_datetimedelta_value.value // 12.5 == timedelta(0, (2 * 60 + 55) * 60 + 36)")
+def test_datetimedelta_number(config_persons):
+	check_vsql(config_persons, "app.p_datetimedelta_value.value // 12.5 == days(0)")
