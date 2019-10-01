@@ -254,8 +254,8 @@ def handler(request):
 @pytest.fixture(scope="module")
 def config_apps():
 	"""
-	A test fixture gives us a dictionary with a :class:`la.DBHandler` and the
-	two :class:`la.App` objects.
+	A test fixture that gives us a dictionary with a :class:`la.DBHandler` and
+	the two :class:`la.App` objects.
 	"""
 	handler = la.DBHandler(connect(), uploaddir(), user())
 
