@@ -176,12 +176,26 @@ class RecordValidationError(ValueError):
 	``force=True``.
 	"""
 
+	def __init__(self, record, message):
+		self.record = record
+		self.message = message
+
+	def __str__(self):
+		return f"Validation for {self.record!r} failed: {self.message}"
+
 
 class FieldValidationError(ValueError):
 	"""
 	Exception that is raised when a field of a record is invalid and the record
 	is saved without ``force=True``.
 	"""
+
+	def __init__(self, field, message):
+		self.field = field
+		self.message = message
+
+	def __str__(self):
+		return f"Validation for {self.field!r} failed: {self.message}"
 
 
 ###
@@ -1726,7 +1740,7 @@ class Record(Base):
 
 	def check_errors(self):
 		if self.errors:
-			raise RecordValidationError(self.errors[0])
+			raise RecordValidationError(self, self.errors[0])
 		for field in self.fields.values():
 			field.check_errors()
 
@@ -1779,7 +1793,7 @@ class Field:
 
 	def check_errors(self):
 		if self.errors:
-			raise FieldValidationError(self.errors[0])
+			raise FieldValidationError(self, self.errors[0])
 
 	def _asjson(self):
 		return self.control._asjson(self)
