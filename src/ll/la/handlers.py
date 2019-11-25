@@ -684,7 +684,7 @@ class DBHandler(Handler):
 
 
 class HTTPHandler(Handler):
-	def __init__(self, url, username=None, password=None):
+	def __init__(self, url, username=None, password=None, auth_token=None):
 		super().__init__()
 		if not url.endswith("/"):
 			url += "/"
@@ -693,7 +693,7 @@ class HTTPHandler(Handler):
 		self.username = username
 		self.password = password
 		self.session = None
-		self.auth_token = None
+		self.auth_token = auth_token
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} url={self.url!r} username={self.username!r} at {id(self):#x}>"
@@ -701,20 +701,21 @@ class HTTPHandler(Handler):
 	def _login(self):
 		if self.session is None:
 			self.session = requests.Session()
-			# If :obj:`username` or :obj:`password` are not given, we don't log in
-			# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
-			if self.username is not None and self.password is not None:
-				# Login to the LivingApps installation and store the auth token we get
-				r = self.session.post(
-					f"{self.url}login",
-					data=json.dumps({"username": self.username, "password": self.password}),
-					headers={"Content-Type": "application/json"},
-				)
-				result = r.json()
-				if result.get("status") == "success":
-					self.auth_token = result["auth_token"]
-				else:
-					raise_403(r)
+			if self.auth_token is None:
+				# If :obj:`username` or :obj:`password` are not given, we don't log in
+				# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
+				if self.username is not None and self.password is not None:
+					# Login to the LivingApps installation and store the auth token we get
+					r = self.session.post(
+						f"{self.url}login",
+						data=json.dumps({"username": self.username, "password": self.password}),
+						headers={"Content-Type": "application/json"},
+					)
+					result = r.json()
+					if result.get("status") == "success":
+						self.auth_token = result["auth_token"]
+					else:
+						raise_403(r)
 
 	def _add_auth_token(self, kwargs):
 		self._login()

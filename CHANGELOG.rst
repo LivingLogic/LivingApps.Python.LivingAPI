@@ -19,6 +19,9 @@ HEAD (2019-08-??)
 
 *	Add dependency on :mod:`Pillow`.
 
+*	Allow communication with the :class:`HTTPHandler` with an existing
+	authentication token.
+
 *	Add more tests.
 
 
