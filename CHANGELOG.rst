@@ -22,6 +22,8 @@ HEAD (2019-08-??)
 *	Allow communication with the :class:`HTTPHandler` with an existing
 	authentication token.
 
+*	Add proper handling of database exceptions to :meth:`DBHandler.save_record`.
+
 *	Add more tests.
 
 

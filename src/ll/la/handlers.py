@@ -620,7 +620,30 @@ class DBHandler(Handler):
 				if record.id is not None:
 					args[f"p_{field.control.field}_changed"] = 1
 		c = self.cursor()
-		result = proc(c, **args)
+		try:
+			result = proc(c, **args)
+		except orasql.DatabaseError as exc:
+			error = exc.args[0]
+			if error.code == 20010:
+				parts = error.message.split("\x01")[1:-1]
+				if parts:
+					# An error message with the usual formatting from ``errmsg_pkg``.
+					identifier = None
+					for (i, part) in enumerate(parts):
+						if i % 2:
+							if identifier:
+								record.fields[identifier].add_error(part)
+							else:
+								record.add_error(part)
+						else:
+							identifier = part
+				else:
+					# An error message with strange formatting, use this as is.
+					record.add_error(error.message)
+				return False
+			else:
+				# Some other database exception
+				raise
 
 		if result.p_errormessage:
 			record.add_error(result.p_errormessage)
