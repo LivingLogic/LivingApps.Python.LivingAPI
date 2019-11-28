@@ -628,15 +628,17 @@ class DBHandler(Handler):
 				parts = error.message.split("\x01")[1:-1]
 				if parts:
 					# An error message with the usual formatting from ``errmsg_pkg``.
-					identifier = None
+					controls_by_field = {c.field: c for c in record.app.controls.values()} # Maps the field name to the control
+					field = None
 					for (i, part) in enumerate(parts):
 						if i % 2:
-							if identifier:
+							if field:
+								identifier = controls_by_field[field].identifier
 								record.fields[identifier].add_error(part)
 							else:
 								record.add_error(part)
 						else:
-							identifier = part
+							field = part
 				else:
 					# An error message with strange formatting, use this as is.
 					record.add_error(error.message)
