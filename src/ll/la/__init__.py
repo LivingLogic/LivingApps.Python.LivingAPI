@@ -1728,7 +1728,7 @@ class Record(Base):
 		self._gethandler(handler)._executeaction(self, identifier)
 
 	def has_errors(self):
-		return bool(self.errors) or any(field.has_errors for field in self.fields.values())
+		return bool(self.errors) or any(field.has_errors() for field in self.fields.values())
 
 	def add_error(self, error):
 		self.errors.append(error)
