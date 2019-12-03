@@ -26,6 +26,8 @@ HEAD (2019-08-??)
 
 *	Add more tests.
 
+*	Handle recursion in :meth:`Record.__repr__`.
+
 
 0.11 (2019-08-15)
 -----------------
