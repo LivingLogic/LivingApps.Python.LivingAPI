@@ -1622,9 +1622,40 @@ class Record(Base):
 		self.errors = []
 		self._deleted = False
 
+	def _repr_value(self, v, seen, value):
+		if isinstance(value, Record):
+			value._repr_helper(v, seen)
+		elif isinstance(value, list):
+			v.append("[")
+			for (i, item) in enumerate(value):
+				if i:
+					v.append(", ")
+				self._repr_value(v, seen, item)
+			v.append("]")
+		else:
+			v.append(repr(value))
+
+	def _repr_helper(self, v, seen):
+		if self in seen:
+			v.append("...")
+		else:
+			seen.add(self)
+			v.append(f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r}")
+			if self.is_dirty():
+				v.append(" is_dirty()=True")
+			if self.has_errors():
+				v.append(" has_errors()=True")
+			for (identifier, value) in self.values.items():
+				if self.app.controls[identifier].priority:
+					v.append(f" v_{identifier}=")
+					self._repr_value(v, seen, value)
+			seen.remove(self)
+			v.append(f" at {id(self):#x}>")
+
 	def __repr__(self):
-		attrs = " ".join(f"v_{identifier}={value!r}" for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
-		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} {attrs} at {id(self):#x}>"
+		v = []
+		self._repr_helper(v, set())
+		return "".join(v)
 
 	def _repr_pretty_(self, p, cycle):
 		prefix = f"<{self.__class__.__module__}.{self.__class__.__qualname__}"
