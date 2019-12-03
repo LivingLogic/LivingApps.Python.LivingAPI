@@ -1642,6 +1642,12 @@ class Record(Base):
 						p.breakable()
 						p.text(f"v_{identifier}=")
 						p.pretty(value)
+				if self.is_dirty():
+					p.breakable()
+					p.text("is_dirty()=True")
+				if self.has_errors():
+					p.breakable()
+					p.text("has_errors()=True")
 				p.breakable()
 				p.text(suffix)
 
