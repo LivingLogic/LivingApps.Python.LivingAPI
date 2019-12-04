@@ -1767,8 +1767,8 @@ class Record(Base):
 	def has_errors(self):
 		return bool(self.errors) or any(field.has_errors() for field in self.fields.values())
 
-	def add_error(self, error):
-		self.errors.append(error)
+	def add_error(self, *errors):
+		self.errors.extend(errors)
 
 	def clear_errors(self):
 		for field in self.fields.values():
@@ -1822,8 +1822,8 @@ class Field:
 	def has_errors(self):
 		return bool(self.errors)
 
-	def add_error(self, error):
-		self.errors.append(error)
+	def add_error(self, *errors):
+		self.errors.extend(errors)
 
 	def clear_errors(self):
 		self.errors = []

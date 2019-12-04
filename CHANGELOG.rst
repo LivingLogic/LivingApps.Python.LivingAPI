@@ -28,6 +28,9 @@ HEAD (2019-08-??)
 
 *	Handle recursion in :meth:`Record.__repr__`.
 
+*	Its now possible to pass more than one error to :meth:`Record.add_error` and
+	:meth:`Field.add_error`.
+
 
 0.11 (2019-08-15)
 -----------------
