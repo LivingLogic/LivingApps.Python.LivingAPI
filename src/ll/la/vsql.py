@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# cython: language_level=3, always_allow_keywords=True
+
+## Copyright 2016-2020 by LivingLogic AG, Bayreuth/Germany
+##
+## All Rights Reserved
+
 """
 Classes and functions for compiling vSQL expressions.
 """
