@@ -31,6 +31,8 @@ HEAD (2019-08-??)
 *	Its now possible to pass more than one error to :meth:`Record.add_error` and
 	:meth:`Field.add_error`.
 
+*	When uploading files via the :class:`HTTPHandler` pass along the MIME type.
+
 
 0.11 (2019-08-15)
 -----------------

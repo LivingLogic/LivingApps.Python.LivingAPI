@@ -755,7 +755,7 @@ class HTTPHandler(Handler):
 				raise ValueError(f"Can't save {file!r} without content!")
 			kwargs = {
 				"files": {
-					"files[]": (file.filename, file._content),
+					"files[]": (file.filename, file._content, file.mimetype),
 				},
 			}
 			self._add_auth_token(kwargs)
@@ -831,11 +831,22 @@ class HTTPHandler(Handler):
 			f"{self.url}v1/appdd/{app.id}.json",
 			**kwargs,
 		)
-		r.raise_for_status()
+		if r.status_code >= 300 and r.status_code != 422:
+			r.raise_for_status()
 		result = json.loads(r.text)
 		status = result["status"]
 		if status != "ok":
-			record.add_error(f"Response status {status!r}")
+			errors_added = False
+			if "globalerrors" in result:
+				for error in result["globalerrors"]:
+					record.add_error(error)
+					errors_added = True
+			if "fielderrors" in result:
+				for (identifier, errors) in result["fielderrors"].items():
+					record.fields[identifier].add_error(*errors)
+					errors_added = True
+			if not errors_added:
+				record.add_error(f"Response status {status!r}")
 			return False
 		else:
 			if record.id is None:
