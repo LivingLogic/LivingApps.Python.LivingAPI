@@ -1,4 +1,4 @@
-HEAD (2019-08-??)
+0.12 (2020-01-16)
 -----------------
 
 *	Removed debug code from ``DBHandler.meta_data``.
