@@ -1,3 +1,9 @@
+0.12.1 (2020-02-18)
+-------------------
+
+*	Fixed field validation for multiple lookup fields.
+
+
 0.12 (2020-01-16)
 -----------------
 

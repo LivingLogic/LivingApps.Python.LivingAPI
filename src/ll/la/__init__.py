@@ -1400,23 +1400,20 @@ class MultipleLookupControl(LookupControl):
 		if value is None:
 			field._value = []
 		elif isinstance(value, (str, LookupItem)):
-			self._set_value(self, field, [value])
+			self._set_value(field, [value])
 		elif isinstance(value, list):
 			field._value = []
 			for v in value:
 				if isinstance(v, str):
-					if self.lookupapp.records and v in self.lookupapp.records:
-						v = self.lookupapp.records[v]
-						field._value.append(v)
+					if v in self.lookupdata:
+						field._value.append(self.lookupdata[v])
 					else:
-						field.add_error(error_applookuprecord_unknown(v))
-				elif isinstance(v, Record):
-					if v.app is not self.lookupapp:
-						field.add_error(error_applookuprecord_foreign(v))
+						field.add_error(error_lookupitem_unknown(v))
+				elif isinstance(v, LookupItem):
+					if v.key not in self.lookupdata or self.lookupdata[v.key] is not v:
+						field.add_error(error_lookupitem_foreign(v))
 					else:
 						field._value.append(v)
-				elif v is not None:
-					field.add_error(error_wrong_type(v))
 		else:
 			field.add_error(error_wrong_type(value))
 			field._value = []
