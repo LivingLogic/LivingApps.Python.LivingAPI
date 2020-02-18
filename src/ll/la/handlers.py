@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # cython: language_level=3, always_allow_keywords=True
 
-## Copyright 2016-2019 by LivingLogic AG, Bayreuth/Germany
+## Copyright 2016-2020 by LivingLogic AG, Bayreuth/Germany
 ##
 ## All Rights Reserved
 
@@ -192,6 +192,12 @@ class Handler:
 	def save_viewtemplate(self, viewtemplate, recursive=True):
 		raise NotImplementedError
 
+	def delete_viewtemplate(self, viewtemplate):
+		raise NotImplementedError
+
+	def delete_internaltemplate(self, internaltemplate):
+		raise NotImplementedError
+
 	def save_datasource(self, datasource, recursive=True):
 		raise NotImplementedError
 
@@ -239,7 +245,9 @@ class DBHandler(Handler):
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
 		self.proc_upload_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_INSERT")
 		self.proc_internaltemplate_import = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_IMPORT")
+		self.proc_internaltemplate_delete = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_DELETE")
 		self.proc_viewtemplate_import = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_IMPORT")
+		self.proc_viewtemplate_delete = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_DELETE")
 		self.proc_datasource_import = orasql.Procedure("DATASOURCE_PKG.DATASOURCE_IMPORT")
 		self.proc_datasourcechildren_import = orasql.Procedure("DATASOURCE_PKG.DATASOURCECHILDREN_IMPORT")
 		self.proc_dataorder_import = orasql.Procedure("DATASOURCE_PKG.DATAORDER_IMPORT")
@@ -267,6 +275,9 @@ class DBHandler(Handler):
 
 	def commit(self):
 		self.db.commit()
+
+	def rollback(self):
+		self.db.rollback()
 
 	def save_app(self, app, recursive=True):
 		# FIXME: Save the app itself
@@ -351,6 +362,24 @@ class DBHandler(Handler):
 		if recursive:
 			for datasource in viewtemplate.datasources.values():
 				self.save_datasource(datasource, recursive=recursive)
+
+	def delete_viewtemplate(self, viewtemplate):
+		cursor = self.cursor()
+		self.proc_viewtemplate_delete(
+			cursor,
+			c_user=self.ide_id,
+			p_vt_id=viewtemplate.id,
+		)
+		viewtemplate._deleted = True
+
+	def delete_internaltemplate(self, internaltemplate):
+		cursor = self.cursor()
+		self.proc_internaltemplate_delete(
+			cursor,
+			c_user=self.ide_id,
+			p_it_id=internaltemplate.id,
+		)
+		internaltemplate._deleted = True
 
 	def save_datasource(self, datasource, recursive=True):
 		cursor = self.cursor()
@@ -591,7 +620,32 @@ class DBHandler(Handler):
 				if record.id is not None:
 					args[f"p_{field.control.field}_changed"] = 1
 		c = self.cursor()
-		result = proc(c, **args)
+		try:
+			result = proc(c, **args)
+		except orasql.DatabaseError as exc:
+			error = exc.args[0]
+			if error.code == 20010:
+				parts = error.message.split("\x01")[1:-1]
+				if parts:
+					# An error message with the usual formatting from ``errmsg_pkg``.
+					controls_by_field = {c.field: c for c in record.app.controls.values()} # Maps the field name to the control
+					field = None
+					for (i, part) in enumerate(parts):
+						if i % 2:
+							if field:
+								identifier = controls_by_field[field].identifier
+								record.fields[identifier].add_error(part)
+							else:
+								record.add_error(part)
+						else:
+							field = part
+				else:
+					# An error message with strange formatting, use this as is.
+					record.add_error(error.message)
+				return False
+			else:
+				# Some other database exception
+				raise
 
 		if result.p_errormessage:
 			record.add_error(result.p_errormessage)
@@ -626,6 +680,7 @@ class DBHandler(Handler):
 			c_user=self.ide_id,
 			p_dat_id=record.id,
 		)
+		record._deleted = True
 
 		if r.p_errormessage:
 			raise ValueError(r.p_errormessage)
@@ -654,7 +709,7 @@ class DBHandler(Handler):
 
 
 class HTTPHandler(Handler):
-	def __init__(self, url, username=None, password=None):
+	def __init__(self, url, username=None, password=None, auth_token=None):
 		super().__init__()
 		if not url.endswith("/"):
 			url += "/"
@@ -663,7 +718,7 @@ class HTTPHandler(Handler):
 		self.username = username
 		self.password = password
 		self.session = None
-		self.auth_token = None
+		self.auth_token = auth_token
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} url={self.url!r} username={self.username!r} at {id(self):#x}>"
@@ -671,20 +726,21 @@ class HTTPHandler(Handler):
 	def _login(self):
 		if self.session is None:
 			self.session = requests.Session()
-			# If :obj:`username` or :obj:`password` are not given, we don't log in
-			# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
-			if self.username is not None and self.password is not None:
-				# Login to the LivingApps installation and store the auth token we get
-				r = self.session.post(
-					f"{self.url}login",
-					data=json.dumps({"username": self.username, "password": self.password}),
-					headers={"Content-Type": "application/json"},
-				)
-				result = r.json()
-				if result.get("status") == "success":
-					self.auth_token = result["auth_token"]
-				else:
-					raise_403(r)
+			if self.auth_token is None:
+				# If :obj:`username` or :obj:`password` are not given, we don't log in
+				# This means we can only fetch data for public templates, i.e. those that are marked as "for all users"
+				if self.username is not None and self.password is not None:
+					# Login to the LivingApps installation and store the auth token we get
+					r = self.session.post(
+						f"{self.url}login",
+						data=json.dumps({"username": self.username, "password": self.password}),
+						headers={"Content-Type": "application/json"},
+					)
+					result = r.json()
+					if result.get("status") == "success":
+						self.auth_token = result["auth_token"]
+					else:
+						raise_403(r)
 
 	def _add_auth_token(self, kwargs):
 		self._login()
@@ -699,7 +755,7 @@ class HTTPHandler(Handler):
 				raise ValueError(f"Can't save {file!r} without content!")
 			kwargs = {
 				"files": {
-					"files[]": (file.filename, file._content),
+					"files[]": (file.filename, file._content, file.mimetype),
 				},
 			}
 			self._add_auth_token(kwargs)
@@ -775,11 +831,22 @@ class HTTPHandler(Handler):
 			f"{self.url}v1/appdd/{app.id}.json",
 			**kwargs,
 		)
-		r.raise_for_status()
+		if r.status_code >= 300 and r.status_code != 422:
+			r.raise_for_status()
 		result = json.loads(r.text)
 		status = result["status"]
 		if status != "ok":
-			record.add_error(f"Response status {status!r}")
+			errors_added = False
+			if "globalerrors" in result:
+				for error in result["globalerrors"]:
+					record.add_error(error)
+					errors_added = True
+			if "fielderrors" in result:
+				for (identifier, errors) in result["fielderrors"].items():
+					record.fields[identifier].add_error(*errors)
+					errors_added = True
+			if not errors_added:
+				record.add_error(f"Response status {status!r}")
 			return False
 		else:
 			if record.id is None:

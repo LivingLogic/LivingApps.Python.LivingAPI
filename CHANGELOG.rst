@@ -1,4 +1,10 @@
-HEAD (2019-08-??)
+0.12.1 (2020-02-18)
+-------------------
+
+*	Fixed field validation for multiple lookup fields.
+
+
+0.12 (2020-01-16)
 -----------------
 
 *	Removed debug code from ``DBHandler.meta_data``.
@@ -9,7 +15,29 @@ HEAD (2019-08-??)
 	converted to vSQL date objects when the time portion of the :class:`datetime`
 	object is zero.
 
+*	Properly mark a record as deleted when it gets deleted via the
+	:class:`DBHandler`.
+
+*	View templates and internal templates can now be deleted via the
+	:class:`DBHandler`.
+
+*	Fixed handling of vSQL slices with missing start or stop indexes.
+
+*	Add dependency on :mod:`Pillow`.
+
+*	Allow communication with the :class:`HTTPHandler` with an existing
+	authentication token.
+
+*	Add proper handling of database exceptions to :meth:`DBHandler.save_record`.
+
 *	Add more tests.
+
+*	Handle recursion in :meth:`Record.__repr__`.
+
+*	Its now possible to pass more than one error to :meth:`Record.add_error` and
+	:meth:`Field.add_error`.
+
+*	When uploading files via the :class:`HTTPHandler` pass along the MIME type.
 
 
 0.11 (2019-08-15)
@@ -26,16 +54,16 @@ HEAD (2019-08-??)
 *	Added a ``force`` argument to the method ``Record.save()``. With
 	``force=False`` (the default) any errors on the record or any of the fields
 	will raise an exception. The ``force=True`` the record will be saved anyway.
-	The return way indicated whether the record was really saved or the database
-	or gateway returned an error. Referencing unsaved records or files now now be
+	The return value indicated whether the record was really saved or the database
+	or gateway returned an error. Referencing unsaved records or files are now
 	handled in a similar way: ``force=False`` will raise an exception and
 	``force=True`` will replace those references with ``None`` and add an error
 	messsage to the field.
 
 *	It is now possible to create a ``File`` object and pass the content to the
 	constructor. This is useful when a file has to be uploaded but none of the
-	supported methods for creating one via ``Handler.file`` do the right thing.
-	If a content is passed, the mime type is ``image`` and the arguments
+	supported methods for creating one via ``Handler.file()`` do the right thing.
+	If content is passed, the mime type is ``image`` and the arguments
 	``width`` and ``height`` are ``None`` the image size will be calculated
 	automatically from the data (using :mod:`Pillow`).
 

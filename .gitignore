@@ -1,6 +1,7 @@
 __pycache__
 .mypy_cache
 .pytest_cache
+.vscode
 build
 dist
 src/*.egg-info

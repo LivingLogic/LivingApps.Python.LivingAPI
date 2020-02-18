@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # cython: language_level=3, always_allow_keywords=True
 
-## Copyright 2016-2019 by LivingLogic AG, Bayreuth/Germany
+## Copyright 2016-2020 by LivingLogic AG, Bayreuth/Germany
 ##
 ## All Rights Reserved
 
@@ -150,7 +150,6 @@ def error_object_unsaved(value):
 	"""
 	Return an error message for an unsaved referenced object.
 	"""
-
 	return f"Referenced object {value!r} hasn't been saved yet!"
 
 
@@ -158,7 +157,6 @@ def error_object_deleted(value):
 	"""
 	Return an error message for an deleted referenced object.
 	"""
-
 	return f"Referenced object {value!r} has been deleted!"
 
 
@@ -178,12 +176,26 @@ class RecordValidationError(ValueError):
 	``force=True``.
 	"""
 
+	def __init__(self, record, message):
+		self.record = record
+		self.message = message
+
+	def __str__(self):
+		return f"Validation for {self.record!r} failed: {self.message}"
+
 
 class FieldValidationError(ValueError):
 	"""
 	Exception that is raised when a field of a record is invalid and the record
 	is saved without ``force=True``.
 	"""
+
+	def __init__(self, field, message):
+		self.field = field
+		self.message = message
+
+	def __str__(self):
+		return f"Validation for {self.field!r} failed: {self.message}"
 
 
 ###
@@ -1388,23 +1400,20 @@ class MultipleLookupControl(LookupControl):
 		if value is None:
 			field._value = []
 		elif isinstance(value, (str, LookupItem)):
-			self._set_value(self, field, [value])
+			self._set_value(field, [value])
 		elif isinstance(value, list):
 			field._value = []
 			for v in value:
 				if isinstance(v, str):
-					if self.lookupapp.records and v in self.lookupapp.records:
-						v = self.lookupapp.records[v]
-						field._value.append(v)
+					if v in self.lookupdata:
+						field._value.append(self.lookupdata[v])
 					else:
-						field.add_error(error_applookuprecord_unknown(v))
-				elif isinstance(v, Record):
-					if v.app is not self.lookupapp:
-						field.add_error(error_applookuprecord_foreign(v))
+						field.add_error(error_lookupitem_unknown(v))
+				elif isinstance(v, LookupItem):
+					if v.key not in self.lookupdata or self.lookupdata[v.key] is not v:
+						field.add_error(error_lookupitem_foreign(v))
 					else:
 						field._value.append(v)
-				elif v is not None:
-					field.add_error(error_wrong_type(v))
 		else:
 			field.add_error(error_wrong_type(value))
 			field._value = []
@@ -1610,9 +1619,40 @@ class Record(Base):
 		self.errors = []
 		self._deleted = False
 
+	def _repr_value(self, v, seen, value):
+		if isinstance(value, Record):
+			value._repr_helper(v, seen)
+		elif isinstance(value, list):
+			v.append("[")
+			for (i, item) in enumerate(value):
+				if i:
+					v.append(", ")
+				self._repr_value(v, seen, item)
+			v.append("]")
+		else:
+			v.append(repr(value))
+
+	def _repr_helper(self, v, seen):
+		if self in seen:
+			v.append("...")
+		else:
+			seen.add(self)
+			v.append(f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r}")
+			if self.is_dirty():
+				v.append(" is_dirty()=True")
+			if self.has_errors():
+				v.append(" has_errors()=True")
+			for (identifier, value) in self.values.items():
+				if self.app.controls[identifier].priority:
+					v.append(f" v_{identifier}=")
+					self._repr_value(v, seen, value)
+			seen.remove(self)
+			v.append(f" at {id(self):#x}>")
+
 	def __repr__(self):
-		attrs = " ".join(f"v_{identifier}={value!r}" for (identifier, value) in self.values.items() if self.app.controls[identifier].priority)
-		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} {attrs} at {id(self):#x}>"
+		v = []
+		self._repr_helper(v, set())
+		return "".join(v)
 
 	def _repr_pretty_(self, p, cycle):
 		prefix = f"<{self.__class__.__module__}.{self.__class__.__qualname__}"
@@ -1630,6 +1670,12 @@ class Record(Base):
 						p.breakable()
 						p.text(f"v_{identifier}=")
 						p.pretty(value)
+				if self.is_dirty():
+					p.breakable()
+					p.text("is_dirty()=True")
+				if self.has_errors():
+					p.breakable()
+					p.text("has_errors()=True")
 				p.breakable()
 				p.text(suffix)
 
@@ -1716,10 +1762,10 @@ class Record(Base):
 		self._gethandler(handler)._executeaction(self, identifier)
 
 	def has_errors(self):
-		return bool(self.errors) or any(field.has_errors for field in self.fields.values())
+		return bool(self.errors) or any(field.has_errors() for field in self.fields.values())
 
-	def add_error(self, error):
-		self.errors.append(error)
+	def add_error(self, *errors):
+		self.errors.extend(errors)
 
 	def clear_errors(self):
 		for field in self.fields.values():
@@ -1728,7 +1774,7 @@ class Record(Base):
 
 	def check_errors(self):
 		if self.errors:
-			raise RecordValidationError(self.errors[0])
+			raise RecordValidationError(self, self.errors[0])
 		for field in self.fields.values():
 			field.check_errors()
 
@@ -1773,15 +1819,15 @@ class Field:
 	def has_errors(self):
 		return bool(self.errors)
 
-	def add_error(self, error):
-		self.errors.append(error)
+	def add_error(self, *errors):
+		self.errors.extend(errors)
 
 	def clear_errors(self):
 		self.errors = []
 
 	def check_errors(self):
 		if self.errors:
-			raise FieldValidationError(self.errors[0])
+			raise FieldValidationError(self, self.errors[0])
 
 	def _asjson(self):
 		return self.control._asjson(self)
@@ -1903,6 +1949,7 @@ class Template(Base):
 		self.signature = signature
 		self.whitespace = whitespace
 		self.doc = doc
+		self._deleted = False
 
 	def template(self):
 		return ul4c.Template(self.source, name=self.identifier, signature=self.signature, whitespace=self.whitespace)
@@ -1963,6 +2010,9 @@ class InternalTemplate(Template):
 
 	def save(self, handler=None, recursive=True):
 		self._gethandler(handler).save_internaltemplate(self)
+
+	def delete(self, handler=None):
+		self._gethandler(handler).delete_internaltemplate(self)
 
 
 @register("viewtemplate")
@@ -2061,6 +2111,9 @@ class ViewTemplate(Template):
 
 	def save(self, handler=None, recursive=True):
 		self._gethandler(handler).save_viewtemplate(self)
+
+	def delete(self, handler=None):
+		self._gethandler(handler).delete_viewtemplate(self)
 
 
 @register("datasource")
