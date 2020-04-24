@@ -1084,11 +1084,11 @@ class Control(Base):
 	def _set_value(self, field, value):
 		field._value = value
 
-	def _asdbarg(self, field):
+	def _asdbarg(self, handler, field):
 		return field._value
 
-	def _asjson(self, field):
-		return self._asdbarg(field)
+	def _asjson(self, handler, field):
+		return self._asdbarg(handler, field)
 
 
 class StringControl(Control):
@@ -1185,7 +1185,7 @@ class DateControl(Control):
 			value = None
 		field._value = value
 
-	def _asjson(self, field):
+	def _asjson(self, handler, field):
 		value = field._value
 		if isinstance(value, datetime.date):
 			value = value.strftime("%Y-%m-%d")
@@ -1207,7 +1207,7 @@ class DatetimeMinuteControl(DateControl):
 			value = None
 		field._value = value
 
-	def _asjson(self, field):
+	def _asjson(self, handler, field):
 		value = field._value
 		if isinstance(value, datetime.datetime):
 			value = value.strftime("%Y-%m-%d %H:%M")
@@ -1229,7 +1229,7 @@ class DatetimeSecondControl(DateControl):
 			value = None
 		field._value = value
 
-	def _asjson(self, field):
+	def _asjson(self, handler, field):
 		value = field._value
 		if isinstance(value, datetime.date):
 			value = value.strftime("%Y-%m-%d 00:00:00")
@@ -1249,7 +1249,7 @@ class BoolControl(Control):
 			value = None
 		field._value = value
 
-	def _asdbarg(self, field):
+	def _asdbarg(self, handler, field):
 		value = field._value
 		if value is not None:
 			value = int(value)
@@ -1283,7 +1283,7 @@ class LookupControl(Control):
 			value = None
 		field._value = value
 
-	def _asdbarg(self, field):
+	def _asdbarg(self, handler, field):
 		value = field._value
 		if isinstance(value, LookupItem):
 			value = value.key
@@ -1349,7 +1349,7 @@ class AppLookupControl(Control):
 			value = None
 		field._value = value
 
-	def _asdbarg(self, field):
+	def _asdbarg(self, handler, field):
 		value = field._value
 		if value is not None:
 			if value.id is None:
@@ -1418,8 +1418,11 @@ class MultipleLookupControl(LookupControl):
 			field.add_error(error_wrong_type(value))
 			field._value = []
 
-	def _asdbarg(self, field):
+	def _asjson(self, handler, field):
 		return [item.key for item in field._value]
+
+	def _asdbarg(self, handler, field):
+		return handler.varchars([item.key for item in field._value])
 
 
 @register("multiplelookupselectcontrol")
@@ -1468,7 +1471,7 @@ class MultipleAppLookupControl(AppLookupControl):
 			field.add_error(error_wrong_type(value))
 			field._value = []
 
-	def _asjson(self, field):
+	def _asjson(self, handler, field):
 		value = []
 		i = 0
 		while i < len(field._value):
@@ -1484,9 +1487,9 @@ class MultipleAppLookupControl(AppLookupControl):
 				i += 1
 		return value
 
-	def _asdbarg(self, field):
-		value = self._asjson(field)
-		return self.app.globals.handler.varchars(value)
+	def _asdbarg(self, handler, field):
+		value = self._asjson(handler, field)
+		return handler.varchars(value)
 
 
 @register("multipleapplookupselectcontrol")
@@ -1518,7 +1521,7 @@ class FileControl(Control):
 			value = None
 		field._value = value
 
-	def _asdbarg(self, field):
+	def _asdbarg(self, handler, field):
 		value = field._value
 		if value is not None:
 			if value.internalid is None:
@@ -1540,7 +1543,7 @@ class GeoControl(Control):
 			value = None
 		field._value = value
 
-	def _asdbarg(self, field):
+	def _asdbarg(self, handler, field):
 		value = field._value
 		if value is not None:
 			value = f"{value.lat!r}, {value.long!r}, {value.info}"
@@ -1829,11 +1832,11 @@ class Field:
 		if self.errors:
 			raise FieldValidationError(self, self.errors[0])
 
-	def _asjson(self):
-		return self.control._asjson(self)
+	def _asjson(self, handler):
+		return self.control._asjson(handler, self)
 
-	def _asdbarg(self):
-		return self.control._asdbarg(self)
+	def _asdbarg(self, handler):
+		return self.control._asdbarg(handler, self)
 
 	def __repr__(self):
 		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self._value!r}"

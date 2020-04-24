@@ -1,3 +1,15 @@
+0.12.2 (2020-04-24)
+-------------------
+
+*	Pass the handler to the fields when creating JSON for the
+	:class:`HTTPHandler` or procedure arguments for the :class:`DBHandler`.
+	This is used so that the correct ``VARCHARS`` type from the target database
+	can be used when saving a record via a :class:`DBHandler`.
+
+*	Fixed procedure argument handling for :class:`MultipleLookupControl` (the
+	list value has to be wrapped in a ``VARCHARS`` object).
+
+
 0.12.1 (2020-02-18)
 -------------------
 
