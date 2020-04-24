@@ -616,7 +616,7 @@ class DBHandler(Handler):
 			args[f"p_{pk}"] = record.id
 		for field in record.fields.values():
 			if record.id is None or field._dirty:
-				args[f"p_{field.control.field}"] = field._asdbarg()
+				args[f"p_{field.control.field}"] = field._asdbarg(self)
 				if record.id is not None:
 					args[f"p_{field.control.field}_changed"] = 1
 		c = self.cursor()
@@ -814,7 +814,7 @@ class HTTPHandler(Handler):
 
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
-		fields = {field.control.identifier: field._asjson() for field in record.fields.values() if record.id is None or field.is_dirty()}
+		fields = {field.control.identifier: field._asjson(self) for field in record.fields.values() if record.id is None or field.is_dirty()}
 		app = record.app
 		recorddata = {"fields": fields}
 		if record.id is not None:
