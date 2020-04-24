@@ -114,8 +114,7 @@ class LocalTemplateHandler(Handler):
 		self.viewtemplates = {}
 
 	def make_viewtemplate(self, *args, **kwargs):
-		source = textwrap.dedent(kwargs["source"]).lstrip()
-		kwargs = {**kwargs, "source": source}
+		kwargs["source"] = textwrap.dedent(kwargs["source"]).lstrip()
 		viewtemplate = super().make_viewtemplate(*args, **kwargs)
 		self.viewtemplates[viewtemplate.identifier] = viewtemplate
 		return viewtemplate
