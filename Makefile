@@ -24,6 +24,6 @@ upload: build
 
 livinglogic: build
 	rm -rf dist/*
-	python$(PYVERSION) setup.py sdist --formats=bztar,gztar,zip
+	python$(PYVERSION) setup.py sdist --formats=gztar
 	python$(PYVERSION) setup.py bdist_wheel
-	python$(PYVERSION) -mll.scripts.ucp -vyes dist/*.tar.gz dist/*.tar.bz2 dist/*.zip dist/*.whl ssh://intranet@intranet.livinglogic.de/~/documentroot/intranet.livinglogic.de/python-downloads/
+	python$(PYVERSION) -mll.scripts.ucp -vyes dist/*.tar.gz dist/*.whl ssh://intranet@intranet.livinglogic.de/~/documentroot/intranet.livinglogic.de/python-downloads/
