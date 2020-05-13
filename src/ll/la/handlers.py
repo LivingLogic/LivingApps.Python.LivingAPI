@@ -216,9 +216,7 @@ class Handler:
 
 	def _loaddump(self, dump):
 		registry = {
-			"de.livingapps.appdd.file": self._loadfile,
 			"de.livinglogic.livingapi.file": self._loadfile,
-			"de.livingapps.appdd.globals": self._loadglobals,
 			"de.livinglogic.livingapi.globals": self._loadglobals,
 		}
 		dump = ul4on.loads(dump, registry)
