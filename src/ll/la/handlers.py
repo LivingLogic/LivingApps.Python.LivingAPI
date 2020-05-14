@@ -204,6 +204,9 @@ class Handler:
 	def save_datasourcechildren(self, datasourcechildren, recursive=True):
 		raise NotImplementedError
 
+	def _fetch_templates(self, app):
+		return {}
+
 	def _loadfile(self):
 		file = la.File()
 		file.handler = self
@@ -227,11 +230,13 @@ class Handler:
 
 
 class DBHandler(Handler):
-	def __init__(self, connectstring, uploaddirectory, account):
+	def __init__(self, connection, uploaddirectory, account):
 		super().__init__()
 		if orasql is None:
 			raise ImportError("ll.orasql required")
-		self.db = orasql.connect(connectstring, readlobs=True)
+		if isinstance(connection, str):
+			connection = orasql.connect(connection, readlobs=True)
+		self.db = connection
 		self.uploaddirectory = url.URL(uploaddirectory)
 		self.varchars = self.db.gettype("LL.VARCHARS")
 		self.urlcontext = None
@@ -254,6 +259,7 @@ class DBHandler(Handler):
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
 
 		self.custom_procs = {}
+		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
 
 		if account is None:
 			self.ide_id = None
@@ -266,7 +272,7 @@ class DBHandler(Handler):
 			self.ide_id = r.ide_id
 
 	def __repr__(self):
-		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
 
 	def cursor(self):
 		return self.db.cursor()
@@ -704,6 +710,35 @@ class DBHandler(Handler):
 				raise ValueError(f"no procedure {procname}")
 			self.custom_procs[procname] = proc
 			return proc
+
+	def _loadinternaltemplates(self, tpl_uuid):
+		if tpl_uuid in self.internaltemplates:
+			return self.internaltemplates[tpl_uuid]
+		c = self.cursor()
+		c.execute("""
+			select
+				it_identifier,
+				utv_source
+			from
+				internaltemplate_select
+			where
+				tpl_uuid=:tpl_uuid
+		""", tpl_uuid=tpl_uuid)
+		templates = {}
+		for r in c:
+			template = ul4c.Template(r.utv_source, name=r.it_identifier)
+			templates[template.name] = template
+		self.internaltemplates[tpl_uuid] = templates
+		return templates
+
+	def _fetch_templates(self, app):
+		if app.superid is None:
+			return self._loadinternaltemplates(app.id)
+		else:
+			return {
+				**self._loadinternaltemplates(app.superid),
+				**self._loadinternaltemplates(app.id),
+			}
 
 
 class HTTPHandler(Handler):

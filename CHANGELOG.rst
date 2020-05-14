@@ -1,3 +1,16 @@
+HEAD (2020-05-??)
+-----------------
+
+*	Add support for "deferred" types in :class:`Attr`. This makes it possible
+	to have cyclic references in attribute "declarations".
+
+*	Add the attributes ``app`` and ``record`` to :class:`Globals`.
+
+*	Accessing ``globals.templates`` or ``app.templates`` now fetches the
+	templates via the handlers :meth:`_fetch_templates` method (which is only
+	implemented in :class:`DBHandler`).
+
+
 0.12.3 (2020-04-24)
 -------------------
 
