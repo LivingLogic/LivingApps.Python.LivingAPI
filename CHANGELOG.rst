@@ -7,8 +7,8 @@ HEAD (2020-05-??)
 *	Add the attributes ``app`` and ``record`` to :class:`Globals`.
 
 *	Accessing ``globals.templates`` or ``app.templates`` now fetches the
-	templates via the handlers :meth:`_fetch_templates` method (which is only
-	implemented in :class:`DBHandler`).
+	templates via the handlers :meth:`_fetch_templates` method (which only does
+	something in :class:`DBHandler`).
 
 
 0.12.3 (2020-04-24)
