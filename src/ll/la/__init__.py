@@ -267,7 +267,7 @@ class Attr:
 	def types(self):
 		if self._realtypes is None:
 			if not isinstance(self._types, tuple):
-				self._realtypes = _resolve_type(self._realtypes)
+				self._realtypes = _resolve_type(self._types)
 			else:
 				self._realtypes = tuple(_resolve_type(t) for t in self._types)
 		return self._realtypes
