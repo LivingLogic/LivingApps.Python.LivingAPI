@@ -230,7 +230,7 @@ class Handler:
 
 
 class DBHandler(Handler):
-	def __init__(self, connection, uploaddirectory, account):
+	def __init__(self, connection, uploaddirectory, account=None, ide_id=None):
 		super().__init__()
 		if orasql is None:
 			raise ImportError("ll.orasql required")
@@ -261,15 +261,17 @@ class DBHandler(Handler):
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
 
-		if account is None:
-			self.ide_id = None
-		else:
+		if account is not None:
+			if ide_id is not None:
+				raise TypeError("Specify either account or ide_id, but not both")
 			c = self.cursor()
 			c.execute("select ide_id from identity where ide_account = :account", account=account)
 			r = c.fetchone()
 			if r is None:
 				raise ValueError(f"no user {account!r}")
 			self.ide_id = r.ide_id
+		else:
+			self.ide_id = ide_id
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"

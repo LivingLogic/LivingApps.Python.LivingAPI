@@ -10,6 +10,9 @@ HEAD (2020-05-??)
 	templates via the handlers :meth:`_fetch_templates` method (which only does
 	something in :class:`DBHandler`).
 
+*	:class:`DBHandler` now accepts either either the ``account`` or the
+	``ide_id`` argument.
+
 
 0.12.3 (2020-04-24)
 -------------------
