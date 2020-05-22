@@ -957,7 +957,7 @@ class App(Base):
 	@property
 	def templates(self):
 		if self._templates is None:
-			self._templates = self.globals.handler._fetch_templates(self)
+			self._templates = self.globals.handler.fetch_templates(self)
 		return self._templates
 
 	def __getattr__(self, name):

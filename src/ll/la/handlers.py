@@ -204,7 +204,7 @@ class Handler:
 	def save_datasourcechildren(self, datasourcechildren, recursive=True):
 		raise NotImplementedError
 
-	def _fetch_templates(self, app):
+	def fetch_templates(self, app):
 		return {}
 
 	def _loadfile(self):
@@ -730,7 +730,7 @@ class DBHandler(Handler):
 		self.internaltemplates[tpl_uuid] = templates
 		return templates
 
-	def _fetch_templates(self, app):
+	def fetch_templates(self, app):
 		if app.superid is None:
 			return self._loadinternaltemplates(app.id)
 		else:
