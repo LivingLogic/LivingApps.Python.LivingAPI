@@ -414,7 +414,6 @@ class DBHandler(Handler):
 			p_tpl_uuid=datasource.app.id if datasource.app is not None else None,
 			p_dmv_id=None,
 			p_tpl_uuid_systemplate=None,
-			p_ds_includetemplates=int(datasource.includetemplates),
 			p_ds_includerecords=int(datasource.includerecords),
 			p_ds_includecontrols=int(datasource.includecontrols),
 			p_ds_includecount=int(datasource.includecount),
