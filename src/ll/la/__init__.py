@@ -1562,6 +1562,12 @@ class FileControl(Control):
 		return value
 
 
+@register("filesignaturecontrol")
+class FileSignatureControl(FileControl):
+	subtype = "signature"
+	fulltype = f"{FileControl.type}/{subtype}"
+
+
 @register("geocontrol")
 class GeoControl(Control):
 	type = "geo"
