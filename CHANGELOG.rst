@@ -1,4 +1,4 @@
-HEAD (2020-05-??)
+HEAD (2020-07-??)
 -----------------
 
 *	Add support for "deferred" types in :class:`Attr`. This makes it possible
@@ -12,6 +12,8 @@ HEAD (2020-05-??)
 
 *	:class:`DBHandler` now accepts either either the ``account`` or the
 	``ide_id`` argument.
+
+*	Added :class:`FileSignatureControl`.
 
 
 0.12.3 (2020-04-24)
