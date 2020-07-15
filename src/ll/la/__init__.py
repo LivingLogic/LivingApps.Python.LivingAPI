@@ -1177,6 +1177,12 @@ class TextAreaControl(StringControl):
 	encrypted = IntEnumAttr(EncryptionType, default=EncryptionType.NONE, ul4on=True)
 
 
+@register("htmlcontrol")
+class HTMLControl(StringControl):
+	subtype = "html"
+	fulltype = f"{StringControl.type}/{subtype}"
+
+
 @register("intcontrol")
 class IntControl(Control):
 	type = "int"

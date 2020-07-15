@@ -13,7 +13,7 @@ HEAD (2020-07-??)
 *	:class:`DBHandler` now accepts either either the ``account`` or the
 	``ide_id`` argument.
 
-*	Added :class:`FileSignatureControl`.
+*	Added :class:`FileSignatureControl` and :class:`HTMLControl`.
 
 
 0.12.3 (2020-04-24)
