@@ -1,5 +1,5 @@
-HEAD (2020-07-??)
------------------
+0.13.0 (2020-09-17)
+-------------------
 
 *	Add support for "deferred" types in :class:`Attr`. This makes it possible
 	to have cyclic references in attribute "declarations".
