@@ -10,8 +10,8 @@ HEAD (2020-07-??)
 	templates via the handlers :meth:`fetch_templates` method (which only does
 	something in :class:`DBHandler`).
 
-*	:class:`DBHandler` now accepts either either the ``account`` or the
-	``ide_id`` argument.
+*	:class:`DBHandler` now accepts either the ``account`` or the ``ide_id``
+	argument.
 
 *	Added :class:`FileSignatureControl` and :class:`HTMLControl`.
 
