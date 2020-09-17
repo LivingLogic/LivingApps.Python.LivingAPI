@@ -204,6 +204,9 @@ class Handler:
 	def save_datasourcechildren(self, datasourcechildren, recursive=True):
 		raise NotImplementedError
 
+	def fetch_templates(self, app):
+		return {}
+
 	def _loadfile(self):
 		file = la.File()
 		file.handler = self
@@ -216,9 +219,7 @@ class Handler:
 
 	def _loaddump(self, dump):
 		registry = {
-			"de.livingapps.appdd.file": self._loadfile,
 			"de.livinglogic.livingapi.file": self._loadfile,
-			"de.livingapps.appdd.globals": self._loadglobals,
 			"de.livinglogic.livingapi.globals": self._loadglobals,
 		}
 		dump = ul4on.loads(dump, registry)
@@ -229,11 +230,13 @@ class Handler:
 
 
 class DBHandler(Handler):
-	def __init__(self, connectstring, uploaddirectory, account):
+	def __init__(self, connection, uploaddirectory, account=None, ide_id=None):
 		super().__init__()
 		if orasql is None:
 			raise ImportError("ll.orasql required")
-		self.db = orasql.connect(connectstring, readlobs=True)
+		if isinstance(connection, str):
+			connection = orasql.connect(connection, readlobs=True)
+		self.db = connection
 		self.uploaddirectory = url.URL(uploaddirectory)
 		self.varchars = self.db.gettype("LL.VARCHARS")
 		self.urlcontext = None
@@ -255,20 +258,23 @@ class DBHandler(Handler):
 		self.proc_vsqlsource_insert = orasql.Procedure("VSQL_PKG.VSQLSOURCE_INSERT")
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
 
-		self.custom_procs = {}
+		self.custom_procs = {} # For the insert/update/delete procedures of system templates
+		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
 
-		if account is None:
-			self.ide_id = None
-		else:
+		if account is not None:
+			if ide_id is not None:
+				raise TypeError("Specify either account or ide_id, but not both")
 			c = self.cursor()
 			c.execute("select ide_id from identity where ide_account = :account", account=account)
 			r = c.fetchone()
 			if r is None:
 				raise ValueError(f"no user {account!r}")
 			self.ide_id = r.ide_id
+		else:
+			self.ide_id = ide_id
 
 	def __repr__(self):
-		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
 
 	def cursor(self):
 		return self.db.cursor()
@@ -410,7 +416,6 @@ class DBHandler(Handler):
 			p_tpl_uuid=datasource.app.id if datasource.app is not None else None,
 			p_dmv_id=None,
 			p_tpl_uuid_systemplate=None,
-			p_ds_includetemplates=int(datasource.includetemplates),
 			p_ds_includerecords=int(datasource.includerecords),
 			p_ds_includecontrols=int(datasource.includecontrols),
 			p_ds_includecount=int(datasource.includecount),
@@ -706,6 +711,35 @@ class DBHandler(Handler):
 				raise ValueError(f"no procedure {procname}")
 			self.custom_procs[procname] = proc
 			return proc
+
+	def _loadinternaltemplates(self, tpl_uuid):
+		if tpl_uuid in self.internaltemplates:
+			return self.internaltemplates[tpl_uuid]
+		c = self.cursor()
+		c.execute("""
+			select
+				it_identifier,
+				utv_source
+			from
+				internaltemplate_select
+			where
+				tpl_uuid=:tpl_uuid
+		""", tpl_uuid=tpl_uuid)
+		templates = {}
+		for r in c:
+			template = ul4c.Template(r.utv_source, name=r.it_identifier)
+			templates[template.name] = template
+		self.internaltemplates[tpl_uuid] = templates
+		return templates
+
+	def fetch_templates(self, app):
+		if app.superid is None:
+			return self._loadinternaltemplates(app.id)
+		else:
+			return {
+				**self._loadinternaltemplates(app.superid),
+				**self._loadinternaltemplates(app.id),
+			}
 
 
 class HTTPHandler(Handler):

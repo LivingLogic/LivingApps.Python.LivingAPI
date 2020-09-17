@@ -160,6 +160,12 @@ def error_object_deleted(value):
 	return f"Referenced object {value!r} has been deleted!"
 
 
+def _resolve_type(t):
+	if not isinstance(t, type):
+		t = t()
+	return t
+
+
 ###
 ### Exceptions
 ###
@@ -249,12 +255,22 @@ class Attr:
 				types += (type(None),)
 			if len(types) == 1:
 				types = types[0]
-		self.types = types
+		self._types = types
+		self._realtypes = None # Updated version of ``_types`` where callables are resolved
 		self.default = default
 		self.default_factory = default_factory
 		self.readonly = readonly
 		self.repr = repr
 		self.ul4on = ul4on
+
+	@property
+	def types(self):
+		if self._realtypes is None:
+			if not isinstance(self._types, tuple):
+				self._realtypes = _resolve_type(self._types)
+			else:
+				self._realtypes = tuple(_resolve_type(t) for t in self._types)
+		return self._realtypes
 
 	def __repr__(self):
 		if isinstance(self.types, tuple):
@@ -713,6 +729,8 @@ class Globals(Base):
 		"version",
 		"hostname",
 		"platform",
+		"app",
+		"record",
 		"datasources",
 		"user",
 		"flashes",
@@ -737,6 +755,8 @@ class Globals(Base):
 	lang = Attr(str, repr=True, ul4on=True)
 	datasources = AttrDictAttr(ul4on=True)
 	hostname = Attr(str, repr=True, ul4on=True)
+	app = Attr(lambda: App, ul4on=True)
+	record = Attr(lambda: Record, ul4on=True)
 
 	class flashes(Attr):
 		ul4on = True
@@ -748,6 +768,7 @@ class Globals(Base):
 		self.version = version
 		self.hostname = hostname
 		self.platform = platform
+		self.app = None
 		self.datasources = attrdict()
 		self.user = None
 		self.maxdbactions = None
@@ -757,7 +778,7 @@ class Globals(Base):
 		self.handler = None
 		self.request = None
 		self.response = None
-		self.templates = None
+		self._templates = None
 
 	def geo(self, lat=None, long=None, info=None):
 		return self.handler.geo(lat, long, info)
@@ -777,13 +798,17 @@ class Globals(Base):
 	def log_error(self, *args):
 		pass
 
+	@property
+	def templates(self):
+		return self.app.templates
+
 	def __getattr__(self, name):
 		if self.datasources and name.startswith("d_"):
 			try:
 				return self.datasources[name[2:]]
 			except KeyError:
 				pass
-		elif self.templates and name.startswith("t_"):
+		elif name.startswith("t_"):
 			try:
 				return self.templates[name[2:]]
 			except KeyError:
@@ -798,9 +823,8 @@ class Globals(Base):
 		if self.datasources:
 			for identifier in self.datasources:
 				attrs.add(f"d_{identifier}")
-		if self.templates:
-			for identifier in self.templates:
-				attrs.add(f"t_{identifier}")
+		for identifier in self.templates:
+			attrs.add(f"t_{identifier}")
 		return attrs
 
 	def ul4getattr(self, name):
@@ -823,7 +847,7 @@ class Globals(Base):
 			return True
 		elif self.datasources and name.startswith("d_") and name[2:] in self.datasources:
 			return True
-		elif self.templates and name.startswith("t_") and name[2:] in self.templates:
+		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
 		else:
 			return False
@@ -886,16 +910,18 @@ class App(Base):
 	insertprocedure = Attr(str, ul4on=True)
 	updateprocedure = Attr(str, ul4on=True)
 	deleteprocedure = Attr(str, ul4on=True)
-	templates = AttrDictAttr(ul4on=True)
+	_templates = AttrDictAttr(ul4on=True)
 	createdat = Attr(datetime.datetime, ul4on=True)
 	updatedat = Attr(datetime.datetime, ul4on=True)
 	updatedby = Attr(User, ul4on=True)
+	superid = Attr(str, ul4on=True)
 	internaltemplates = AttrDictAttr(ul4on=True)
 	viewtemplates = AttrDictAttr(ul4on=True)
 	dataactions = AttrDictAttr(ul4on=True)
 
 	def __init__(self, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = None
+		self.superid = None
 		self.globals = None
 		self.name = name
 		self.description = description
@@ -907,7 +933,6 @@ class App(Base):
 		self.createdby = createdby
 		self.updatedat = updatedat
 		self.updatedby = updatedby
-		self.templates = None
 		self.controls = None
 		self.records = None
 		self.recordcount = recordcount
@@ -921,7 +946,7 @@ class App(Base):
 		self.insertprocedure = None
 		self.updateprocedure = None
 		self.deleteprocedure = None
-		self.templates = None
+		self._templates = None
 		self.internaltemplates = None
 		self.viewtemplates = None
 		self.dataactions = None
@@ -929,11 +954,17 @@ class App(Base):
 	def __str__(self):
 		return self.fullname
 
+	@property
+	def templates(self):
+		if self._templates is None:
+			self._templates = self.globals.handler.fetch_templates(self)
+		return self._templates
+
 	def __getattr__(self, name):
 		try:
 			if name.startswith("c_"):
 				return self.controls[name[2:]]
-			elif name.startswith("t_") and self.templates:
+			elif name.startswith("t_"):
 				return self.templates[name[2:]]
 			elif name.startswith("p_") and self.params:
 				return self.params[name[2:]]
@@ -951,9 +982,8 @@ class App(Base):
 		if self.params:
 			for identifier in self.params:
 				attrs.add(f"p_{identifier}")
-		if self.templates:
-			for identifier in self.templates:
-				attrs.add(f"t_{identifier}")
+		for identifier in self.templates:
+			attrs.add(f"t_{identifier}")
 		return attrs
 
 	def ul4getattr(self, name):
@@ -968,7 +998,7 @@ class App(Base):
 			return True
 		elif name.startswith("p_") and self.params and name[2:] in self.params:
 			return True
-		elif name.startswith("t_") and self.templates and name[2:] in self.templates:
+		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
 		else:
 			return False
@@ -1145,6 +1175,12 @@ class TextAreaControl(StringControl):
 	ul4attrs = StringControl.ul4attrs.union({"encrypted"})
 
 	encrypted = IntEnumAttr(EncryptionType, default=EncryptionType.NONE, ul4on=True)
+
+
+@register("htmlcontrol")
+class HTMLControl(StringControl):
+	subtype = "html"
+	fulltype = f"{StringControl.type}/{subtype}"
 
 
 @register("intcontrol")
@@ -1530,6 +1566,12 @@ class FileControl(Control):
 			else:
 				value = value.internalid
 		return value
+
+
+@register("filesignaturecontrol")
+class FileSignatureControl(FileControl):
+	subtype = "signature"
+	fulltype = f"{FileControl.type}/{subtype}"
 
 
 @register("geocontrol")
@@ -2121,7 +2163,7 @@ class ViewTemplate(Template):
 
 @register("datasource")
 class DataSource(Base):
-	ul4attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includetemplates", "includeparams", "includeviews", "includecategories", "orders", "children"}
+	ul4attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includeparams", "includeviews", "includecategories", "orders", "children"}
 
 	class IncludeControls(misc.IntEnum):
 		"""
@@ -2231,9 +2273,6 @@ class DataSource(Base):
 	# Include record attachments?
 	includeattachments = BoolAttr(required=True, default=False, ul4on=True)
 
-	# Include internal templates?
-	includetemplates = BoolAttr(required=True, default=False, ul4on=True)
-
 	# Include app parameter?
 	includeparams = BoolAttr(required=True, default=False, ul4on=True)
 
@@ -2249,7 +2288,7 @@ class DataSource(Base):
 	# Children configuration for records that reference the record from this app
 	children = AttrDictAttr(required=True, ul4on=True)
 
-	def __init__(self, *args, identifier=None, app=None, includecloned=False, appfilter=None, includecontrols=None, includerecords=None, includecount=False, recordpermission=None, recordfilter=None, includepermissions=False, includeattachments=False, includetemplates=False, includeparams=False, includeviews=False, includecategories=None):
+	def __init__(self, *args, identifier=None, app=None, includecloned=False, appfilter=None, includecontrols=None, includerecords=None, includecount=False, recordpermission=None, recordfilter=None, includepermissions=False, includeattachments=False, includeparams=False, includeviews=False, includecategories=None):
 		self.id = None
 		self.parent = None
 		self.identifier = identifier
@@ -2263,7 +2302,6 @@ class DataSource(Base):
 		self.recordfilter = recordfilter
 		self.includepermissions = includepermissions
 		self.includeattachments = includeattachments
-		self.includetemplates = includetemplates
 		self.includeparams = includeparams
 		self.includeviews = includeviews
 		self.includecategories = includecategories

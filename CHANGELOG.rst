@@ -1,3 +1,21 @@
+0.13.0 (2020-09-17)
+-------------------
+
+*	Add support for "deferred" types in :class:`Attr`. This makes it possible
+	to have cyclic references in attribute "declarations".
+
+*	Add the attributes ``app`` and ``record`` to :class:`Globals`.
+
+*	Accessing ``globals.templates`` or ``app.templates`` now fetches the
+	templates via the handlers :meth:`fetch_templates` method (which only does
+	something in :class:`DBHandler`).
+
+*	:class:`DBHandler` now accepts either the ``account`` or the ``ide_id``
+	argument.
+
+*	Added :class:`FileSignatureControl` and :class:`HTMLControl`.
+
+
 0.12.3 (2020-04-24)
 -------------------
 
@@ -64,7 +82,7 @@
 *	The ``HTTPHandler`` now delays logging into LivingApps until the first real
 	request. Furthermore it automatically appends ``gateway/`` to the base URL
 	and omits that part when constructing request URLs. The result of that it
-	that it's possible to replace to base URL with something else after the
+	that it's possible to replace the base URL with something else after the
 	``HTTPHandler`` has been created and before the first request is made.
 	(This makes it possible to talk to the gateway host directly on custom
 	LivingApps installations.)
