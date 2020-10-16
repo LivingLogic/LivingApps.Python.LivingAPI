@@ -753,18 +753,18 @@ class Globals(Base):
 	user = Attr(User, ul4on=True)
 	maxdbactions = Attr(int, ul4on=True)
 	maxtemplateruntime = Attr(int, ul4on=True)
-	flashes = Attr(ul4on=True)
-	lang = Attr(str, repr=True, ul4on=True)
-	datasources = AttrDictAttr(ul4on=True)
-	hostname = Attr(str, repr=True, ul4on=True)
-	app = Attr(lambda: App, ul4on=True)
-	record = Attr(lambda: Record, ul4on=True)
 
 	class flashes(Attr):
 		ul4on = True
 
 		def ul4on_set_default_value(self, instance):
 			instance.flashes = []
+
+	lang = Attr(str, repr=True, ul4on=True)
+	datasources = AttrDictAttr(ul4on=True)
+	hostname = Attr(str, repr=True, ul4on=True)
+	app = Attr(lambda: App, ul4on=True)
+	record = Attr(lambda: Record, ul4on=True)
 
 	def __init__(self, version=None, hostname=None, platform=None):
 		self.version = version
