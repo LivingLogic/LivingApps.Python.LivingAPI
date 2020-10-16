@@ -521,7 +521,7 @@ class BaseMetaClass(type):
 		for (key, value) in dict.items():
 			if isinstance(value, Attr):
 				value.name = key
-			if isinstance(value, type) and issubclass(value, Attr):
+			elif isinstance(value, type) and issubclass(value, Attr):
 				(initargnames, initvarargname, initvarkwname) = inspect.getargs(value.__init__.__code__)
 				if initvarkwname is not None:
 					raise TypeError(f"** arguments for {value.__init__} not supported")
