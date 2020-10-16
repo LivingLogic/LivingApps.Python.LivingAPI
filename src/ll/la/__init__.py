@@ -521,6 +521,8 @@ class BaseMetaClass(type):
 		for (key, value) in dict.items():
 			if isinstance(value, Attr):
 				value.name = key
+			# ``value`` might also be a subclass of ``Attr``
+			# (because it has to overwrite/implement some of the methods)
 			elif isinstance(value, type) and issubclass(value, Attr):
 				(initargnames, initvarargname, initvarkwname) = inspect.getargs(value.__init__.__code__)
 				if initvarkwname is not None:
