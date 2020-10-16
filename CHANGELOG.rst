@@ -1,3 +1,16 @@
+HEAD (2020-10-??)
+-----------------
+
+*	Renamed ``AppLookupControl.lookupapp`` to ``lookup_app`` and
+	``AppLookupControl.lookupcontrols`` to ``lookup_controls``.
+
+*	Added the following attributes to ``AppLookupControl``:
+
+	-	``local_master_control``
+	-	``local_detail_controls``
+	-	``remote_master_control``
+
+
 0.13.0 (2020-09-17)
 -------------------
 

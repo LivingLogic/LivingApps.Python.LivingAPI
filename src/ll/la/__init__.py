@@ -1361,25 +1361,31 @@ class LookupChoiceControl(LookupControl):
 class AppLookupControl(Control):
 	type = "applookup"
 
-	ul4attrs = Control.ul4attrs.union({"lookupapp", "lookupcontrols"})
+	ul4attrs = Control.ul4attrs.union({"lookup_app", "lookup_controls"})
 
-	lookupapp = Attr(App, ul4on=True)
-	lookupcontrols = AttrDictAttr(ul4on=True)
+	lookup_app = Attr(App, ul4on=True)
+	lookup_controls = AttrDictAttr(ul4on=True)
+	local_master_control = Attr(Control, ul4on=True)
+	local_detail_controls = AttrDictAttr(ul4on=True)
+	remote_master_control = Attr(Control, ul4on=True)
 
-	def __init__(self, identifier=None, field=None, label=None, priority=None, order=None, default=None, lookupapp=None, lookupcontrols=None):
+	def __init__(self, identifier=None, field=None, label=None, priority=None, order=None, default=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None):
 		super().__init__(identifier=identifier, field=field, label=label, priority=priority, order=order, default=default)
-		self.lookupapp = lookupapp
-		self.lookupcontrols = lookupcontrols
+		self.lookup_app = lookup_app
+		self.lookup_controls = lookup_controls
+		self.local_master_control = local_master_control
+		self.local_detail_controls = local_detail_controls
+		self.remote_master_control = remote_master_control
 
 	def _set_value(self, field, value):
 		if isinstance(value, str):
-			if self.lookupapp.records and value in self.lookupapp.records:
-				value = self.lookupapp.records[value]
+			if self.lookup_app.records and value in self.lookup_app.records:
+				value = self.lookup_app.records[value]
 			else:
 				field.add_error(error_applookuprecord_unknown(value))
 				value = None
 		elif isinstance(value, Record):
-			if value.app is not self.lookupapp:
+			if value.app is not self.lookup_app:
 				field.add_error(error_applookuprecord_foreign(value))
 				value = None
 		elif value is not None:
@@ -1401,14 +1407,18 @@ class AppLookupControl(Control):
 		return value
 
 	def ul4onload_setattr(self, name, value):
-		if name == "lookupcontrols":
-			self.lookupcontrols = makeattrs(value)
+		if name == "lookup_controls":
+			self.lookup_controls = makeattrs(value)
+		elif name == "local_detail_controls":
+			self.local_detail_controls = makeattrs(value)
 		else:
 			super().ul4onload_setattr(name, value)
 
 	def ul4onload_setdefaultattr(self, name):
-		if name == "lookupcontrols":
-			self.lookupcontrols = attrdict()
+		if name == "lookup_controls":
+			self.lookup_controls = attrdict()
+		elif name == "local_detail_controls":
+			self.local_detail_controls = attrdict()
 		else:
 			super().ul4onload_setdefaultattr(name)
 
