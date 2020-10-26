@@ -2777,10 +2777,10 @@ class Installation(Base):
 
 
 class LayoutControl(Base):
-	ul4attrs = {"id", "name", "identifier", "view"}
+	ul4attrs = {"id", "label", "identifier", "view", "type", "subtype", "top", "left", "width", "height"}
 
 	id = Attr(str, repr=True, ul4on=True)
-	name = Attr(str, repr=True, ul4on=True)
+	label = Attr(str, repr=True, ul4on=True)
 	identifier = Attr(str, repr=True, ul4on=True)
 	view = Attr(lambda: View, ul4on=True)
 	top = Attr(int, ul4on=True)
@@ -2788,14 +2788,16 @@ class LayoutControl(Base):
 	width = Attr(int, ul4on=True)
 	height = Attr(int, ul4on=True)
 
-	def __init__(self, id=None, name=None, identifier=None):
+	def __init__(self, id=None, label=None, identifier=None):
 		self.id = id
-		self.name = name
+		self.label = label
 		self.identifier = identifier
 
 
 @register("htmllayoutcontrol")
 class HTMLLayoutControl(LayoutControl):
+	type = "string"
+	subtype = "html"
 	ul4attrs = LayoutControl.ul4attrs.union({"value"})
 
 	value = Attr(str, ul4on=True)
@@ -2803,6 +2805,9 @@ class HTMLLayoutControl(LayoutControl):
 
 @register("imagelayoutcontrol")
 class ImageLayoutControl(LayoutControl):
+	type = "image"
+	subtype = None
+
 	ul4attrs = LayoutControl.ul4attrs.union({"image_original", "image_scaled"})
 
 	image_original = Attr(File, ul4on=True)
