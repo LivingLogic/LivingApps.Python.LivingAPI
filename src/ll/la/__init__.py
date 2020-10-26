@@ -306,7 +306,7 @@ class Attr:
 			raise AttributeError(self.name)
 
 	def __set__(self, instance, value):
-		if self.readonly and self.name in instance.__dict__:
+		if self.readonly:
 			raise TypeError(f"Attribute {misc.format_class(instance)}.{self.name} is read only")
 		self.set_value(instance, value)
 
@@ -1604,6 +1604,46 @@ class GeoControl(Control):
 		return value
 
 
+@register("viewcontrol")
+class ViewControl(Base):
+	ul4attrs = {"id", "identifier", "type", "subtype", "view", "control", "top", "left", "width", "height", "liveupdate"}
+
+	id = Attr(str, repr=True, ul4on=True)
+
+	class identifier(Attr):
+		types = (str,)
+		repr = True
+		readonly = True
+
+		def get_value(self, instance):
+			return instance.control.identifier
+
+	class type(Attr):
+		types = (str,)
+		repr = True
+		readonly = True
+
+		def get_value(self, instance):
+			return instance.control.type
+
+	class subtype(Attr):
+		types = (str,)
+		required = False
+		repr = True
+		readonly = True
+
+		def get_value(self, instance):
+			return instance.control.subtype
+
+	view = Attr(lambda: View, ul4on=True)
+	control = Attr(Control, ul4on=True)
+	top = Attr(int, ul4on=True)
+	left = Attr(int, ul4on=True)
+	width = Attr(int, ul4on=True)
+	height = Attr(int, ul4on=True)
+	liveupdate = BoolAttr(ul4on=True)
+
+
 @register("record")
 class Record(Base):
 	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update"}
@@ -2736,9 +2776,42 @@ class Installation(Base):
 		self.name = name
 
 
+class LayoutControl(Base):
+	ul4attrs = {"id", "name", "identifier", "view"}
+
+	id = Attr(str, repr=True, ul4on=True)
+	name = Attr(str, repr=True, ul4on=True)
+	identifier = Attr(str, repr=True, ul4on=True)
+	view = Attr(lambda: View, ul4on=True)
+	top = Attr(int, ul4on=True)
+	left = Attr(int, ul4on=True)
+	width = Attr(int, ul4on=True)
+	height = Attr(int, ul4on=True)
+
+	def __init__(self, id=None, name=None, identifier=None):
+		self.id = id
+		self.name = name
+		self.identifier = identifier
+
+
+@register("htmllayoutcontrol")
+class HTMLLayoutControl(LayoutControl):
+	ul4attrs = LayoutControl.ul4attrs.union({"value"})
+
+	value = Attr(str, ul4on=True)
+
+
+@register("imagelayoutcontrol")
+class ImageLayoutControl(LayoutControl):
+	ul4attrs = LayoutControl.ul4attrs.union({"image_original", "image_scaled"})
+
+	image_original = Attr(File, ul4on=True)
+	image_scaled = Attr(File, ul4on=True)
+
+
 @register("view")
 class View(Base):
-	ul4attrs = {"id", "name", "app", "order", "width", "height", "start", "end"}
+	ul4attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "controls", "layout_controls"}
 
 	id = Attr(str, repr=True, ul4on=True)
 	name = Attr(str, repr=True, ul4on=True)
@@ -2748,6 +2821,8 @@ class View(Base):
 	height = Attr(int, ul4on=True)
 	start = Attr(datetime.datetime, ul4on=True)
 	end = Attr(datetime.datetime, ul4on=True)
+	controls = AttrDictAttr(ul4on=True)
+	layout_controls = AttrDictAttr(ul4on=True)
 
 	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None):
 		self.id = id
