@@ -10,6 +10,8 @@ HEAD (2020-10-??)
 	-	``local_detail_controls``,
 	-	``remote_master_control``.
 
+*	Added the attribute ``favorite`` to ``App``.
+
 
 0.13.0 (2020-09-17)
 -------------------

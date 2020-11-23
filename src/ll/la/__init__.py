@@ -885,6 +885,7 @@ class App(Base):
 		"deleteprocedure",
 		"templates",
 		"insert",
+		"favorite",
 		"internaltemplates",
 		"viewtemplates",
 		"dataactions",
@@ -917,6 +918,7 @@ class App(Base):
 	updatedat = Attr(datetime.datetime, ul4on=True)
 	updatedby = Attr(User, ul4on=True)
 	superid = Attr(str, ul4on=True)
+	favorite = BoolAttr(ul4on=True)
 	internaltemplates = AttrDictAttr(ul4on=True)
 	viewtemplates = AttrDictAttr(ul4on=True)
 	dataactions = AttrDictAttr(ul4on=True)
@@ -949,6 +951,7 @@ class App(Base):
 		self.updateprocedure = None
 		self.deleteprocedure = None
 		self._templates = None
+		self.favorite = False
 		self.internaltemplates = None
 		self.viewtemplates = None
 		self.dataactions = None
