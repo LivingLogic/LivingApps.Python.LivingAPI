@@ -1712,8 +1712,8 @@ class Record(Base):
 		self.updatedby = updatedby
 		self.updatecount = updatecount
 		self._sparsevalues = attrdict()
-		self.values = None
-		self.fields = None
+		self.__dict__["values"] = None
+		self.__dict__["fields"] = None
 		self.children = attrdict()
 		self.attachments = None
 		self.errors = []
