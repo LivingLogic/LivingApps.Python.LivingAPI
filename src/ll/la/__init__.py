@@ -1506,13 +1506,13 @@ class MultipleAppLookupControl(AppLookupControl):
 			field._value = []
 			for v in value:
 				if isinstance(v, str):
-					if self.lookupapp.records and v in self.lookupapp.records:
-						v = self.lookupapp.records[v]
+					if self.lookup_app.records and v in self.lookup_app.records:
+						v = self.lookup_app.records[v]
 						field._value.append(v)
 					else:
 						field.add_error(error_applookuprecord_unknown(v))
 				elif isinstance(v, Record):
-					if v.app is not self.lookupapp:
+					if v.app is not self.lookup_app:
 						field.add_error(error_applookuprecord_foreign(v))
 					else:
 						field._value.append(v)
