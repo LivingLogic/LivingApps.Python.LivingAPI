@@ -1364,7 +1364,7 @@ class LookupChoiceControl(LookupControl):
 class AppLookupControl(Control):
 	type = "applookup"
 
-	ul4attrs = Control.ul4attrs.union({"lookup_app", "lookup_controls"})
+	ul4attrs = Control.ul4attrs.union({"lookup_app", "lookup_controls", "lookupapp", "lookupcontrols"})
 
 	lookup_app = Attr(App, ul4on=True)
 	lookup_controls = AttrDictAttr(ul4on=True)
@@ -1424,6 +1424,14 @@ class AppLookupControl(Control):
 			self.local_detail_controls = attrdict()
 		else:
 			super().ul4onload_setdefaultattr(name)
+
+	@property
+	def lookupcontrols(self):
+		return self.lookup_controls
+
+	@property
+	def lookupapp(self):
+		return self.lookup_app
 
 
 @register("applookupselectcontrol")
