@@ -12,7 +12,7 @@
 See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 """
 
-import io, datetime, operator, string, json, pathlib, inspect
+import io, datetime, operator, string, json, pathlib
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
@@ -23,6 +23,8 @@ __docformat__ = "reStructuredText"
 ###
 ### Utility functions and classes
 ###
+
+NoneType = type(None)
 
 def register(name):
 	"""
@@ -45,6 +47,8 @@ def format_class(cls):
 	"""
 	if cls.__module__ not in ("builtins", "exceptions"):
 		return f"{cls.__module__}.{cls.__qualname__}"
+	elif cls is NoneType:
+		return "None"
 	else:
 		return cls.__qualname__
 
@@ -133,7 +137,7 @@ def error_applookuprecord_unknown(value):
 	Used when setting the field of an applookup control to a record identifier
 	that can't be found in the target app.
 	"""
-	return f"Unknown record {value!r}"
+	return f"Record with id {value!r} unknown"
 
 
 def error_applookuprecord_foreign(value):
@@ -143,7 +147,7 @@ def error_applookuprecord_foreign(value):
 	Used when setting the field of an applookup control to a :class:`Record`
 	object that belongs to the wrong app.
 	"""
-	return f"{value!r} is from wrong app"
+	return f"Record with id {value.id!r} is from wrong app"
 
 
 def error_object_unsaved(value):
@@ -219,7 +223,7 @@ class Attr:
 	support for :meth:`__repr__` and for automatic :mod:`ll.ul4on` support.
 	"""
 
-	def __init__(self, *types, required=False, default=None, default_factory=None, readonly=False, repr=False, ul4on=False):
+	def __init__(self, *types, required=False, default=None, default_factory=None, readonly=False, repr=False, ul4on=False, get=None, set=None, ul4get=None, ul4set=None, ul4onget=None, ul4onset=None, ul4onsetdefault=None):
 		"""
 		Create a new :class:`Attr` data descriptor.
 
@@ -262,6 +266,13 @@ class Attr:
 		self.readonly = readonly
 		self.repr = repr
 		self.ul4on = ul4on
+		self.get = get
+		self.set = set
+		self.ul4get = ul4get
+		self.ul4set = ul4set
+		self.ul4onget = ul4onget
+		self.ul4onset = ul4onset
+		self.ul4onsetdefault = ul4onsetdefault
 
 	@property
 	def types(self):
@@ -286,11 +297,11 @@ class Attr:
 		s += f" at {id(self):#x}>"
 		return s
 
-	def repr_value(self, instance):
+	def _repr(self, instance):
 		"""
 		Format the attribute of :obj:`instance` for :meth:`__repr__` output.
 		"""
-		value = self.get_value(instance)
+		value = self._get(instance)
 		if value is not None:
 			return f"{self.name}={value!r}"
 		else:
@@ -298,7 +309,7 @@ class Attr:
 
 	def __get__(self, instance, type):
 		if instance is not None:
-			return self.get_value(instance)
+			return self._get(instance)
 		else:
 			for cls in type.__mro__:
 				if self.name in cls.__dict__:
@@ -306,11 +317,11 @@ class Attr:
 			raise AttributeError(self.name)
 
 	def __set__(self, instance, value):
-		if self.readonly:
-			raise TypeError(f"Attribute {misc.format_class(instance)}.{self.name} is read only")
-		self.set_value(instance, value)
+		self._set(instance, value)
 
-	def get_value(self, instance):
+	def _get(self, instance):
+		if self.get is not None:
+			return getattr(instance, self.get)()
 		return instance.__dict__[self.name]
 
 	def make_default_value(self):
@@ -324,21 +335,41 @@ class Attr:
 		else:
 			return self.default
 
-	def set_value(self, instance, value):
+	def _set(self, instance, value):
+		if self.set is not None:
+			return getattr(instance, self.set)(value)
+		if self.readonly:
+			raise TypeError(f"Attribute {misc.format_class(instance)}.{self.name} is read only")
 		if value is None:
 			value = self.make_default_value()
 		if not isinstance(value, self.types):
-			raise TypeError(f"Attribute {misc.format_class(instance)}.{self.name} must be {self._format_types()}, but is {misc.format_class(value)}")
+			raise TypeError(f"Attribute {misc.format_class(instance)}.{self.name} must be {self._format_types()}, but is {format_class(type(value))}")
 		instance.__dict__[self.name] = value
 
-	def ul4on_get_value(self, instance):
-		return self.get_value(instance)
+	def _ul4get(self, instance):
+		if self.ul4get is not None:
+			return getattr(instance, self.ul4get)()
+		return self._get(instance)
 
-	def ul4on_set_value(self, instance, value):
-		self.set_value(instance, value)
+	def _ul4set(self, instance, value):
+		if self.ul4set is not None:
+			return getattr(instance, self.ul4set)(value)
+		return self._set(instance, value)
 
-	def ul4on_set_default_value(self, instance):
-		self.ul4on_set_value(instance, None)
+	def _ul4onget(self, instance):
+		if self.ul4onget is not None:
+			return getattr(instance, self.ul4onget)()
+		return self._get(instance)
+
+	def _ul4onset(self, instance, value):
+		if self.ul4onset is not None:
+			return getattr(instance, self.ul4onset)(value)
+		return self._set(instance, value)
+
+	def _ul4onsetdefault(self, instance):
+		if self.ul4onsetdefault is not None:
+			return getattr(instance, self.ul4onsetdefault)()
+		return self._set(instance, self.make_default_value())
 
 	def _format_types(self):
 		if isinstance(self.types, tuple):
@@ -354,16 +385,16 @@ class BoolAttr(Attr):
 	Setting such an attribute also supports an integer as the value.
 	"""
 
-	def __init__(self, required=False, default=None, readonly=False, repr=False, ul4on=False):
+	def __init__(self, required=False, default=None, readonly=False, **kwargs):
 		"""
 		Create a :class:`BoolAttr` data descriptor.
 
 		The supported type will be :class:`bool`. All other arguments have the
 		same meaning as in :meth:`Attr.__init__`.
 		"""
-		super().__init__(bool, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
+		super().__init__(bool, required=required, default=default, readonly=readonly, **kwargs)
 
-	def set_value(self, instance, value):
+	def _set(self, instance, value):
 		"""
 		Set the value of this attribute of :obj:`instance` to :obj:`value`.
 
@@ -372,7 +403,7 @@ class BoolAttr(Attr):
 		"""
 		if isinstance(value, int):
 			value = bool(value)
-		super().set_value(instance, value)
+		super()._set(instance, value)
 
 
 class FloatAttr(Attr):
@@ -382,16 +413,16 @@ class FloatAttr(Attr):
 	Setting such an attribute also supports an integer as the value.
 	"""
 
-	def __init__(self, required=False, default=None, readonly=False, repr=False, ul4on=False):
+	def __init__(self, required=False, default=None, readonly=False, **kwargs):
 		"""
 		Create a :class:`BoolAttr` data descriptor.
 
 		The supported type will be :class:`float`. All other arguments have the
 		same meaning as in :meth:`Attr.__init__`.
 		"""
-		super().__init__(float, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
+		super().__init__(float, required=required, default=default, readonly=readonly, **kwargs)
 
-	def set_value(self, instance, value):
+	def _set(self, instance, value):
 		"""
 		Set the value of this attribute of :obj:`instance` to :obj:`value`.
 
@@ -400,7 +431,7 @@ class FloatAttr(Attr):
 		"""
 		if isinstance(value, int):
 			value = float(value)
-		super().set_value(instance, value)
+		super()._set(instance, value)
 
 
 class EnumAttr(Attr):
@@ -410,17 +441,17 @@ class EnumAttr(Attr):
 	Setting such an attribute also supports a string as the value.
 	"""
 
-	def __init__(self, type, required=False, default=None, readonly=False, repr=False, ul4on=False):
+	def __init__(self, type, required=False, default=None, readonly=False, **kwargs):
 		"""
 		Create an :class:`EnumAttr` data descriptor.
 
 		:obj:`type` must be a subclass of :class:`~enum.Enum`. All other
 		arguments have the same meaning as in :meth:`Attr.__init__`.
 		"""
-		super().__init__(type, required=required, default=default, readonly=readonly, repr=repr, ul4on=ul4on)
+		super().__init__(type, required=required, default=default, readonly=readonly, **kwargs)
 		self.type = type
 
-	def set_value(self, instance, value):
+	def _set(self, instance, value):
 		"""
 		Set the value of this attribute of :obj:`instance` to :obj:`value`.
 
@@ -434,7 +465,13 @@ class EnumAttr(Attr):
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
 				raise ValueError(f"Value for attribute {misc.format_class(instance)}.{self.name} must be {values}, but is {value!r}") from None
-		super().set_value(instance, value)
+		super()._set(instance, value)
+
+	def _ul4get(self, instance):
+		e = self._get(instance)
+		if e is not None:
+			e = e.value
+		return e
 
 
 class IntEnumAttr(EnumAttr):
@@ -444,7 +481,7 @@ class IntEnumAttr(EnumAttr):
 	Setting such an attribute also supports an integer as the value.
 	"""
 
-	def set_value(self, instance, value):
+	def _set(self, instance, value):
 		"""
 		Set the value of this attribute of :obj:`instance` to :obj:`value`.
 
@@ -458,7 +495,7 @@ class IntEnumAttr(EnumAttr):
 			except ValueError:
 				values = format_list([repr(e.value) for e in self.types])
 				raise ValueError(f"Value for attribute {misc.format_class(instance)}.{self.name} must be {values}, but is {value!r}") from None
-		super().set_value(instance, value)
+		super()._set(instance, value)
 
 
 class VSQLAttr(Attr):
@@ -466,7 +503,7 @@ class VSQLAttr(Attr):
 	Data descriptor for an attribute containing a vSQL expression.
 	"""
 
-	def __init__(self, function, required=False, readonly=False, repr=False, ul4on=False):
+	def __init__(self, function, required=False, readonly=False, repr=False, ul4on=False, **kwargs):
 		"""
 		Create an :class:`VSQLAttr` data descriptor.
 
@@ -474,7 +511,7 @@ class VSQLAttr(Attr):
 		name of a PL/SQL function for returning the UL4ON dump of the allowed
 		vSQL variables.
 		"""
-		super().__init__(str, required=required, readonly=readonly, repr=repr, ul4on=ul4on)
+		super().__init__(str, required=required, readonly=readonly, repr=repr, ul4on=ul4on, **kwargs)
 		self.function = function
 
 
@@ -486,16 +523,16 @@ class AttrDictAttr(Attr):
 	:class:`attrdict` object.
 	"""
 
-	def __init__(self, required=False, readonly=False, ul4on=False):
+	def __init__(self, required=False, readonly=False, ul4on=False, **kwargs):
 		"""
 		Create an :class:`AttrDictAttr` data descriptor.
 		"""
 		if required:
-			super().__init__(dict, required=True, default_factory=attrdict, readonly=readonly, repr=False, ul4on=ul4on)
+			super().__init__(dict, required=True, default_factory=attrdict, readonly=readonly, repr=False, ul4on=ul4on, **kwargs)
 		else:
-			super().__init__(dict, required=False, readonly=readonly, repr=False, ul4on=ul4on)
+			super().__init__(dict, required=False, readonly=readonly, repr=False, ul4on=ul4on, **kwargs)
 
-	def set_value(self, instance, value):
+	def _set(self, instance, value):
 		"""
 		Set the value of this attribute of :obj:`instance` to :obj:`value`.
 
@@ -503,7 +540,7 @@ class AttrDictAttr(Attr):
 		be converted to an :class:`attrdict` automatically.
 		"""
 		value = makeattrs(value)
-		super().set_value(instance, value)
+		super()._set(instance, value)
 
 
 ###
@@ -520,19 +557,6 @@ class BaseMetaClass(type):
 		newdict = {}
 		for (key, value) in dict.items():
 			if isinstance(value, Attr):
-				value.name = key
-			# ``value`` might also be a subclass of ``Attr``
-			# (because it has to overwrite/implement some of the methods)
-			elif isinstance(value, type) and issubclass(value, Attr):
-				(initargnames, initvarargname, initvarkwname) = inspect.getargs(value.__init__.__code__)
-				if initvarkwname is not None:
-					raise TypeError(f"** arguments for {value.__init__} not supported")
-				if initvarargname is not None and initvarargname in value.__dict__:
-					initargs = value.__dict__[initvarargname]
-				else:
-					initargs = ()
-				initkwargs = {k: v for (k, v) in value.__dict__.items() if k in initargnames and k != initargnames[0]}
-				value = value(*initargs, **initkwargs)
 				value.name = key
 			newdict[key] = value
 		return type.__new__(cls, name, bases, newdict)
@@ -555,7 +579,7 @@ class Base(metaclass=BaseMetaClass):
 
 		for attr in self.attrs():
 			if attr.repr:
-				repr_value = attr.repr_value(self)
+				repr_value = attr._repr(self)
 				if repr_value is not None:
 					v.append(repr_value)
 		v.append(f"at {id(self):#x}>")
@@ -564,17 +588,18 @@ class Base(metaclass=BaseMetaClass):
 	def ul4ondump(self, encoder):
 		for attr in self.attrs():
 			if attr.ul4on:
-				value = attr.ul4on_get_value(self)
+				value = attr._ul4onget(self)
 				encoder.dump(value)
 
 	def ul4onload(self, decoder):
+		self.ul4onload_begin(decoder)
 		attrs = (attr for attr in self.attrs() if attr.ul4on)
 		dump = decoder.loadcontent()
 
 		# Load all attributes that we get from the UL4ON dump
 		# Stop when the dump is exhausted or we've loaded all known attributes.
 		for (attr, value) in zip(attrs, dump):
-			attr.ul4on_set_value(self, value)
+			attr._ul4onset(self, value)
 
 		# Exhaust the UL4ON dump
 		for value in dump:
@@ -582,7 +607,14 @@ class Base(metaclass=BaseMetaClass):
 
 		# Initialize the rest of the attributes with default values
 		for attr in attrs:
-			attr.ul4on_set_default_value(self)
+			attr._ul4onsetdefault(self)
+		self.ul4onload_end(decoder)
+
+	def ul4onload_begin(self, decoder):
+		pass
+
+	def ul4onload_end(self, decoder):
+		pass
 
 
 @register("flashmessage")
@@ -615,7 +647,7 @@ class FlashMessage(Base):
 class File(Base):
 	ul4attrs = {"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	url = Attr(str, ul4on=True)
 	filename = Attr(str, repr=True, ul4on=True)
 	mimetype = Attr(str, repr=True, ul4on=True)
@@ -643,6 +675,10 @@ class File(Base):
 			with Image.open(stream) as img:
 				self.width = img.size[0]
 				self.height = img.size[1]
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 	def _gethandler(self, handler):
 		if handler is None:
@@ -681,8 +717,7 @@ class Geo(Base):
 class User(Base):
 	ul4attrs = {"id", "gender", "firstname", "surname", "initials", "email", "language", "avatar_small", "avatar_large", "keyviews"}
 
-	internalid = Attr(str, ul4on=True)
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	gender = Attr(str, ul4on=True)
 	firstname = Attr(str, repr=True, ul4on=True)
 	surname = Attr(str, repr=True, ul4on=True)
@@ -693,9 +728,8 @@ class User(Base):
 	avatar_large = Attr(File, ul4on=True)
 	keyviews = Attr(ul4on=True)
 
-	def __init__(self, gender=None, firstname=None, surname=None, initials=None, email=None, language=None, avatar_small=None, avatar_large=None):
-		self.internalid = None
-		self.id = None
+	def __init__(self, id=None, gender=None, firstname=None, surname=None, initials=None, email=None, language=None, avatar_small=None, avatar_large=None):
+		self.id = id
 		self.gender = gender
 		self.firstname = firstname
 		self.surname = surname
@@ -705,6 +739,10 @@ class User(Base):
 		self.avatar_small = avatar_small
 		self.avatar_large = avatar_large
 		self.keyviews = attrdict()
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 
 @register("keyview")
@@ -748,17 +786,16 @@ class Globals(Base):
 		"geo",
 	}
 
+	id = Attr(str) # This is just used that make the :class:`Globals` object persistent
 	version = Attr(str, repr=True, ul4on=True)
 	platform = Attr(str, repr=True, ul4on=True)
 	user = Attr(User, ul4on=True)
 	maxdbactions = Attr(int, ul4on=True)
 	maxtemplateruntime = Attr(int, ul4on=True)
+	flashes = Attr(ul4on=True, ul4onsetdefault="flashes_ul4onset_default")
 
-	class flashes(Attr):
-		ul4on = True
-
-		def ul4on_set_default_value(self, instance):
-			instance.flashes = []
+	def flashes_ul4onset_default(self):
+		self.flashes = []
 
 	lang = Attr(str, repr=True, ul4on=True)
 	datasources = AttrDictAttr(ul4on=True)
@@ -767,6 +804,7 @@ class Globals(Base):
 	record = Attr(lambda: Record, ul4on=True)
 
 	def __init__(self, version=None, hostname=None, platform=None):
+		self.id = None
 		self.version = version
 		self.hostname = hostname
 		self.platform = platform
@@ -891,8 +929,8 @@ class App(Base):
 		"dataactions",
 	}
 
-	id = Attr(str, repr=True, ul4on=True)
-	globals = Attr(Globals, ul4on=True)
+	id = Attr(str, repr=True)
+	globals = Attr(Globals, ul4on=True, ul4onset="_globals_ul4onset")
 	name = Attr(str, repr=True, ul4on=True)
 	description = Attr(str, ul4on=True)
 	language = Attr(str, ul4on=True)
@@ -923,8 +961,8 @@ class App(Base):
 	viewtemplates = AttrDictAttr(ul4on=True)
 	dataactions = AttrDictAttr(ul4on=True)
 
-	def __init__(self, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
-		self.id = None
+	def __init__(self, id=None, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
+		self.id = id
 		self.superid = None
 		self.globals = None
 		self.name = name
@@ -958,6 +996,14 @@ class App(Base):
 
 	def __str__(self):
 		return self.fullname
+
+	@property
+	def ul4onid(self):
+		return self.id
+
+	def _globals_ul4onset(self, value):
+		if value is not None:
+			self.globals = value
 
 	@property
 	def templates(self):
@@ -1095,7 +1141,7 @@ class Control(Base):
 	subtype = None
 	ul4attrs = {"id", "identifier", "app", "label", "type", "subtype", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	identifier = Attr(str, repr=True, ul4on=True)
 	field = Attr(str, ul4on=True)
 	app = Attr(App, ul4on=True)
@@ -1106,8 +1152,8 @@ class Control(Base):
 	ininsertprocedure = BoolAttr(ul4on=True)
 	inupdateprocedure = BoolAttr(ul4on=True)
 
-	def __init__(self, identifier=None, field=None, label=None, priority=None, order=None, default=None):
-		self.id = None
+	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, default=None):
+		self.id = id
 		self.app = None
 		self.identifier = identifier
 		self.field = field
@@ -1115,6 +1161,10 @@ class Control(Base):
 		self.priority = priority
 		self.order = order
 		self.default = default
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 	def _set_value(self, field, value):
 		field._value = value
@@ -1302,7 +1352,7 @@ class LookupControl(Control):
 
 	ul4attrs = Control.ul4attrs.union({"lookupdata"})
 
-	lookupdata = AttrDictAttr(required=True, ul4on=True)
+	lookupdata = AttrDictAttr(required=True, ul4on=True, ul4onset="_lookupdata_ul4onset", ul4onsetdefault="_lookupdata_ul4onsetdefault")
 
 	def __init__(self, identifier=None, field=None, label=None, priority=None, order=None, default=None, lookupdata=None):
 		super().__init__(identifier=identifier, field=field, label=label, priority=priority, order=order, default=default)
@@ -1330,17 +1380,11 @@ class LookupControl(Control):
 			value = value.key
 		return value
 
-	def ul4onload_setattr(self, name, value):
-		if name == "lookupdata":
-			self.lookupdata = makeattrs(value)
-		else:
-			super().ul4onload_setattr(name, value)
+	def _lookupdata_ul4onset(self, value):
+		self.lookupdata = makeattrs(value)
 
-	def ul4onload_setdefaultattr(self, name):
-		if name == "lookupdata":
-			self.lookupdata = attrdict()
-		else:
-			return super().ul4onload_setdefaultattr(name)
+	def _lookupdata_ul4onsetdefault(self, value):
+		self.lookupdata = attrdict()
 
 
 @register("lookupselectcontrol")
@@ -1367,7 +1411,7 @@ class AppLookupControl(Control):
 	ul4attrs = Control.ul4attrs.union({"lookup_app", "lookup_controls", "lookupapp", "lookupcontrols"})
 
 	lookup_app = Attr(App, ul4on=True)
-	lookup_controls = AttrDictAttr(ul4on=True)
+	lookup_controls = AttrDictAttr(ul4on=True, ul4onset="_lookup_controls_ul4onset", ul4onsetdefault="_lookup_controls_ul4onsetdefault")
 	local_master_control = Attr(Control, ul4on=True)
 	local_detail_controls = AttrDictAttr(ul4on=True)
 	remote_master_control = Attr(Control, ul4on=True)
@@ -1382,12 +1426,13 @@ class AppLookupControl(Control):
 
 	def _set_value(self, field, value):
 		if isinstance(value, str):
-			if self.lookup_app.records and value in self.lookup_app.records:
-				value = self.lookup_app.records[value]
-			else:
+			record = self.app.globals.handler.record_sync_data(value)
+			if record is None:
 				field.add_error(error_applookuprecord_unknown(value))
 				value = None
-		elif isinstance(value, Record):
+			else:
+				value = record
+		if isinstance(value, Record):
 			if value.app is not self.lookup_app:
 				field.add_error(error_applookuprecord_foreign(value))
 				value = None
@@ -1409,21 +1454,19 @@ class AppLookupControl(Control):
 				value = value.id
 		return value
 
-	def ul4onload_setattr(self, name, value):
-		if name == "lookup_controls":
-			self.lookup_controls = makeattrs(value)
-		elif name == "local_detail_controls":
-			self.local_detail_controls = makeattrs(value)
-		else:
-			super().ul4onload_setattr(name, value)
+	def _lookup_controls_ul4onset(self, value):
+		self.lookup_controls = makeattrs(value)
 
-	def ul4onload_setdefaultattr(self, name):
-		if name == "lookup_controls":
-			self.lookup_controls = attrdict()
-		elif name == "local_detail_controls":
-			self.local_detail_controls = attrdict()
-		else:
-			super().ul4onload_setdefaultattr(name)
+	def _lookup_controls_ul4onsetdefault(self, value):
+		self.lookup_controls = attrdict()
+
+	def _local_detail_controls_ul4onset(self, value):
+		self.local_detail_controls = makeattrs(value)
+
+	def _local_detail_controls_ul4onsetdefault(self, value):
+		self.local_detail_controls = attrdict()
+
+	# The following two properties are for backwards compatibility
 
 	@property
 	def lookupcontrols(self):
@@ -1514,12 +1557,13 @@ class MultipleAppLookupControl(AppLookupControl):
 			field._value = []
 			for v in value:
 				if isinstance(v, str):
-					if self.lookup_app.records and v in self.lookup_app.records:
-						v = self.lookup_app.records[v]
-						field._value.append(v)
-					else:
+					record = self.app.globals.handler.record_sync_data(v)
+					if record is None:
 						field.add_error(error_applookuprecord_unknown(v))
-				elif isinstance(v, Record):
+						v = None
+					else:
+						v = record
+				if isinstance(v, Record):
 					if v.app is not self.lookup_app:
 						field.add_error(error_applookuprecord_foreign(v))
 					else:
@@ -1619,33 +1663,11 @@ class GeoControl(Control):
 class ViewControl(Base):
 	ul4attrs = {"id", "identifier", "type", "subtype", "view", "control", "top", "left", "width", "height", "liveupdate"}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 
-	class identifier(Attr):
-		types = (str,)
-		repr = True
-		readonly = True
-
-		def get_value(self, instance):
-			return instance.control.identifier
-
-	class type(Attr):
-		types = (str,)
-		repr = True
-		readonly = True
-
-		def get_value(self, instance):
-			return instance.control.type
-
-	class subtype(Attr):
-		types = (str,)
-		required = False
-		repr = True
-		readonly = True
-
-		def get_value(self, instance):
-			return instance.control.subtype
-
+	identifier = Attr(str, repr=True, readonly=True, get="_identifier_get")
+	type = Attr(str, repr=True, readonly=True, get="_type_get")
+	subtype = Attr(str, repr=True, required=False, readonly=True, get="_subtype_get")
 	view = Attr(lambda: View, ul4on=True)
 	control = Attr(Control, ul4on=True)
 	top = Attr(int, ul4on=True)
@@ -1653,13 +1675,45 @@ class ViewControl(Base):
 	width = Attr(int, ul4on=True)
 	height = Attr(int, ul4on=True)
 	liveupdate = BoolAttr(ul4on=True)
+	default = Attr(ul4on=True)
+
+	def __init__(self, id):
+		self.id = id
+		self.view = None
+		self.control = None
+		self.top = None
+		self.left = None
+		self.width = None
+		self.height = None
+		self.default = None
+
+	@property
+	def ul4onid(self):
+		return self.id
+
+	def _identifier_get(self):
+		return self.control.identifier
+
+	def _type_get(self):
+		return self.control.type
 
 
 @register("record")
 class Record(Base):
-	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update"}
+	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update", "state"}
 
-	id = Attr(str, ul4on=True)
+	class State(misc.Enum):
+		"""
+		The database synchronisation state of the record.
+		"""
+
+		NEW = "new"
+		SAVED = "saved"
+		CHANGED = "changed"
+		DELETED = "deleted"
+
+	id = Attr(str)
+	state = EnumAttr(State, readonly=True, required=True, repr=True, get="_state_get", ul4get="_state_ul4get")
 	app = Attr(App, ul4on=True)
 	createdat = Attr(datetime.datetime, ul4on=True)
 	createdby = Attr(User, ul4on=True)
@@ -1667,46 +1721,41 @@ class Record(Base):
 	updatedby = Attr(User, ul4on=True)
 	updatecount = Attr(int, ul4on=True)
 
-	class fields(AttrDictAttr):
-		readonly = True
-		ul4on = False
+	fields = AttrDictAttr(readonly=True, ul4on=False, get="_fields_get")
+	values = AttrDictAttr(readonly=True, ul4on=True, get="_values_get", set="_values_set", ul4onset="_values_ul4onset")
 
-		def get_value(self, instance):
-			fields = instance.__dict__["fields"]
-			if fields is None:
-				fields = attrdict()
-				for control in instance.app.controls.values():
-					field = Field(control, instance, instance._sparsevalues.get(control.identifier))
-					fields[control.identifier] = field
-				instance._sparsevalues = None
-				instance.__dict__["fields"] = fields
-			return fields
+	def _fields_get(self):
+		fields = self.__dict__["fields"]
+		if fields is None:
+			fields = attrdict()
+			for control in self.app.controls.values():
+				field = Field(control, self, self._sparsevalues.get(control.identifier))
+				fields[control.identifier] = field
+			self._sparsevalues = None
+			self.__dict__["fields"] = fields
+		return fields
 
-	class values(AttrDictAttr):
-		readonly = True
-		ul4on = True
+	def _values_get(self):
+		values = self.__dict__["values"]
+		if values is None:
+			values = attrdict()
+			for field in self.fields.values():
+				values[field.control.identifier] = field.value
+			self._sparsevalues = None
+			self.__dict__["values"] = values
+		return values
 
-		def get_value(self, instance):
-			values = instance.__dict__["values"]
-			if values is None:
-				values = attrdict()
-				for field in instance.fields.values():
-					values[field.control.identifier] = field.value
-				instance._sparsevalues = None
-				instance.__dict__["values"] = values
-			return values
+	def _values_ul4onget(self):
+		values = self._sparsevalues
+		if values is None:
+			values = {identifier: value for (identifier, value) in self.values.items() if value is not None}
+		return values
 
-		def ul4on_get_value(self, instance):
-			values = instance._sparsevalues
-			if values is None:
-				values = {identifier: value for (identifier, value) in instance.values.items() if value is not None}
-			return values
-
-		def ul4on_set_value(self, instance, value):
-			instance._sparsevalues = value
-			# Set the following attributes via ``__dict__``, as they are "read only".
-			instance.__dict__["values"] = None
-			instance.__dict__["fields"] = None
+	def _values_ul4onset(self, value):
+		self._sparsevalues = value
+		# Set the following attributes via ``__dict__``, as they are "read only".
+		self.__dict__["values"] = None
+		self.__dict__["fields"] = None
 
 	attachments = Attr(ul4on=True)
 	children = AttrDictAttr(ul4on=True)
@@ -1725,6 +1774,15 @@ class Record(Base):
 		self.children = attrdict()
 		self.attachments = None
 		self.errors = []
+		self._new = True
+		self._deleted = False
+
+	@property
+	def ul4onid(self):
+		return self.id
+
+	def ul4onload_end(self, decoder):
+		self._new = False
 		self._deleted = False
 
 	def _repr_value(self, v, seen, value):
@@ -1745,9 +1803,7 @@ class Record(Base):
 			v.append("...")
 		else:
 			seen.add(self)
-			v.append(f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r}")
-			if self.is_dirty():
-				v.append(" is_dirty()=True")
+			v.append(f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} state={self.state.value}")
 			if self.has_errors():
 				v.append(" has_errors()=True")
 			for (identifier, value) in self.values.items():
@@ -1778,9 +1834,8 @@ class Record(Base):
 						p.breakable()
 						p.text(f"v_{identifier}=")
 						p.pretty(value)
-				if self.is_dirty():
-					p.breakable()
-					p.text("is_dirty()=True")
+				p.breakable()
+				p.text(f"state={self.state.value}")
 				if self.has_errors():
 					p.breakable()
 					p.text("has_errors()=True")
@@ -1806,6 +1861,9 @@ class Record(Base):
 			if name.startswith("v_"):
 				self.fields[name[2:]].value = value
 				return
+			elif name.startswith("c_"):
+				self.children[name[2:]] = value
+				return
 		except KeyError:
 			pass
 		else:
@@ -1821,7 +1879,11 @@ class Record(Base):
 
 	def ul4getattr(self, name):
 		if self.ul4hasattr(name):
-			return getattr(self, name)
+			attr = getattr(self.__class__, name, None)
+			if isinstance(attr, Attr):
+				return attr._ul4get(self)
+			else:
+				return getattr(self, name)
 		raise AttributeError(name) from None
 
 	def ul4hasattr(self, name):
@@ -1839,21 +1901,22 @@ class Record(Base):
 		else:
 			raise TypeError(f"can't set attribute {name!r}")
 
-	def is_dirty(self):
-		return self.id is None or any(field._dirty for field in self.fields.values())
-
 	def _gethandler(self, handler):
 		if handler is None:
 			if self.app is None:
 				raise NoHandlerError()
 		return self.app._gethandler(handler)
 
-	def save(self, force=False, handler=None):
+	def save(self, force=False, sync=False, handler=None):
+		handler = self._gethandler(handler)
 		if not force:
 			self.check_errors()
-		result = self._gethandler(handler).save_record(self)
+		result = handler.save_record(self)
 		if not force:
 			self.check_errors()
+		if sync:
+			handler.ul4on_decoder.add_persistent_object(self)
+			handler.record_sync_data(self.id, force=True)
 		return result
 
 	def update(self, **kwargs):
@@ -1886,9 +1949,27 @@ class Record(Base):
 		for field in self.fields.values():
 			field.check_errors()
 
+	def is_dirty(self):
+		return self.id is None or any(field._dirty for field in self.fields.values())
+
 	def is_deleted(self):
 		return self._deleted
 
+	def is_new(self):
+		return self._new
+
+	def _state_get(self):
+		if self._deleted:
+			return Record.State.DELETED
+		elif self._new:
+			return Record.State.NEW
+		elif self.is_dirty():
+			return Record.State.CHANGED
+		else:
+			return Record.State.SAVED
+
+	def _state_ul4get(self):
+		return self._state_get().value
 
 class Field:
 	ul4attrs = {"control", "record", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
@@ -1956,7 +2037,7 @@ class Field:
 class Attachment(Base):
 	ul4attrs = {"id", "type", "record", "label", "active"}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	record = Attr(Record, ul4on=True)
 	label = Attr(str, ul4on=True)
 	active = BoolAttr(ul4on=True)
@@ -1966,6 +2047,10 @@ class Attachment(Base):
 		self.record = record
 		self.label = label
 		self.active = active
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 
 @register("imageattachment")
@@ -2033,24 +2118,17 @@ class JSONAttachment(SimpleAttachment):
 
 class Template(Base):
 	# Data descriptors for instance attributes
-	id = Attr(str, ul4on=True)
+	id = Attr(str)
 	app = Attr(App, ul4on=True)
 	identifier = Attr(str, ul4on=True)
 	source = Attr(str, ul4on=True)
 	whitespace = Attr(str, ul4on=True)
 	signature = Attr(str, ul4on=True)
 	doc = Attr(str, ul4on=True)
+	path = Attr(str, readonly=True, repr=True, get="__str__")
 
-	class path(Attr):
-		types = (str,)
-		readonly = True
-		repr = True
-
-		def get_value(self, instance):
-			return str(instance)
-
-	def __init__(self, identifier=None, source=None, whitespace="keep", signature=None, doc=None):
-		self.id = None
+	def __init__(self, id=None, identifier=None, source=None, whitespace="keep", signature=None, doc=None):
+		self.id = id
 		self.app = None
 		self.identifier = identifier
 		self.source = source
@@ -2058,6 +2136,10 @@ class Template(Base):
 		self.whitespace = whitespace
 		self.doc = doc
 		self._deleted = False
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 	def template(self):
 		return ul4c.Template(self.source, name=self.identifier, signature=self.signature, whitespace=self.whitespace)
@@ -2186,10 +2268,10 @@ class ViewTemplate(Template):
 	permission = IntEnumAttr(Permission, required=True, default=Permission.ALL, ul4on=True)
 
 	# Data sources
-	datasources = AttrDictAttr(required=True, ul4on=True)
+	datasources = AttrDictAttr(required=True, ul4on=True, ul4onset="_datasources_ul4onset", ul4onsetdefault="_datasources_ul4onsetdefault")
 
-	def __init__(self, *args, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype="text/html", permission=None):
-		super().__init__(identifier=identifier, source=source, whitespace=whitespace, signature=signature, doc=doc)
+	def __init__(self, id=None, *args, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype="text/html", permission=None):
+		super().__init__(id=id, identifier=identifier, source=source, whitespace=whitespace, signature=signature, doc=doc)
 		self.type = type
 		self.mimetype = mimetype
 		self.permission = permission
@@ -2208,14 +2290,11 @@ class ViewTemplate(Template):
 			datasource.parent = self
 			self.datasources[datasource.identifier] = datasource
 
-	def ul4onload_setattr(self, name, value):
-		if name == "datasources":
-			value = makeattrs(value)
-		setattr(self, name, value)
+	def _datasources_ul4onset(self, value):
+		self.datasources = makeattrs(value)
 
-	def ul4onload_setdefaultattr(self, name):
-		value = attrdict() if name == "datasources" else None
-		setattr(self, name, value)
+	def _datasources_ul4onsetdefault(self):
+		self.datasources = attrdict()
 
 	def save(self, handler=None, recursive=True):
 		self._gethandler(handler).save_viewtemplate(self)
@@ -2247,6 +2326,7 @@ class DataSource(Base):
 		NONE = 0
 		PRIORITY = 1
 		ALL = 2
+		ALL_LAYOUT = 3
 
 	class IncludeRecords(misc.IntEnum):
 		"""
@@ -2272,7 +2352,8 @@ class DataSource(Base):
 		NONE = -1
 		CREATED = 0
 		OWNED = 1
-		ALL = 2
+		OWNED_ALL = 2
+		ALL = 3
 
 	class IncludeCategories(misc.IntEnum):
 		"""
@@ -2295,13 +2376,12 @@ class DataSource(Base):
 		APPS = 3
 
 	# Database identifier
-	id = Attr(str, ul4on=True)
+	id = Attr(str)
 
 	# The view template this datasource belongs to
 	parent = Attr(ViewTemplate, ul4on=True)
 
-	# A unique identifier for the data source
-	# (unique among the other data sources of the view template)
+	# A unique identifier for the data source (unique among the other data sources of the view template)
 	identifier = Attr(str, ul4on=True)
 
 	# The app from which records are fetched (or whose records are configured)
@@ -2321,7 +2401,7 @@ class DataSource(Base):
 	# Should the app include neither records nor control information, or just control information or both?
 	includerecords = IntEnumAttr(IncludeRecords, required=True, default=IncludeRecords.RECORDS, ul4on=True)
 
-	# Should the number of record by output in ``recordcount``?
+	# Should the number of records by output in ``recordcount``?
 	includecount = BoolAttr(required=True, default=False, ul4on=True)
 
 	# Whose records should be output?
@@ -2351,8 +2431,8 @@ class DataSource(Base):
 	# Children configuration for records that reference the record from this app
 	children = AttrDictAttr(required=True, ul4on=True)
 
-	def __init__(self, *args, identifier=None, app=None, includecloned=False, appfilter=None, includecontrols=None, includerecords=None, includecount=False, recordpermission=None, recordfilter=None, includepermissions=False, includeattachments=False, includeparams=False, includeviews=False, includecategories=None):
-		self.id = None
+	def __init__(self, id=None, *args, identifier=None, app=None, includecloned=False, appfilter=None, includecontrols=None, includerecords=None, includecount=False, recordpermission=None, recordfilter=None, includepermissions=False, includeattachments=False, includeparams=False, includeviews=False, includecategories=None):
+		self.id = id
 		self.parent = None
 		self.identifier = identifier
 		self.app = app
@@ -2384,6 +2464,10 @@ class DataSource(Base):
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
 
+	@property
+	def ul4onid(self):
+		return self.id
+
 	def addorder(self, *orders):
 		for order in orders:
 			order.parent = self
@@ -2408,7 +2492,7 @@ class DataSourceChildren(Base):
 	ul4attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
 
 	# Database identifier
-	id = Attr(str, ul4on=True)
+	id = Attr(str)
 
 	# The :class:`DataSource` this object belongs to
 	datasource = Attr(ul4on=True)
@@ -2426,8 +2510,8 @@ class DataSourceChildren(Base):
 	# The sort expressions for sorting the children dict.
 	orders = Attr(ul4on=True)
 
-	def __init__(self, *args, identifier=None, control=None, filter=None):
-		self.id = None
+	def __init__(self, id=None, *args, identifier=None, control=None, filter=None):
+		self.id = id
 		self.datasource = None
 		self.identifier = identifier
 		self.control = control
@@ -2444,6 +2528,10 @@ class DataSourceChildren(Base):
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 	def addorder(self, *orders):
 		for order in orders:
@@ -2493,14 +2581,14 @@ class DataOrder(Base):
 		LAST = "last"
 
 	# Types and defaults for instance attributes
-	id = Attr(str, ul4on=True)
+	id = Attr(str)
 	parent = Attr(DataSource, DataSourceChildren, ul4on=True)
 	expression = VSQLAttr("?", repr=True, ul4on=True)
 	direction = EnumAttr(Direction, required=True, default=Direction.ASC, repr=True, ul4on=True)
 	nulls = EnumAttr(Nulls, required=True, default=Nulls.LAST, repr=True, ul4on=True)
 
-	def __init__(self, expression=None, direction=Direction.ASC, nulls=Nulls.LAST):
-		self.id = None
+	def __init__(self, id=None, expression=None, direction=Direction.ASC, nulls=Nulls.LAST):
+		self.id = id
 		self.parent = None
 		self.expression = expression
 		self.direction = direction
@@ -2522,6 +2610,10 @@ class DataOrder(Base):
 		s += f" at {id(self):#x}>"
 		return s
 
+	@property
+	def ul4onid(self):
+		return self.id
+
 	def save(self, handler=None, recursive=True):
 		raise NotImplementedError("DataOrder objects can only be saved by their parent")
 
@@ -2542,7 +2634,7 @@ class DataAction(Base):
 		"commands",
 	}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	app = Attr(App, ul4on=True)
 	identifier = Attr(str, repr=True, ul4on=True)
 	name = Attr(str, repr=True, ul4on=True)
@@ -2562,8 +2654,8 @@ class DataAction(Base):
 
 	commands = Attr(ul4on=True)
 
-	def __init__(self, identifier=None, name=None, order=None, active=True, icon=None, description=None, filter=None, as_multiple_action=None, as_single_action=None, as_mail_link=None, before_form=None, after_update=None, after_insert=None, before_delete=None):
-		self.id = None
+	def __init__(self, id=None, identifier=None, name=None, order=None, active=True, icon=None, description=None, filter=None, as_multiple_action=None, as_single_action=None, as_mail_link=None, before_form=None, after_update=None, after_insert=None, before_delete=None):
+		self.id = id
 		self.app = None
 		self.identifier = identifier
 		self.name = name
@@ -2581,6 +2673,10 @@ class DataAction(Base):
 		self.before_delete = before_delete
 		self.commands = []
 
+	@property
+	def ul4onid(self):
+		return self.id
+
 	def addcommand(self, *commands):
 		for command in commands:
 			command.parent = self
@@ -2595,16 +2691,20 @@ class DataActionCommand(Base):
 		"details",
 	}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	parent = Attr(ul4on=True)
 	condition = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", ul4on=True)
 	details = Attr(ul4on=True)
 
-	def __init__(self, condition=None):
-		self.id = None
+	def __init__(self, id=None, condition=None):
+		self.id = id
 		self.parent = None
 		self.condition = condition
 		self.details = []
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 	def adddetail(self, *details):
 		for detail in details:
@@ -2648,8 +2748,8 @@ class DataActionCommandWithIdentifier(DataActionCommand):
 	identifier = Attr(str, ul4on=True)
 	children = Attr(ul4on=True)
 
-	def __init__(self, condition=None, app=None, identifier=None):
-		super().__init__(condition)
+	def __init__(self, id=None, condition=None, app=None, identifier=None):
+		super().__init__(id, condition)
 		self.app = app
 		self.identifier = identifier
 		self.children = []
@@ -2736,7 +2836,7 @@ class DataActionDetail(Base):
 		DISABLE = "disable"
 		HIDE = "hide"
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	parent = Attr(DataActionCommand, ul4on=True)
 	control = Attr(Control, ul4on=True)
 	type = EnumAttr(Type, ul4on=True)
@@ -2765,14 +2865,18 @@ class DataActionDetail(Base):
 			else:
 				return None
 
-	def __init__(self, type=None, value=None, formmode=None):
-		self.id = None
+	def __init__(self, id=None, type=None, value=None, formmode=None):
+		self.id = id
 		self.parent = None
 		self.control = None
 		self.type = type
 		self.value = value
 		self.expression = None
 		self.formmode = None
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 
 @register("installation")
@@ -2790,7 +2894,7 @@ class Installation(Base):
 class LayoutControl(Base):
 	ul4attrs = {"id", "label", "identifier", "view", "type", "subtype", "top", "left", "width", "height"}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	label = Attr(str, repr=True, ul4on=True)
 	identifier = Attr(str, repr=True, ul4on=True)
 	view = Attr(lambda: View, ul4on=True)
@@ -2803,6 +2907,10 @@ class LayoutControl(Base):
 		self.id = id
 		self.label = label
 		self.identifier = identifier
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 
 @register("htmllayoutcontrol")
@@ -2829,7 +2937,7 @@ class ImageLayoutControl(LayoutControl):
 class View(Base):
 	ul4attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "controls", "layout_controls"}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	name = Attr(str, repr=True, ul4on=True)
 	app = Attr(App, ul4on=True)
 	order = Attr(int, ul4on=True)
@@ -2850,12 +2958,16 @@ class View(Base):
 		self.start = start
 		self.end = end
 
+	@property
+	def ul4onid(self):
+		return self.id
+
 
 @register("datasourcedata")
 class DataSourceData(Base):
 	ul4attrs = {"id", "identifier", "app", "apps"}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	identifier = Attr(str, repr=True, ul4on=True)
 	app = Attr(App, ul4on=True)
 	apps = AttrDictAttr(ul4on=True)
@@ -2865,6 +2977,10 @@ class DataSourceData(Base):
 		self.identifier = identifier
 		self.app = app
 		self.apps = apps
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 
 @register("lookupitem")
@@ -2883,7 +2999,7 @@ class LookupItem(Base):
 class Category(Base):
 	ul4attrs = {"id", "identifier", "name", "order", "parent", "children", "apps"}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	identifier = Attr(str, repr=True, ul4on=True)
 	name = Attr(str, repr=True, ul4on=True)
 	order = Attr(int, ul4on=True)
@@ -2900,12 +3016,16 @@ class Category(Base):
 		self.children = children
 		self.apps = apps
 
+	@property
+	def ul4onid(self):
+		return self.id
+
 
 @register("appparameter")
 class AppParameter(Base):
 	ul4attrs = {"id", "app", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True)
 	app = Attr(App, ul4on=True)
 	identifier = Attr(str, repr=True, ul4on=True)
 	description = Attr(str, ul4on=True)
@@ -2925,6 +3045,10 @@ class AppParameter(Base):
 		self.createdby = None
 		self.updatedat = None
 		self.updatedby = None
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 
 from .handlers import *

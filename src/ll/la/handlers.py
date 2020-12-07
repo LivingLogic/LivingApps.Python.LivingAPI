@@ -77,6 +77,11 @@ class Handler:
 
 	def __init__(self):
 		self.globals = None
+		registry = {
+			"de.livinglogic.livingapi.file": self._loadfile,
+			"de.livinglogic.livingapi.globals": self._loadglobals,
+		}
+		self.ul4on_decoder = ul4on.Decoder(registry)
 
 	def get(self, *path, **params):
 		warnings.warn("The method get() is deprecated, please use viewtemplate_data() instead.")
@@ -207,25 +212,23 @@ class Handler:
 	def fetch_templates(self, app):
 		return {}
 
-	def _loadfile(self):
-		file = la.File()
+	def _loadfile(self, id):
+		file = la.File(id=id)
 		file.handler = self
 		return file
 
-	def _loadglobals(self):
+	def _loadglobals(self, id):
 		globals = la.Globals()
 		globals.handler = self
 		return globals
 
 	def _loaddump(self, dump):
-		registry = {
-			"de.livinglogic.livingapi.file": self._loadfile,
-			"de.livinglogic.livingapi.globals": self._loadglobals,
-		}
-		dump = ul4on.loads(dump, registry)
-		dump = la.attrdict(dump)
-		if "datasources" in dump:
-			dump.datasources = la.attrdict(dump.datasources)
+		dump = self.ul4on_decoder.loads(dump)
+		if isinstance(dump, dict):
+			dump = la.attrdict(dump)
+			if "datasources" in dump:
+				dump.datasources = la.attrdict(dump.datasources)
+		self.ul4on_decoder.reset()
 		return dump
 
 
@@ -532,7 +535,6 @@ class DBHandler(Handler):
 
 	def meta_data(self, *appids):
 		cursor = self.cursor()
-
 		tpl_uuids = self.varchars(appids)
 		cursor.execute(
 			"select livingapi_pkg.metadata_ful4on(:ide_id, :tpl_uuids) from dual",
@@ -540,6 +542,21 @@ class DBHandler(Handler):
 			tpl_uuids=tpl_uuids,
 		)
 		r = cursor.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
+	def record_sync_data(self, dat_id, force=False):
+		result = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
+		if result is not None and not force:
+			return result
+		c = self.cursor()
+		c.execute(
+			"select livingapi_pkg.record_sync_ful4on(:ide_id, :dat_id) from dual",
+			ide_id=self.ide_id,
+			dat_id=dat_id,
+		)
+		r = c.fetchone()
 		dump = r[0].decode("utf-8")
 		dump = self._loaddump(dump)
 		return dump
@@ -920,6 +937,12 @@ class HTTPHandler(Handler):
 			**kwargs,
 		)
 		r.raise_for_status()
+
+	def record_sync_data(self, dat_id, force=False):
+		result = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
+		if result is not None and not force:
+			return result
+		raise NotImplementedError
 
 
 class FileHandler(Handler):

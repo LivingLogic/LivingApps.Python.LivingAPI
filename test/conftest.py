@@ -99,7 +99,7 @@ class Handler:
 		self.dbhandler = la.DBHandler(connect(), uploaddir(), user())
 
 	def make_viewtemplate(self, *args, **kwargs):
-		viewtemplate = la.ViewTemplate(*args, **kwargs)
+		viewtemplate = la.ViewTemplate(None, *args, **kwargs)
 		app = la.App()
 		app.id = person_app_id
 		app.addtemplate(viewtemplate)
@@ -283,11 +283,13 @@ def config_norecords(config_apps):
 
 	c.apps.persons.addtemplate(
 		la.ViewTemplate(
+			None,
 			la.DataSource(
 				identifier="persons",
 				app=c.apps.persons,
 			),
 			la.DataSource(
+				None,
 				la.DataSourceChildren(
 					control=c.apps.fields.c_parent,
 					identifier="children",
