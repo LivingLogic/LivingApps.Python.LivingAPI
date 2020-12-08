@@ -216,11 +216,12 @@ class Attr:
 	"""
 	Data descriptor class for many of our instance attributes.
 
-	For :class:`Attr` to work the class for which it is used must inherit from
+	For :class:`Attr` to work the class for which it is used must subclass
 	:class:`Base`.
 
 	Such a descriptor does type checking and it's possible to configure
-	support for :meth:`__repr__` and for automatic :mod:`ll.ul4on` support.
+	support for :meth:`__repr__` and for automatic :mod:`ll.ul4c` and
+	:mod:`ll.ul4on` support.
 	"""
 
 	def __init__(self, *types, required=False, default=None, default_factory=None, readonly=False, repr=False, ul4on=False, get=None, set=None, ul4get=None, ul4set=None, ul4onget=None, ul4onset=None, ul4onsetdefault=None):
