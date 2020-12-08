@@ -224,12 +224,12 @@ class Attr:
 	:mod:`ll.ul4on` support.
 	"""
 
-	def __init__(self, *types, required=False, default=None, default_factory=None, readonly=False, repr=False, ul4on=False, get=None, set=None, ul4get=None, ul4set=None, ul4onget=None, ul4onset=None, ul4onsetdefault=None):
+	def __init__(self, *types, required=False, default=None, default_factory=None, readonly=False, repr=False, doc=None, ul4on=False, get=None, set=None, ul4get=None, ul4set=None, ul4onget=None, ul4onset=None, ul4onsetdefault=None):
 		"""
 		Create a new :class:`Attr` data descriptor.
 
 		The type of the attribute will be checked when the attribute is set, it
-		must be any of the types in :obj`types`. If no type is passed any
+		must be any of the types in :obj`types`. If no type is passed any type
 		(i.e. any :class:`object`) is allowed. (Furthermore subclasses might
 		e.g. implement certain type conversion on setting).
 
@@ -243,14 +243,25 @@ class Attr:
 		used instead of :obj:`default` to create a default value.
 
 		If :obj:`repr` is true, the attribute will automatically be included
-		in the :meth:`__repr__` output.
+		in the :meth:`__repr__` output. If :obj:`repr` is a string it must be
+		the name of a method. This method will be called for formatting this
+		attribute for :meth:`__repr__` output.
 
 		If :obj:`readonly` is true, the attribute can only be set once (usually
 		in the constructor). After that, setting the attribute will raise a
 		:exc:`TypeError`.
 
+		:obj:`doc` is used for to set the doc string on the descriptor.
+
 		If :obj:`ul4on` is true, this attribute will automatically be serialized
 		and deserialized in UL4ON dumps.
+
+		:obj:`ul4get`, :obj:`ul4set`, :obj:`ul4onget`, :obj:`ul4onset` and
+		:obj:`ul4onsetdefault` are the names of methods that will be called
+		instead of the default implementation to execute custom functionality
+		for this attribute in certain situation (i.e. getting and setting the
+		attribute from Python, UL4 and UL4ON)
+
 		"""
 		self.name = None
 		if not types:
@@ -266,6 +277,7 @@ class Attr:
 		self.default_factory = default_factory
 		self.readonly = readonly
 		self.repr = repr
+		self.__doc__ = doc
 		self.ul4on = ul4on
 		self.get = get
 		self.set = set
@@ -301,7 +313,11 @@ class Attr:
 	def _repr(self, instance):
 		"""
 		Format the attribute of :obj:`instance` for :meth:`__repr__` output.
+
+		If :const:`None` is returned this attribute will not be output.
 		"""
+		if isinstance(self.repr, str):
+			return getattr(instance, self.repr)()
 		value = self._get(instance)
 		if value is not None:
 			return f"{self.name}={value!r}"
@@ -568,6 +584,9 @@ class Base(metaclass=BaseMetaClass):
 
 	@classmethod
 	def attrs(cls):
+		"""
+		Returns an iterator over all :class:`Attr` descriptors for the class.
+		"""
 		attrs = {}
 		for checkcls in reversed(cls.__mro__):
 			for attr in checkcls.__dict__.values():
@@ -612,10 +631,14 @@ class Base(metaclass=BaseMetaClass):
 		self.ul4onload_end(decoder)
 
 	def ul4onload_begin(self, decoder):
-		pass
+		"""
+		Called before the content of the object is loaded from an UL4ON dump.
+		"""
 
 	def ul4onload_end(self, decoder):
-		pass
+		"""
+		Called after the content of the object has been loaded from an UL4ON dump.
+		"""
 
 
 @register("flashmessage")
@@ -648,15 +671,15 @@ class FlashMessage(Base):
 class File(Base):
 	ul4attrs = {"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"}
 
-	id = Attr(str, repr=True)
-	url = Attr(str, ul4on=True)
-	filename = Attr(str, repr=True, ul4on=True)
-	mimetype = Attr(str, repr=True, ul4on=True)
-	width = Attr(int, repr=True, ul4on=True)
-	height = Attr(int, repr=True, ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	url = Attr(str, ul4on=True, doc="Server relative URL of the file")
+	filename = Attr(str, repr=True, ul4on=True, doc="Original file name")
+	mimetype = Attr(str, repr=True, ul4on=True, doc="MIME type")
+	width = Attr(int, repr=True, ul4on=True, doc="Width in pixels if this file is an image")
+	height = Attr(int, repr=True, ul4on=True, doc="Height in pixels if this file is an image")
 	internalid = Attr(str, ul4on=True)
-	createdat = Attr(datetime.datetime, ul4on=True)
-	size = Attr(int, ul4on=True)
+	createdat = Attr(datetime.datetime, ul4on=True, doc="When was this file uploaded?")
+	size = Attr(int, ul4on=True, doc="The filesize in bytes")
 
 	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None, size=None, internalid=None, createdat=None, content=None):
 		self.id = id
@@ -704,9 +727,9 @@ class File(Base):
 class Geo(Base):
 	ul4attrs = {"lat", "long", "info"}
 
-	lat = FloatAttr(repr=True, ul4on=True)
-	long = FloatAttr(repr=True, ul4on=True)
-	info = Attr(str, repr=True, ul4on=True)
+	lat = FloatAttr(repr=True, ul4on=True, doc="Latitude (i.e. north/south)")
+	long = FloatAttr(repr=True, ul4on=True, doc="Longitude (i.e. east/west)")
+	info = Attr(str, repr=True, ul4on=True, doc="Description of the location")
 
 	def __init__(self, lat=None, long=None, info=None):
 		self.lat = lat
@@ -716,27 +739,27 @@ class Geo(Base):
 
 @register("user")
 class User(Base):
-	ul4attrs = {"id", "gender", "firstname", "surname", "initials", "email", "language", "avatar_small", "avatar_large", "keyviews"}
+	ul4attrs = {"id", "gender", "firstname", "surname", "initials", "email", "lang", "avatar_small", "avatar_large", "keyviews"}
 
-	id = Attr(str, repr=True)
+	id = Attr(str, repr=True, doc="Unique database id")
 	gender = Attr(str, ul4on=True)
 	firstname = Attr(str, repr=True, ul4on=True)
 	surname = Attr(str, repr=True, ul4on=True)
 	initials = Attr(str, ul4on=True)
-	email = Attr(str, repr=True, ul4on=True)
-	language = Attr(str, ul4on=True)
+	email = Attr(str, repr=True, ul4on=True, doc="Email address and account name")
+	lang = Attr(str, ul4on=True, doc="Preferred language")
 	avatar_small = Attr(File, ul4on=True)
 	avatar_large = Attr(File, ul4on=True)
 	keyviews = Attr(ul4on=True)
 
-	def __init__(self, id=None, gender=None, firstname=None, surname=None, initials=None, email=None, language=None, avatar_small=None, avatar_large=None):
+	def __init__(self, id=None, gender=None, firstname=None, surname=None, initials=None, email=None, lang=None, avatar_small=None, avatar_large=None):
 		self.id = id
 		self.gender = gender
 		self.firstname = firstname
 		self.surname = surname
 		self.initials = initials
 		self.email = email
-		self.language = language
+		self.lang = lang
 		self.avatar_small = avatar_small
 		self.avatar_large = avatar_large
 		self.keyviews = attrdict()
@@ -750,11 +773,11 @@ class User(Base):
 class KeyView(Base):
 	ul4attrs = {"id", "identifier", "name", "key", "user"}
 
-	id = Attr(str, repr=True, ul4on=True)
-	identifier = Attr(str, repr=True, ul4on=True)
-	name = Attr(str, repr=True, ul4on=True)
-	key = Attr(str, ul4on=True)
-	user = Attr(User, ul4on=True)
+	id = Attr(str, repr=True, ul4on=True, doc="Unique database id")
+	identifier = Attr(str, repr=True, ul4on=True, doc="Human readable identifier")
+	name = Attr(str, repr=True, ul4on=True, doc="User supplied name")
+	key = Attr(str, ul4on=True, doc="Identifier used as final part of the URL")
+	user = Attr(User, ul4on=True, doc="User, who should be considered to be the logged in user for the keyview")
 
 	def __init__(self, identifier=None, name=None, key=None, user=None):
 		self.id = None
@@ -787,22 +810,18 @@ class Globals(Base):
 		"geo",
 	}
 
-	id = Attr(str) # This is just used that make the :class:`Globals` object persistent
-	version = Attr(str, repr=True, ul4on=True)
-	platform = Attr(str, repr=True, ul4on=True)
-	user = Attr(User, ul4on=True)
-	maxdbactions = Attr(int, ul4on=True)
-	maxtemplateruntime = Attr(int, ul4on=True)
-	flashes = Attr(ul4on=True, ul4onsetdefault="flashes_ul4onset_default")
-
-	def flashes_ul4onset_default(self):
-		self.flashes = []
-
-	lang = Attr(str, repr=True, ul4on=True)
-	datasources = AttrDictAttr(ul4on=True)
-	hostname = Attr(str, repr=True, ul4on=True)
-	app = Attr(lambda: App, ul4on=True)
-	record = Attr(lambda: Record, ul4on=True)
+	id = Attr(str, doc="This is just used to make the :class:`Globals` object persistent")
+	version = Attr(str, repr=True, ul4on=True, doc="API version (normally increases with every update of the LivingApps platform)")
+	platform = Attr(str, repr=True, ul4on=True, doc="A name for the platform we're running on")
+	user = Attr(User, ul4on=True, doc="The currently logging in user")
+	maxdbactions = Attr(int, ul4on=True, doc="How many database actions may a template execute?")
+	maxtemplateruntime = Attr(int, ul4on=True, doc="How long is a template allowed to run?")
+	flashes = Attr(ul4on=True, ul4onsetdefault="flashes_ul4onset_default", doc="List of flash messages")
+	lang = Attr(str, repr=True, ul4on=True, doc="The language to be used by templates")
+	datasources = AttrDictAttr(ul4on=True, ul4onset="_datasources_ul4onset", ul4onsetdefault="_datasources_ul4onsetdefault", doc="Data for configured data sources")
+	hostname = Attr(str, repr=True, ul4on=True, doc="The host name we're running on (can be used to recreate URLs)")
+	app = Attr(lambda: App, ul4on=True, doc="The app that the running template belongs to")
+	record = Attr(lambda: Record, ul4on=True, ul4onset="_record_ul4onset", doc="The detail record")
 
 	def __init__(self, version=None, hostname=None, platform=None):
 		self.id = None
@@ -820,6 +839,20 @@ class Globals(Base):
 		self.request = None
 		self.response = None
 		self._templates = None
+
+	def flashes_ul4onset_default(self):
+		self.flashes = []
+
+	def _datasources_ul4onset(self, value):
+		if value is not None:
+			self.datasources = value
+
+	def _datasources_ul4onsetdefault(self):
+		self.datasources = {}
+
+	def _record_ul4onset(self, value):
+		if value is not None:
+			self.record = value
 
 	def geo(self, lat=None, long=None, info=None):
 		return self.handler.geo(lat, long, info)
@@ -901,7 +934,7 @@ class App(Base):
 		"globals",
 		"name",
 		"description",
-		"language",
+		"lang",
 		"startlink",
 		"iconlarge",
 		"iconsmall",
@@ -930,45 +963,45 @@ class App(Base):
 		"dataactions",
 	}
 
-	id = Attr(str, repr=True)
-	globals = Attr(Globals, ul4on=True, ul4onset="_globals_ul4onset")
-	name = Attr(str, repr=True, ul4on=True)
-	description = Attr(str, ul4on=True)
-	language = Attr(str, ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	globals = Attr(Globals, ul4on=True, doc="The :class:`Globals` objects")
+	name = Attr(str, repr=True, ul4on=True, doc="Name of the app")
+	description = Attr(str, ul4on=True, doc="Description of the app")
+	lang = Attr(str, ul4on=True, doc="The language the app should be displayed in")
 	startlink = Attr(str, ul4on=True)
-	iconlarge = Attr(ul4on=True)
-	iconsmall = Attr(ul4on=True)
-	createdby = Attr(User, ul4on=True)
-	controls = AttrDictAttr(ul4on=True)
-	records = AttrDictAttr(ul4on=True)
-	recordcount = Attr(int, ul4on=True)
-	installation = Attr(ul4on=True)
-	categories = Attr(ul4on=True)
-	params = AttrDictAttr(ul4on=True)
+	iconlarge = Attr(ul4on=True, doc="Large version of app icon")
+	iconsmall = Attr(ul4on=True, doc="Small version of app icon")
+	createdby = Attr(User, ul4on=True, doc="Who created this app?")
+	controls = AttrDictAttr(ul4on=True, doc="The definition of the fields of this app")
+	records = AttrDictAttr(ul4on=True, ul4onset="_records_ul4onset", doc="The records of this app (if configured)")
+	recordcount = Attr(int, ul4on=True, ul4onset="_recordcount_ul4onset", doc="The number of records in this app (if configured)")
+	installation = Attr(ul4on=True, doc="The installation that created this app")
+	categories = Attr(ul4on=True, ul4onset="_categories_ul4onset", doc="The navigation categories the currently logged in user put this app in")
+	params = AttrDictAttr(ul4on=True, ul4onset="__params_ul4onset", doc="Application specific configuration parameters")
 	views = Attr(ul4on=True)
 	datamanagement_identifier = Attr(str, ul4on=True)
-	basetable = Attr(str, ul4on=True)
-	primarykey = Attr(str, ul4on=True)
-	insertprocedure = Attr(str, ul4on=True)
-	updateprocedure = Attr(str, ul4on=True)
-	deleteprocedure = Attr(str, ul4on=True)
+	basetable = Attr(str, ul4on=True, doc="Name of table or view records of this app are stored in")
+	primarykey = Attr(str, ul4on=True, doc="Name of the primary key of the table/view records of this app are stored in")
+	insertprocedure = Attr(str, ul4on=True, doc="Procedure for inserting new records of this app")
+	updateprocedure = Attr(str, ul4on=True, doc="Procedure for updating existing records of this app")
+	deleteprocedure = Attr(str, ul4on=True, doc="Procedure for deleting existing records of this app")
 	_templates = AttrDictAttr(ul4on=True)
-	createdat = Attr(datetime.datetime, ul4on=True)
-	updatedat = Attr(datetime.datetime, ul4on=True)
-	updatedby = Attr(User, ul4on=True)
-	superid = Attr(str, ul4on=True)
-	favorite = BoolAttr(ul4on=True)
-	internaltemplates = AttrDictAttr(ul4on=True)
-	viewtemplates = AttrDictAttr(ul4on=True)
-	dataactions = AttrDictAttr(ul4on=True)
+	createdat = Attr(datetime.datetime, ul4on=True, doc="When was this app created?")
+	updatedat = Attr(datetime.datetime, ul4on=True, doc="When was this app last changed?")
+	updatedby = Attr(User, ul4on=True, doc="When changed this app last?")
+	superid = Attr(str, ul4on=True, doc="Database id of the app this one was copied from")
+	favorite = BoolAttr(ul4on=True, doc="Is this app a favorite of the currentlyt logged in user?")
+	internaltemplates = AttrDictAttr(ul4on=True, doc="Internal templates of this app")
+	viewtemplates = AttrDictAttr(ul4on=True, doc="View templates of this app")
+	dataactions = AttrDictAttr(ul4on=True, doc="Data actions of this app")
 
-	def __init__(self, id=None, name=None, description=None, language=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
+	def __init__(self, id=None, name=None, description=None, lang=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = id
 		self.superid = None
 		self.globals = None
 		self.name = name
 		self.description = description
-		self.language = language
+		self.lang = lang
 		self.startlink = startlink
 		self.iconlarge = iconlarge
 		self.iconsmall = iconsmall
@@ -1002,9 +1035,21 @@ class App(Base):
 	def ul4onid(self):
 		return self.id
 
-	def _globals_ul4onset(self, value):
+	def _records_ul4onset(self, value):
 		if value is not None:
-			self.globals = value
+			self.records = value
+
+	def _recordcount_ul4onset(self, value):
+		if value is not None:
+			self.recordcound = value
+
+	def _categories_ul4onset(self, value):
+		if value is not None:
+			self.records = value
+
+	def _params_ul4onset(self, value):
+		if value is not None:
+			self.params = value
 
 	@property
 	def templates(self):
@@ -1142,16 +1187,16 @@ class Control(Base):
 	subtype = None
 	ul4attrs = {"id", "identifier", "app", "label", "type", "subtype", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"}
 
-	id = Attr(str, repr=True)
-	identifier = Attr(str, repr=True, ul4on=True)
-	field = Attr(str, ul4on=True)
-	app = Attr(App, ul4on=True)
-	label = Attr(str, ul4on=True)
-	priority = BoolAttr(ul4on=True)
-	order = Attr(int, ul4on=True)
-	default = Attr(ul4on=True)
-	ininsertprocedure = BoolAttr(ul4on=True)
-	inupdateprocedure = BoolAttr(ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	identifier = Attr(str, repr=True, ul4on=True, doc="Human readable identifier")
+	field = Attr(str, ul4on=True, doc="Name of the database field")
+	app = Attr(App, ul4on=True, doc="App this control belongs to")
+	label = Attr(str, ul4on=True, doc="Label to be displayed for this control")
+	priority = BoolAttr(ul4on=True, doc="Has this control high priority, i.e. should it be displayed in lists?")
+	order = Attr(int, ul4on=True, doc="Used to sort the controls")
+	default = Attr(ul4on=True, doc="The default value")
+	ininsertprocedure = BoolAttr(ul4on=True, doc="Can a value for this field be passed to the insert procedure?")
+	inupdateprocedure = BoolAttr(ul4on=True, doc="Can a value for this field be passed to the update procedure?")
 
 	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, default=None):
 		self.id = id
@@ -1230,7 +1275,7 @@ class TextAreaControl(StringControl):
 
 	ul4attrs = StringControl.ul4attrs.union({"encrypted"})
 
-	encrypted = IntEnumAttr(EncryptionType, default=EncryptionType.NONE, ul4on=True)
+	encrypted = IntEnumAttr(EncryptionType, default=EncryptionType.NONE, ul4on=True, doc="Is this field encrypted (and how/when will it be encrypted)?")
 
 
 @register("htmlcontrol")
@@ -1353,7 +1398,7 @@ class LookupControl(Control):
 
 	ul4attrs = Control.ul4attrs.union({"lookupdata"})
 
-	lookupdata = AttrDictAttr(required=True, ul4on=True, ul4onset="_lookupdata_ul4onset", ul4onsetdefault="_lookupdata_ul4onsetdefault")
+	lookupdata = AttrDictAttr(required=True, ul4on=True, ul4onset="_lookupdata_ul4onset", ul4onsetdefault="_lookupdata_ul4onsetdefault", doc="The possible values this control might have")
 
 	def __init__(self, identifier=None, field=None, label=None, priority=None, order=None, default=None, lookupdata=None):
 		super().__init__(identifier=identifier, field=field, label=label, priority=priority, order=order, default=default)
@@ -1664,19 +1709,19 @@ class GeoControl(Control):
 class ViewControl(Base):
 	ul4attrs = {"id", "identifier", "type", "subtype", "view", "control", "top", "left", "width", "height", "liveupdate"}
 
-	id = Attr(str, repr=True)
+	id = Attr(str, repr=True, doc="Unique database id")
 
-	identifier = Attr(str, repr=True, readonly=True, get="_identifier_get")
-	type = Attr(str, repr=True, readonly=True, get="_type_get")
-	subtype = Attr(str, repr=True, required=False, readonly=True, get="_subtype_get")
-	view = Attr(lambda: View, ul4on=True)
+	identifier = Attr(str, repr=True, readonly=True, get="_identifier_get", doc="Human readable identifier")
+	type = Attr(str, repr=True, readonly=True, get="_type_get", doc="Type of the control")
+	subtype = Attr(str, repr=True, required=False, readonly=True, get="_subtype_get", doc="Subtype of the control")
+	view = Attr(lambda: View, ul4on=True, doc="The view this view control belongs to")
 	control = Attr(Control, ul4on=True)
-	top = Attr(int, ul4on=True)
-	left = Attr(int, ul4on=True)
-	width = Attr(int, ul4on=True)
-	height = Attr(int, ul4on=True)
-	liveupdate = BoolAttr(ul4on=True)
-	default = Attr(ul4on=True)
+	top = Attr(int, ul4on=True, doc="Vertical position of this view control in the form")
+	left = Attr(int, ul4on=True, doc="Horizontal position of this view control in the form")
+	width = Attr(int, ul4on=True, doc="Width of this view control in the form")
+	height = Attr(int, ul4on=True, doc="height of this view control in the form")
+	liveupdate = BoolAttr(ul4on=True, doc="Should chenges in the input field for this control call the server side form template?")
+	default = Attr(ul4on=True, doc="Default value")
 
 	def __init__(self, id):
 		self.id = id
@@ -1713,17 +1758,43 @@ class Record(Base):
 		CHANGED = "changed"
 		DELETED = "deleted"
 
-	id = Attr(str)
-	state = EnumAttr(State, readonly=True, required=True, repr=True, get="_state_get", ul4get="_state_ul4get")
-	app = Attr(App, ul4on=True)
-	createdat = Attr(datetime.datetime, ul4on=True)
-	createdby = Attr(User, ul4on=True)
-	updatedat = Attr(datetime.datetime, ul4on=True)
-	updatedby = Attr(User, ul4on=True)
-	updatecount = Attr(int, ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	state = EnumAttr(State, readonly=True, required=True, repr=True, get="_state_get", ul4get="_state_ul4get", doc="The state of synchronisation with the database for this record")
+	app = Attr(App, ul4on=True, doc="The app this record belongs to")
+	createdat = Attr(datetime.datetime, ul4on=True, doc="When was this record created?")
+	createdby = Attr(User, ul4on=True, doc="Who created this record?")
+	updatedat = Attr(datetime.datetime, ul4on=True, doc="When was this record last updated?")
+	updatedby = Attr(User, ul4on=True, doc="Who updated this record last?")
+	updatecount = Attr(int, ul4on=True, doc="How often has this record been updated?")
+	fields = AttrDictAttr(readonly=True, ul4on=False, get="_fields_get", doc="Dictionary containing :class:`Field` objects (with values, errors, etc) for each field")
+	values = AttrDictAttr(readonly=True, ul4on=True, get="_values_get", set="_values_set", ul4onset="_values_ul4onset", doc="Ditionary containing the field values for each field")
+	attachments = Attr(ul4on=True, doc="Attachments for this record (if configured)")
+	children = AttrDictAttr(ul4on=True, ul4onset="_children_ul4onset", doc="Detail records, i.e. records that have a field pointing back to this record")
 
-	fields = AttrDictAttr(readonly=True, ul4on=False, get="_fields_get")
-	values = AttrDictAttr(readonly=True, ul4on=True, get="_values_get", set="_values_set", ul4onset="_values_ul4onset")
+	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
+		self.id = id
+		self.app = app
+		self.createdat = createdat
+		self.createdby = createdby
+		self.updatedat = updatedat
+		self.updatedby = updatedby
+		self.updatecount = updatecount
+		self._sparsevalues = attrdict()
+		self.__dict__["values"] = None
+		self.__dict__["fields"] = None
+		self.children = attrdict()
+		self.attachments = None
+		self.errors = []
+		self._new = True
+		self._deleted = False
+
+	@property
+	def ul4onid(self):
+		return self.id
+
+	def ul4onload_end(self, decoder):
+		self._new = False
+		self._deleted = False
 
 	def _fields_get(self):
 		fields = self.__dict__["fields"]
@@ -1758,33 +1829,9 @@ class Record(Base):
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
 
-	attachments = Attr(ul4on=True)
-	children = AttrDictAttr(ul4on=True)
-
-	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
-		self.id = id
-		self.app = app
-		self.createdat = createdat
-		self.createdby = createdby
-		self.updatedat = updatedat
-		self.updatedby = updatedby
-		self.updatecount = updatecount
-		self._sparsevalues = attrdict()
-		self.__dict__["values"] = None
-		self.__dict__["fields"] = None
-		self.children = attrdict()
-		self.attachments = None
-		self.errors = []
-		self._new = True
-		self._deleted = False
-
-	@property
-	def ul4onid(self):
-		return self.id
-
-	def ul4onload_end(self, decoder):
-		self._new = False
-		self._deleted = False
+	def _children_ul4onset(self, value):
+		if value is not None:
+			self.children = value
 
 	def _repr_value(self, v, seen, value):
 		if isinstance(value, Record):
@@ -2038,10 +2085,10 @@ class Field:
 class Attachment(Base):
 	ul4attrs = {"id", "type", "record", "label", "active"}
 
-	id = Attr(str, repr=True)
-	record = Attr(Record, ul4on=True)
-	label = Attr(str, ul4on=True)
-	active = BoolAttr(ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	record = Attr(Record, ul4on=True, doc="The record this attachment belongs to")
+	label = Attr(str, ul4on=True, doc="A human readable label")
+	active = BoolAttr(ul4on=True, doc="Is this attachment active?")
 
 	def __init__(self, id=None, record=None, label=None, active=None):
 		self.id = id
@@ -2059,11 +2106,11 @@ class ImageAttachment(Attachment):
 	ul4attrs = Attachment.ul4attrs.union({"original", "thumb", "small", "medium", "large"})
 	type = "imageattachment"
 
-	original = Attr(File, ul4on=True)
-	thumb = Attr(File, ul4on=True)
-	small = Attr(File, ul4on=True)
-	medium = Attr(File, ul4on=True)
-	large = Attr(File, ul4on=True)
+	original = Attr(File, ul4on=True, doc="Original uploaded image")
+	thumb = Attr(File, ul4on=True, doc="Thumbnail size version of the image")
+	small = Attr(File, ul4on=True, doc="Small version of the image")
+	medium = Attr(File, ul4on=True, doc="Medium version of the image")
+	large = Attr(File, ul4on=True, doc="Large version of the image")
 
 	def __init__(self, id=None, record=None, label=None, active=None, original=None, thumb=None, small=None, medium=None, large=None):
 		super().__init__(id=id, record=record, label=label, active=active)
@@ -2077,7 +2124,7 @@ class ImageAttachment(Attachment):
 class SimpleAttachment(Attachment):
 	ul4attrs = Attachment.ul4attrs.union({"value"})
 
-	value = Attr(ul4on=True)
+	value = Attr(ul4on=True, doc="The value of the attachment (a string, file, URL, note or JSON)")
 
 	def __init__(self, id=None, record=None, label=None, active=None, value=None):
 		super().__init__(id=id, record=record, label=label, active=active)
@@ -2119,13 +2166,13 @@ class JSONAttachment(SimpleAttachment):
 
 class Template(Base):
 	# Data descriptors for instance attributes
-	id = Attr(str)
-	app = Attr(App, ul4on=True)
-	identifier = Attr(str, ul4on=True)
-	source = Attr(str, ul4on=True)
-	whitespace = Attr(str, ul4on=True)
-	signature = Attr(str, ul4on=True)
-	doc = Attr(str, ul4on=True)
+	id = Attr(str, doc="Unique database id")
+	app = Attr(App, ul4on=True, doc="The app this template belongs to")
+	identifier = Attr(str, ul4on=True, doc="Human readable identifier")
+	source = Attr(str, ul4on=True, doc="UL4 source code")
+	whitespace = Attr(str, ul4on=True, doc="Whitespace handling (extracted from <?whitespace?> tag)")
+	signature = Attr(str, ul4on=True, doc="Template signature (extracted from <?ul4?> tag)")
+	doc = Attr(str, ul4on=True, doc="Documentation (extracted from <?doc?> tag)")
 	path = Attr(str, readonly=True, repr=True, get="__str__")
 
 	def __init__(self, id=None, identifier=None, source=None, whitespace="keep", signature=None, doc=None):
@@ -2259,17 +2306,10 @@ class ViewTemplate(Template):
 		APPEDIT = 3
 		APPADMIN = 4
 
-	# The type of the view template (i.e. in which context it is used
-	type = EnumAttr(Type, required=True, default=Type.LIST, ul4on=True)
-
-	# The MIME type of the HTTP response of the view template
-	mimetype = Attr(str, default="text/html", ul4on=True)
-
-	# Who can access the template?
-	permission = IntEnumAttr(Permission, required=True, default=Permission.ALL, ul4on=True)
-
-	# Data sources
-	datasources = AttrDictAttr(required=True, ul4on=True, ul4onset="_datasources_ul4onset", ul4onsetdefault="_datasources_ul4onsetdefault")
+	type = EnumAttr(Type, required=True, default=Type.LIST, ul4on=True, doc="The type of the view template (i.e. in which context it is used)")
+	mimetype = Attr(str, default="text/html", ul4on=True, doc="The MIME type of the HTTP response of the view template")
+	permission = IntEnumAttr(Permission, required=True, default=Permission.ALL, ul4on=True, doc="Who can access the template?")
+	datasources = AttrDictAttr(required=True, ul4on=True, ul4onset="_datasources_ul4onset", ul4onsetdefault="_datasources_ul4onsetdefault", doc="Configured data sources")
 
 	def __init__(self, id=None, *args, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype="text/html", permission=None):
 		super().__init__(id=id, identifier=identifier, source=source, whitespace=whitespace, signature=signature, doc=doc)
@@ -2376,61 +2416,24 @@ class DataSource(Base):
 		TREE = 2
 		APPS = 3
 
-	# Database identifier
-	id = Attr(str)
-
-	# The view template this datasource belongs to
-	parent = Attr(ViewTemplate, ul4on=True)
-
-	# A unique identifier for the data source (unique among the other data sources of the view template)
-	identifier = Attr(str, ul4on=True)
-
-	# The app from which records are fetched (or whose records are configured)
-	app = Attr(App, ul4on=True)
-
-	# Should copies of the app referenced by ``app`` be included?
-	includecloned = BoolAttr(required=True, default=False, ul4on=True)
-
-	# If more than one app is included (when either ``app`` is ``None`` or
-	# ``includecloned`` is ``True``), a vSQL expression for filtering which
-	# apps might be included.
-	appfilter = VSQLAttr("vsqlsupport_pkg3.ds_appfilter_ful4on", ul4on=True)
-
-	# Which fields of the app should be included (in ``controls`` and ``records``)?
-	includecontrols = IntEnumAttr(IncludeControls, required=True, default=IncludeControls.ALL, ul4on=True)
-
-	# Should the app include neither records nor control information, or just control information or both?
-	includerecords = IntEnumAttr(IncludeRecords, required=True, default=IncludeRecords.RECORDS, ul4on=True)
-
-	# Should the number of records by output in ``recordcount``?
-	includecount = BoolAttr(required=True, default=False, ul4on=True)
-
-	# Whose records should be output?
-	recordpermission = IntEnumAttr(RecordPermission, required=True, default=RecordPermission.ALL, ul4on=True)
-
-	# A vSQL expression for filtering when records to include
-	recordfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", ul4on=True)
-
-	# Include permisson information (ignored)
-	includepermissions = BoolAttr(required=True, default=False, ul4on=True)
-
-	# Include record attachments?
-	includeattachments = BoolAttr(required=True, default=False, ul4on=True)
-
-	# Include app parameter?
-	includeparams = BoolAttr(required=True, default=False, ul4on=True)
-
-	# Include views?
-	includeviews = BoolAttr(required=True, default=False, ul4on=True)
-
-	# Include navigation categories?
-	includecategories = IntEnumAttr(IncludeCategories, required=True, default=IncludeCategories.NO, ul4on=True)
-
-	# The sort expressions for sorting the records dict
-	orders = Attr(ul4on=True)
-
-	# Children configuration for records that reference the record from this app
-	children = AttrDictAttr(required=True, ul4on=True)
+	id = Attr(str, doc="Unique database id")
+	parent = Attr(ViewTemplate, ul4on=True, doc="The view template this datasource belongs to")
+	identifier = Attr(str, ul4on=True, doc="A unique identifier for the data source (unique among the other data sources of the view template)")
+	app = Attr(App, ul4on=True, doc="The app from which records are fetched (or whose records are configured)")
+	includecloned = BoolAttr(required=True, default=False, ul4on=True, doc="Should copies of the app referenced by ``app`` be included?")
+	appfilter = VSQLAttr("vsqlsupport_pkg3.ds_appfilter_ful4on", ul4on=True, doc="vSQL expression for filtering which apps might be included (if more than one app is included)")
+	includecontrols = IntEnumAttr(IncludeControls, required=True, default=IncludeControls.ALL, ul4on=True, doc="Which fields of the app should be included (in ``controls`` and ``records``)?")
+	includerecords = IntEnumAttr(IncludeRecords, required=True, default=IncludeRecords.RECORDS, ul4on=True, doc="Should the app include neither records nor control information, or just control information or both?")
+	includecount = BoolAttr(required=True, default=False, ul4on=True, doc="Should the number of records by output in ``recordcount``?")
+	recordpermission = IntEnumAttr(RecordPermission, required=True, default=RecordPermission.ALL, ul4on=True, doc="Whose records should be output?")
+	recordfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", ul4on=True, doc="A vSQL expression for filtering when records to include")
+	includepermissions = BoolAttr(required=True, default=False, ul4on=True, doc="Include permisson information (ignored)")
+	includeattachments = BoolAttr(required=True, default=False, ul4on=True, doc="Include record attachments?")
+	includeparams = BoolAttr(required=True, default=False, ul4on=True, doc="Include app parameter?")
+	includeviews = BoolAttr(required=True, default=False, ul4on=True, doc="Include views?")
+	includecategories = IntEnumAttr(IncludeCategories, required=True, default=IncludeCategories.NO, ul4on=True, doc="Include navigation categories?")
+	orders = Attr(ul4on=True, doc="The sort expressions for sorting the records dict")
+	children = AttrDictAttr(required=True, ul4on=True, doc="Children configuration for records that reference the record from this app")
 
 	def __init__(self, id=None, *args, identifier=None, app=None, includecloned=False, appfilter=None, includecontrols=None, includerecords=None, includecount=False, recordpermission=None, recordfilter=None, includepermissions=False, includeattachments=False, includeparams=False, includeviews=False, includecategories=None):
 		self.id = id
@@ -2492,24 +2495,12 @@ class DataSource(Base):
 class DataSourceChildren(Base):
 	ul4attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
 
-	# Database identifier
-	id = Attr(str)
-
-	# The :class:`DataSource` this object belongs to
-	datasource = Attr(ul4on=True)
-
-	# A unique identifier for this object (unique among the other :class:`DataSourceChildren` objects of the :class:`DataSource`)
-	identifier = Attr(str, ul4on=True)
-
-	# The :class:`AppLookupControl` object that references this app.
-	# All records from the controls app that reference our record will be added to the children dict.
-	control = Attr(Control, ul4on=True)
-
-	# Additional vSQL filter for the records.
-	filter = VSQLAttr("vsqlsupport_pkg3.dsc_recordfilter_ful4on", ul4on=True)
-
-	# The sort expressions for sorting the children dict.
-	orders = Attr(ul4on=True)
+	id = Attr(str, doc="Unique database id")
+	datasource = Attr(ul4on=True, doc="The :class:`DataSource` this object belongs to")
+	identifier = Attr(str, ul4on=True, doc="A unique identifier for this object (unique among the other :class:`DataSourceChildren` objects of the :class:`DataSource`)")
+	control = Attr(Control, ul4on=True, doc="The :class:`AppLookupControl` object that references this app. All records from the controls app that reference our record will be added to the children dict.")
+	filter = VSQLAttr("vsqlsupport_pkg3.dsc_recordfilter_ful4on", ul4on=True, doc="Additional vSQL filter for the records.")
+	orders = Attr(ul4on=True, doc="The sort expressions for sorting the children dict.")
 
 	def __init__(self, id=None, *args, identifier=None, control=None, filter=None):
 		self.id = id
@@ -2582,11 +2573,11 @@ class DataOrder(Base):
 		LAST = "last"
 
 	# Types and defaults for instance attributes
-	id = Attr(str)
-	parent = Attr(DataSource, DataSourceChildren, ul4on=True)
-	expression = VSQLAttr("?", repr=True, ul4on=True)
-	direction = EnumAttr(Direction, required=True, default=Direction.ASC, repr=True, ul4on=True)
-	nulls = EnumAttr(Nulls, required=True, default=Nulls.LAST, repr=True, ul4on=True)
+	id = Attr(str, doc="Unique database id")
+	parent = Attr(DataSource, DataSourceChildren, ul4on=True, doc="The :class:`DataSource` or :class:`DataSourceChildren` this object belongs to")
+	expression = VSQLAttr("?", repr=True, ul4on=True, doc="vSQL expression")
+	direction = EnumAttr(Direction, required=True, default=Direction.ASC, repr=True, ul4on=True, doc="Sort direction (asc or desc)")
+	nulls = EnumAttr(Nulls, required=True, default=Nulls.LAST, repr=True, ul4on=True, doc="Where to sort empty (``null``) values (first or last)")
 
 	def __init__(self, id=None, expression=None, direction=Direction.ASC, nulls=Nulls.LAST):
 		self.id = id
@@ -2635,27 +2626,28 @@ class DataAction(Base):
 		"commands",
 	}
 
-	id = Attr(str, repr=True)
-	app = Attr(App, ul4on=True)
-	identifier = Attr(str, repr=True, ul4on=True)
-	name = Attr(str, repr=True, ul4on=True)
-	order = Attr(int, ul4on=True)
-	active = BoolAttr(ul4on=True)
-	icon = Attr(str, ul4on=True)
-	description = Attr(str, ul4on=True)
-	message = Attr(str, ul4on=True)
-	filter = VSQLAttr("vsqlsupport_pkg3.da_filter_ful4on", ul4on=True)
-	as_multiple_action = BoolAttr(required=True, default=False, ul4on=True)
-	as_single_action = BoolAttr(required=True, default=False, ul4on=True)
-	as_mail_link = BoolAttr(required=True, default=False, ul4on=True)
-	before_form = BoolAttr(required=True, default=False, ul4on=True)
-	after_update = BoolAttr(required=True, default=False, ul4on=True)
-	after_insert = BoolAttr(required=True, default=False, ul4on=True)
-	before_delete = BoolAttr(required=True, default=False, ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	app = Attr(App, ul4on=True, doc="The app this action belongs to")
+	identifier = Attr(str, repr=True, ul4on=True, doc="Human readable identifier")
+	name = Attr(str, repr=True, ul4on=True, doc="Human readable name")
+	order = Attr(int, ul4on=True, doc="Used to sort the actions for display")
+	active = BoolAttr(ul4on=True, doc="Is this action active (otherwise it willl be ignored for display/execution)")
+	icon = Attr(str, ul4on=True, doc="Icon to display for the action")
+	description = Attr(str, ul4on=True, doc="What does this action do?")
+	message = Attr(str, ul4on=True, doc="Message to output after the action has been executed")
+	filter = VSQLAttr("vsqlsupport_pkg3.da_filter_ful4on", ul4on=True, doc="vSQL expression that determines whether this action should be displayed/executed")
+	as_multiple_action = BoolAttr(required=True, default=False, ul4on=True, doc="Should this action be displayed as a action button for multiple records in the datamanagement?")
+	as_single_action = BoolAttr(required=True, default=False, ul4on=True, doc="Should this action be displayed as a action button for single records in the datamanagement?")
+	as_mail_link = BoolAttr(required=True, default=False, ul4on=True, doc="Can this action be used as an email link (where clicking on the link in the email executes the action)?")
+	before_update = BoolAttr(required=True, default=False, ul4on=True, doc="Execute before displaying an update form?")
+	after_update = BoolAttr(required=True, default=False, ul4on=True, doc="Execute after updating the record?")
+	before_insert = BoolAttr(required=True, default=False, ul4on=True, doc="Execute before displaying an insert form?")
+	after_insert = BoolAttr(required=True, default=False, ul4on=True, doc="Execute after inserting the record?")
+	before_delete = BoolAttr(required=True, default=False, ul4on=True, doc="Execute before deleting the record?")
 
 	commands = Attr(ul4on=True)
 
-	def __init__(self, id=None, identifier=None, name=None, order=None, active=True, icon=None, description=None, filter=None, as_multiple_action=None, as_single_action=None, as_mail_link=None, before_form=None, after_update=None, after_insert=None, before_delete=None):
+	def __init__(self, id=None, identifier=None, name=None, order=None, active=True, icon=None, description=None, filter=None, as_multiple_action=None, as_single_action=None, as_mail_link=None, before_update=None, after_update=None, before_insert=None, after_insert=None, before_delete=None):
 		self.id = id
 		self.app = None
 		self.identifier = identifier
@@ -2668,8 +2660,9 @@ class DataAction(Base):
 		self.as_multiple_action = as_multiple_action
 		self.as_single_action = as_single_action
 		self.as_mail_link = as_mail_link
-		self.before_form = before_form
+		self.before_update = before_update
 		self.after_update = after_update
+		self.before_insert = before_insert
 		self.after_insert = after_insert
 		self.before_delete = before_delete
 		self.commands = []
@@ -2692,10 +2685,10 @@ class DataActionCommand(Base):
 		"details",
 	}
 
-	id = Attr(str, repr=True)
-	parent = Attr(ul4on=True)
-	condition = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", ul4on=True)
-	details = Attr(ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	parent = Attr(ul4on=True, doc="The data action this command belongs to or the command this comamnd is a sub command of")
+	condition = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", ul4on=True, doc="Only execute the command when this vSQL condition is true")
+	details = Attr(ul4on=True, doc="Field expressions for each field of the target app or attribute of the command")
 
 	def __init__(self, id=None, condition=None):
 		self.id = id
@@ -2745,9 +2738,9 @@ class DataActionCommandWithIdentifier(DataActionCommand):
 		"children",
 	})
 
-	app = Attr(App, ul4on=True)
-	identifier = Attr(str, ul4on=True)
-	children = Attr(ul4on=True)
+	app = Attr(App, ul4on=True, doc="The target app ")
+	identifier = Attr(str, ul4on=True, doc="A variable name introduced by this command")
+	children = Attr(ul4on=True, doc="The sucomamnds of this command")
 
 	def __init__(self, id=None, condition=None, app=None, identifier=None):
 		super().__init__(id, condition)
@@ -2837,34 +2830,15 @@ class DataActionDetail(Base):
 		DISABLE = "disable"
 		HIDE = "hide"
 
-	id = Attr(str, repr=True)
-	parent = Attr(DataActionCommand, ul4on=True)
-	control = Attr(Control, ul4on=True)
-	type = EnumAttr(Type, ul4on=True)
-	value = Attr(ul4on=True)
-	expression = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", ul4on=True)
-	formmode = EnumAttr(FormMode, ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	parent = Attr(DataActionCommand, ul4on=True, doc="The data action command this detail belongs to")
+	control = Attr(Control, ul4on=True, doc="The control this detail refers to (i.e. which field/attribute to modify)")
+	type = EnumAttr(Type, ul4on=True, doc="The type of execute to execution on the field/attribute")
+	value = Attr(ul4on=True, doc="The value to use (if the :attr:`type` isn't :obj:`Type.EXPR`)")
+	expression = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", ul4on=True, doc="The vSQL expression used to set the field/attribute (if :attr:`type` is :obj:`Type.EXPR`)")
+	formmode = EnumAttr(FormMode, ul4on=True, doc="How to display the field in interactive actions (i.e. ``insertform`` and ``insertformstatic``")
 
-	class code(Attr):
-		repr = True
-		readonly = True
-
-		def repr_value(self, instance):
-			if instance.type is DataActionDetail.Type.SETNULL:
-				return f"(r.v_{instance.control.identifier} = None)"
-			elif instance.type is DataActionDetail.Type.SETNOW:
-				if instance.control.subtype == "date":
-					return f"(r.v_{instance.control.identifier} = today())"
-				else:
-					return f"(r.v_{instance.control.identifier} = now())"
-			elif instance.type is DataActionDetail.Type.SET:
-				return f"(r.v_{instance.control.identifier} = {instance.value!r})"
-			elif instance.type is DataActionDetail.Type.ADD:
-				return f"(r.v_{instance.control.identifier} += {instance.value!r})"
-			elif instance.type is DataActionDetail.Type.EXPR:
-				return f"(r.v_{instance.control.identifier} = {instance.expression})"
-			else:
-				return None
+	code = Attr(str, repr=True, readonly=True, get="_code_get")
 
 	def __init__(self, id=None, type=None, value=None, formmode=None):
 		self.id = id
@@ -2879,12 +2853,29 @@ class DataActionDetail(Base):
 	def ul4onid(self):
 		return self.id
 
+	def _code_get(self):
+		if self.type is DataActionDetail.Type.SETNULL:
+			return f"(r.v_{self.control.identifier} = None)"
+		elif self.type is DataActionDetail.Type.SETNOW:
+			if self.control.subtype == "date":
+				return f"(r.v_{self.control.identifier} = today())"
+			else:
+				return f"(r.v_{self.control.identifier} = now())"
+		elif self.type is DataActionDetail.Type.SET:
+			return f"(r.v_{self.control.identifier} = {self.value!r})"
+		elif self.type is DataActionDetail.Type.ADD:
+			return f"(r.v_{self.control.identifier} += {self.value!r})"
+		elif self.type is DataActionDetail.Type.EXPR:
+			return f"(r.v_{self.control.identifier} = {self.expression})"
+		else:
+			return None
+
 
 @register("installation")
 class Installation(Base):
 	ul4attrs = {"id", "name"}
 
-	id = Attr(str, repr=True, ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
 	name = Attr(str, repr=True, ul4on=True)
 
 	def __init__(self, id=None, name=None):
@@ -2895,14 +2886,14 @@ class Installation(Base):
 class LayoutControl(Base):
 	ul4attrs = {"id", "label", "identifier", "view", "type", "subtype", "top", "left", "width", "height"}
 
-	id = Attr(str, repr=True)
-	label = Attr(str, repr=True, ul4on=True)
-	identifier = Attr(str, repr=True, ul4on=True)
-	view = Attr(lambda: View, ul4on=True)
-	top = Attr(int, ul4on=True)
-	left = Attr(int, ul4on=True)
-	width = Attr(int, ul4on=True)
-	height = Attr(int, ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	label = Attr(str, repr=True, ul4on=True, doc="Label to be displayed for this control")
+	identifier = Attr(str, repr=True, ul4on=True, doc="Human readable identifier")
+	view = Attr(lambda: View, ul4on=True, doc="The view this layout control belongs to")
+	top = Attr(int, ul4on=True, doc="Vertical position of this layout control in the form")
+	left = Attr(int, ul4on=True, doc="Horizontal position of this layout control in the form")
+	width = Attr(int, ul4on=True, doc="Width of this layout control in the form")
+	height = Attr(int, ul4on=True, doc="height of this layout control in the form")
 
 	def __init__(self, id=None, label=None, identifier=None):
 		self.id = id
@@ -2920,7 +2911,7 @@ class HTMLLayoutControl(LayoutControl):
 	subtype = "html"
 	ul4attrs = LayoutControl.ul4attrs.union({"value"})
 
-	value = Attr(str, ul4on=True)
+	value = Attr(str, ul4on=True, doc="HTML source")
 
 
 @register("imagelayoutcontrol")
@@ -2930,24 +2921,24 @@ class ImageLayoutControl(LayoutControl):
 
 	ul4attrs = LayoutControl.ul4attrs.union({"image_original", "image_scaled"})
 
-	image_original = Attr(File, ul4on=True)
-	image_scaled = Attr(File, ul4on=True)
+	image_original = Attr(File, ul4on=True, doc="Original uploaded image")
+	image_scaled = Attr(File, ul4on=True, doc="image scaled to final size")
 
 
 @register("view")
 class View(Base):
 	ul4attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "controls", "layout_controls"}
 
-	id = Attr(str, repr=True)
+	id = Attr(str, repr=True, doc="Unique database id")
 	name = Attr(str, repr=True, ul4on=True)
-	app = Attr(App, ul4on=True)
-	order = Attr(int, ul4on=True)
-	width = Attr(int, ul4on=True)
-	height = Attr(int, ul4on=True)
-	start = Attr(datetime.datetime, ul4on=True)
-	end = Attr(datetime.datetime, ul4on=True)
-	controls = AttrDictAttr(ul4on=True)
-	layout_controls = AttrDictAttr(ul4on=True)
+	app = Attr(App, ul4on=True, doc="The app this view belongs to")
+	order = Attr(int, ul4on=True, doc="Used to sort the views")
+	width = Attr(int, ul4on=True, doc="Width of the view in pixels")
+	height = Attr(int, ul4on=True, doc="height of the view in pixels")
+	start = Attr(datetime.datetime, ul4on=True, doc="View is inactive before this date")
+	end = Attr(datetime.datetime, ul4on=True, doc="View is inactive after this date")
+	controls = AttrDictAttr(ul4on=True, doc="Additional information for the fields used in this view")
+	layout_controls = AttrDictAttr(ul4on=True, doc="The layout controls used in this view")
 
 	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None):
 		self.id = id
@@ -2968,10 +2959,10 @@ class View(Base):
 class DataSourceData(Base):
 	ul4attrs = {"id", "identifier", "app", "apps"}
 
-	id = Attr(str, repr=True)
-	identifier = Attr(str, repr=True, ul4on=True)
-	app = Attr(App, ul4on=True)
-	apps = AttrDictAttr(ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	identifier = Attr(str, repr=True, ul4on=True, doc="A unique identifier for the data source")
+	app = Attr(App, ul4on=True, doc="The app reference by this datasource (or :const:`None` when the datasource is configured for all apps)")
+	apps = AttrDictAttr(ul4on=True, doc="All apps that this datasource references (can only be more than one, if copies of this app or all apps are included)")
 
 	def __init__(self, id=None, identifier=None, app=None, apps=None):
 		self.id = id
@@ -2988,8 +2979,8 @@ class DataSourceData(Base):
 class LookupItem(Base):
 	ul4attrs = {"key", "label"}
 
-	key = Attr(str, repr=True, ul4on=True)
-	label = Attr(str, repr=True, ul4on=True)
+	key = Attr(str, repr=True, ul4on=True, doc="Human readable identifier")
+	label = Attr(str, repr=True, ul4on=True, doc="Label to be displayed for this lookup item")
 
 	def __init__(self, key=None, label=None):
 		self.key = key
@@ -3000,13 +2991,13 @@ class LookupItem(Base):
 class Category(Base):
 	ul4attrs = {"id", "identifier", "name", "order", "parent", "children", "apps"}
 
-	id = Attr(str, repr=True)
-	identifier = Attr(str, repr=True, ul4on=True)
-	name = Attr(str, repr=True, ul4on=True)
-	order = Attr(int, ul4on=True)
-	parent = Attr(ul4on=True)
-	children = Attr(ul4on=True)
-	apps = Attr(ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	identifier = Attr(str, repr=True, ul4on=True, doc="Human readable identifier")
+	name = Attr(str, repr=True, ul4on=True, doc="Label to be displayed for this category in the navigation")
+	order = Attr(int, ul4on=True, doc="Used to order the categories in the navigation")
+	parent = Attr(ul4on=True, doc="The parent category")
+	children = Attr(ul4on=True, doc="The child categories")
+	apps = Attr(ul4on=True, doc="The apps that belong to that category")
 
 	def __init__(self, id=None, identifier=None, name=None, order=None, parent=None, children=None, apps=None):
 		self.id = id
@@ -3026,15 +3017,15 @@ class Category(Base):
 class AppParameter(Base):
 	ul4attrs = {"id", "app", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
 
-	id = Attr(str, repr=True)
-	app = Attr(App, ul4on=True)
-	identifier = Attr(str, repr=True, ul4on=True)
-	description = Attr(str, ul4on=True)
-	value = Attr(ul4on=True)
-	createdat = Attr(datetime.datetime, ul4on=True)
-	createdby = Attr(User, ul4on=True)
-	updatedat = Attr(datetime.datetime, ul4on=True)
-	updatedby = Attr(User, ul4on=True)
+	id = Attr(str, repr=True, doc="Unique database id")
+	app = Attr(App, ul4on=True, doc="The app this parameter belong to")
+	identifier = Attr(str, repr=True, ul4on=True, doc="Human readable identifier")
+	description = Attr(str, ul4on=True, doc="Description of the parameter")
+	value = Attr(ul4on=True, doc="The parameter value. The type of the value depends on the type of the parameter")
+	createdat = Attr(datetime.datetime, ul4on=True, doc="When was this parameter created?")
+	createdby = Attr(User, ul4on=True, doc="Who created this parameter?")
+	updatedat = Attr(datetime.datetime, ul4on=True, doc="When was this parameter last updated?")
+	updatedby = Attr(User, ul4on=True, doc="Who updated this parameter last?")
 
 	def __init__(self, id=None, app=None, identifier=None, description=None, value=None):
 		self.id = id
