@@ -742,6 +742,7 @@ class User(Base):
 	ul4attrs = {"id", "gender", "firstname", "surname", "initials", "email", "lang", "avatar_small", "avatar_large", "keyviews"}
 
 	id = Attr(str, repr=True, doc="Unique database id")
+	publicid = Attr(str, ul4on=True)
 	gender = Attr(str, ul4on=True)
 	firstname = Attr(str, repr=True, ul4on=True)
 	surname = Attr(str, repr=True, ul4on=True)
@@ -754,6 +755,7 @@ class User(Base):
 
 	def __init__(self, id=None, gender=None, firstname=None, surname=None, initials=None, email=None, lang=None, avatar_small=None, avatar_large=None):
 		self.id = id
+		self.publicid = id
 		self.gender = gender
 		self.firstname = firstname
 		self.surname = surname
