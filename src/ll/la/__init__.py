@@ -979,7 +979,7 @@ class App(Base):
 	recordcount = Attr(int, ul4on=True, ul4onset="_recordcount_ul4onset", doc="The number of records in this app (if configured)")
 	installation = Attr(ul4on=True, doc="The installation that created this app")
 	categories = Attr(ul4on=True, ul4onset="_categories_ul4onset", doc="The navigation categories the currently logged in user put this app in")
-	params = AttrDictAttr(ul4on=True, ul4onset="__params_ul4onset", doc="Application specific configuration parameters")
+	params = AttrDictAttr(ul4on=True, ul4onset="_params_ul4onset", doc="Application specific configuration parameters")
 	views = Attr(ul4on=True)
 	datamanagement_identifier = Attr(str, ul4on=True)
 	basetable = Attr(str, ul4on=True, doc="Name of table or view records of this app are stored in")
