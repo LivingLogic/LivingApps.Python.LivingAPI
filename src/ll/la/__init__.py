@@ -2022,12 +2022,15 @@ class Record(Base):
 	def _state_ul4get(self):
 		return self._state_get().value
 
+
 class Field:
-	ul4attrs = {"control", "record", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
+	ul4attrs = {"control", "record", "label", "lookupdata", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
 
 	def __init__(self, control, record, value):
 		self.control = control
 		self.record = record
+		self._label = None
+		self._lookupdata = None
 		self._value = None
 		self._dirty = False
 		self.errors = []
@@ -2036,6 +2039,77 @@ class Field:
 		self.visible = True
 		control._set_value(self, value)
 		self._dirty = False
+
+	@property
+	def label(self):
+		return self._label if self._label is not None else self.control.label
+
+	@label.setter
+	def label(self, label):
+		self._label = label
+
+	@property
+	def lookupdata(self):
+		if isinstance(self.control, LookupControl):
+			return self._lookupdata if self._lookupdata is not None else self.control.lookupdata
+		elif isinstance(self.control, AppLookupControl):
+			lookupdata = self._lookupdata
+			if lookupdata is None:
+				lookupdata = self.control.lookupapp.records
+			if lookupdata is None:
+				lookupdata = {}
+			return lookupdata
+		else:
+			return None
+
+	@lookupdata.setter
+	def lookupdata(self, lookupdata):
+		control = self.control
+		if isinstance(control, LookupControl):
+			if lookupdata is None:
+				lookupdata = []
+			elif isinstance(lookupdata, (str, LookupItem)):
+				lookupdata = [lookupdata]
+			elif isinstance(lookupdata, dict):
+				lookupdata = lookupdata.values()
+			items = []
+			for v in lookupdata:
+				if isinstance(v, str):
+					if v not in control.lookupdata:
+						raise ValueError(error_lookupitem_unknown(v))
+					items.append(control.lookupdata[v])
+				elif isinstance(v, LookupItem):
+					if control.lookupdata.get(v.key, None) is not v:
+						raise ValueError(error_lookupitem_foreign(v))
+					items.append(v)
+				elif v is not None:
+					raise ValueError(error_wrong_type(v))
+			self._lookupdata = attrdict({r.key : r for r in items})
+		elif isinstance(control, AppLookupControl):
+			self._lookupdata = lookupdata
+			if lookupdata is None:
+				lookupdata = []
+			elif isinstance(lookupdata, (str, LookupItem)):
+				lookupdata = [lookupdata]
+			elif isinstance(lookupdata, dict):
+				lookupdata = lookupdata.values()
+			records = []
+			fetched = self.control.app.globals.handler.records_sync_data([v for v in lookupdata if isinstance(v, str)])
+			for v in lookupdata:
+				if isinstance(v, str):
+					record = fetched.get(v, None)
+					if record is None:
+						raise ValueError(error_applookuprecord_unknown(v))
+					v = record
+				if isinstance(v, Record):
+					if v.app is not control.lookup_app:
+						raise ValueError(error_applookuprecord_foreign(v))
+					else:
+						records.append(v)
+				elif v is not None:
+					raise ValueError(error_wrong_type(v))
+			self._lookupdata = {r.id : r for r in records}
+		# Ignore assignment for any other control type
 
 	@property
 	def value(self):
