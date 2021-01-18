@@ -547,9 +547,10 @@ class DBHandler(Handler):
 		return dump
 
 	def record_sync_data(self, dat_id, force=False):
-		result = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
-		if result is not None and not force:
-			return result
+		if not force:
+			result = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
+			if result is not None:
+				return result
 		c = self.cursor()
 		c.execute(
 			"select livingapi_pkg.record_sync_ful4on(:ide_id, :dat_id) from dual",
@@ -560,6 +561,30 @@ class DBHandler(Handler):
 		dump = r[0].decode("utf-8")
 		dump = self._loaddump(dump)
 		return dump
+
+	def records_sync_data(self, dat_ids, force=False):
+		found = {}
+		if force:
+			missing = set(dat_ids)
+		else:
+			missing = set()
+			for dat_id in dat_ids:
+				record = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
+				if record is None:
+					missing.add(dat_id)
+				else:
+					found[dat_id] = record
+		c = self.cursor()
+		c.execute(
+			"select livingapi_pkg.records_sync_ful4on(:ide_id, :dat_ids) from dual",
+			ide_id=self.ide_id,
+			dat_ids=self.varchars(dat_ids),
+		)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		found.update(dump)
+		return found
 
 	def viewtemplate_data(self, *path, **params):
 		if not 1 <= len(path) <= 2:

@@ -1603,9 +1603,10 @@ class MultipleAppLookupControl(AppLookupControl):
 			self._set_value(field, [value])
 		elif isinstance(value, list):
 			field._value = []
+			fetched = self.app.globals.handler.records_sync_data([v for v in value if isinstance(v, str)])
 			for v in value:
 				if isinstance(v, str):
-					record = self.app.globals.handler.record_sync_data(v)
+					record = fetched.get(v, None)
 					if record is None:
 						field.add_error(error_applookuprecord_unknown(v))
 						v = None
