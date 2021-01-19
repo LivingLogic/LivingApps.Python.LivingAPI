@@ -2158,6 +2158,28 @@ class Field:
 		s += f" at {id(self):#x}>"
 		return s
 
+	def ul4ondump(self, encoder):
+		encoder.dump(self.control)
+		encoder.dump(self.record)
+		encoder.dump(self.label)
+		encoder.dump(self.lookupdata)
+		encoder.dump(self.value)
+		encoder.dump(self.errors)
+		encoder.dump(self.enabled)
+		encoder.dump(self.writable)
+		encoder.dump(self.visible)
+
+	def ul4onload(self, decoder):
+		self.control = decoder.load()
+		self.record = decoder.load()
+		self.label = decoder.load()
+		self.lookupdata = decoder.load()
+		self.value = decoder.load()
+		self.errors = decoder.load()
+		self.enabled = decoder.load()
+		self.writable = decoder.load()
+		self.visible = decoder.load()
+
 
 class Attachment(Base):
 	ul4attrs = {"id", "type", "record", "label", "active"}
