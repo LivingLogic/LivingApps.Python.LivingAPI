@@ -1350,6 +1350,8 @@ class DatetimeMinuteControl(DateControl):
 		value = field._value
 		if isinstance(value, datetime.datetime):
 			value = value.strftime("%Y-%m-%d %H:%M")
+		elif isinstance(value, datetime.date):
+			value = value.strftime("%Y-%m-%d 00:00")
 		return value
 
 
@@ -1370,10 +1372,10 @@ class DatetimeSecondControl(DateControl):
 
 	def _asjson(self, handler, field):
 		value = field._value
-		if isinstance(value, datetime.date):
-			value = value.strftime("%Y-%m-%d 00:00:00")
-		elif isinstance(value, datetime.datetime):
+		if isinstance(value, datetime.datetime):
 			value = value.strftime("%Y-%m-%d %H:%M:%S")
+		elif isinstance(value, datetime.date):
+			value = value.strftime("%Y-%m-%d 00:00:00")
 		return value
 
 

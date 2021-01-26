@@ -12,6 +12,9 @@ HEAD (2020-10-??)
 
 *	Added the attribute ``favorite`` to ``App``.
 
+*	Fixed ``DatetimeSecondControl._asjson()`` to treat ``datetime.datetime``
+	values correctly.
+
 
 0.13.0 (2020-09-17)
 -------------------
