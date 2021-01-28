@@ -1725,7 +1725,7 @@ class ViewControl(Base):
 	left = Attr(int, ul4on=True, doc="Horizontal position of this view control in the form")
 	width = Attr(int, ul4on=True, doc="Width of this view control in the form")
 	height = Attr(int, ul4on=True, doc="height of this view control in the form")
-	liveupdate = BoolAttr(ul4on=True, doc="Should chenges in the input field for this control call the server side form template?")
+	liveupdate = BoolAttr(ul4on=True, doc="Should changes in the input field for this control call the server side form template?")
 	default = Attr(ul4on=True, doc="Default value")
 
 	def __init__(self, id):
