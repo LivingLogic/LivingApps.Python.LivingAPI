@@ -1712,7 +1712,7 @@ class GeoControl(Control):
 
 @register("viewcontrol")
 class ViewControl(Base):
-	ul4attrs = {"id", "identifier", "type", "subtype", "view", "control", "top", "left", "width", "height", "liveupdate"}
+	ul4attrs = {"id", "identifier", "type", "subtype", "view", "control", "top", "left", "width", "height", "liveupdate", "taborder"}
 
 	id = Attr(str, repr=True, doc="Unique database id")
 
@@ -1724,9 +1724,10 @@ class ViewControl(Base):
 	top = Attr(int, ul4on=True, doc="Vertical position of this view control in the form")
 	left = Attr(int, ul4on=True, doc="Horizontal position of this view control in the form")
 	width = Attr(int, ul4on=True, doc="Width of this view control in the form")
-	height = Attr(int, ul4on=True, doc="height of this view control in the form")
+	height = Attr(int, ul4on=True, doc="Height of this view control in the form")
 	liveupdate = BoolAttr(ul4on=True, doc="Should changes in the input field for this control call the server side form template?")
-	default = Attr(ul4on=True, doc="Default value")
+	default = Attr(str, ul4on=True, doc="Default value")
+	taborder = Attr(int, ul4on=True, doc="Keyboard navigation order of this view control in the form")
 
 	def __init__(self, id):
 		self.id = id
@@ -1737,6 +1738,7 @@ class ViewControl(Base):
 		self.width = None
 		self.height = None
 		self.default = None
+		self.taborder = None
 
 	@property
 	def ul4onid(self):
