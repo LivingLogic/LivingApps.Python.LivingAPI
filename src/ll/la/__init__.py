@@ -1329,6 +1329,10 @@ class DateControl(Control):
 	subtype = "date"
 	fulltype = f"{type}/{subtype}"
 
+	ul4attrs = Control.ul4attrs.union({"format"})
+
+	format = Attr(str, get="_format_get", doc="UL4 format string for formatting values of this type (depends on ``globals.lang``")
+
 	def _set_value(self, field, value):
 		if isinstance(value, datetime.datetime):
 			value = value.date()
@@ -1365,6 +1369,13 @@ class DateControl(Control):
 		if isinstance(value, datetime.date):
 			value = value.strftime("%Y-%m-%d")
 		return value
+
+	def _format_get(self):
+		lang = self.app.globals.lang
+		if lang in {"de", "fr", "it"}:
+			return "%d.%m.%Y"
+		else:
+			return "%m/%d/%Y"
 
 
 @register("datetimeminutecontrol")
@@ -1413,6 +1424,13 @@ class DatetimeMinuteControl(DateControl):
 			value = value.strftime("%Y-%m-%d 00:00")
 		return value
 
+	def _format_get(self):
+		lang = self.app.globals.lang
+		if lang in {"de", "fr", "it"}:
+			return "%d.%m.%Y %H:%M"
+		else:
+			return "%m/%d/%Y %H:%M"
+
 
 @register("datetimesecondcontrol")
 class DatetimeSecondControl(DateControl):
@@ -1459,6 +1477,13 @@ class DatetimeSecondControl(DateControl):
 		elif isinstance(value, datetime.date):
 			value = value.strftime("%Y-%m-%d 00:00:00")
 		return value
+
+	def _format_get(self):
+		lang = self.app.globals.lang
+		if lang in {"de", "fr", "it"}:
+			return "%d.%m.%Y %H:%M:%S"
+		else:
+			return "%m/%d/%Y %H:%M:%S"
 
 
 @register("boolcontrol")

@@ -19,6 +19,11 @@ HEAD (2021-01-??)
 	``DatetimeSecondControl`` to support setting values to strings (when they
 	have the correct format).
 
+*	Added an UL4 attribute ``format`` to ``DatetimeControl``,
+	``DatetimeMinuteControl`` and ``DatetimeSecondControl`` that gives the
+	appropriate UL4 format string for formatting a value for this control
+	(depending on ``globals.lang``).
+
 
 0.13.0 (2020-09-17)
 -------------------
