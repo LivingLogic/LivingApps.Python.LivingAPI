@@ -1,4 +1,4 @@
-HEAD (2020-10-??)
+HEAD (2021-01-??)
 -----------------
 
 *	Renamed ``AppLookupControl.lookupapp`` to ``lookup_app`` and
@@ -14,6 +14,10 @@ HEAD (2020-10-??)
 
 *	Fixed ``DatetimeSecondControl._asjson()`` to treat ``datetime.datetime``
 	values correctly.
+
+*	Updated ``DatetimeControl``, ``DatetimeMinuteControl`` and
+	``DatetimeSecondControl`` to support setting values to strings (when they
+	have the correct format).
 
 
 0.13.0 (2020-09-17)

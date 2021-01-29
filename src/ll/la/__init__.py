@@ -111,6 +111,16 @@ def error_wrong_type(value):
 	return f"{misc.format_class(value)} is not supported"
 
 
+def error_wrong_value(value):
+	"""
+	Return an error message for a field value that isn't supported.
+
+	For example when a date field is set to a string value, but the string has
+	an unrecognized format, this error message will be used.
+	"""
+	return f"Value {value!r} is not supported"
+
+
 def error_lookupitem_unknown(value):
 	r"""
 	Return an error message for an unknown identifier for :class:`LookupItem`\s.
@@ -169,6 +179,9 @@ def _resolve_type(t):
 		t = t()
 	return t
 
+
+def _is_timezone(value):
+	return value[0] in "+-" and value[1:3].isdigit() and value[3] == ":" and value[4:6].isdigit()
 
 ###
 ### Exceptions
@@ -1319,6 +1332,29 @@ class DateControl(Control):
 	def _set_value(self, field, value):
 		if isinstance(value, datetime.datetime):
 			value = value.date()
+		elif isinstance(value, str):
+			charcount = len(value)
+			if charcount == 10:
+				try:
+					value = datetime.date.fromisoformat(value)
+				except ValueError:
+					field.add_error(error_wrong_value(value))
+			elif charcount == 19 or charcount == 26:
+				try:
+					value = datetime.datetime.fromisoformat(value)
+				except ValueError:
+					field.add_error(error_wrong_value(value))
+				else:
+					value = value.date()
+			elif charcount == 25 or charcount == 32 and _is_timezone(value[-6:]):
+				try:
+					value = datetime.datetime.fromisoformat(value[:-6])
+				except ValueError:
+					field.add_error(error_wrong_value(value))
+				else:
+					value = value.date()
+			else:
+				field.add_error(error_wrong_value(value))
 		elif value is not None and not isinstance(value, datetime.date):
 			field.add_error(error_wrong_type(value))
 			value = None
@@ -1341,6 +1377,29 @@ class DatetimeMinuteControl(DateControl):
 			value = value.replace(second=0, microsecond=0)
 		elif isinstance(value, datetime.date):
 			value = datetime.datetime.combine(value, datetime.time())
+		elif isinstance(value, str):
+			charcount = len(value)
+			if charcount == 10:
+				try:
+					value = datetime.datetime.fromisoformat(value)
+				except ValueError:
+					field.add_error(error_wrong_value(value))
+			elif charcount == 19 or charcount == 26:
+				try:
+					value = datetime.datetime.fromisoformat(value)
+				except ValueError:
+					field.add_error(error_wrong_value(value))
+				else:
+					value = value.replace(second=0, microsecond=0)
+			elif charcount == 25 or charcount == 32 and _is_timezone(value[-6:]):
+				try:
+					value = datetime.datetime.fromisoformat(value[:-6])
+				except ValueError:
+					field.add_error(error_wrong_value(value))
+				else:
+					value = value.replace(second=0, microsecond=0)
+			else:
+				field.add_error(error_wrong_value(value))
 		elif value is not None:
 			field.add_error(error_wrong_type(value))
 			value = None
@@ -1365,6 +1424,29 @@ class DatetimeSecondControl(DateControl):
 			value = value.replace(microsecond=0)
 		elif isinstance(value, datetime.date):
 			value = datetime.datetime.combine(value, datetime.time())
+		elif isinstance(value, str):
+			charcount = len(value)
+			if charcount == 10:
+				try:
+					value = datetime.datetime.fromisoformat(value)
+				except ValueError:
+					field.add_error(error_wrong_value(value))
+			elif charcount == 19 or charcount == 26:
+				try:
+					value = datetime.datetime.fromisoformat(value)
+				except ValueError:
+					field.add_error(error_wrong_value(value))
+				else:
+					value = value.replace(microsecond=0)
+			elif charcount == 25 or charcount == 32 and _is_timezone(value[-6:]):
+				try:
+					value = datetime.datetime.fromisoformat(value[:-6])
+				except ValueError:
+					field.add_error(error_wrong_value(value))
+				else:
+					value = value.replace(microsecond=0)
+			else:
+				field.add_error(error_wrong_value(value))
 		elif value is not None:
 			field.add_error(error_wrong_type(value))
 			value = None
