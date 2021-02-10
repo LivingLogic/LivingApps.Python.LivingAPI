@@ -752,24 +752,51 @@ class Geo(Base):
 
 @register("user")
 class User(Base):
-	ul4attrs = {"id", "gender", "firstname", "surname", "initials", "email", "lang", "avatar_small", "avatar_large", "keyviews"}
+	ul4attrs = {
+		"id", "gender", "title", "firstname", "surname", "initials", "email",
+		"lang", "avatar_small", "avatar_large", "streetname", "streetnumber",
+		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
+		"company_website", "company", "position", "department", "keyviews"
+	}
 
 	id = Attr(str, repr=True, doc="Unique database id")
 	publicid = Attr(str, ul4on=True)
 	gender = Attr(str, ul4on=True)
+	title = Attr(str, ul4on=True)
 	firstname = Attr(str, repr=True, ul4on=True)
 	surname = Attr(str, repr=True, ul4on=True)
 	initials = Attr(str, ul4on=True)
 	email = Attr(str, repr=True, ul4on=True, doc="Email address and account name")
+	streetname = Attr(str, ul4on=True, doc="Street name; part of the users address")
+	streetnumber = Attr(str, ul4on=True, doc="Street number; part of the users address")
+	zip = Attr(str, ul4on=True, doc="ZIP code; part of the users address")
+	city = Attr(str, ul4on=True, doc="City; part of the users address")
+	phone = Attr(str, ul4on=True, doc="")
+	fax = Attr(str, ul4on=True, doc="")
 	lang = Attr(str, ul4on=True, doc="Preferred language")
 	avatar_small = Attr(File, ul4on=True)
 	avatar_large = Attr(File, ul4on=True)
+	summary = Attr(str, ul4on=True, doc="")
+	interests = Attr(str, ul4on=True, doc="")
+	personal_website = Attr(str, ul4on=True, doc="")
+	company_website = Attr(str, ul4on=True, doc="")
+	company = Attr(str, ul4on=True, doc="")
+	position = Attr(str, ul4on=True, doc="")
+	department = Attr(str, ul4on=True, doc="")
 	keyviews = Attr(ul4on=True)
 
-	def __init__(self, id=None, gender=None, firstname=None, surname=None, initials=None, email=None, lang=None, avatar_small=None, avatar_large=None):
+	def __init__(self,
+		id=None, gender=None, title=None, firstname=None, surname=None,
+		initials=None, email=None, lang=None, avatar_small=None,
+		avatar_large=None, streetname=None, streetnumber=None, zip=None,
+		city=None, phone=None, fax=None, summary=None, interests=None,
+		personal_website=None, company_website=None, company=None,
+		position=None, department=None
+	):
 		self.id = id
 		self.publicid = id
 		self.gender = gender
+		self.title = title
 		self.firstname = firstname
 		self.surname = surname
 		self.initials = initials
@@ -777,6 +804,19 @@ class User(Base):
 		self.lang = lang
 		self.avatar_small = avatar_small
 		self.avatar_large = avatar_large
+		self.streetname = streetname
+		self.streetnumber = streetnumber
+		self.zip = zip
+		self.city = city
+		self.phone = phone
+		self.fax = fax
+		self.summary = summary
+		self.interests = interests
+		self.personal_website = personal_website
+		self.company_website = company_website
+		self.company = company
+		self.position = position
+		self.department = department
 		self.keyviews = attrdict()
 
 	@property
