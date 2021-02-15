@@ -113,6 +113,7 @@ def test_datasources(handler, config_apps):
 		la.DataSource(
 			identifier="persons",
 			app=c.apps.persons,
+			includeviews=True,
 		),
 		la.DataSource(
 			identifier="fieldsofactivity",
