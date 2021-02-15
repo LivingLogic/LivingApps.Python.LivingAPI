@@ -1,3 +1,9 @@
+0.12.4 (2021-02-15)
+-------------------
+
+*	Fixed order of type checks in :meth:`DatetimeSecondControl._asjson`.
+
+
 0.12.3 (2020-04-24)
 -------------------
 
