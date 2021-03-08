@@ -890,6 +890,7 @@ class App(Base):
 	createdat = Attr(datetime.datetime, ul4on=True)
 	updatedat = Attr(datetime.datetime, ul4on=True)
 	updatedby = Attr(User, ul4on=True)
+	superid = Attr(str, ul4on=True)
 	internaltemplates = AttrDictAttr(ul4on=True)
 	viewtemplates = AttrDictAttr(ul4on=True)
 	dataactions = AttrDictAttr(ul4on=True)
@@ -921,6 +922,7 @@ class App(Base):
 		self.insertprocedure = None
 		self.updateprocedure = None
 		self.deleteprocedure = None
+		self.superid = None
 		self.templates = None
 		self.internaltemplates = None
 		self.viewtemplates = None
