@@ -81,7 +81,7 @@ class attrdict(dict):
 		try:
 			return self[key]
 		except KeyError:
-			raise AttributeError(key)
+			raise AttributeError(error_attribute_doesnt_exist(self, key))
 
 	def __dir__(self):
 		"""
@@ -100,6 +100,29 @@ def makeattrs(value):
 	if isinstance(value, dict) and not isinstance(value, attrdict):
 		value = attrdict(value)
 	return value
+
+
+def error_attribute_doesnt_exist(instance, name):
+	return f"{misc.format_class(instance)!r} object has no attribute {name!r}"
+
+
+def error_attribute_readonly(instance, name):
+	return f"Attribute {name!r} of {misc.format_class(instance)!r} object is read only"
+
+
+def error_attribute_wrong_type(instance, name, value, allowed_types):
+	if isinstance(allowed_types, tuple):
+		allowed_types = format_list([format_class(t) for t in allowed_types])
+	else:
+		allowed_types = format_class(allowed_types)
+
+	return f"Value for attribute {name!r} of {misc.format_class(instance)!r} object must be {allowed_types}, but is {format_class(type(value))}"
+
+
+def attribute_wrong_value(instance, name, value, allowed_values):
+	allowed_values = format_list([repr(value) for value in allowed_values])
+
+	return f"Value for attribute {name!r} of {misc.format_class(instance)} object must be {allowed_values}, but is {value!r}"
 
 
 def error_wrong_type(value):
@@ -344,7 +367,7 @@ class Attr:
 			for cls in type.__mro__:
 				if self.name in cls.__dict__:
 					return cls.__dict__[self.name]
-			raise AttributeError(self.name)
+			raise AttributeError(error_attribute_doesnt_exist(instance, self.name))
 
 	def __set__(self, instance, value):
 		self._set(instance, value)
@@ -369,11 +392,11 @@ class Attr:
 		if self.set is not None:
 			return getattr(instance, self.set)(value)
 		if self.readonly:
-			raise TypeError(f"Attribute {misc.format_class(instance)}.{self.name} is read only")
+			raise AttributeError(error_attribute_readonly(instance, self.name))
 		if value is None:
 			value = self.make_default_value()
 		if not isinstance(value, self.types):
-			raise TypeError(f"Attribute {misc.format_class(instance)}.{self.name} must be {self._format_types()}, but is {format_class(type(value))}")
+			raise TypeError(error_attribute_wrong_type(instance, self.name, value, self.types))
 		instance.__dict__[self.name] = value
 
 	def _ul4get(self, instance):
@@ -493,8 +516,8 @@ class EnumAttr(Attr):
 			try:
 				value = self.type(value)
 			except ValueError:
-				values = format_list([repr(e.value) for e in self.types])
-				raise ValueError(f"Value for attribute {misc.format_class(instance)}.{self.name} must be {values}, but is {value!r}") from None
+				values = [e.value for e in self.type]
+				raise ValueError(attribute_wrong_value(instance, self.name, value, values))
 		super()._set(instance, value)
 
 	def _ul4get(self, instance):
@@ -523,8 +546,8 @@ class IntEnumAttr(EnumAttr):
 			try:
 				value = self.type(value)
 			except ValueError:
-				values = format_list([repr(e.value) for e in self.types])
-				raise ValueError(f"Value for attribute {misc.format_class(instance)}.{self.name} must be {values}, but is {value!r}") from None
+				values = [e.value for e in self.type]
+				raise ValueError(attribute_wrong_value(instance, self.name, value, values))
 		super()._set(instance, value)
 
 
@@ -942,7 +965,7 @@ class Globals(Base):
 				return self.templates[name[2:]]
 			except KeyError:
 				pass
-		raise AttributeError(name)
+		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def __dir__(self):
 		"""
@@ -959,17 +982,17 @@ class Globals(Base):
 	def ul4getattr(self, name):
 		if self.ul4hasattr(name):
 			return getattr(self, name)
-		raise AttributeError(name) from None
+		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def ul4setattr(self, name, value):
 		if name == "lang":
 			if value is not None and not isinstance(value, str):
-				raise TypeError(f"Attribute {misc.format_class(self)}.{name} does not support type {misc.format_class(value)}")
+				raise TypeError(error_attribute_wrong_type(self, name, value, str))
 			self.lang = value
 		elif self.ul4hasattr(name):
-			raise TypeError(f"Attribute {misc.format_class(self)}.{name} is read only")
+			raise AttributeError(error_attribute_readonly(self, name))
 		else:
-			raise AttributeError(name)
+			raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def ul4hasattr(self, name):
 		if name in self.ul4attrs:
@@ -1122,7 +1145,7 @@ class App(Base):
 				return self.params[name[2:]]
 		except KeyError:
 			pass
-		raise AttributeError(name) from None
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __dir__(self):
 		"""
@@ -1141,7 +1164,7 @@ class App(Base):
 	def ul4getattr(self, name):
 		if self.ul4hasattr(name):
 			return getattr(self, name)
-		raise AttributeError(name) from None
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def ul4hasattr(self, name):
 		if name in self.ul4attrs:
@@ -2056,7 +2079,7 @@ class Record(Base):
 				return self.__class__.fields.__get__(self)
 		except KeyError:
 			pass
-		raise AttributeError(name) from None
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __setattr__(self, name, value):
 		try:
@@ -2071,7 +2094,7 @@ class Record(Base):
 		else:
 			super().__setattr__(name, value)
 			return
-		raise TypeError(f"can't set attribute {name!r}")
+		raise AttributeError(error_attribute_readonly(self, name))
 
 	def __dir__(self):
 		"""
@@ -2086,7 +2109,7 @@ class Record(Base):
 				return attr._ul4get(self)
 			else:
 				return getattr(self, name)
-		raise AttributeError(name) from None
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def ul4hasattr(self, name):
 		if name in self.ul4attrs:
@@ -2101,7 +2124,7 @@ class Record(Base):
 		if name.startswith("v_") and name[2:] in self.app.controls:
 			setattr(self, name, value)
 		else:
-			raise TypeError(f"can't set attribute {name!r}")
+			raise AttributeError(error_attribute_readonly(self, name)) from None
 
 	def _gethandler(self, handler):
 		if handler is None:
