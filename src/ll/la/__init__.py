@@ -419,7 +419,8 @@ class Attr:
 	def _set(self, instance, value):
 		if isinstance(self.set, str):
 			getattr(instance, self.set)(value)
-		elif self.set:
+		# If the attribute is not in the instance dict we allow setting it once.
+		elif self.set or self.name not in instance.__dict__:
 			if value is None:
 				value = self.make_default_value()
 			if not isinstance(value, self.types):
