@@ -52,8 +52,43 @@ def test_global_hostname(handler):
 		""",
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	assert repr(hostname()) == output
+
+
+def test_global_mode(handler, config_persons):
+	"""
+	Check that ``globals.mode`` behaves correctly.
+	"""
+
+	source = "<?print globals.mode?>"
+
+	vt_list = handler.make_viewtemplate(
+		identifier="livingapi_global_mode_list",
+		source=source,
+		type=la.ViewTemplate.Type.LIST,
+	)
+
+	output = handler.renders(person_app_id(), template=vt_list.identifier)
+	assert output == "view/list"
+
+	vt_detail = handler.make_viewtemplate(
+		identifier="livingapi_global_mode_detail",
+		source=source,
+		type=la.ViewTemplate.Type.DETAIL,
+	)
+
+	output = handler.renders(person_app_id(), config_persons.persons.ae.id, template=vt_detail.identifier)
+	assert output == "view/detail"
+
+	vt_support = handler.make_viewtemplate(
+		identifier="livingapi_global_mode_support",
+		source=source,
+		type=la.ViewTemplate.Type.SUPPORT,
+	)
+
+	output = handler.renders(person_app_id(), template=vt_support.identifier)
+	assert output == "view/support"
 
 
 def test_global_datasources(handler, config_apps):
