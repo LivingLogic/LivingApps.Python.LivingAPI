@@ -27,7 +27,7 @@ def test_user(handler):
 		source="<?print globals.user.email?>",
 	)
 
-	assert u == handler.renders(person_app_id, template=vt.identifier)
+	assert u == handler.renders(person_app_id(), template=vt.identifier)
 
 	# Check that the account name is part of the user ``repr`` output
 	vt = handler.make_viewtemplate(
@@ -35,7 +35,7 @@ def test_user(handler):
 		source="<?print repr(globals.user)?>",
 	)
 
-	assert f" email='{u}'" in handler.renders(person_app_id, template=vt.identifier)
+	assert f" email='{u}'" in handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_global_hostname(handler):
@@ -87,8 +87,8 @@ def test_global_datasources(handler, config_apps):
 		""",
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
-	assert f"2;True;True;{person_app_id};{fields_app_id}" == output
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	assert f"2;True;True;{person_app_id()};{fields_app_id()}" == output
 
 
 def test_app_attributes(handler):
@@ -99,7 +99,7 @@ def test_app_attributes(handler):
 		identifier="livingapi_app_attributes",
 		source="<?print app.id?>;<?print app.name?>",
 	)
-	assert f"{person_app_id};LA-Demo: Persons" == handler.renders(person_app_id, template=vt.identifier)
+	assert f"{person_app_id()};LA-Demo: Persons" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_datasources(handler, config_apps):
@@ -122,7 +122,7 @@ def test_datasources(handler, config_apps):
 		identifier="livingapi_datasources",
 		source="<?print ';'.join(sorted(datasources))?>",
 	)
-	assert "fieldsofactivity;persons" == handler.renders(person_app_id, template=vt.identifier)
+	assert "fieldsofactivity;persons" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_output_all_records(handler, config_persons):
@@ -166,7 +166,7 @@ def test_output_all_records(handler, config_persons):
 		identifier="livingapi_output_all_records",
 		source=source,
 	)
-	handler.renders(person_app_id, template=vt.identifier)
+	handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_output_all_controls(handler):
@@ -191,7 +191,7 @@ def test_output_all_controls(handler):
 		source=source,
 	)
 
-	handler.renders(person_app_id, template="livingapi_output_all_controls")
+	handler.renders(person_app_id(), template="livingapi_output_all_controls")
 
 
 def test_detail(handler, config_persons):
@@ -201,7 +201,7 @@ def test_detail(handler, config_persons):
 
 	source = """
 		<?whitespace strip?>
-		<?print record.v_firstname?> <?print record.v_lastname?>
+		<?print record.id?> <?print record.v_firstname?> <?print record.v_lastname?>
 	"""
 
 	vt = handler.make_viewtemplate(
@@ -209,8 +209,8 @@ def test_detail(handler, config_persons):
 		source=source,
 	)
 
-	assert "Albert Einstein" == handler.renders(
-		person_app_id,
+	assert f"{config_persons.persons.ae.id} Albert Einstein" == handler.renders(
+		person_app_id(),
 		config_persons.persons.ae.id,
 		template=vt.identifier,
 	)
@@ -243,7 +243,7 @@ def test_sort_default_order_is_newest_first(handler, config_persons):
 		source=source,
 	)
 
-	assert not handler.renders(person_app_id, template=vt.identifier)
+	assert not handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_record_shortcutattributes(handler, config_persons):
@@ -270,7 +270,7 @@ def test_record_shortcutattributes(handler, config_persons):
 		identifier="livingapi_record_shortcutattributes",
 		source=source,
 	)
-	assert "'Albert';'Albert';'Albert';'Albert'" == handler.renders(person_app_id, template="livingapi_record_shortcutattributes")
+	assert "'Albert';'Albert';'Albert';'Albert'" == handler.renders(person_app_id(), template="livingapi_record_shortcutattributes")
 
 
 def test_app_shortcutattributes(handler):
@@ -287,7 +287,7 @@ def test_app_shortcutattributes(handler):
 		identifier="livingapi_app_shortcutattributes",
 		source=source,
 	)
-	assert "'firstname';'firstname'" == handler.renders(person_app_id, template=vt.identifier)
+	assert "'firstname';'firstname'" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_insert_record(handler, config_apps):
@@ -307,7 +307,7 @@ def test_insert_record(handler, config_apps):
 		identifier="livingapi_insert_record",
 		source=source,
 	)
-	(output, id) = handler.renders(person_app_id, template=vt.identifier).split(";")
+	(output, id) = handler.renders(person_app_id(), template=vt.identifier).split(";")
 
 	assert "'Isaac' 'Newton'" == output
 
@@ -325,7 +325,7 @@ def test_insert_record(handler, config_apps):
 		identifier="livingapi_insert_record_check_result",
 		source=source,
 	)
-	assert "'Isaac' 'Newton'" == handler.renders(person_app_id, template=vt.identifier)
+	assert "'Isaac' 'Newton'" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_attributes_unsaved_record(handler):
@@ -343,7 +343,7 @@ def test_attributes_unsaved_record(handler):
 		identifier="livingapi_attributes_unsaved_record_create",
 		source=source,
 	)
-	assert f"True True True;False False {user()}" == handler.renders(person_app_id, template=vt.identifier)
+	assert f"True True True;False False {user()}" == handler.renders(person_app_id(), template=vt.identifier)
 
 	# Check that ``updatedat`` and ``updatedby`` will be set when the
 	# record is saved (this even happens when the record hasn't been changed
@@ -366,7 +366,7 @@ def test_attributes_unsaved_record(handler):
 		source=source,
 	)
 
-	assert f"True True;True True;False {user()};False {user()}" == handler.renders(person_app_id, template=vt.identifier)
+	assert f"True True;True True;False {user()};False {user()}" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_no_appparams(handler):
@@ -377,7 +377,7 @@ def test_no_appparams(handler):
 		source=source,
 	)
 
-	assert "None" == handler.renders(person_app_id, template=vt.identifier)
+	assert "None" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_appparam_bool(handler, config_apps):
@@ -403,7 +403,7 @@ def test_appparam_bool(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	assert "None;desc bool_none;False;desc bool_false;True;desc bool_true" == output
 
 
@@ -428,7 +428,7 @@ def test_appparam_int(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	assert "None;desc int_none;1777;desc int_value" == output
 
 
@@ -453,7 +453,7 @@ def tcest_livingapi_appparam_number(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	assert "None;desc number_none;42.5;desc number_value" == output
 
 
@@ -478,7 +478,7 @@ def test_appparam_str(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "None;desc str_none;'gurk';desc str_value" == output
 
@@ -504,7 +504,7 @@ def test_appparam_color(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "None;desc color_none;#369c;desc color_value" == output
 
@@ -530,7 +530,7 @@ def test_appparam_datedelta(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	assert "None;desc datedelta_none;timedelta(days=12);desc datedelta_value" == output
 
 
@@ -555,7 +555,7 @@ def test_appparam_datetimedelta(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	assert "None;desc datetimedelta_none;timedelta(days=1, seconds=45296);desc datetimedelta_value" == output
 
 
@@ -580,7 +580,7 @@ def test_appparam_monthdelta(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	assert "None;desc monthdelta_none;monthdelta(3);desc monthdelta_value" == output
 
 
@@ -605,7 +605,7 @@ def test_appparam_upload(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "None;desc upload_none;'image/jpeg';desc upload_value" == output
 
@@ -631,9 +631,9 @@ def test_appparam_app(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
-	assert f"None;desc app_none;'{person_app_id}';desc app_value" == output
+	assert f"None;desc app_none;'{person_app_id()}';desc app_value" == output
 
 
 def test_appparam_otherattributes(handler, config_apps):
@@ -660,5 +660,5 @@ def test_appparam_otherattributes(handler, config_apps):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	assert "str_value;desc str_value;True;True;True;True" == output

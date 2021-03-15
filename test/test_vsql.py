@@ -97,7 +97,7 @@ def test_global_variables(config_persons):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	expected = []
 	key = operator.attrgetter("v_name")
@@ -125,15 +125,15 @@ def test_datasource_appfilter(config_persons):
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="all",
-			appfilter=f"a.uuid == '{person_app_id}'"
+			appfilter=f"a.uuid == '{person_app_id()}'"
 		),
 		identifier="vsql_datasource_appfilter",
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
-	assert f"None;{person_app_id}" == output
+	assert f"None;{person_app_id()}" == output
 
 
 def test_datasource_recordfilter(config_persons):
@@ -150,7 +150,7 @@ def test_datasource_recordfilter(config_persons):
 		identifier="vsql_datasource_recordfilter",
 		source=template_unsorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "Albert Einstein" == output
 
@@ -169,7 +169,7 @@ def test_datasource_recordfilter_param_str(config_persons):
 		identifier="vsql_datasource_recordfilter_param_str",
 		source=template_unsorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier, lastname="Curie")
+	output = handler.renders(person_app_id(), template=vt.identifier, lastname="Curie")
 
 	assert "Marie Curie" == output
 
@@ -188,7 +188,7 @@ def test_datasource_recordfilter_param_int(config_persons):
 		identifier="vsql_datasource_recordfilter_param_int",
 		source=template_unsorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier, year="1935")
+	output = handler.renders(person_app_id(), template=vt.identifier, year="1935")
 
 	assert "Elvis Presley" == output
 
@@ -207,7 +207,7 @@ def test_datasource_recordfilter_param_date(config_persons):
 		identifier="vsql_datasource_recordfilter_param_date",
 		source=template_unsorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier, date_of_birth="1926-06-01")
+	output = handler.renders(person_app_id(), template=vt.identifier, date_of_birth="1926-06-01")
 
 	assert "Marilyn Monroe" == output
 
@@ -226,7 +226,7 @@ def test_datasource_recordfilter_param_datetime(config_persons):
 		identifier="vsql_datasource_recordfilter_param_datetime",
 		source=template_unsorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier, date_of_birth="1926-06-01T12:34:56")
+	output = handler.renders(person_app_id(), template=vt.identifier, date_of_birth="1926-06-01T12:34:56")
 
 	assert "Marilyn Monroe" == output
 
@@ -245,7 +245,7 @@ def test_datasource_recordfilter_param_strlist(config_persons):
 		identifier="vsql_datasource_recordfilter_param_strlist",
 		source=template_sorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier, lastname=["Gauß", "Riemann"])
+	output = handler.renders(person_app_id(), template=vt.identifier, lastname=["Gauß", "Riemann"])
 
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
@@ -264,7 +264,7 @@ def test_datasource_recordfilter_param_intlist(config_persons):
 		identifier="vsql_datasource_recordfilter_param_intlist",
 		source=template_sorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier, year=["1826", "1777"])
+	output = handler.renders(person_app_id(), template=vt.identifier, year=["1826", "1777"])
 
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
@@ -283,7 +283,7 @@ def test_datasource_recordfilter_param_datelist(config_persons):
 		identifier="vsql_datasource_recordfilter_param_datelist",
 		source=template_sorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier, date_of_birth=["1826-06-17", "1777-04-30"])
+	output = handler.renders(person_app_id(), template=vt.identifier, date_of_birth=["1826-06-17", "1777-04-30"])
 
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
@@ -302,7 +302,7 @@ def test_datasource_recordfilter_param_datetimelist(config_persons):
 		identifier="vsql_datasource_recordfilter_param_datelist",
 		source=template_sorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier, date_of_birth=["1777-04-30T12:34:56"])
+	output = handler.renders(person_app_id(), template=vt.identifier, date_of_birth=["1777-04-30T12:34:56"])
 
 	assert "Carl Friedrich Gauß" == output
 
@@ -321,7 +321,7 @@ def test_datasource_recordfilter_appparam_int(config_persons):
 		identifier="vsql_datasource_recordfilter_appparam_int",
 		source=template_sorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "Carl Friedrich Gauß" == output
 
@@ -341,7 +341,7 @@ def test_datasource_sort_asc_nullsfirst(config_persons):
 		identifier="vsql_datasource_sort_asc_nullsfirst",
 		source=template_unsorted_persons,
 	)
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "Donald Knuth;Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein" == output
 
@@ -362,7 +362,7 @@ def test_datasource_sort_asc_nullslast(config_persons):
 		source=template_unsorted_persons,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein;Donald Knuth" == output
 
@@ -383,7 +383,7 @@ def test_datasource_sort_desc_nullsfirst(config_persons):
 		source=template_unsorted_persons,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "Donald Knuth;Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß" == output
 
@@ -404,7 +404,7 @@ def test_datasource_sort_desc_nullslast(config_persons):
 		source=template_unsorted_persons,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß;Donald Knuth" == output
 
@@ -437,7 +437,7 @@ def test_datasource_masterdetail_recordfilter(config_persons):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "True;Computer science;Mathematics;Physics;Literature" == output
 
@@ -470,7 +470,7 @@ def test_datasource_masterdetail_sort_asc(config_persons):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "True;Computer science;Mathematics;Physics;Film;Literature;Music" == output
 
@@ -503,7 +503,7 @@ def test_datasource_masterdetail_sort_desc(config_persons):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "True;Physics;Mathematics;Computer science;Music;Literature;Film" == output
 
@@ -528,7 +528,7 @@ def test_color_attributes(config_persons):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "0" != output
 
@@ -553,7 +553,7 @@ def test_color_methods(config_persons):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "0" != output
 
@@ -578,7 +578,7 @@ def test_repr_color(config_persons):
 		source=source,
 	)
 
-	output = handler.renders(person_app_id, template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	assert "0" != output
 
@@ -590,8 +590,8 @@ def test_datasource_paging(config_persons):
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
-			la.DataOrder("r.v_lastname"),
-			la.DataOrder("r.v_firstname"),
+			la.DataOrder(expression="r.v_lastname"),
+			la.DataOrder(expression="r.v_firstname"),
 			identifier="persons",
 			app=c.apps.persons,
 		),
@@ -600,7 +600,7 @@ def test_datasource_paging(config_persons):
 	)
 
 	output = handler.renders(
-		person_app_id,
+		person_app_id(),
 		template=vt.identifier,
 		**{"la-ds-persons-paging": "0_2"},
 	)
@@ -622,10 +622,10 @@ def test_datasourcechildren_paging(config_persons):
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
-			la.DataOrder("r.v_name"),
+			la.DataOrder(expression="r.v_name"),
 			la.DataSourceChildren(
-				la.DataOrder("r.v_lastname"),
-				la.DataOrder("r.v_firstname"),
+				la.DataOrder(expression="r.v_lastname"),
+				la.DataOrder(expression="r.v_firstname"),
 				identifier="persons",
 				control=c.apps.persons.c_field_of_activity,
 			),
@@ -637,7 +637,7 @@ def test_datasourcechildren_paging(config_persons):
 	)
 
 	output = handler.renders(
-		person_app_id,
+		person_app_id(),
 		template=vt.identifier,
 		**{f"la-dsc-fieldsofactivity-{c.areas.film.id}-persons-paging": "1_1"},
 	)

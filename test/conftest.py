@@ -11,9 +11,6 @@ from ll import la
 ### Data and helper functions
 ###
 
-person_app_id = "5bffc841c26a4b5902b2278c"
-fields_app_id = "5bffc44c5be111d74ed79972"
-
 
 class attrdict(dict):
 	def __getattr__(self, key):
@@ -53,6 +50,14 @@ def passwd():
 	return os.environ["LA_LIVINGAPI_TEST_PASSWD"]
 
 
+def person_app_id():
+	return os.environ["LA_LIVINGAPI_TEST_PERSONAPP"]
+
+
+def fields_app_id():
+	return os.environ["LA_LIVINGAPI_TEST_FIELDSAPP"]
+
+
 def check_vsql(config_persons, code, result=None):
 	c = config_persons
 
@@ -80,7 +85,7 @@ def check_vsql(config_persons, code, result=None):
 	)
 
 	output = handler.renders(
-		person_app_id,
+		person_app_id(),
 		template=vt.identifier,
 	)
 
@@ -258,10 +263,10 @@ def config_apps():
 	"""
 	handler = la.DBHandler(connect(), uploaddir(), user())
 
-	apps = handler.meta_data(person_app_id, fields_app_id)
+	apps = handler.meta_data(person_app_id(), fields_app_id())
 
-	persons_app = apps[person_app_id]
-	fields_app = apps[fields_app_id]
+	persons_app = apps[person_app_id()]
+	fields_app = apps[fields_app_id()]
 
 	return attrdict(
 		handler=handler,
@@ -283,13 +288,11 @@ def config_norecords(config_apps):
 
 	c.apps.persons.addtemplate(
 		la.ViewTemplate(
-			None,
 			la.DataSource(
 				identifier="persons",
 				app=c.apps.persons,
 			),
 			la.DataSource(
-				None,
 				la.DataSourceChildren(
 					control=c.apps.fields.c_parent,
 					identifier="children",
@@ -304,7 +307,7 @@ def config_norecords(config_apps):
 
 	c.handler.commit()
 
-	vars = c.handler.viewtemplate_data(person_app_id, template=identifier)
+	vars = c.handler.viewtemplate_data(person_app_id(), template=identifier)
 
 	persons_app = vars.datasources.persons.app
 	fields_app = vars.datasources.fields.app
