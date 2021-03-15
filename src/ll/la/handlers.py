@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # cython: language_level=3, always_allow_keywords=True
 
-## Copyright 2016-2020 by LivingLogic AG, Bayreuth/Germany
+## Copyright 2016-2021 by LivingLogic AG, Bayreuth/Germany
 ##
 ## All Rights Reserved
 
@@ -859,6 +859,11 @@ class HTTPHandler(Handler):
 		)
 		r.raise_for_status()
 		return r.content
+
+	def records_sync_data(self, dat_ids, force=False):
+		if not dat_ids:
+			return {}
+		raise NotImplementedError("Can't sync records via {self!r}")
 
 	def viewtemplate_data(self, *path, **params):
 		if not 1 <= len(path) <= 2:
