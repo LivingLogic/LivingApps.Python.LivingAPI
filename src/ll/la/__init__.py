@@ -1479,8 +1479,7 @@ class Control(Base):
 	required = BoolAttr(get="", ul4get="_required_get", doc="Is a value required for this field? (from the active view, else False)")
 	mode = EnumAttr(Mode, get="", ul4get="", doc="How to display this control in this view? (from the active view, else EDIT)")
 	labelpos = EnumAttr(LabelPos, get="", ul4get="", doc="Position of the form label relative to the input field (from the active viewl, else LEFT, hide label if None).")
-	lookup_none_key = Attr(str, get="", ul4get="_lookup_none_key_get", doc='Key to use for a "Nothing selected" option. (from the active view, else None)')
-	lookup_none_label = Attr(str, get="", ul4get="_lookup_none_label_get", doc='Label to display for a "Nothing selected" option. (from the active view, else None)')
+	inview = BoolAttr(get="", ul4get="_inview_get", doc="Is this control in the currently active view")
 
 	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, default=None):
 		self.id = id
@@ -1583,17 +1582,9 @@ class Control(Base):
 			return labelpos.value
 		return None
 
-	def _lookup_none_key_get(self):
+	def _inview_get(self):
 		vc = self._get_viewcontrol()
-		if vc is not None:
-			return vc.lookup_none_key
-		return None
-
-	def _lookup_none_label_get(self):
-		vc = self._get_viewcontrol()
-		if vc is not None:
-			return vc.lookup_none_label
-		return None
+		return vc is not None
 
 	def _set_value(self, field, value):
 		field._value = value
@@ -1607,6 +1598,28 @@ class Control(Base):
 
 class StringControl(Control):
 	_type = "string"
+
+	minlength = Attr(int, get="", ul4get="_minlength_get", doc="The minimum allowed string length (``None`` means unlimited).")
+	maxlength = Attr(int, get="", ul4get="_maxlength_get", doc="The maximum allowed string length (``None`` means unlimited).")
+	placeholder = Attr(str, get="", ul4get="_placeholder_get", doc="The placeholder for the HTML input.")
+
+	def _minlength_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.minlength
+		return 0
+
+	def _maxlength_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.maxlength
+		return 4000
+
+	def _placeholder_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.placeholder
+		return None
 
 	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, str):
@@ -1659,6 +1672,12 @@ class TextAreaControl(StringControl):
 	ul4attrs = StringControl.ul4attrs.union({"encrypted"})
 
 	encrypted = IntEnumAttr(EncryptionType, get=True, set=True, default=EncryptionType.NONE, ul4get=True, ul4onget=True, ul4onset=True, doc="Is this field encrypted (and how/when will it be encrypted)?")
+
+	def _maxlength_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.maxlength
+		return None
 
 
 @register("htmlcontrol")
@@ -1878,10 +1897,24 @@ class LookupControl(Control):
 	ul4attrs = Control.ul4attrs.union({"lookupdata"})
 
 	lookupdata = AttrDictAttr(get=True, set=True, required=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The possible values this control might have")
+	none_key = Attr(str, get="", ul4get="_none_key_get", doc='Key to use for a "Nothing selected" option. (from the active view, else None)')
+	none_label = Attr(str, get="", ul4get="_none_label_get", doc='Label to display for a "Nothing selected" option. (from the active view, else None)')
 
 	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, default=None, lookupdata=None):
 		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order, default=default)
 		self.lookupdata = lookupdata
+
+	def _none_key_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.lookup_none_key
+		return None
+
+	def _none_label_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.lookup_none_label
+		return None
 
 	def _set_value(self, field, value):
 		if isinstance(value, str):

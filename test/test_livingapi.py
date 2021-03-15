@@ -697,3 +697,147 @@ def test_appparam_otherattributes(handler, config_apps):
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	assert "str_value;desc str_value;True;True;True;True" == output
+
+
+def test_view_control_overwrite_string(handler, config_apps):
+	c = config_apps
+
+	source_print = """
+	label=<?print repr(app.c_firstname.label)?>
+	;placeholder=<?print repr(app.c_firstname.placeholder)?>
+	;required=<?print repr(app.c_firstname.required)?>
+	;minlength=<?print repr(app.c_firstname.minlength)?>
+	;maxlength=<?print repr(app.c_firstname.maxlength)?>
+	;labelpos=<?print repr(app.c_firstname.labelpos)?>
+	"""
+
+	def source_switch(lang):
+		return f"<?code app.active_view = first(v for v in app.views.values() if v.name.lower().startswith({lang!r}))?>"
+
+	vt_no_view = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			includerecords=la.DataSource.IncludeRecords.RECORDS,
+		),
+		identifier="test_view_control_overwrite_string_noview",
+		source=f"""
+		<?whitespace strip?>
+		{source_print}
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt_no_view.identifier)
+	expected = "label='Firstname';placeholder=None;required=False;minlength=0;maxlength=4000;labelpos='left'"
+	assert expected == output
+
+	vt_view_en = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			includeviews=True,
+			includecontrols=la.DataSource.IncludeControls.ALL,
+			includerecords=la.DataSource.IncludeRecords.RECORDS,
+		),
+		identifier="test_view_control_overwrite_string_view_en",
+		source=f"""
+		<?whitespace strip?>
+		{source_switch('en')}
+		{source_print}
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt_view_en.identifier)
+	expected = "label='Firstname (en)';placeholder='Full first name (en)';required=True;minlength=3;maxlength=30;labelpos='bottom'"
+	assert expected == output
+
+	vt_view_de = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			includeviews=True,
+			includecontrols=la.DataSource.IncludeControls.ALL,
+			includerecords=la.DataSource.IncludeRecords.RECORDS,
+		),
+		identifier="test_view_control_overwrite_string_view_de",
+		source=f"""
+		<?whitespace strip?>
+		{source_switch('de')}
+		{source_print}
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt_view_de.identifier)
+	expected = "label='Vorname (de)';placeholder='Vollständiger Vorname (de)';required=True;minlength=3;maxlength=30;labelpos='top'"
+	assert expected == output
+
+
+def test_view_control_overwrite_lookup(handler, config_apps):
+	c = config_apps
+
+	source_print = """
+	isstr(none_key)=<?print isstr(app.c_country_of_birth.none_key)?>
+	;none_label=<?print app.c_country_of_birth.none_label?>
+	"""
+
+	source_sep = "<?print '\\n'?>"
+
+	def source_switch(lang):
+		return f"<?code app.active_view = first(v for v in app.views.values() if v.name.lower().startswith({lang!r}))?>"
+
+	vt_no_view = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			includerecords=la.DataSource.IncludeRecords.RECORDS,
+		),
+		identifier="test_view_control_overwrite_lookup_noview",
+		source=f"""
+		<?whitespace strip?>
+		{source_print}
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt_no_view.identifier)
+	expected = "isstr(none_key)=False;none_label="
+	assert expected == output
+
+	vt_view_en = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			includeviews=True,
+			includecontrols=la.DataSource.IncludeControls.ALL,
+			includerecords=la.DataSource.IncludeRecords.RECORDS,
+		),
+		identifier="test_view_control_overwrite_lookup_view_en",
+		source=f"""
+		<?whitespace strip?>
+		{source_switch('en')}
+		{source_print}
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt_view_en.identifier)
+	expected = "isstr(none_key)=True;none_label=Nothing found!"
+	assert expected == output
+
+	vt_view_de = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			includeviews=True,
+			includecontrols=la.DataSource.IncludeControls.ALL,
+			includerecords=la.DataSource.IncludeRecords.RECORDS,
+		),
+		identifier="test_view_control_overwrite_lookup_view_de",
+		source=f"""
+		<?whitespace strip?>
+		{source_switch('de')}
+		{source_print}
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt_view_de.identifier)
+	expected = "isstr(none_key)=True;none_label=Nichts gefunden!"
+	assert expected == output
