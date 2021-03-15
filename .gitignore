@@ -5,3 +5,4 @@ __pycache__
 build
 dist
 src/*.egg-info
+report.html
