@@ -815,9 +815,11 @@ class Base:
 
 	def ul4getattr(self, name):
 		attr = getattr(self.__class__, name, None)
-		if not isinstance(attr, Attr):
-			raise AttributeError(error_attribute_doesnt_exist(self, name))
-		return attr.ul4get(self)
+		if isinstance(attr, Attr):
+			return attr.ul4get(self)
+		elif self.ul4hasattr(name):
+			return getattr(self, name)
+		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def ul4setattr(self, name, value):
 		attr = getattr(self.__class__, name, None)
@@ -1155,14 +1157,6 @@ class Globals(Base):
 			attrs.add(f"t_{identifier}")
 		return attrs
 
-	def ul4getattr(self, name):
-		attr = getattr(self.__class__, name, None)
-		if isinstance(attr, Attr):
-			return attr.ul4get(self)
-		elif self.ul4hasattr(name):
-			return getattr(self, name)
-		raise AttributeError(error_attribute_doesnt_exist(self, name))
-
 	def ul4setattr(self, name, value):
 		if name == "lang":
 			self.lang = value
@@ -1351,11 +1345,6 @@ class App(Base):
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
 		return attrs
-
-	def ul4getattr(self, name):
-		if self.ul4hasattr(name):
-			return getattr(self, name)
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def ul4hasattr(self, name):
 		if name in self.ul4attrs:
@@ -2457,15 +2446,6 @@ class Record(Base):
 		Make keys completeable in IPython.
 		"""
 		return set(super().__dir__()) | {f"f_{identifier}" for identifier in self.app.controls} | {f"v_{identifier}" for identifier in self.app.controls} | {f"c_{identifier}" for identifier in self.children}
-
-	def ul4getattr(self, name):
-		if self.ul4hasattr(name):
-			attr = getattr(self.__class__, name, None)
-			if isinstance(attr, Attr):
-				return attr.ul4get(self)
-			else:
-				return getattr(self, name)
-		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def ul4hasattr(self, name):
 		if name in self.ul4attrs:
