@@ -3575,7 +3575,7 @@ class ImageLayoutControl(LayoutControl):
 
 @register("view")
 class View(Base):
-	ul4attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "controls", "layout_controls"}
+	ul4attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "lang", "controls", "layout_controls"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -3587,8 +3587,9 @@ class View(Base):
 	end = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="View is inactive after this date")
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Additional information for the fields used in this view")
 	layout_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The layout controls used in this view")
+	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Language of this view")
 
-	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None):
+	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None, lang=None):
 		self.id = id
 		self.name = name
 		self.app = app
@@ -3597,6 +3598,7 @@ class View(Base):
 		self.height = height
 		self.start = start
 		self.end = end
+		self.lang = lang
 
 	@property
 	def ul4onid(self):

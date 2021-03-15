@@ -703,7 +703,8 @@ def test_view_control_overwrite_string(handler, config_apps):
 	c = config_apps
 
 	source_print = """
-	label=<?print repr(app.c_firstname.label)?>
+	lang=<?print repr(app.active_view.lang if app.active_view else None)?>
+	;label=<?print repr(app.c_firstname.label)?>
 	;placeholder=<?print repr(app.c_firstname.placeholder)?>
 	;required=<?print repr(app.c_firstname.required)?>
 	;minlength=<?print repr(app.c_firstname.minlength)?>
@@ -712,7 +713,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 	"""
 
 	def source_switch(lang):
-		return f"<?code app.active_view = first(v for v in app.views.values() if v.name.lower().startswith({lang!r}))?>"
+		return f"<?code app.active_view = first(v for v in app.views.values() if v.lang == {lang!r})?>"
 
 	vt_no_view = handler.make_viewtemplate(
 		la.DataSource(
@@ -728,8 +729,8 @@ def test_view_control_overwrite_string(handler, config_apps):
 	)
 
 	output = handler.renders(person_app_id(), template=vt_no_view.identifier)
-	expected = "label='Firstname';placeholder=None;required=False;minlength=0;maxlength=4000;labelpos='left'"
-	assert expected == output
+	expected = "lang=None;label='Firstname';placeholder=None;required=False;minlength=0;maxlength=4000;labelpos='left'"
+	assert output == expected
 
 	vt_view_en = handler.make_viewtemplate(
 		la.DataSource(
@@ -748,8 +749,8 @@ def test_view_control_overwrite_string(handler, config_apps):
 	)
 
 	output = handler.renders(person_app_id(), template=vt_view_en.identifier)
-	expected = "label='Firstname (en)';placeholder='Full first name (en)';required=True;minlength=3;maxlength=30;labelpos='bottom'"
-	assert expected == output
+	expected = "lang='en';label='Firstname (en)';placeholder='Full first name (en)';required=True;minlength=3;maxlength=30;labelpos='bottom'"
+	assert output == expected
 
 	vt_view_de = handler.make_viewtemplate(
 		la.DataSource(
@@ -768,22 +769,23 @@ def test_view_control_overwrite_string(handler, config_apps):
 	)
 
 	output = handler.renders(person_app_id(), template=vt_view_de.identifier)
-	expected = "label='Vorname (de)';placeholder='Vollständiger Vorname (de)';required=True;minlength=3;maxlength=30;labelpos='top'"
-	assert expected == output
+	expected = "lang='de';label='Vorname (de)';placeholder='Vollständiger Vorname (de)';required=True;minlength=3;maxlength=30;labelpos='top'"
+	assert output == expected
 
 
 def test_view_control_overwrite_lookup(handler, config_apps):
 	c = config_apps
 
 	source_print = """
-	isstr(none_key)=<?print isstr(app.c_country_of_birth.none_key)?>
+	lang=<?print repr(app.active_view.lang if app.active_view else None)?>
+	;isstr(none_key)=<?print isstr(app.c_country_of_birth.none_key)?>
 	;none_label=<?print app.c_country_of_birth.none_label?>
 	"""
 
 	source_sep = "<?print '\\n'?>"
 
 	def source_switch(lang):
-		return f"<?code app.active_view = first(v for v in app.views.values() if v.name.lower().startswith({lang!r}))?>"
+		return f"<?code app.active_view = first(v for v in app.views.values() if v.lang == {lang!r})?>"
 
 	vt_no_view = handler.make_viewtemplate(
 		la.DataSource(
@@ -799,8 +801,8 @@ def test_view_control_overwrite_lookup(handler, config_apps):
 	)
 
 	output = handler.renders(person_app_id(), template=vt_no_view.identifier)
-	expected = "isstr(none_key)=False;none_label="
-	assert expected == output
+	expected = "lang=None;isstr(none_key)=False;none_label="
+	assert output == expected
 
 	vt_view_en = handler.make_viewtemplate(
 		la.DataSource(
@@ -819,8 +821,8 @@ def test_view_control_overwrite_lookup(handler, config_apps):
 	)
 
 	output = handler.renders(person_app_id(), template=vt_view_en.identifier)
-	expected = "isstr(none_key)=True;none_label=Nothing found!"
-	assert expected == output
+	expected = "lang='en';isstr(none_key)=True;none_label=Nothing found!"
+	assert output == expected
 
 	vt_view_de = handler.make_viewtemplate(
 		la.DataSource(
@@ -839,5 +841,5 @@ def test_view_control_overwrite_lookup(handler, config_apps):
 	)
 
 	output = handler.renders(person_app_id(), template=vt_view_de.identifier)
-	expected = "isstr(none_key)=True;none_label=Nichts gefunden!"
-	assert expected == output
+	expected = "lang='de';isstr(none_key)=True;none_label=Nichts gefunden!"
+	assert output == expected
