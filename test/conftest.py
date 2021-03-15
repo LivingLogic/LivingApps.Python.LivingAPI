@@ -99,9 +99,9 @@ class Handler:
 		self.dbhandler = la.DBHandler(connect(), uploaddir(), user())
 
 	def make_viewtemplate(self, *args, **kwargs):
-		viewtemplate = la.ViewTemplate(None, *args, **kwargs)
+		viewtemplate = la.ViewTemplate(*args, **{**{"mimetype": "text/plain"}, **kwargs})
 		app = la.App()
-		app.id = person_app_id
+		app.id = person_app_id()
 		app.addtemplate(viewtemplate)
 		app.save(self.dbhandler)
 		self.dbhandler.commit()
