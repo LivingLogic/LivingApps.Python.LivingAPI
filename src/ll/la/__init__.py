@@ -2192,7 +2192,19 @@ class GeoControl(Control):
 	_fulltype = _type
 
 	def _set_value(self, field, value):
-		if value is not None and not isinstance(value, Geo):
+		if isinstance(value, str):
+			parts = value.split(",", 2)
+			if len(parts) != 3:
+				field.add_error(error_wrong_value(value))
+			else:
+				try:
+					lat = float(parts[0])
+					long = float(parts[1])
+				except ValueError:
+					field.add_error(error_wrong_value(value))
+				else:
+					value = Geo(lat, long, parts[2].strip())
+		elif value is not None and not isinstance(value, Geo):
 			field.add_error(error_wrong_type(value))
 			value = None
 		field._value = value
