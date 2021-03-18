@@ -229,12 +229,23 @@ class Handler:
 
 
 class DBHandler(Handler):
-	def __init__(self, connectstring, uploaddirectory, ide_id=None, ide_account=None):
+	def __init__(self, *, connectstring=None, connection=None, uploaddirectory=None, ide_id=None, ide_account=None):
 		super().__init__()
-		if orasql is None:
-			raise ImportError("ll.orasql required")
-		self.db = orasql.connect(connectstring, readlobs=True)
-		self.uploaddirectory = url.URL(uploaddirectory)
+
+		if connection is not None:
+			if connectstring is not None:
+				raise ValueError("Specify connectstring or connection, but not both")
+			self.db = connection
+		elif connectstring is not None:
+			if orasql is None:
+				raise ImportError("ll.orasql required")
+			self.db = orasql.connect(connectstring, readlobs=True)
+		else:
+			raise ValueError("Parameter connectstring or connection is required")
+		if uploaddirectory is not None:
+			uploaddirectory = url.URL(uploaddirectory)
+
+		self.uploaddirectory = uploaddirectory
 		self.varchars = self.db.gettype("LL.VARCHARS")
 		self.urlcontext = None
 
@@ -275,7 +286,7 @@ class DBHandler(Handler):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} at {id(self):#x}>"
 
 	def cursor(self):
-		return self.db.cursor()
+		return self.db.cursor(readlobs=True)
 
 	def commit(self):
 		self.db.commit()
