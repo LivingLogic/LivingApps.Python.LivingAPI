@@ -261,10 +261,10 @@ class DBHandler(Handler):
 			self.ide_id = ide_id
 		elif ide_account is not None:
 			c = self.cursor()
-			c.execute("select ide_id from identity where ide_account = :account", account=account)
+			c.execute("select ide_id from identity where ide_account = :account", account=ide_account)
 			r = c.fetchone()
 			if r is None:
-				raise ValueError(f"no user {account!r}")
+				raise ValueError(f"no user {ide_account!r}")
 			self.ide_id = r.ide_id
 		else
 			self.ide_id = None
