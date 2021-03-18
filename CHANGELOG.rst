@@ -1,3 +1,9 @@
+0.12.7 (2021-03-18)
+-------------------
+
+*	Allow creating a ``DBHandler`` via the ``ide_id`` or via the ``ide_account``.
+
+
 0.12.6 (2021-03-18)
 -------------------
 
