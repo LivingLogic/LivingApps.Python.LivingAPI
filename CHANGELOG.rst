@@ -1,7 +1,13 @@
+0.12.6 (2021-03-18)
+-------------------
+
+*	Make ``Record.executeaction()`` callable from UL4.
+
+
 0.12.5 (2021-03-08)
 -------------------
 
-*	Addes missing UL4ON attribute ``App.superid``.
+*	Added missing UL4ON attribute ``App.superid``.
 
 
 0.12.4 (2021-02-15)
