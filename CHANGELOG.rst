@@ -1,3 +1,12 @@
+0.12.8 (2021-03-18)
+-------------------
+
+Complain when both a ``ide_id`` or a ``ide_account`` is given when creating
+a ``DBHandler``.
+
+Fix syntax error.
+
+
 0.12.7 (2021-03-18)
 -------------------
 
