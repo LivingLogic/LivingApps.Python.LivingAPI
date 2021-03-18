@@ -1719,7 +1719,7 @@ class Record(Base):
 		return set(super().__dir__()) | {f"f_{identifier}" for identifier in self.app.controls} | {f"v_{identifier}" for identifier in self.app.controls} | {f"c_{identifier}" for identifier in self.children}
 
 	def ul4getattr(self, name):
-		if name in {"save", "delete", "executeaction"}
+		if name in {"save", "delete", "executeaction"}:
 			return getattr(self, "ul4" + name)
 		if self.ul4hasattr(name):
 			return getattr(self, name)
