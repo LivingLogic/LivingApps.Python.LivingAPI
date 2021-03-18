@@ -2297,7 +2297,7 @@ class ViewControl(Base):
 
 @register("record")
 class Record(Base):
-	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update", "state"}
+	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update", "executeaction", "state"}
 
 	class State(misc.Enum):
 		"""
@@ -2501,6 +2501,19 @@ class Record(Base):
 			return name[2:] in self.children
 		return False
 
+	def ul4getattr(self, name):
+		attr = getattr(self.__class__, name, None)
+		if isinstance(attr, Attr):
+			return attr.ul4get(self)
+		elif self.ul4hasattr(name):
+			# For these method call the version of the method instead, that doesn't
+			# support the ``handler`` parameter.
+			if name in {"save", "delete", "executeaction"}
+				return getattr(self, "ul4" + name)
+			else:
+				return getattr(self, name)
+		raise AttributeError(error_attribute_doesnt_exist(self, name))
+
 	def ul4setattr(self, name, value):
 		if name.startswith("v_") and name[2:] in self.app.controls:
 			setattr(self, name, value)
@@ -2537,6 +2550,15 @@ class Record(Base):
 
 	def executeaction(self, handler=None, identifier=None):
 		self._gethandler(handler)._executeaction(self, identifier)
+
+	def ul4save(self, force=False):
+		return self.save(force=force)
+
+	def ul4delete(self):
+		self.delete()
+
+	def ul4executeaction(self, identifier=None):
+		self.executeaction(identifier=identifier)
 
 	def has_errors(self):
 		if self.errors:

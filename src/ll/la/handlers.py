@@ -233,14 +233,39 @@ class Handler:
 
 
 class DBHandler(Handler):
-	def __init__(self, connection, uploaddirectory, account=None, ide_id=None):
+	def __init__(self, *, connection=None, connectstring=None, uploaddirectory=None, ide_account=None, ide_id=None):
+		"""
+		Create a new :class:`DBHandler`.
+
+		For the database connection pass either ``connection`` with an
+		:mod:`~ll.orasql` connection or ``connectstring`` with a connecstring.
+
+		``uploaddirectory`` must be an ``ssh`` URL specifying the upload directory
+		on the web server. If no uploads will be made, it can also be :const:`None`.
+
+		Use the user account to use specify either ``ide_account`` which must
+		be the account name (i.e. the email address) of the user or
+		``ide_id`` which must be the users database id. If neither is given
+		only public view templates canbe fetched.
+		"""
+
 		super().__init__()
-		if orasql is None:
-			raise ImportError("ll.orasql required")
-		if isinstance(connection, str):
-			connection = orasql.connect(connection, readlobs=True)
-		self.db = connection
-		self.uploaddirectory = url.URL(uploaddirectory)
+
+		if connection is not None:
+			if connectstring is not None:
+				raise ValueError("Specify connectstring or connection, but not both")
+			self.db = connection
+		elif connectstring is not None:
+			if orasql is None:
+				raise ImportError("ll.orasql required")
+			self.db = orasql.connect(connectstring, readlobs=True)
+		else:
+			raise ValueError("Parameter connectstring or connection is required")
+
+		if uploaddirectory is not None:
+			uploaddirectory = url.URL(uploaddirectory)
+		self.uploaddirectory = uploaddirectory
+
 		self.varchars = self.db.gettype("LL.VARCHARS")
 		self.urlcontext = None
 
@@ -264,23 +289,25 @@ class DBHandler(Handler):
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
 
-		if account is not None:
-			if ide_id is not None:
-				raise TypeError("Specify either account or ide_id, but not both")
+		if ide_id is not None:
+			if ide_account is not None:
+				raise ValueError("Specify ide_id or ide_account, but not both")
+			self.ide_id = ide_id
+		elif ide_account is not None:
 			c = self.cursor()
-			c.execute("select ide_id from identity where ide_account = :account", account=account)
+			c.execute("select ide_id from identity where ide_account = :ide_account", ide_account=ide_account)
 			r = c.fetchone()
 			if r is None:
-				raise ValueError(f"no user {account!r}")
+				raise ValueError(f"no user {ide_account!r}")
 			self.ide_id = r.ide_id
 		else:
-			self.ide_id = ide_id
+			self.ide_id = None
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
 
 	def cursor(self):
-		return self.db.cursor()
+		return self.db.cursor(readlobs=True)
 
 	def commit(self):
 		self.db.commit()
