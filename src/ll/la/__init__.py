@@ -1719,6 +1719,8 @@ class Record(Base):
 		return set(super().__dir__()) | {f"f_{identifier}" for identifier in self.app.controls} | {f"v_{identifier}" for identifier in self.app.controls} | {f"c_{identifier}" for identifier in self.children}
 
 	def ul4getattr(self, name):
+		if name in {"save", "delete", "executeaction"}
+			return getattr(self, "ul4" + name)
 		if self.ul4hasattr(name):
 			return getattr(self, name)
 		raise AttributeError(name) from None
@@ -1767,6 +1769,15 @@ class Record(Base):
 
 	def executeaction(self, handler=None, identifier=None):
 		self._gethandler(handler)._executeaction(self, identifier)
+
+	def ul4save(self, force=False):
+		return self.save(force=force)
+
+	def ul4delete(self):
+		self.delete()
+
+	def ul4executeaction(self, identifier=None):
+		self.executeaction(identifier=identifier)
 
 	def has_errors(self):
 		return bool(self.errors) or any(field.has_errors() for field in self.fields.values())

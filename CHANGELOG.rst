@@ -1,3 +1,10 @@
+0.12.9 (2021-03-18)
+-------------------
+
+Wrap the ``Record`` methods ``save()``, ``delete()`` and ``executeaction()``
+with a wrapper method for UL4 that doesn't have the ``handler`` argument.
+
+
 0.12.8 (2021-03-18)
 -------------------
 
