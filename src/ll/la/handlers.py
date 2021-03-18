@@ -268,7 +268,7 @@ class DBHandler(Handler):
 			if r is None:
 				raise ValueError(f"no user {ide_account!r}")
 			self.ide_id = r.ide_id
-		else
+		else:
 			self.ide_id = None
 
 	def __repr__(self):
