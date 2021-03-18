@@ -258,6 +258,8 @@ class DBHandler(Handler):
 		self.custom_procs = {}
 
 		if ide_id is not None:
+			if ide_account is not None:
+				raise ValueError("Specify ide_id or ide_account, but not both")
 			self.ide_id = ide_id
 		elif ide_account is not None:
 			c = self.cursor()
