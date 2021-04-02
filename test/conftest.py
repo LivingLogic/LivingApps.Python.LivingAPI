@@ -55,7 +55,7 @@ def person_app_id():
 
 
 def fields_app_id():
-	return os.environ["LA_LIVINGAPI_TEST_FIELDSAPP"]
+	return os.environ["LA_LIVINGAPI_TEST_FIELDAPP"]
 
 
 def check_vsql(config_persons, code, result=None):

@@ -23,7 +23,7 @@ The tests work with two apps that are supposed to store information about
 famous persons and their fields of activity. Their IDs are fetched from the
 following two environment variables:
 
-.. envvar:: LA_LIVINGAPI_TEST_FIELDSAPP
+.. envvar:: LA_LIVINGAPI_TEST_FIELDAPP
 	The id of the app containing fields of activity.
 
 .. envvar:: LA_LIVINGAPI_TEST_PERSONAPP
