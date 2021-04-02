@@ -101,7 +101,7 @@ def check_vsql(config_persons, code, result=None):
 
 class Handler:
 	def __init__(self):
-		self.dbhandler = la.DBHandler(connect(), uploaddir(), user())
+		self.dbhandler = la.DBHandler(connectstring=connect(), uploaddir=uploaddir(), ide_account=user())
 
 	def make_viewtemplate(self, *args, **kwargs):
 		viewtemplate = la.ViewTemplate(*args, **{**{"mimetype": "text/plain"}, **kwargs})
@@ -261,7 +261,7 @@ def config_apps():
 	A test fixture that gives us a dictionary with a :class:`la.DBHandler` and
 	the two :class:`la.App` objects.
 	"""
-	handler = la.DBHandler(connect(), uploaddir(), user())
+	handler = la.DBHandler(connectstring=connect(), uploaddir=uploaddir(), ide_account=user())
 
 	apps = handler.meta_data(person_app_id(), fields_app_id())
 
