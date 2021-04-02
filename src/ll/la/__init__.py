@@ -2508,7 +2508,7 @@ class Record(Base):
 		elif self.ul4hasattr(name):
 			# For these method call the version of the method instead, that doesn't
 			# support the ``handler`` parameter.
-			if name in {"save", "delete", "executeaction"}
+			if name in {"save", "delete", "executeaction"}:
 				return getattr(self, "ul4" + name)
 			else:
 				return getattr(self, name)
