@@ -233,14 +233,14 @@ class Handler:
 
 
 class DBHandler(Handler):
-	def __init__(self, *, connection=None, connectstring=None, uploaddirectory=None, ide_account=None, ide_id=None):
+	def __init__(self, *, connection=None, connectstring=None, uploaddir=None, ide_account=None, ide_id=None):
 		"""
 		Create a new :class:`DBHandler`.
 
 		For the database connection pass either ``connection`` with an
 		:mod:`~ll.orasql` connection or ``connectstring`` with a connecstring.
 
-		``uploaddirectory`` must be an ``ssh`` URL specifying the upload directory
+		``uploaddir`` must be an ``ssh`` URL specifying the upload directory
 		on the web server. If no uploads will be made, it can also be :const:`None`.
 
 		Use the user account to use specify either ``ide_account`` which must
@@ -262,9 +262,9 @@ class DBHandler(Handler):
 		else:
 			raise ValueError("Parameter connectstring or connection is required")
 
-		if uploaddirectory is not None:
-			uploaddirectory = url.URL(uploaddirectory)
-		self.uploaddirectory = uploaddirectory
+		if uploaddir is not None:
+			uploaddir = url.URL(uploaddir)
+		self.uploaddir = uploaddir
 
 		self.varchars = self.db.gettype("LL.VARCHARS")
 		self.urlcontext = None
@@ -341,7 +341,7 @@ class DBHandler(Handler):
 			)
 			if self.urlcontext is None:
 				self.urlcontext = url.Context()
-			with (self.uploaddirectory/r.p_upl_name).open("wb", context=self.urlcontext) as f:
+			with (self.uploaddir/r.p_upl_name).open("wb", context=self.urlcontext) as f:
 				f.write(file._content)
 			file.internalid = r.p_upl_id
 
@@ -356,7 +356,7 @@ class DBHandler(Handler):
 		if r is None:
 			raise ValueError(f"no such file {file.url!r}")
 		with url.Context():
-			u = self.uploaddirectory/r.upl_name
+			u = self.uploaddir/r.upl_name
 			return u.openread().read()
 
 	def save_vsql(self, cursor, source, function, datatype=None, **queryargs):
