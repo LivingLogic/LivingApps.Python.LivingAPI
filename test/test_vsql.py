@@ -326,6 +326,33 @@ def test_datasource_recordfilter_appparam_int(config_persons):
 	assert "Carl Friedrich Gauß" == output
 
 
+def test_datasource_recordfilter_geo(config_persons):
+	c = config_persons
+
+	handler = PythonDB()
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			la.DataOrder(expression="r.v_grave is not None", direction="desc", nulls="first"),
+			la.DataOrder(expression="dist(r.v_grave, geo(49.955267, 11.591212, 'LivingLogic AG'))", direction="asc", nulls="first"),
+			identifier="persons",
+			app=c.apps.persons,
+			recordfilter="r.v_grave is not None and dist(r.v_grave, geo(49.955267, 11.591212, 'LivingLogic AG')) < params.int.maxdist",
+		),
+		identifier="vsql_datasource_recordfilter_geo",
+		source=template_unsorted_persons,
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier, maxdist="50")
+	assert "" == output
+
+	output = handler.renders(person_app_id(), template=vt.identifier, maxdist="500")
+	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
+
+	output = handler.renders(person_app_id(), template=vt.identifier, maxdist="5000")
+	assert "Carl Friedrich Gauß;Bernhard Riemann;Marie Curie" == output
+
+
 def test_datasource_sort_asc_nullsfirst(config_persons):
 	c = config_persons
 
@@ -575,6 +602,31 @@ def test_repr_color(config_persons):
 			recordfilter='repr(#369) == "#369" and repr(#369c) == "#369c" and repr(#123456) == "#123456" and repr(#12345678) == "#12345678"',
 		),
 		identifier="vsql_repr_color",
+		source=source,
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+
+	assert "0" != output
+
+
+def test_geo_attributes(config_persons):
+	c = config_persons
+
+	handler = PythonDB()
+
+	source = f"""
+		<?whitespace strip?>
+		<?print len(datasources.persons.app.records)?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			recordfilter="int(geo(49.955267, 11.591212, 'LivingLogic AG').lat) == 49 and int(geo(49.955267, 11.591212, 'LivingLogic AG').long) == 11 and geo(49.955267, 11.591212, 'LivingLogic AG').info == 'LivingLogic AG'",
+		),
+		identifier="vsql_geo_attributes",
 		source=source,
 	)
 
