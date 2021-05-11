@@ -303,12 +303,12 @@ class AST(Repr):
 		self.pos = decoder.load()
 
 
-class Const(AST):
+class ConstAST(AST):
 	pass
 
 
 @ul4on.register("de.livinglogic.vsql.none")
-class None_(Const):
+class NoneAST(ConstAST):
 	dbnodetype = "const_none"
 	dbdatatype = "null"
 
@@ -317,7 +317,7 @@ class None_(Const):
 		return cls(source, _offset(node.pos))
 
 
-class _ConstWithValue(Const):
+class _ConstWithValueAST(ConstAST):
 	def __init__(self, source=None, pos=None, value=None):
 		super().__init__(source, pos)
 		self.value = value
@@ -348,7 +348,7 @@ class _ConstWithValue(Const):
 
 
 @ul4on.register("de.livinglogic.vsql.bool")
-class Bool(_ConstWithValue):
+class BoolAST(_ConstWithValueAST):
 	dbnodetype = "const_bool"
 	dbdatatype = "bool"
 
@@ -358,7 +358,7 @@ class Bool(_ConstWithValue):
 
 
 @ul4on.register("de.livinglogic.vsql.int")
-class Int(_ConstWithValue):
+class IntAST(_ConstWithValueAST):
 	dbnodetype = "const_int"
 	dbdatatype = "int"
 
@@ -368,7 +368,7 @@ class Int(_ConstWithValue):
 
 
 @ul4on.register("de.livinglogic.vsql.number")
-class Number(_ConstWithValue):
+class NumberAST(_ConstWithValueAST):
 	dbnodetype = "const_number"
 	dbdatatype = "number"
 
@@ -378,13 +378,13 @@ class Number(_ConstWithValue):
 
 
 @ul4on.register("de.livinglogic.vsql.str")
-class Str(_ConstWithValue):
+class StrAST(_ConstWithValueAST):
 	dbnodetype = "const_str"
 	dbdatatype = "str"
 
 
 @ul4on.register("de.livinglogic.vsql.color")
-class Color(_ConstWithValue):
+class ColorAST(_ConstWithValueAST):
 	dbnodetype = "const_color"
 	dbdatatype = "color"
 
@@ -395,7 +395,7 @@ class Color(_ConstWithValue):
 
 
 @ul4on.register("de.livinglogic.vsql.date")
-class Date(_ConstWithValue):
+class DateAST(_ConstWithValueAST):
 	dbnodetype = "const_date"
 	dbdatatype = "date"
 
@@ -405,7 +405,7 @@ class Date(_ConstWithValue):
 
 
 @ul4on.register("de.livinglogic.vsql.datetime")
-class DateTime(_ConstWithValue):
+class DateTimeAST(_ConstWithValueAST):
 	dbnodetype = "const_datetime"
 	dbdatatype = "datetime"
 
@@ -415,7 +415,7 @@ class DateTime(_ConstWithValue):
 
 
 @ul4on.register("de.livinglogic.vsql.list")
-class List(AST):
+class ListAST(AST):
 	dbnodetype = "list"
 
 	def __init__(self, source=None, pos=None):
@@ -452,7 +452,7 @@ class List(AST):
 
 
 @ul4on.register("de.livinglogic.vsql.set")
-class Set(AST):
+class SetAST(AST):
 	dbnodetype = "set"
 
 	def __init__(self, source=None, pos=None):
@@ -489,7 +489,7 @@ class Set(AST):
 
 
 @ul4on.register("de.livinglogic.vsql.fieldref")
-class FieldRef(AST):
+class FieldRefAST(AST):
 	dbnodetype = "field"
 
 	def __init__(self, source=None, pos=None, parent=None, identifier=None, field=None):
@@ -571,7 +571,7 @@ class FieldRef(AST):
 		self.field = decoder.load()
 
 
-class Binary(AST):
+class BinaryAST(AST):
 	def __init__(self, source=None, pos=None, obj1=None, obj2=None):
 		super().__init__(source, pos)
 		self.obj1 = obj1
@@ -609,97 +609,97 @@ class Binary(AST):
 
 
 @ul4on.register("de.livinglogic.vsql.eq")
-class EQ(Binary):
+class EQAST(BinaryAST):
 	dbnodetype = "cmp_eq"
 
 
 @ul4on.register("de.livinglogic.vsql.ne")
-class NE(Binary):
+class NEAST(BinaryAST):
 	dbnodetype = "cmp_ne"
 
 
 @ul4on.register("de.livinglogic.vsql.lt")
-class LT(Binary):
+class LTAST(BinaryAST):
 	dbnodetype = "cmp_lt"
 
 
 @ul4on.register("de.livinglogic.vsql.le")
-class LE(Binary):
+class LEAST(BinaryAST):
 	dbnodetype = "cmp_le"
 
 
 @ul4on.register("de.livinglogic.vsql.gt")
-class GT(Binary):
+class GTAST(BinaryAST):
 	dbnodetype = "cmp_gt"
 
 
 @ul4on.register("de.livinglogic.vsql.ge")
-class GE(Binary):
+class GEAST(BinaryAST):
 	dbnodetype = "cmp_ge"
 
 
 @ul4on.register("de.livinglogic.vsql.add")
-class Add(Binary):
+class AddAST(BinaryAST):
 	dbnodetype = "binop_add"
 
 
 @ul4on.register("de.livinglogic.vsql.sub")
-class Sub(Binary):
+class SubAST(BinaryAST):
 	dbnodetype = "binop_sub"
 
 
 @ul4on.register("de.livinglogic.vsql.mul")
-class Mul(Binary):
+class MulAST(BinaryAST):
 	dbnodetype = "binop_mul"
 
 
 @ul4on.register("de.livinglogic.vsql.floordiv")
-class FloorDiv(Binary):
+class FloorDivAST(BinaryAST):
 	dbnodetype = "binop_floordiv"
 
 
 @ul4on.register("de.livinglogic.vsql.truediv")
-class TrueDiv(Binary):
+class TrueDivAST(BinaryAST):
 	dbnodetype = "binop_truediv"
 
 
 @ul4on.register("de.livinglogic.vsql.mod")
-class Mod(Binary):
+class ModAST(BinaryAST):
 	dbnodetype = "binop_mod"
 
 
 @ul4on.register("de.livinglogic.vsql.and")
-class And(Binary):
+class AndAST(BinaryAST):
 	dbnodetype = "binop_and"
 
 
 @ul4on.register("de.livinglogic.vsql.or")
-class Or(Binary):
+class OrAST(BinaryAST):
 	dbnodetype = "binop_or"
 
 
 @ul4on.register("de.livinglogic.vsql.contains")
-class Contains(Binary):
+class ContainsAST(BinaryAST):
 	dbnodetype = "binop_contains"
 
 
 @ul4on.register("de.livinglogic.vsql.notcontains")
-class NotContains(Binary):
+class NotContainsAST(BinaryAST):
 	dbnodetype = "binop_notcontains"
 
 
 @ul4on.register("de.livinglogic.vsql.is")
-class Is(Binary):
+class IsAST(BinaryAST):
 	dbnodetype = "binop_is"
 
 
 @ul4on.register("de.livinglogic.vsql.isnot")
-class IsNot(Binary):
+class IsNotAST(BinaryAST):
 	dbnodetype = "binop_isnot"
 
 
 @ul4on.register("de.livinglogic.vsql.item")
-class Item(Binary):
+class ItemAST(BinaryAST):
 	dbnodetype = "binop_item"
 
 	@classmethod
@@ -710,31 +710,31 @@ class Item(Binary):
 
 
 @ul4on.register("de.livinglogic.vsql.shiftleft")
-class ShiftLeft(Binary):
+class ShiftLeftAST(BinaryAST):
 	dbnodetype = "binop_shiftleft"
 
 
 @ul4on.register("de.livinglogic.vsql.shiftright")
-class ShiftRight(Binary):
+class ShiftRightAST(BinaryAST):
 	dbnodetype = "binop_shiftright"
 
 
 @ul4on.register("de.livinglogic.vsql.bitand")
-class BitAnd(Binary):
+class BitAndAST(BinaryAST):
 	dbnodetype = "binop_bitand"
 
 
 @ul4on.register("de.livinglogic.vsql.bitor")
-class BitOr(Binary):
+class BitOrAST(BinaryAST):
 	dbnodetype = "binop_bitor"
 
 
 @ul4on.register("de.livinglogic.vsql.bitxor")
-class BitXOr(Binary):
+class BitXOrAST(BinaryAST):
 	dbnodetype = "binop_bitxor"
 
 
-class Unary(AST):
+class UnaryAST(AST):
 	def __init__(self, source=None, pos=None, obj=None):
 		super().__init__(source, pos)
 		self.obj = obj
@@ -764,22 +764,22 @@ class Unary(AST):
 
 
 @ul4on.register("de.livinglogic.vsql.not")
-class Not(Unary):
+class NotAST(UnaryAST):
 	dbnodetype = "unop_not"
 
 
 @ul4on.register("de.livinglogic.vsql.neg")
-class Neg(Unary):
+class NegAST(UnaryAST):
 	dbnodetype = "unop_neg"
 
 
 @ul4on.register("de.livinglogic.vsql.bitnot")
-class BitNot(Unary):
+class BitNotAST(UnaryAST):
 	dbnodetype = "unop_bitnot"
 
 
 @ul4on.register("de.livinglogic.vsql.if")
-class If(AST):
+class IfAST(AST):
 	dbnodetype = "ternop_if"
 
 	def __init__(self, source=None, pos=None, objif=None, objcond=None, objelse=None):
@@ -831,7 +831,7 @@ class If(AST):
 
 
 @ul4on.register("de.livinglogic.vsql.if")
-class Slice(AST):
+class SliceAST(AST):
 	dbnodetype = "ternop_slice"
 
 	def __init__(self, source=None, pos=None, obj=None, index1=None, index2=None):
@@ -897,7 +897,7 @@ class Slice(AST):
 
 
 @ul4on.register("de.livinglogic.vsql.attr")
-class Attr(AST):
+class AttrAST(AST):
 	dbnodetype = "attr"
 
 	def __init__(self, source=None, pos=None, obj=None, attrname=None):
@@ -945,7 +945,7 @@ class Attr(AST):
 
 
 @ul4on.register("de.livinglogic.vsql.func")
-class Func(AST):
+class FuncAST(AST):
 	dbnodetype = "func"
 
 	def __init__(self, source=None, pos=None, name=None, args=None):
@@ -984,7 +984,7 @@ class Func(AST):
 
 
 @ul4on.register("de.livinglogic.vsql.meth")
-class Meth(AST):
+class MethAST(AST):
 	dbnodetype = "meth"
 
 	def __init__(self, source=None, pos=None, obj=None, name=None, args=None):
@@ -1031,18 +1031,18 @@ class Meth(AST):
 
 
 _consts = {
-	bool: Bool,
-	int: Int,
-	float: Number,
-	str: Str,
-	color.Color: Color,
-	datetime.date: Date,
-	datetime.datetime: DateTime,
+	bool: BoolAST,
+	int: IntAST,
+	float: NumberAST,
+	str: StrAST,
+	color.Color: ColorAST,
+	datetime.date: DateAST,
+	datetime.datetime: DateTimeAST,
 }
 
 # Set of UL4 AST nodes that directly map to their equivalent vSQL version
-_ops = {ul4c.If, ul4c.Not, ul4c.Neg, ul4c.BitNot, ul4c.List, ul4c.Set}
-_ops.update(ul4c.Binary.__subclasses__())
+_ops = {ul4c.IfAST, ul4c.NotAST, ul4c.NegAST, ul4c.BitNotAST, ul4c.ListAST, ul4c.SetAST}
+_ops.update(ul4c.BinaryAST.__subclasses__())
 
 # Create the mapping that maps the UL4 AST type to the vSQL AST type
 v = vars()
