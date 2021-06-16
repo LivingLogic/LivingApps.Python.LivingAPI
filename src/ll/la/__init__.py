@@ -744,7 +744,7 @@ class AttrDictAttr(Attr):
 
 
 class Base:
-	ul4attrs = set()
+	ul4_attrs = set()
 
 	@classmethod
 	def attrs(cls):
@@ -813,15 +813,15 @@ class Base:
 		Called after the content of the object has been loaded from an UL4ON dump.
 		"""
 
-	def ul4getattr(self, name):
+	def ul4_getattr(self, name):
 		attr = getattr(self.__class__, name, None)
 		if isinstance(attr, Attr):
 			return attr.ul4get(self)
-		elif self.ul4hasattr(name):
+		elif self.ul4_hasattr(name):
 			return getattr(self, name)
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
-	def ul4setattr(self, name, value):
+	def ul4_setattr(self, name, value):
 		attr = getattr(self.__class__, name, None)
 		if not isinstance(attr, Attr):
 			raise AttributeError(error_attribute_doesnt_exist(self, name))
@@ -831,7 +831,7 @@ class Base:
 
 @register("flashmessage")
 class FlashMessage(Base):
-	ul4attrs = {"timestamp", "type", "title", "message"}
+	ul4_attrs = {"timestamp", "type", "title", "message"}
 
 	class Type(misc.Enum):
 		"""
@@ -857,7 +857,7 @@ class FlashMessage(Base):
 
 @register("file")
 class File(Base):
-	ul4attrs = {"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"}
+	ul4_attrs = {"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	url = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Server relative URL of the file")
@@ -913,7 +913,7 @@ class File(Base):
 
 @register("geo")
 class Geo(Base):
-	ul4attrs = {"lat", "long", "info"}
+	ul4_attrs = {"lat", "long", "info"}
 
 	lat = FloatAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Latitude (i.e. north/south)")
 	long = FloatAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Longitude (i.e. east/west)")
@@ -931,7 +931,7 @@ class Geo(Base):
 
 @register("user")
 class User(Base):
-	ul4attrs = {
+	ul4_attrs = {
 		"id", "gender", "title", "firstname", "surname", "initials", "email",
 		"lang", "avatar_small", "avatar_large", "streetname", "streetnumber",
 		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
@@ -1005,7 +1005,7 @@ class User(Base):
 
 @register("keyview")
 class KeyView(Base):
-	ul4attrs = {"id", "identifier", "name", "key", "user"}
+	ul4_attrs = {"id", "identifier", "name", "key", "user"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
@@ -1023,7 +1023,7 @@ class KeyView(Base):
 
 @register("globals")
 class Globals(Base):
-	ul4attrs = {
+	ul4_attrs = {
 		"version",
 		"hostname",
 		"platform",
@@ -1157,16 +1157,16 @@ class Globals(Base):
 			attrs.add(f"t_{identifier}")
 		return attrs
 
-	def ul4setattr(self, name, value):
+	def ul4_setattr(self, name, value):
 		if name == "lang":
 			self.lang = value
-		elif self.ul4hasattr(name):
+		elif self.ul4_hasattr(name):
 			raise AttributeError(error_attribute_readonly(self, name))
 		else:
 			raise AttributeError(error_attribute_doesnt_exist(self, name))
 
-	def ul4hasattr(self, name):
-		if name in self.ul4attrs:
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
 			return True
 		elif self.datasources and name.startswith("d_") and name[2:] in self.datasources:
 			return True
@@ -1178,7 +1178,7 @@ class Globals(Base):
 
 @register("app")
 class App(Base):
-	ul4attrs = {
+	ul4_attrs = {
 		"id",
 		"globals",
 		"name",
@@ -1346,8 +1346,8 @@ class App(Base):
 			attrs.add(f"t_{identifier}")
 		return attrs
 
-	def ul4hasattr(self, name):
-		if name in self.ul4attrs:
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
 			return True
 		elif name.startswith("c_") and name[2:] in self.controls:
 			return True
@@ -1445,7 +1445,7 @@ class App(Base):
 class Control(Base):
 	_type = None
 	_subtype = None
-	ul4attrs = {"id", "identifier", "app", "label", "type", "subtype", "fulltype", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"}
+	ul4_attrs = {"id", "identifier", "app", "label", "type", "subtype", "fulltype", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"}
 
 	class Mode(misc.Enum):
 		DISPLAY = "display"
@@ -1669,7 +1669,7 @@ class TextAreaControl(StringControl):
 	_subtype = "textarea"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 
-	ul4attrs = StringControl.ul4attrs.union({"encrypted"})
+	ul4_attrs = StringControl.ul4_attrs.union({"encrypted"})
 
 	encrypted = IntEnumAttr(EncryptionType, get=True, set=True, default=EncryptionType.NONE, ul4get=True, ul4onget=True, ul4onset=True, doc="Is this field encrypted (and how/when will it be encrypted)?")
 
@@ -1716,7 +1716,7 @@ class DateControl(Control):
 	_subtype = "date"
 	_fulltype = f"{_type}/{_subtype}"
 
-	ul4attrs = Control.ul4attrs.union({"format"})
+	ul4_attrs = Control.ul4_attrs.union({"format"})
 
 	format = Attr(str, get="", ul4get="_format_get", doc="UL4 format string for formatting values of this type (depends on ``globals.lang``")
 
@@ -1894,7 +1894,7 @@ class BoolControl(Control):
 class LookupControl(Control):
 	_type = "lookup"
 
-	ul4attrs = Control.ul4attrs.union({"lookupdata"})
+	ul4_attrs = Control.ul4_attrs.union({"lookupdata"})
 
 	lookupdata = AttrDictAttr(get=True, set=True, required=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The possible values this control might have")
 	none_key = Attr(str, get="", ul4get="_none_key_get", doc='Key to use for a "Nothing selected" option. (from the active view, else None)')
@@ -1960,7 +1960,7 @@ class LookupChoiceControl(LookupControl):
 class AppLookupControl(Control):
 	_type = "applookup"
 
-	ul4attrs = Control.ul4attrs.union({"lookup_app", "lookup_controls", "lookupapp", "lookupcontrols"})
+	ul4_attrs = Control.ul4_attrs.union({"lookup_app", "lookup_controls", "lookupapp", "lookupcontrols"})
 
 	lookup_app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lookup_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2218,7 +2218,7 @@ class GeoControl(Control):
 
 @register("viewcontrol")
 class ViewControl(Base):
-	ul4attrs = {"id", "label", "identifier", "type", "subtype", "view", "control", "type", "subtype", "top", "left", "width", "height", "liveupdate", "default", "tabIndex", "minlength", "maxlength", "required", "placeholder", "mode", "labelpos", "lookup_none_key", "lookup_none_label", "lookupdata", "autoalign", "labelwidth", "autoexpandable"}
+	ul4_attrs = {"id", "label", "identifier", "type", "subtype", "view", "control", "type", "subtype", "top", "left", "width", "height", "liveupdate", "default", "tabIndex", "minlength", "maxlength", "required", "placeholder", "mode", "labelpos", "lookup_none_key", "lookup_none_label", "lookupdata", "autoalign", "labelwidth", "autoexpandable"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	identifier = Attr(str, get="", repr=True, ul4get="_identifier_get", doc="identifier of the control of this viewcontrol")
@@ -2297,7 +2297,7 @@ class ViewControl(Base):
 
 @register("record")
 class Record(Base):
-	ul4attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update", "executeaction", "state"}
+	ul4_attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update", "executeaction", "state"}
 
 	class State(misc.Enum):
 		"""
@@ -2492,8 +2492,8 @@ class Record(Base):
 		"""
 		return set(super().__dir__()) | {f"f_{identifier}" for identifier in self.app.controls} | {f"v_{identifier}" for identifier in self.app.controls} | {f"c_{identifier}" for identifier in self.children}
 
-	def ul4hasattr(self, name):
-		if name in self.ul4attrs:
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
 			return True
 		elif name.startswith(("f_", "v_")):
 			return name[2:] in self.app.controls
@@ -2501,11 +2501,11 @@ class Record(Base):
 			return name[2:] in self.children
 		return False
 
-	def ul4getattr(self, name):
+	def ul4_getattr(self, name):
 		attr = getattr(self.__class__, name, None)
 		if isinstance(attr, Attr):
 			return attr.ul4get(self)
-		elif self.ul4hasattr(name):
+		elif self.ul4_hasattr(name):
 			# For these method call the version of the method instead, that doesn't
 			# support the ``handler`` parameter.
 			if name in {"save", "delete", "executeaction"}:
@@ -2514,7 +2514,7 @@ class Record(Base):
 				return getattr(self, name)
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
-	def ul4setattr(self, name, value):
+	def ul4_setattr(self, name, value):
 		if name.startswith("v_") and name[2:] in self.app.controls:
 			setattr(self, name, value)
 		else:
@@ -2604,7 +2604,7 @@ class Record(Base):
 
 
 class Field:
-	ul4attrs = {"control", "record", "label", "lookupdata", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
+	ul4_attrs = {"control", "record", "label", "lookupdata", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
 
 	def __init__(self, control, record, value):
 		self.control = control
@@ -2762,7 +2762,7 @@ class Field:
 
 
 class Attachment(Base):
-	ul4attrs = {"id", "type", "record", "label", "active"}
+	ul4_attrs = {"id", "type", "record", "label", "active"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	record = Attr(Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The record this attachment belongs to")
@@ -2782,7 +2782,7 @@ class Attachment(Base):
 
 @register("imageattachment")
 class ImageAttachment(Attachment):
-	ul4attrs = Attachment.ul4attrs.union({"original", "thumb", "small", "medium", "large"})
+	ul4_attrs = Attachment.ul4_attrs.union({"original", "thumb", "small", "medium", "large"})
 	type = "imageattachment"
 
 	original = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Original uploaded image")
@@ -2801,7 +2801,7 @@ class ImageAttachment(Attachment):
 
 
 class SimpleAttachment(Attachment):
-	ul4attrs = Attachment.ul4attrs.union({"value"})
+	ul4_attrs = Attachment.ul4_attrs.union({"value"})
 
 	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The value of the attachment (a string, file, URL, note or JSON)")
 
@@ -3020,7 +3020,7 @@ class ViewTemplate(Template):
 
 @register("datasource")
 class DataSource(Base):
-	ul4attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includeparams", "includeviews", "includecategories", "orders", "children"}
+	ul4_attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includeparams", "includeviews", "includecategories", "orders", "children"}
 
 	class IncludeControls(misc.IntEnum):
 		"""
@@ -3164,7 +3164,7 @@ class DataSource(Base):
 
 @register("datasourcechildren")
 class DataSourceChildren(Base):
-	ul4attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
+	ul4_attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The :class:`DataSource` this object belongs to")
@@ -3213,7 +3213,7 @@ class DataSourceChildren(Base):
 
 @register("dataorder")
 class DataOrder(Base):
-	ul4attrs = {"id", "parent", "expression", "direction", "nulls"}
+	ul4_attrs = {"id", "parent", "expression", "direction", "nulls"}
 
 	class Direction(misc.Enum):
 		"""
@@ -3283,7 +3283,7 @@ class DataOrder(Base):
 
 @register("dataaction")
 class DataAction(Base):
-	ul4attrs = {
+	ul4_attrs = {
 		"id",
 		"app",
 		"identifier",
@@ -3354,7 +3354,7 @@ class DataAction(Base):
 
 
 class DataActionCommand(Base):
-	ul4attrs = {
+	ul4_attrs = {
 		"id",
 		"parent",
 		"condition",
@@ -3413,7 +3413,7 @@ class DataActionCommandDateRepeater(DataActionCommand):
 
 
 class DataActionCommandWithIdentifier(DataActionCommand):
-	ul4attrs = DataActionCommand.ul4attrs.union({
+	ul4_attrs = DataActionCommand.ul4_attrs.union({
 		"app",
 		"identifier",
 		"children",
@@ -3458,7 +3458,7 @@ class DataActionCommandLoop(DataActionCommandWithIdentifier):
 
 @register("dataactiondetail")
 class DataActionDetail(Base):
-	ul4attrs = {
+	ul4_attrs = {
 		"id",
 		"parent",
 		"control",
@@ -3555,7 +3555,7 @@ class DataActionDetail(Base):
 
 @register("installation")
 class Installation(Base):
-	ul4attrs = {"id", "name"}
+	ul4_attrs = {"id", "name"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -3566,7 +3566,7 @@ class Installation(Base):
 
 
 class LayoutControl(Base):
-	ul4attrs = {"id", "label", "identifier", "view", "type", "subtype", "top", "left", "width", "height"}
+	ul4_attrs = {"id", "label", "identifier", "view", "type", "subtype", "top", "left", "width", "height"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Label to be displayed for this control")
@@ -3591,7 +3591,7 @@ class LayoutControl(Base):
 class HTMLLayoutControl(LayoutControl):
 	type = "string"
 	_subtype = "html"
-	ul4attrs = LayoutControl.ul4attrs.union({"value"})
+	ul4_attrs = LayoutControl.ul4_attrs.union({"value"})
 
 	value = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="HTML source")
 
@@ -3601,7 +3601,7 @@ class ImageLayoutControl(LayoutControl):
 	type = "image"
 	_subtype = None
 
-	ul4attrs = LayoutControl.ul4attrs.union({"image_original", "image_scaled"})
+	ul4_attrs = LayoutControl.ul4_attrs.union({"image_original", "image_scaled"})
 
 	image_original = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Original uploaded image")
 	image_scaled = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="image scaled to final size")
@@ -3609,7 +3609,7 @@ class ImageLayoutControl(LayoutControl):
 
 @register("view")
 class View(Base):
-	ul4attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "lang", "controls", "layout_controls"}
+	ul4_attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "lang", "controls", "layout_controls"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -3641,7 +3641,7 @@ class View(Base):
 
 @register("datasourcedata")
 class DataSourceData(Base):
-	ul4attrs = {"id", "identifier", "app", "apps"}
+	ul4_attrs = {"id", "identifier", "app", "apps"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="A unique identifier for the data source")
@@ -3661,7 +3661,7 @@ class DataSourceData(Base):
 
 @register("lookupitem")
 class LookupItem(Base):
-	ul4attrs = {"control", "key", "label"}
+	ul4_attrs = {"control", "key", "label"}
 
 	control = Attr(lambda: LookupControl, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The control this lookup item belongs to")
 	key = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
@@ -3675,7 +3675,7 @@ class LookupItem(Base):
 
 @register("viewlookupitem")
 class ViewLookupItem(Base):
-	ul4attrs = {"key", "label", "visible"}
+	ul4_attrs = {"key", "label", "visible"}
 
 	key = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Label to be displayed for this lookup item")
@@ -3695,7 +3695,7 @@ class ViewLookupItem(Base):
 
 @register("category")
 class Category(Base):
-	ul4attrs = {"id", "identifier", "name", "order", "parent", "children", "apps"}
+	ul4_attrs = {"id", "identifier", "name", "order", "parent", "children", "apps"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
@@ -3721,7 +3721,7 @@ class Category(Base):
 
 @register("appparameter")
 class AppParameter(Base):
-	ul4attrs = {"id", "app", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_attrs = {"id", "app", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The app this parameter belong to")
