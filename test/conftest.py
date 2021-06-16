@@ -193,10 +193,16 @@ class JavaDB(LocalTemplateHandler):
 			templateidentifier=templateidentifier,
 			params=params,
 		)
+		print(repr(data))
 		dump = ul4on.dumps(data).encode("utf-8")
-		result = subprocess.run("java com.livinglogic.livingapi.Tester", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+		print(repr(dump))
+		result = subprocess.run("java com.livinglogic.livingapps.livingapi.Tester", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 		# Check if we have an exception
-		self._find_exception(result.stderr.decode("utf-8", "passbytes"))
+		stderr = result.stderr.decode("utf-8", "passbytes")
+		self._find_exception(stderr)
+		if stderr:
+			# No exception found, but we still have error output, so complain anyway
+			raise ValueError(stderr)
 		return result.stdout.decode("utf-8", "passbytes")
 
 	def _find_exception(self, output):
