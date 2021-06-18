@@ -2848,15 +2848,17 @@ class JSONAttachment(SimpleAttachment):
 
 
 class CustomAttachment(Base):
-	ul4_attrs = {"mimetype", "content"}
+	ul4_attrs = {"mimetype", "filename", "content"}
 	ul4_type = ul4c.Type("livingapps")
 
 	mimetype = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, repr=True, doc="MIME type of the attachment")
+	filename = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, repr=True, doc="Filename under which this attachment should be stored")
 	content = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="String content of the attachment")
 	size = Attr(int, get="", repr=True, doc="Size of the content")
 
-	def __init__(self, mimetype=None, content=None):
+	def __init__(self, mimetype=None, filename=None, content=None):
 		self.mimetype = mimetype
+		self.filename = filename
 		self.content = content
 
 	def _size_get(self):
