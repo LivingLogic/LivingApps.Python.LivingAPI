@@ -26,14 +26,20 @@ __docformat__ = "reStructuredText"
 
 NoneType = type(None)
 
+module = types.ModuleType("livingapps", "LivingAPI types")
+module.ul4_attrs = {"__name__", "__doc__"}
+
 def register(name):
 	"""
 	Since we must pass the ID as a keyword argument, we have to take the
 	registration logic into our own hand.
 	"""
 	def registration(cls):
-		cls.ul4onname = "de.livinglogic.livingapi." + name
-		ul4on._registry[cls.ul4onname] = cls.ul4oncreate
+		if name is not None:
+			cls.ul4onname = "de.livinglogic.livingapi." + name
+			ul4on._registry[cls.ul4onname] = cls.ul4oncreate
+		setattr(module, cls.__name__, cls.ul4_type)
+		module.ul4_attrs.add(cls.__name__)
 		return cls
 	return registration
 
@@ -836,6 +842,7 @@ class Base:
 @register("flashmessage")
 class FlashMessage(Base):
 	ul4_attrs = {"timestamp", "type", "title", "message"}
+	ul4_type = ul4c.Type("la")
 
 	class Type(misc.Enum):
 		"""
@@ -862,6 +869,7 @@ class FlashMessage(Base):
 @register("file")
 class File(Base):
 	ul4_attrs = {"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	url = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Server relative URL of the file")
@@ -918,6 +926,7 @@ class File(Base):
 @register("geo")
 class Geo(Base):
 	ul4_attrs = {"lat", "long", "info"}
+	ul4_type = ul4c.Type("la")
 
 	lat = FloatAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Latitude (i.e. north/south)")
 	long = FloatAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Longitude (i.e. east/west)")
@@ -941,6 +950,7 @@ class User(Base):
 		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
 		"company_website", "company", "position", "department", "keyviews"
 	}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	publicid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1010,6 +1020,7 @@ class User(Base):
 @register("keyview")
 class KeyView(Base):
 	ul4_attrs = {"id", "identifier", "name", "key", "user"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
@@ -1049,6 +1060,7 @@ class Globals(Base):
 		"response",
 		"geo",
 	}
+	ul4_type = ul4c.Type("la")
 
 	class Mode(misc.Enum):
 		"""
@@ -1215,6 +1227,7 @@ class App(Base):
 		"viewtemplates",
 		"dataactions",
 	}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	globals = Attr(Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The :class:`Globals` objects")
@@ -1450,6 +1463,7 @@ class Control(Base):
 	_type = None
 	_subtype = None
 	ul4_attrs = {"id", "identifier", "app", "label", "type", "subtype", "fulltype", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"}
+	ul4_type = ul4c.Type("la")
 
 	class Mode(misc.Enum):
 		DISPLAY = "display"
@@ -1602,6 +1616,7 @@ class Control(Base):
 
 class StringControl(Control):
 	_type = "string"
+	ul4_type = ul4c.Type("la")
 
 	minlength = Attr(int, get="", ul4get="_minlength_get", doc="The minimum allowed string length (``None`` means unlimited).")
 	maxlength = Attr(int, get="", ul4get="_maxlength_get", doc="The maximum allowed string length (``None`` means unlimited).")
@@ -1636,30 +1651,35 @@ class StringControl(Control):
 class TextControl(StringControl):
 	_subtype = "text"
 	_fulltype = f"{StringControl._type}/{_subtype}"
+	ul4_type = ul4c.Type("la")
 
 
 @register("urlcontrol")
 class URLControl(StringControl):
 	_subtype = "url"
 	_fulltype = f"{StringControl._type}/{_subtype}"
+	ul4_type = ul4c.Type("la")
 
 
 @register("emailcontrol")
 class EmailControl(StringControl):
 	_subtype = "email"
 	_fulltype = f"{StringControl._type}/{_subtype}"
+	ul4_type = ul4c.Type("la")
 
 
 @register("passwordcontrol")
 class PasswordControl(StringControl):
 	_subtype = "password"
 	_fulltype = f"{StringControl._type}/{_subtype}"
+	ul4_type = ul4c.Type("la")
 
 
 @register("telcontrol")
 class TelControl(StringControl):
 	_subtype = "tel"
 	_fulltype = f"{StringControl._type}/{_subtype}"
+	ul4_type = ul4c.Type("la")
 
 
 class EncryptionType(misc.IntEnum):
@@ -1674,6 +1694,7 @@ class TextAreaControl(StringControl):
 	_fulltype = f"{StringControl._type}/{_subtype}"
 
 	ul4_attrs = StringControl.ul4_attrs.union({"encrypted"})
+	ul4_type = ul4c.Type("la")
 
 	encrypted = IntEnumAttr(EncryptionType, get=True, set=True, default=EncryptionType.NONE, ul4get=True, ul4onget=True, ul4onset=True, doc="Is this field encrypted (and how/when will it be encrypted)?")
 
@@ -1689,11 +1710,15 @@ class HTMLControl(StringControl):
 	_subtype = "html"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 
 @register("intcontrol")
 class IntControl(Control):
 	_type = "int"
 	_fulltype = _type
+
+	ul4_type = ul4c.Type("la")
 
 	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, int):
@@ -1706,6 +1731,8 @@ class IntControl(Control):
 class NumberControl(Control):
 	_type = "number"
 	_fulltype = _type
+
+	ul4_type = ul4c.Type("la")
 
 	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, (int, float)):
@@ -1721,6 +1748,7 @@ class DateControl(Control):
 	_fulltype = f"{_type}/{_subtype}"
 
 	ul4_attrs = Control.ul4_attrs.union({"format"})
+	ul4_type = ul4c.Type("la")
 
 	format = Attr(str, get="", ul4get="_format_get", doc="UL4 format string for formatting values of this type (depends on ``globals.lang``")
 
@@ -1773,6 +1801,8 @@ class DateControl(Control):
 class DatetimeMinuteControl(DateControl):
 	_subtype = "datetimeminute"
 	_fulltype = f"{DateControl._type}/{_subtype}"
+
+	ul4_type = ul4c.Type("la")
 
 	def _set_value(self, field, value):
 		if isinstance(value, datetime.datetime):
@@ -1828,6 +1858,8 @@ class DatetimeSecondControl(DateControl):
 	_subtype = "datetimesecond"
 	_fulltype = f"{DateControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 	def _set_value(self, field, value):
 		if isinstance(value, datetime.datetime):
 			value = value.replace(microsecond=0)
@@ -1882,6 +1914,8 @@ class BoolControl(Control):
 	_type = "bool"
 	_fulltype = _type
 
+	ul4_type = ul4c.Type("la")
+
 	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, bool):
 			field.add_error(error_wrong_type(value))
@@ -1899,6 +1933,7 @@ class LookupControl(Control):
 	_type = "lookup"
 
 	ul4_attrs = Control.ul4_attrs.union({"lookupdata"})
+	ul4_type = ul4c.Type("la")
 
 	lookupdata = AttrDictAttr(get=True, set=True, required=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The possible values this control might have")
 	none_key = Attr(str, get="", ul4get="_none_key_get", doc='Key to use for a "Nothing selected" option. (from the active view, else None)')
@@ -1948,11 +1983,15 @@ class LookupSelectControl(LookupControl):
 	_subtype = "select"
 	_fulltype = f"{LookupControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 
 @register("lookupradiocontrol")
 class LookupRadioControl(LookupControl):
 	_subtype = "radio"
 	_fulltype = f"{LookupControl._type}/{_subtype}"
+
+	ul4_type = ul4c.Type("la")
 
 
 @register("lookupchoicecontrol")
@@ -1960,11 +1999,14 @@ class LookupChoiceControl(LookupControl):
 	_subtype = "choice"
 	_fulltype = f"{LookupControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 
 class AppLookupControl(Control):
 	_type = "applookup"
 
 	ul4_attrs = Control.ul4_attrs.union({"lookup_app", "lookup_controls", "lookupapp", "lookupcontrols"})
+	ul4_type = ul4c.Type("la")
 
 	lookup_app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lookup_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2026,11 +2068,15 @@ class AppLookupSelectControl(AppLookupControl):
 	_subtype = "select"
 	_fulltype = f"{AppLookupControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 
 @register("applookupradiocontrol")
 class AppLookupRadioControl(AppLookupControl):
 	_subtype = "radio"
 	_fulltype = f"{AppLookupControl._type}/{_subtype}"
+
+	ul4_type = ul4c.Type("la")
 
 
 @register("applookupchoicecontrol")
@@ -2038,9 +2084,13 @@ class AppLookupChoiceControl(AppLookupControl):
 	_subtype = "choice"
 	_fulltype = f"{AppLookupControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 
 class MultipleLookupControl(LookupControl):
 	_type = "multiplelookup"
+
+	ul4_type = ul4c.Type("la")
 
 	def _set_value(self, field, value):
 		if value is None:
@@ -2076,11 +2126,15 @@ class MultipleLookupSelectControl(MultipleLookupControl):
 	_subtype = "select"
 	_fulltype = f"{MultipleLookupControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 
 @register("multiplelookupcheckboxcontrol")
 class MultipleLookupCheckboxControl(MultipleLookupControl):
 	_subtype = "checkbox"
 	_fulltype = f"{MultipleLookupControl._type}/{_subtype}"
+
+	ul4_type = ul4c.Type("la")
 
 
 @register("multiplelookupchoicecontrol")
@@ -2088,9 +2142,13 @@ class MultipleLookupChoiceControl(MultipleLookupControl):
 	_subtype = "choice"
 	_fulltype = f"{MultipleLookupControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 
 class MultipleAppLookupControl(AppLookupControl):
 	_type = "multipleapplookup"
+
+	ul4_type = ul4c.Type("la")
 
 	def _set_value(self, field, value):
 		if value is None:
@@ -2149,11 +2207,15 @@ class MultipleAppLookupSelectControl(MultipleAppLookupControl):
 	_subtype = "select"
 	_fulltype = f"{MultipleAppLookupControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 
 @register("multipleapplookupcheckboxcontrol")
 class MultipleAppLookupCheckboxControl(MultipleAppLookupControl):
 	_subtype = "checkbox"
 	_fulltype = f"{MultipleAppLookupControl._type}/{_subtype}"
+
+	ul4_type = ul4c.Type("la")
 
 
 @register("multipleapplookupchoicecontrol")
@@ -2161,11 +2223,15 @@ class MultipleAppLookupChoiceControl(MultipleAppLookupControl):
 	_subtype = "choice"
 	_fulltype = f"{MultipleAppLookupControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 
 @register("filecontrol")
 class FileControl(Control):
 	_type = "file"
 	_fulltype = _type
+
+	ul4_type = ul4c.Type("la")
 
 	def _set_value(self, field, value):
 		if value is not None and not isinstance(value, File):
@@ -2189,11 +2255,15 @@ class FileSignatureControl(FileControl):
 	_subtype = "signature"
 	_fulltype = f"{FileControl._type}/{_subtype}"
 
+	ul4_type = ul4c.Type("la")
+
 
 @register("geocontrol")
 class GeoControl(Control):
 	_type = "geo"
 	_fulltype = _type
+
+	ul4_type = ul4c.Type("la")
 
 	def _set_value(self, field, value):
 		if isinstance(value, str):
@@ -2223,6 +2293,7 @@ class GeoControl(Control):
 @register("viewcontrol")
 class ViewControl(Base):
 	ul4_attrs = {"id", "label", "identifier", "type", "subtype", "view", "control", "type", "subtype", "top", "left", "width", "height", "liveupdate", "default", "tabIndex", "minlength", "maxlength", "required", "placeholder", "mode", "labelpos", "lookup_none_key", "lookup_none_label", "lookupdata", "autoalign", "labelwidth", "autoexpandable"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	identifier = Attr(str, get="", repr=True, ul4get="_identifier_get", doc="identifier of the control of this viewcontrol")
@@ -2302,6 +2373,7 @@ class ViewControl(Base):
 @register("record")
 class Record(Base):
 	ul4_attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update", "executeaction", "state"}
+	ul4_type = ul4c.Type("la")
 
 	class State(misc.Enum):
 		"""
@@ -2609,6 +2681,7 @@ class Record(Base):
 
 class Field:
 	ul4_attrs = {"control", "record", "label", "lookupdata", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
+	ul4_type = ul4c.Type("la")
 
 	def __init__(self, control, record, value):
 		self.control = control
@@ -2767,6 +2840,7 @@ class Field:
 
 class Attachment(Base):
 	ul4_attrs = {"id", "type", "record", "label", "active"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	record = Attr(Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The record this attachment belongs to")
@@ -2787,6 +2861,8 @@ class Attachment(Base):
 @register("imageattachment")
 class ImageAttachment(Attachment):
 	ul4_attrs = Attachment.ul4_attrs.union({"original", "thumb", "small", "medium", "large"})
+	ul4_type = ul4c.Type("la")
+
 	type = "imageattachment"
 
 	original = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Original uploaded image")
@@ -2806,6 +2882,7 @@ class ImageAttachment(Attachment):
 
 class SimpleAttachment(Attachment):
 	ul4_attrs = Attachment.ul4_attrs.union({"value"})
+	ul4_type = ul4c.Type("la")
 
 	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The value of the attachment (a string, file, URL, note or JSON)")
 
@@ -2816,6 +2893,8 @@ class SimpleAttachment(Attachment):
 
 @register("fileattachment")
 class FileAttachment(SimpleAttachment):
+	ul4_type = ul4c.Type("la")
+
 	type = "fileattachment"
 
 	value = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2823,6 +2902,8 @@ class FileAttachment(SimpleAttachment):
 
 @register("urlattachment")
 class URLAttachment(SimpleAttachment):
+	ul4_type = ul4c.Type("la")
+
 	type = "urlattachment"
 
 	value = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2830,6 +2911,8 @@ class URLAttachment(SimpleAttachment):
 
 @register("noteattachment")
 class NoteAttachment(SimpleAttachment):
+	ul4_type = ul4c.Type("la")
+
 	type = "noteattachment"
 
 	value = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2837,6 +2920,8 @@ class NoteAttachment(SimpleAttachment):
 
 @register("jsonattachment")
 class JSONAttachment(SimpleAttachment):
+	ul4_type = ul4c.Type("la")
+
 	type = "jsonattachment"
 
 	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
@@ -2847,9 +2932,10 @@ class JSONAttachment(SimpleAttachment):
 		self.value = value
 
 
+@register(None)
 class CustomAttachment(Base):
 	ul4_attrs = {"mimetype", "filename", "content"}
-	ul4_type = ul4c.Type("livingapps")
+	ul4_type = ul4c.InstantiableType("la")
 
 	mimetype = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, repr=True, doc="MIME type of the attachment")
 	filename = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, repr=True, doc="Filename under which this attachment should be stored")
@@ -2866,6 +2952,8 @@ class CustomAttachment(Base):
 
 
 class Template(Base):
+	ul4_type = ul4c.Type("la")
+
 	# Data descriptors for instance attributes
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The app this template belongs to")
@@ -2956,6 +3044,8 @@ class InternalTemplate(Template):
 
 @register("viewtemplate")
 class ViewTemplate(Template):
+	ul4_type = ul4c.Type("la")
+
 	class Type(misc.Enum):
 		"""
 		The type of a view template.
@@ -3043,6 +3133,7 @@ class ViewTemplate(Template):
 @register("datasource")
 class DataSource(Base):
 	ul4_attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includeparams", "includeviews", "includecategories", "orders", "children"}
+	ul4_type = ul4c.Type("la")
 
 	class IncludeControls(misc.IntEnum):
 		"""
@@ -3187,6 +3278,7 @@ class DataSource(Base):
 @register("datasourcechildren")
 class DataSourceChildren(Base):
 	ul4_attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The :class:`DataSource` this object belongs to")
@@ -3236,6 +3328,7 @@ class DataSourceChildren(Base):
 @register("dataorder")
 class DataOrder(Base):
 	ul4_attrs = {"id", "parent", "expression", "direction", "nulls"}
+	ul4_type = ul4c.Type("la")
 
 	class Direction(misc.Enum):
 		"""
@@ -3318,6 +3411,7 @@ class DataAction(Base):
 		"filter",
 		"commands",
 	}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The app this action belongs to")
@@ -3382,6 +3476,7 @@ class DataActionCommand(Base):
 		"condition",
 		"details",
 	}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	parent = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The data action this command belongs to or the command this comamnd is a sub command of")
@@ -3411,27 +3506,27 @@ class DataActionCommand(Base):
 
 @register("dataactioncommand_update")
 class DataActionCommandUpdate(DataActionCommand):
-	pass
+	ul4_type = ul4c.Type("la")
 
 
 @register("dataactioncommand_task")
 class DataActionCommandTask(DataActionCommand):
-	pass
+	ul4_type = ul4c.Type("la")
 
 
 @register("dataactioncommand_delete")
 class DataActionCommandDelete(DataActionCommand):
-	pass
+	ul4_type = ul4c.Type("la")
 
 
 @register("dataactioncommand_onboarding")
 class DataActionCommandOnboarding(DataActionCommand):
-	pass
+	ul4_type = ul4c.Type("la")
 
 
 @register("dataactioncommand_daterepeater")
 class DataActionCommandDateRepeater(DataActionCommand):
-	pass
+	ul4_type = ul4c.Type("la")
 
 
 class DataActionCommandWithIdentifier(DataActionCommand):
@@ -3440,6 +3535,7 @@ class DataActionCommandWithIdentifier(DataActionCommand):
 		"identifier",
 		"children",
 	})
+	ul4_type = ul4c.Type("la")
 
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The target app ")
 	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="A variable name introduced by this command")
@@ -3460,22 +3556,22 @@ class DataActionCommandWithIdentifier(DataActionCommand):
 
 @register("dataactioncommand_insert")
 class DataActionCommandInsert(DataActionCommandWithIdentifier):
-	pass
+	ul4_type = ul4c.Type("la")
 
 
 @register("dataactioncommand_insertform")
 class DataActionCommandInsertForm(DataActionCommandWithIdentifier):
-	pass
+	ul4_type = ul4c.Type("la")
 
 
 @register("dataactioncommand_insertformstatic")
 class DataActionCommandInsertFormStatic(DataActionCommandWithIdentifier):
-	pass
+	ul4_type = ul4c.Type("la")
 
 
 @register("dataactioncommand_loop")
 class DataActionCommandLoop(DataActionCommandWithIdentifier):
-	pass
+	ul4_type = ul4c.Type("la")
 
 
 @register("dataactiondetail")
@@ -3487,6 +3583,7 @@ class DataActionDetail(Base):
 		"type",
 		"children",
 	}
+	ul4_type = ul4c.Type("la")
 
 	class Type(misc.Enum):
 		"""
@@ -3578,6 +3675,7 @@ class DataActionDetail(Base):
 @register("installation")
 class Installation(Base):
 	ul4_attrs = {"id", "name"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -3589,6 +3687,7 @@ class Installation(Base):
 
 class LayoutControl(Base):
 	ul4_attrs = {"id", "label", "identifier", "view", "type", "subtype", "top", "left", "width", "height"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Label to be displayed for this control")
@@ -3613,7 +3712,9 @@ class LayoutControl(Base):
 class HTMLLayoutControl(LayoutControl):
 	type = "string"
 	_subtype = "html"
+
 	ul4_attrs = LayoutControl.ul4_attrs.union({"value"})
+	ul4_type = ul4c.Type("la")
 
 	value = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="HTML source")
 
@@ -3624,6 +3725,7 @@ class ImageLayoutControl(LayoutControl):
 	_subtype = None
 
 	ul4_attrs = LayoutControl.ul4_attrs.union({"image_original", "image_scaled"})
+	ul4_type = ul4c.Type("la")
 
 	image_original = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Original uploaded image")
 	image_scaled = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="image scaled to final size")
@@ -3632,6 +3734,7 @@ class ImageLayoutControl(LayoutControl):
 @register("view")
 class View(Base):
 	ul4_attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "lang", "controls", "layout_controls"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -3664,6 +3767,7 @@ class View(Base):
 @register("datasourcedata")
 class DataSourceData(Base):
 	ul4_attrs = {"id", "identifier", "app", "apps"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="A unique identifier for the data source")
@@ -3684,6 +3788,7 @@ class DataSourceData(Base):
 @register("lookupitem")
 class LookupItem(Base):
 	ul4_attrs = {"control", "key", "label"}
+	ul4_type = ul4c.Type("la")
 
 	control = Attr(lambda: LookupControl, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The control this lookup item belongs to")
 	key = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
@@ -3698,6 +3803,7 @@ class LookupItem(Base):
 @register("viewlookupitem")
 class ViewLookupItem(Base):
 	ul4_attrs = {"key", "label", "visible"}
+	ul4_type = ul4c.Type("la")
 
 	key = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Label to be displayed for this lookup item")
@@ -3718,6 +3824,7 @@ class ViewLookupItem(Base):
 @register("category")
 class Category(Base):
 	ul4_attrs = {"id", "identifier", "name", "order", "parent", "children", "apps"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
@@ -3744,6 +3851,7 @@ class Category(Base):
 @register("appparameter")
 class AppParameter(Base):
 	ul4_attrs = {"id", "app", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_type = ul4c.Type("la")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The app this parameter belong to")
@@ -3769,16 +3877,6 @@ class AppParameter(Base):
 	@property
 	def ul4onid(self):
 		return self.id
-
-
-module = types.ModuleType("ivingapps", "LivingAPI types")
-module.ul4_attrs = {"__name__", "__doc__"}
-
-def _add_module_attr(value):
-	setattr(module, value.__name__, value)
-	module.ul4_attrs.add(value.__name__)
-
-_add_module_attr(CustomAttachment)
 
 
 from .handlers import *
