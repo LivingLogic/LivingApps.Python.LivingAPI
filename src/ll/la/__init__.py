@@ -215,10 +215,10 @@ def _resolve_type(t):
 def _is_timezone(value):
 	return value[0] in "+-" and value[1:3].isdigit() and value[3] == ":" and value[4:6].isdigit()
 
+
 ###
 ### Exceptions
 ###
-
 
 class NoHandlerError(ValueError):
 	def __str__(self):
