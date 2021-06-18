@@ -2851,12 +2851,16 @@ class CustomAttachment(Base):
 	ul4_attrs = {"mimetype", "content"}
 	ul4_type = ul4c.Type("livingapps")
 
-	mimetype = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="MIME type of the attachment")
+	mimetype = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, repr=True, doc="MIME type of the attachment")
 	content = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="String content of the attachment")
+	size = Attr(int, get="", repr=True, doc="Size of the content")
 
 	def __init__(self, mimetype=None, content=None):
 		self.mimetype = mimetype
-		self.mimetype = mimetype
+		self.content = content
+
+	def _size_get(self):
+		return len(self.content) if self.content is not None else None
 
 
 class Template(Base):
