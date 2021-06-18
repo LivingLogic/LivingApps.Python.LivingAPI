@@ -12,7 +12,7 @@
 See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 """
 
-import io, datetime, operator, string, json, pathlib
+import io, datetime, operator, string, json, pathlib, types
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
@@ -817,15 +817,19 @@ class Base:
 		attr = getattr(self.__class__, name, None)
 		if isinstance(attr, Attr):
 			return attr.ul4get(self)
+		elif isinstance(attr, property):
+			return attr.fget(self)
 		elif self.ul4_hasattr(name):
 			return getattr(self, name)
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def ul4_setattr(self, name, value):
 		attr = getattr(self.__class__, name, None)
-		if not isinstance(attr, Attr):
-			raise AttributeError(error_attribute_doesnt_exist(self, name))
-		attr.ul4set(self, value)
+		if isinstance(attr, Attr):
+			attr.ul4set(self, value)
+		elif isinstance(attr, property):
+			return attr.fset(self, value)
+		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 
 
@@ -2843,6 +2847,18 @@ class JSONAttachment(SimpleAttachment):
 		self.value = value
 
 
+class CustomAttachment(Base):
+	ul4_attrs = {"mimetype", "content"}
+	ul4_type = ul4c.Type("livingapps")
+
+	mimetype = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="MIME type of the attachment")
+	content = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="String content of the attachment")
+
+	def __init__(self, mimetype=None, content=None):
+		self.mimetype = mimetype
+		self.mimetype = mimetype
+
+
 class Template(Base):
 	# Data descriptors for instance attributes
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
@@ -3747,6 +3763,16 @@ class AppParameter(Base):
 	@property
 	def ul4onid(self):
 		return self.id
+
+
+module = types.ModuleType("ivingapps", "LivingAPI types")
+module.ul4_attrs = {"__name__", "__doc__"}
+
+def _add_module_attr(value):
+	setattr(module, value.__name__, value)
+	module.ul4_attrs.add(value.__name__)
+
+_add_module_attr(CustomAttachment)
 
 
 from .handlers import *
