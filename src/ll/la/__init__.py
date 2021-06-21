@@ -2889,7 +2889,7 @@ class SimpleAttachment(Attachment):
 
 @register("fileattachment")
 class FileAttachment(SimpleAttachment):
-	ul4_type = ul4c.Type("la", "FileAttachment", "An file attachment of a record")
+	ul4_type = ul4c.Type("la", "FileAttachment", "A file attachment of a record")
 
 	type = "fileattachment"
 
@@ -2907,7 +2907,7 @@ class URLAttachment(SimpleAttachment):
 
 @register("noteattachment")
 class NoteAttachment(SimpleAttachment):
-	ul4_type = ul4c.Type("la", "NoteAttachment", "An note attachment of a record")
+	ul4_type = ul4c.Type("la", "NoteAttachment", "A note attachment of a record")
 
 	type = "noteattachment"
 
@@ -2931,7 +2931,7 @@ class JSONAttachment(SimpleAttachment):
 @register(None)
 class EMailAttachment(Base):
 	ul4_attrs = {"mimetype", "filename", "content"}
-	ul4_type = ul4c.InstantiableType("la", "EMailAttachment", "A email text attachment")
+	ul4_type = ul4c.InstantiableType("la", "EMailAttachment", "An email text attachment")
 
 	mimetype = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, repr=True, doc="MIME type of the email attachment")
 	filename = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, repr=True, doc="Filename under which this email attachment should be stored")
