@@ -282,7 +282,7 @@ class Attr:
 		The type of the attribute will be checked when the attribute is set, it
 		must be any of the types in :obj`types`. If no type is passed any type
 		(i.e. any :class:`object`) is allowed. (Furthermore subclasses might
-		e.g. implement certain type conversions on setting).
+		implement certain type conversions on setting).
 
 		If :object:`required` is :const:`False` the value :const:`None` is
 		allowed too.
@@ -297,7 +297,7 @@ class Attr:
 
 		:obj:`repr`, :obj:`get`, :obj:`set`, :obj:`ul4get`, :obj:`ul4set`,
 		:obj:`ul4onget`, :obj:`ul4onset` and :obj:`ul4ondefault` are used to
-		configure the behaviour if this attribute is accessed in certain
+		configure the behaviour when this attribute is accessed in certain
 		access scenarios.
 
 		The following values are supported:
@@ -325,55 +325,51 @@ class Attr:
 		:obj:`repr`
 			Include the attribute in the :func:`repr` output of its object.
 			The canonical implementation will produce output in the form
-			``f"{name}={value!}"``, except when the value is :const:`None` in which
+			``f"{name}={value!r}"``, except when the value is :const:`None` in which
 			case no output will be given. The signature of the callback method is
 			``(instance)``.
 
 		:obj:`get`
 			Return the value of the object when called from Python.
-			The canonical implementation will simply return the appropriate entry
-			of the instance dict. The signature of the callback method is
-			``(instance)``.
+			The canonical implementation will return the appropriate entry of the
+			instance dict. The signature of the callback method is ``(instance)``.
 
 		:obj:`set`
 			Set the value of the attribute from Python. The canonical
-			implementation will simply set the appropriate entry of the instance
-			dict after checking the value against the types given by :obj:`types`
+			implementation will set the appropriate entry of the instance dict
+			after checking the value against the types given by :obj:`types`
 			and :obj:`required`. Subclasses might implement certain additional
 			type conversions or checks. The signature of the callback method is
 			``(instance, value)``.
 
 		:obj:`ul4get`
 			Return the value of the attribute when called from UL4. The canonical
-			implementation will simply return the appropriate entry of the
-			instance dict. The signature of the callback method is ``(instance)``.
+			implementation will return the appropriate entry of the instance dict.
+			The signature of the callback method is ``(instance)``.
 
 		:obj:`ul4set`
-			Set the value of the attribute from UL4. The canonical
-			implementation will simply set the appropriate entry of the instance
-			dict after checking the value against the types given by :obj:`types`
-			and :obj:`required`. Subclasses might implement certain additional
-			type conversions or checks. The signature of the callback method is
-			``(instance, value)``.
+			Set the value of the attribute from UL4. The canonical implementation
+			will set the appropriate entry of the instance dict after checking
+			the value against the types given by :obj:`types` and :obj:`required`.
+			Subclasses might implement certain additional type conversions or
+			checks. The signature of the callback method is ``(instance, value)``.
 
 		:obj:`ul4onget`
 			Return the value of the attribute for serialization via an UL4ON dump.
-			The canonical implementation will simply use the appropriate entry of
-			the instance dict. The signature of the callback method is
-			``(instance)``.
+			The canonical implementation will use the appropriate entry of the
+			instance dict. The signature of the callback method is ``(instance)``.
 
 		:obj:`ul4onset`
 			Set the value of the attribute from the deserialized value from an
-			UL4ON dump. The canonical implementation will simply set the
-			appropriate entry of the instance dict to the given value. No
-			type checks will be performed. The signature of the callback method is
-			``(instance, value)``.
+			UL4ON dump. The canonical implementation will set the appropriate
+			entry of the instance dict to the given value. No type checks will be
+			performed. The signature of the callback method is``(instance, value)``.
 
 		:obj:`ul4ondefault`
 			Set the value of the attribute to its default value when no value
 			is available from the UL4ON dump. The canonical implementation will
-			simply set the appropriate entry of the instance dict to the default
-			value (determined vie :obj:`default` und :obj:`default_factory`.
+			set the appropriate entry of the instance dict to the default value
+			(determined vie :obj:`default` und :obj:`default_factory`.
 			The signature of the callback method is ``(instance)``.
 		"""
 		self.name = None
