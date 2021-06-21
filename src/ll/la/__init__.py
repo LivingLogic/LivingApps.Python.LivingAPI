@@ -1016,7 +1016,7 @@ class User(Base):
 @register("keyview")
 class KeyView(Base):
 	ul4_attrs = {"id", "identifier", "name", "key", "user"}
-	ul4_type = ul4c.Type("la"), "KeyView", "Object granting access to a view template")
+	ul4_type = ul4c.Type("la", "KeyView", "Object granting access to a view template")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
