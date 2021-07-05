@@ -330,7 +330,7 @@ class Attr:
 			``(instance)``.
 
 		:obj:`get`
-			Return the value of the object when called from Python.
+			Return the value of the attribute when accessed from Python.
 			The canonical implementation will return the appropriate entry of the
 			instance dict. The signature of the callback method is ``(instance)``.
 
@@ -343,7 +343,7 @@ class Attr:
 			``(instance, value)``.
 
 		:obj:`ul4get`
-			Return the value of the attribute when called from UL4. The canonical
+			Return the value of the attribute when accessed from UL4. The canonical
 			implementation will return the appropriate entry of the instance dict.
 			The signature of the callback method is ``(instance)``.
 
