@@ -369,7 +369,7 @@ class Attr:
 			Set the value of the attribute to its default value when no value
 			is available from the UL4ON dump. The canonical implementation will
 			set the appropriate entry of the instance dict to the default value
-			(determined vie :obj:`default` und :obj:`default_factory`.
+			(determined vie :obj:`default` und :obj:`default_factory`).
 			The signature of the callback method is ``(instance)``.
 		"""
 		self.name = None
