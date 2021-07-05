@@ -111,11 +111,11 @@ def makeattrs(value):
 
 
 def error_attribute_doesnt_exist(instance, name):
-	return f"{misc.format_class(instance)!r} object has no attribute {name!r}"
+	return f"{misc.format_class(instance)!r} object has no attribute {name!r}."
 
 
 def error_attribute_readonly(instance, name):
-	return f"Attribute {name!r} of {misc.format_class(instance)!r} object is read only"
+	return f"Attribute {name!r} of {misc.format_class(instance)!r} object is read only."
 
 
 def error_attribute_wrong_type(instance, name, value, allowed_types):
@@ -124,13 +124,13 @@ def error_attribute_wrong_type(instance, name, value, allowed_types):
 	else:
 		allowed_types = format_class(allowed_types)
 
-	return f"Value for attribute {name!r} of {misc.format_class(instance)!r} object must be {allowed_types}, but is {format_class(type(value))}"
+	return f"Value for attribute {name!r} of {misc.format_class(instance)!r} object must be {allowed_types}, but is {format_class(type(value))}."
 
 
 def attribute_wrong_value(instance, name, value, allowed_values):
 	allowed_values = format_list([repr(value) for value in allowed_values])
 
-	return f"Value for attribute {name!r} of {misc.format_class(instance)} object must be {allowed_values}, but is {value!r}"
+	return f"Value for attribute {name!r} of {misc.format_class(instance)} object must be {allowed_values}, but is {value!r}."
 
 
 def error_wrong_type(value):
@@ -139,7 +139,7 @@ def error_wrong_type(value):
 
 	Used when setting a field to a value of the wrong type.
 	"""
-	return f"{misc.format_class(value)} is not supported"
+	return f"{misc.format_class(value)} is not supported."
 
 
 def error_wrong_value(value):
@@ -149,7 +149,7 @@ def error_wrong_value(value):
 	For example when a date field is set to a string value, but the string has
 	an unrecognized format, this error message will be used.
 	"""
-	return f"Value {value!r} is not supported"
+	return f"Value {value!r} is not supported."
 
 
 def error_lookupitem_unknown(value):
@@ -158,7 +158,7 @@ def error_lookupitem_unknown(value):
 
 	Used when setting the field of a lookup control to an unknown identifier.
 	"""
-	return f"Lookup item {value!r} is unknown"
+	return f"Lookup item {value!r} is unknown."
 
 
 def error_lookupitem_foreign(value):
@@ -168,7 +168,7 @@ def error_lookupitem_foreign(value):
 	Used when setting the field of a lookup control to a :`class`LookupItem` that
 	belongs to another :class:`LookupControl`.
 	"""
-	return f"Wrong lookup item {value!r}"
+	return f"Wrong lookup item {value!r}."
 
 
 def error_applookuprecord_unknown(value):
@@ -178,7 +178,7 @@ def error_applookuprecord_unknown(value):
 	Used when setting the field of an applookup control to a record identifier
 	that can't be found in the target app.
 	"""
-	return f"Record with id {value!r} unknown"
+	return f"Record with id {value!r} unknown."
 
 
 def error_applookuprecord_foreign(value):
@@ -188,29 +188,29 @@ def error_applookuprecord_foreign(value):
 	Used when setting the field of an applookup control to a :class:`Record`
 	object that belongs to the wrong app.
 	"""
-	return f"Record with id {value.id!r} is from wrong app"
+	return f"Record with id {value.id!r} is from wrong app."
 
 
 def error_object_unsaved(value):
 	"""
 	Return an error message for an unsaved referenced object.
 	"""
-	return f"Referenced object {value!r} hasn't been saved yet"
+	return f"Referenced object {value!r} hasn't been saved yet."
 
 
 def error_object_deleted(value):
 	"""
 	Return an error message for an deleted referenced object.
 	"""
-	return f"Referenced object {value!r} has been deleted"
+	return f"Referenced object {value!r} has been deleted."
 
 
 def error_foreign_view(view):
-	return f"View {view!r} belongs to the wrong app!"
+	return f"View {view!r} belongs to the wrong app."
 
 
 def error_view_not_found(viewid):
-	return f"View with id {viewid!r} can't be found"
+	return f"View with id {viewid!r} can't be found."
 
 def _resolve_type(t):
 	if not isinstance(t, type):
