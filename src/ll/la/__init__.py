@@ -1090,6 +1090,9 @@ class Globals(Base):
 	record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="", doc="The detail record")
 	google_api_key = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Google API key (e.g. for using the Google Maps API)")
 	mode = EnumAttr(Mode, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The type of template we're running")
+	view_template_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True, doc="View template id of last database call")
+	email_template_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True, doc="Email template id of last database call")
+	view_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True, doc="View id of last database call")
 
 	def __init__(self, id=None, version=None, hostname=None, platform=None, mode=None):
 		self.version = version
@@ -1109,6 +1112,9 @@ class Globals(Base):
 		self._templates = None
 		self.google_api_key = None
 		self.mode = mode
+		self.view_template_id = None
+		self.email_template_id = None
+		self.view_id = None
 
 	@property
 	def ul4onid(self):
