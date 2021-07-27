@@ -3791,17 +3791,23 @@ class DataSourceData(Base):
 
 @register("lookupitem")
 class LookupItem(Base):
-	ul4_attrs = {"control", "key", "label"}
+	ul4_attrs = {"id", "control", "key", "label"}
 	ul4_type = ul4c.Type("la", "LookupItem", "An option in a lookup control/field")
 
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	control = Attr(lambda: LookupControl, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The control this lookup item belongs to")
 	key = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Label to be displayed for this lookup item")
 
 	def __init__(self, id=None, control=None, key=None, label=None):
+		self.id = id
 		self.control = control
 		self.key = key
 		self.label = label
+
+	@property
+	def ul4onid(self):
+		return self.id
 
 
 @register("viewlookupitem")
