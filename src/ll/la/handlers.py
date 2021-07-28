@@ -684,8 +684,11 @@ class DBHandler(Handler):
 		args = {
 			"c_user": self.ide_id,
 		}
-		if real and record.id is None:
-			args["p_tpl_uuid"] = app.id
+		if real:
+			if record.id is None:
+				args["p_tpl_uuid"] = app.id
+			mode = record.app.globals.mode
+			args["p_mode"] = mode.value if mode is not None else None
 		if record.id is not None:
 			args[f"p_{pk}"] = record.id
 		for field in record.fields.values():
@@ -743,17 +746,21 @@ class DBHandler(Handler):
 
 	def delete_record(self, record):
 		app = record.app
+		args = {
+			"c_user": self.ide_id,
+			"p_dat_id": record.id,
+		}
 		if app.basetable in {"data_select", "data"}:
 			proc = self.proc_data_delete
+			mode = record.app.globals.mode
+			args["p_mode"] = mode.value if mode is not None else None
 		else:
 			proc = self._getproc(app.deleteprocedure)
 
+			mode = record.app.globals.mode
+
 		c = self.cursor()
-		r = proc(
-			c,
-			c_user=self.ide_id,
-			p_dat_id=record.id,
-		)
+		r = proc(c, **args)
 		record._deleted = True
 
 		if r.p_errormessage:
