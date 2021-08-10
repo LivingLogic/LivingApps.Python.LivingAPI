@@ -1499,7 +1499,7 @@ class Control(Base):
 	required = BoolAttr(get="", ul4get="_required_get", doc="Is a value required for this field? (from the active view, else False)")
 	mode = EnumAttr(Mode, get="", ul4get="", doc="How to display this control in this view? (from the active view, else EDIT)")
 	labelpos = EnumAttr(LabelPos, get="", ul4get="", doc="Position of the form label relative to the input field (from the active viewl, else LEFT, hide label if None).")
-	inview = BoolAttr(get="", ul4get="_inview_get", doc="Is this control in the currently active view")
+	in_activ_view = BoolAttr(get="", ul4get="_in_activ_view_get", doc="Is this control in the currently active view")
 
 	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, default=None):
 		self.id = id
@@ -1602,7 +1602,7 @@ class Control(Base):
 			return labelpos.value
 		return None
 
-	def _inview_get(self):
+	def _in_activ_view_get(self):
 		vc = self._get_viewcontrol()
 		return vc is not None
 
