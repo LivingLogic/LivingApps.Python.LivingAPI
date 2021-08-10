@@ -2015,6 +2015,9 @@ class AppLookupControl(Control):
 	local_master_control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	local_detail_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	remote_master_control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	lookupdata = AttrDictAttr(get=True, set=True, required=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The possible values this control might have")
+	none_key = Attr(str, get="", ul4get="_none_key_get", doc='Key to use for a "Nothing selected" option. (from the active view, else None)')
+	none_label = Attr(str, get="", ul4get="_none_label_get", doc='Label to display for a "Nothing selected" option. (from the active view, else None)')
 
 	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, default=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None):
 		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order, default=default)
@@ -2040,6 +2043,18 @@ class AppLookupControl(Control):
 			field.add_error(error_wrong_type(value))
 			value = None
 		field._value = value
+
+	def _none_key_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.lookup_none_key
+		return None
+
+	def _none_label_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.lookup_none_label
+		return None
 
 	def _asdbarg(self, handler, field):
 		value = field._value
