@@ -3805,19 +3805,56 @@ class DataSourceData(Base):
 
 @register("lookupitem")
 class LookupItem(Base):
-	ul4_attrs = {"id", "control", "key", "label"}
+	ul4_attrs = {"id", "control", "key", "label", "visible"}
 	ul4_type = ul4c.Type("la", "LookupItem", "An option in a lookup control/field")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	control = Attr(lambda: LookupControl, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The control this lookup item belongs to")
 	key = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
-	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Label to be displayed for this lookup item")
+	label = Attr(str, get="", set=True, repr=True, ul4get="_label_get", ul4onget=True, ul4onset=True, doc="Label to be displayed for this lookup item")
+	visible = BoolAttr(get="", repr="", ul4get="_visible_get", doc="Is this item visible in the currently active view?")
 
 	def __init__(self, id=None, control=None, key=None, label=None):
 		self.id = id
 		self.control = control
 		self.key = key
 		self.label = label
+
+	def _get_viewcontrol(self):
+		if self.control is None:
+			return None
+		active_view = self.control.app.active_view
+		if active_view is None or not active_view.controls:
+			return None
+		return active_view.controls.get(self.control.identifier, None)
+
+	def _get_viewlookupitem(self):
+		viewcontrol = self._get_viewcontrol()
+		if viewcontrol is None or viewcontrol.lookupdata is None:
+			return None
+		try:
+			return viewcontrol.lookupdata[self.key]
+		except KeyError:
+			return None
+
+
+	def _label_get(self):
+		viewlookupitem = self._get_viewlookupitem()
+		if viewlookupitem is None:
+			return self.label
+		return viewlookupitem.label
+
+	def _visible_get(self):
+		viewlookupitem = self._get_viewlookupitem()
+		if viewlookupitem is None:
+			return True
+		return viewlookupitem.visible
+
+	def _visible_repr(self):
+		if self.visible:
+			return None
+		else:
+			return "visible=False"
 
 	@property
 	def ul4onid(self):
