@@ -3754,8 +3754,17 @@ class View(Base):
 	ul4_attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "lang", "controls", "layout_controls"}
 	ul4_type = ul4c.Type("la", "View", "An input form for a LivingApps application")
 
+	class CombinedType(misc.Enum):
+		"""
+		If this is a combined view, the type of the combined view.
+		"""
+
+		TABS = "tabs"
+		WIZARD = "wizard"
+
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	combined_type = EnumAttr(CombinedType, get=True, ul4get=True, ul4onget=True, ul4onset=True, doc="If this is a combined view, the type of the combined view.")
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The app this view belongs to")
 	order = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Used to sort the views")
 	width = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Width of the view in pixels")
@@ -3769,6 +3778,7 @@ class View(Base):
 	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None, lang=None):
 		self.id = id
 		self.name = name
+		self.combined_type = None
 		self.app = app
 		self.order = order
 		self.width = width
