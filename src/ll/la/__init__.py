@@ -394,7 +394,7 @@ class Attr:
 		self._name_ul4onset = None
 		self._name_ul4ondefault = None
 		# The following will be replaced by bound methods once we know the attribute name
-		self.get = get 
+		self.get = get
 		self.set = set
 		self.repr = repr
 		self.ul4get = ul4get
@@ -768,7 +768,7 @@ class Base:
 
 		The reason for this workaround is that
 		"""
-		return cls(id=id) 
+		return cls(id=id)
 
 	def __repr__(self):
 		v = [f"<{self.__class__.__module__}.{self.__class__.__qualname__}"]
@@ -935,7 +935,7 @@ class Geo(Base):
 
 	@classmethod
 	def ul4oncreate(cls, id=None):
-		return cls() 
+		return cls()
 
 
 @register("user")
