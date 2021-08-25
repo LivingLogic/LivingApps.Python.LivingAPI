@@ -43,8 +43,6 @@ except ImportError:
 
 from ll import la
 
-from ll.la import vsql
-
 
 __docformat__ = "reStructuredText"
 
@@ -360,6 +358,7 @@ class DBHandler(Handler):
 			return u.openread().read()
 
 	def save_vsql(self, cursor, source, function, datatype=None, **queryargs):
+		from ll.la import vsql
 		return vsql.compile_and_save(self, cursor, source, datatype, function, **queryargs)
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
