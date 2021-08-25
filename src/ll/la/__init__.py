@@ -3821,14 +3821,14 @@ class LookupItem(Base):
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True, doc="Unique database id")
 	control = Attr(lambda: LookupControl, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, doc="The control this lookup item belongs to")
 	key = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True, doc="Human readable identifier")
-	label = Attr(str, get="", set=True, repr=True, ul4get="_label_get", ul4onget=True, ul4onset=True, doc="Label to be displayed for this lookup item")
+	label = Attr(str, get="", set="", repr=True, ul4get="_label_get", ul4onget="_label_get", ul4onset="_label_set", ul4ondefault="", doc="Label to be displayed for this lookup item")
 	visible = BoolAttr(get="", repr="", ul4get="_visible_get", doc="Is this item visible in the currently active view?")
 
 	def __init__(self, id=None, control=None, key=None, label=None):
 		self.id = id
 		self.control = control
 		self.key = key
-		self.label = label
+		self._label = label
 
 	def _get_viewcontrol(self):
 		if self.control is None:
@@ -3847,12 +3847,17 @@ class LookupItem(Base):
 		except KeyError:
 			return None
 
-
 	def _label_get(self):
 		viewlookupitem = self._get_viewlookupitem()
 		if viewlookupitem is None:
-			return self.label
+			return self._label
 		return viewlookupitem.label
+
+	def _label_set(self, label):
+		self._label = label
+
+	def _label_ul4ondefault(self):
+		self._label = None
 
 	def _visible_get(self):
 		viewlookupitem = self._get_viewlookupitem()
