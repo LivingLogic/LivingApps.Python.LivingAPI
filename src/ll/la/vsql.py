@@ -366,20 +366,16 @@ class AST(Repr):
 		return None
 
 	@classmethod
-	def _resolve_typeref(cls, type, signature):
-		typeref = cls.typeref(type)
-		if typeref:
-			type = signature[typeref]
-			if cls.typeref(type):
-				raise ValueError("typeref to typeref")
-		return type
-
-	@classmethod
 	def _signatures(cls, signature):
 		for signature in itertools.product(*signature):
 			newsignature = list(signature)
-			for (i, t) in enumerate(signature):
-				newsignature[i] = cls._resolve_typeref(t, signature)
+			for (i, type) in enumerate(signature):
+				typeref = cls.typeref(type)
+				if typeref:
+					type = signature[typeref]
+					if cls.typeref(type):
+						raise ValueError("typeref to typeref")
+				newsignature[i] = type
 			yield tuple(newsignature)
 
 	@classmethod
