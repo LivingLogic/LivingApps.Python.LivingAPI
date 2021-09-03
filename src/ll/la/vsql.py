@@ -10,7 +10,7 @@
 Classes and functions for compiling vSQL expressions.
 """
 
-import datetime, itertools
+import datetime, itertools, re
 
 from ll import color, misc, ul4c, ul4on
 
@@ -23,6 +23,7 @@ except ImportError:
 ###
 ### Helper functions and classes
 ###
+
 
 def _offset(pos):
 	# Note that we know that for our slices ``start``/``stop`` are never ``None``
@@ -84,6 +85,33 @@ class Repr:
 
 	def _ll_repr_pretty_(self, p):
 		pass
+
+
+class DataType(misc.Enum):
+	NULL = "null"
+	BOOL = "bool"
+	INT = "int"
+	NUMBER = "number"
+	STR = "str"
+	CLOB = "clob"
+	COLOR = "color"
+	GEO = "geo"
+	DATE = "date"
+	DATETIME = "datetime"
+	DATEDELTA = "datedelta"
+	DATETIMEDELTA = "datetimedelta"
+	MONTHDELTA = "monthdelta"
+	INTLIST = "intlist"
+	NUMBERLIST = "numberlist"
+	STRLIST = "strlist"
+	CLOBLIST = "cloblist"
+	DATELIST = "datelist"
+	DATETIMELIST = "datetimelist"
+	INTSET = "intset"
+	NUMBERSET = "numberset"
+	STRSET = "strset"
+	DATESET = "dateset"
+	DATETIMESET = "datetimeset"
 
 
 ###
@@ -165,7 +193,12 @@ class Group(Def):
 			p.pretty(field)
 
 	def __getitem__(self, key):
-		return self.fields[key]
+		if key in self.fields:
+			return self.fields[key]
+		elif "*" in self.fields:
+			return self.fields["*"]
+		else:
+			raise KeyError(key)
 
 	def ul4ondump(self, encoder):
 		encoder.dump(self.tablesql)
@@ -176,77 +209,109 @@ class Group(Def):
 		self.fields = decoder.load()
 
 
+class Rule(Repr):
+	_re_specials = re.compile(r"{([st])(\d)}")
+	_re_sep = re.compile(r"\W+")
+
+	# Mappings of datatypes to other datatypes for creating the SQL source
+	source_aliases = {
+		"bool":         "int",
+		"date":         "datetime",
+		"datelist":     "datetimelist",
+		"datetimelist": "datetimelist",
+		"intset":       "intlist",
+		"numberset":    "numberlist",
+		"strset":       "strlist",
+		"dateset":      "datetimelist",
+		"datetimeset":  "datetimelist",
+	}
+
+	def __init__(self, result, key, signature, source):
+		self.result = result
+		self.key = key
+		self.signature = signature
+		self.source = source
+
+	def _key(self):
+		key = ", ".join(p.name if isinstance(p, DataType) else repr(p) for p in self.key)
+		return f"({key})"
+
+	def _signature(self):
+		signature = ", ".join(p.name for p in self.signature)
+		return f"({signature})"
+
+	def _ll_repr_(self):
+		yield f"result={self.result}"
+		yield f"key={self._key()}"
+		yield f"signature={self._signature()}"
+		yield f"source={self.source}"
+
+	def _ll_repr_pretty_(self, p):
+		p.breakable()
+		p.text("result=")
+		p.text(self.result.name)
+		p.breakable()
+		p.text("signature=")
+		p.text(self._signature())
+		p.breakable()
+		p.text("key=")
+		p.text(self._key())
+		p.breakable()
+		p.text("source=")
+		p.pretty(self.source)
+
+	@classmethod
+	def _parse_source(cls, signature, source):
+		final_source = []
+
+		def append(text):
+			if final_source and isinstance(final_source[-1], str):
+				final_source[-1] += text
+			else:
+				final_source.append(text)
+
+		pos = 0
+		for match in cls._re_specials.finditer(source):
+			if match.start() != pos:
+				append(source[pos:match.start()])
+			sigpos = int(match.group(2))
+			if match.group(1) == "s":
+				final_source.append(sigpos)
+			else:
+				type = signature[sigpos-1].name.lower()
+				type = cls.source_aliases.get(type, type)
+				append(type)
+			pos = match.end()
+		if pos != len(source):
+			append(source[pos:])
+		return tuple(final_source)
+
+
 class AST(Repr):
 	dbnodetype = None
 	dbnodevalue = None
-	dbdatatype = None
+	datatype = None
 
-	def __init__(self, source=None, pos=None):
-		self._source = source
-		self.pos = pos
-
-	@property
-	def source(self):
-		return self._source[self.pos]
-
-	def dbchildren(self):
-		yield from ()
-
-	def save(self, handler, cursor=None, vs_id_super=None, vs_order=None, vss_id=None):
-		"""
-		Save :obj:`self` to the :class:`DBHandler` :obj:`handler`.
-
-		``cursor``, ``vs_id_super``, ``vs_order`` and ``vss_id`` are used
-		internally for recursive calls and should not be passed by the user.
-		"""
-		if cursor is None:
-			cursor = handler.cursor()
-		if vss_id is None:
-			r = handler.proc_vsqlsource_insert(
-				cursor,
-				c_user=handler.ide_id,
-				p_vss_source=self.source,
-			)
-			vss_id = r.p_vss_id
-		r = handler.proc_vsql_insert(
-			cursor,
-			c_user=handler.ide_id,
-			p_vs_id_super=vs_id_super,
-			p_vs_order=vs_order,
-			p_vs_nodetype=self.dbnodetype,
-			p_vs_value=self.dbnodevalue,
-			p_vs_datatype=self.dbdatatype,
-			p_vss_id=vss_id,
-			p_vs_start=self.pos.start,
-			p_vs_stop=self.pos.stop,
-		)
-		vs_id = r.p_vs_id
-		order = 10
-		for child in self.dbchildren():
-			child.save(handler, cursor, vs_id, order, vss_id)
-			order += 10
-		return vs_id
-
-	def __str__(self):
-		return f"{self.__class__.__name__}: {self.source[self.pos]}"
-
-	def _ll_repr_suffix_(self):
-		parts = []
-		parts.append("pos=[")
-		if self.pos.start is not None:
-			parts.append(f"{self.pos.start:,}")
-		parts.append(":")
-		if self.pos.stop is not None:
-			parts.append(f"{self.pos.stop:,}")
-		parts.append("] ")
-		parts.append(super()._ll_repr_suffix_())
-		return "".join(parts)
+	def __init__(self, *content):
+		final_content = []
+		for item in content:
+			if isinstance(item, str):
+				if final_content and isinstance(final_content[-1], str):
+					final_content[-1] += item
+				else:
+					final_content.append(item)
+			elif isinstance(item, AST):
+				final_content.append(item)
+			elif item is not None:
+				raise TypeError(item)
+		self.error = None
+		self.content = final_content
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
 		if isinstance(node, ul4c.Const):
 			if node.value is None:
-				return None_.fromul4(source, node, vars)
+				return NoneAST.fromul4(source, node, vars)
 			else:
 				try:
 					vsqltype = _consts[type(node.value)]
@@ -294,6 +359,122 @@ class AST(Repr):
 				return Meth(source, _offset(node.pos), vsqlnode.obj, vsqlnode.attrname, args)
 		raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(node)}!")
 
+	@classmethod
+	def typeref(cls, s):
+		if s.startswith("T") and s[1:].isdigit():
+			return int(s[1:])
+		return None
+
+	@classmethod
+	def _resolve_typeref(cls, type, signature):
+		typeref = cls.typeref(type)
+		if typeref:
+			type = signature[typeref]
+			if cls.typeref(type):
+				raise ValueError("typeref to typeref")
+		return type
+
+	@classmethod
+	def _signatures(cls, signature):
+		for signature in itertools.product(*signature):
+			newsignature = list(signature)
+			for (i, t) in enumerate(signature):
+				newsignature[i] = cls._resolve_typeref(t, signature)
+			yield tuple(newsignature)
+
+	@classmethod
+	def add_rule(cls, signature, source):
+
+		parts = Rule._re_sep.split(signature)
+		name = misc.first(p for p in parts if p and not p.isupper())
+		signature = [p.split("_") for p in parts if p and p.isupper()]
+
+		for signature in cls._signatures(signature):
+			if name is None:
+				key = signature[1:]
+			else:
+				key = (name, *signature[1:])
+
+			if key not in cls.rules:
+				result = DataType(signature[0].lower())
+				signature = tuple(DataType(p.lower()) for p in signature[1:])
+				cls.rules[key] = Rule(
+					result,
+					key,
+					signature,
+					Rule._parse_source(signature, source)
+				,)
+
+	def validate(self):
+		pass
+
+	def source(self):
+		return "".join(s for s in self._source())
+
+	def _source(self):
+		for item in self.content:
+			if isinstance(item, str):
+				yield item
+			else:
+				yield from item._source()
+
+	def dbchildren(self):
+		yield from ()
+
+	def save(self, handler, cursor=None, vs_id_super=None, vs_order=None, vss_id=None):
+		"""
+		Save :obj:`self` to the :class:`DBHandler` :obj:`handler`.
+
+		``cursor``, ``vs_id_super``, ``vs_order`` and ``vss_id`` are used
+		internally for recursive calls and should not be passed by the user.
+		"""
+		if cursor is None:
+			cursor = handler.cursor()
+		if vss_id is None:
+			r = handler.proc_vsqlsource_insert(
+				cursor,
+				c_user=handler.ide_id,
+				p_vss_source=self.source(),
+			)
+			vss_id = r.p_vss_id
+		r = handler.proc_vsql_insert(
+			cursor,
+			c_user=handler.ide_id,
+			p_vs_id_super=vs_id_super,
+			p_vs_order=vs_order,
+			p_vs_nodetype=self.dbnodetype,
+			p_vs_value=self.dbnodevalue,
+			p_vs_datatype=self.datatype,
+			p_vss_id=vss_id,
+			p_vs_start=self.pos.start,
+			p_vs_stop=self.pos.stop,
+		)
+		vs_id = r.p_vs_id
+		order = 10
+		for child in self.dbchildren():
+			child.save(handler, cursor, vs_id, order, vss_id)
+			order += 10
+		return vs_id
+
+	def __str__(self):
+		return f"{self.__class__.__module__}.{self.__class__.__qualname__}: {self.source()}"
+
+	def _ll_repr_(self):
+		yield f"source={self.source()!r}"
+
+	def _ll_repr_pretty_(self, p):
+		p.breakable()
+		p.text("source=")
+		p.pretty(self.source())
+
+	@classmethod
+	def _wrap(cls, obj, cond):
+		if cond:
+			yield "("
+		yield obj
+		if cond:
+			yield ")"
+
 	def ul4ondump(self, encoder):
 		encoder.dump(self._source)
 		encoder.dump(self.pos)
@@ -304,13 +485,25 @@ class AST(Repr):
 
 
 class ConstAST(AST):
-	pass
+	precedence = 20
+
+	@staticmethod
+	def make(value):
+		cls = _consts.get(type(value))
+		print(cls)
+		if cls is None:
+			raise TypeError(value)
+		return cls.make(value)
 
 
 @ul4on.register("de.livinglogic.vsql.none")
 class NoneAST(ConstAST):
 	dbnodetype = "const_none"
-	dbdatatype = "null"
+	datatype = DataType.NULL
+
+	@classmethod
+	def make(cls):
+		return cls("None")
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
@@ -318,22 +511,28 @@ class NoneAST(ConstAST):
 
 
 class _ConstWithValueAST(ConstAST):
-	def __init__(self, source=None, pos=None, value=None):
-		super().__init__(source, pos)
+	def __init__(self, value, *content):
+		super().__init__(*content)
 		self.value = value
+
+	@classmethod
+	def make(cls, value):
+		return cls(value, ul4c._repr(value))
+
+	@classmethod
+	def fromul4(cls, source, node, vars):
+		return cls(source, _offset(node.pos), node.value)
 
 	@property
 	def dbnodevalue(self):
 		return self.value
 
 	def _ll_repr_(self):
+		yield from super()._ll_repr_()
 		yield f"value={self.value!r}"
 
-	@classmethod
-	def fromul4(cls, source, node, vars):
-		return cls(source, _offset(node.pos), node.value)
-
 	def _ll_repr_pretty_(self, p):
+		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("value=")
 		p.pretty(self.value)
@@ -350,7 +549,11 @@ class _ConstWithValueAST(ConstAST):
 @ul4on.register("de.livinglogic.vsql.bool")
 class BoolAST(_ConstWithValueAST):
 	dbnodetype = "const_bool"
-	dbdatatype = "bool"
+	datatype = DataType.BOOL
+
+	@classmethod
+	def make(cls, value):
+		return cls(value, "True" if value else "False")
 
 	@property
 	def dbnodevalue(self):
@@ -360,7 +563,7 @@ class BoolAST(_ConstWithValueAST):
 @ul4on.register("de.livinglogic.vsql.int")
 class IntAST(_ConstWithValueAST):
 	dbnodetype = "const_int"
-	dbdatatype = "int"
+	datatype = DataType.INT
 
 	@property
 	def dbnodevalue(self):
@@ -370,7 +573,7 @@ class IntAST(_ConstWithValueAST):
 @ul4on.register("de.livinglogic.vsql.number")
 class NumberAST(_ConstWithValueAST):
 	dbnodetype = "const_number"
-	dbdatatype = "number"
+	datatype = DataType.NUMBER
 
 	@property
 	def dbnodevalue(self):
@@ -380,13 +583,13 @@ class NumberAST(_ConstWithValueAST):
 @ul4on.register("de.livinglogic.vsql.str")
 class StrAST(_ConstWithValueAST):
 	dbnodetype = "const_str"
-	dbdatatype = "str"
+	datatype = DataType.STR
 
 
 @ul4on.register("de.livinglogic.vsql.color")
 class ColorAST(_ConstWithValueAST):
 	dbnodetype = "const_color"
-	dbdatatype = "color"
+	datatype = DataType.COLOR
 
 	@property
 	def dbnodevalue(self):
@@ -397,7 +600,7 @@ class ColorAST(_ConstWithValueAST):
 @ul4on.register("de.livinglogic.vsql.date")
 class DateAST(_ConstWithValueAST):
 	dbnodetype = "const_date"
-	dbdatatype = "date"
+	datatype = DataType.DATE
 
 	@property
 	def dbnodevalue(self):
@@ -407,7 +610,12 @@ class DateAST(_ConstWithValueAST):
 @ul4on.register("de.livinglogic.vsql.datetime")
 class DateTimeAST(_ConstWithValueAST):
 	dbnodetype = "const_datetime"
-	dbdatatype = "datetime"
+	datatype = DataType.DATETIME
+
+	@classmethod
+	def make(cls, value):
+		value = value.replace(microsecond=0)
+		return cls(value, ul4c._repr(value))
 
 	@property
 	def dbnodevalue(self):
@@ -417,18 +625,20 @@ class DateTimeAST(_ConstWithValueAST):
 @ul4on.register("de.livinglogic.vsql.list")
 class ListAST(AST):
 	dbnodetype = "list"
+	precedence = 20
 
-	def __init__(self, source=None, pos=None):
-		super().__init__(source, pos)
-		self.items = []
+	def __init__(self, *content):
+		super().__init__(*content)
+		self.items = [item for item in content if isinstance(item, AST)]
 
-	def _ll_repr_(self):
-		yield f"with {len(self.items):,} items"
-
-	def _ll_repr_pretty_(self, p):
-		for item in self.items:
-			p.breakable()
-			p.pretty(item)
+	@classmethod
+	def make(cls, *items):
+		content = []
+		for (i, item) in enumerate(items):
+			content.append(", " if i else "[")
+			content.append(item)
+		content.append("]")
+		return cls(*content)
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
@@ -438,6 +648,16 @@ class ListAST(AST):
 				raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(item)}!")
 			self.items.append(AST.fromul4(source, item.value, vars))
 		return self
+
+	def _ll_repr_(self):
+		yield from super()._ll_repr_()
+		yield f"with {len(self.items):,} items"
+
+	def _ll_repr_pretty_(self, p):
+		super()._ll_repr_pretty_(p)
+		for item in self.items:
+			p.breakable()
+			p.pretty(item)
 
 	def dbchildren(self):
 		yield from self.items
@@ -454,15 +674,33 @@ class ListAST(AST):
 @ul4on.register("de.livinglogic.vsql.set")
 class SetAST(AST):
 	dbnodetype = "set"
+	precedence = 20
 
-	def __init__(self, source=None, pos=None):
-		super().__init__(source, pos)
-		self.items = []
+	def __init__(self, *content):
+		super().__init__(*content)
+		self.items = [item for item in content if isinstance(item, AST)]
+
+	@classmethod
+	def make(cls, *items):
+		if items:
+			content = []
+			for (i, item) in enumerate(items):
+				content.append(", " if i else "{")
+				content.append(item)
+			content.append("}")
+			return cls(*content)
+		else:
+			return cls("{/}")
+
+	def dbchildren(self):
+		yield from self.items
 
 	def _ll_repr_(self):
+		yield from super()._ll_repr_()
 		yield f"with {len(self.items):,} items"
 
 	def _ll_repr_pretty_(self, p):
+		super()._ll_repr_pretty_(p)
 		for item in self.items:
 			p.breakable()
 			p.pretty(item)
@@ -476,9 +714,6 @@ class SetAST(AST):
 			self.items.append(AST.fromul4(source, item.value, vars))
 		return self
 
-	def dbchildren(self):
-		yield from self.items
-
 	def ul4ondump(self, encoder):
 		super().ul4ondump(encoder)
 		encoder.dump(self.items)
@@ -491,8 +726,9 @@ class SetAST(AST):
 @ul4on.register("de.livinglogic.vsql.fieldref")
 class FieldRefAST(AST):
 	dbnodetype = "field"
+	precedence = 19
 
-	def __init__(self, source=None, pos=None, parent=None, identifier=None, field=None):
+	def __init__(self, parent, identifier, field, *content):
 		"""
 		Create a :class:`FieldRef` object.
 
@@ -513,7 +749,7 @@ class FieldRefAST(AST):
 		``field is None``
 			In this case the field is unknown.
 		"""
-		super().__init__(source, pos)
+		super().__init__(*content)
 		self.parent = parent
 		# Note that ``identifier`` might be different from ``field.identifier``
 		# if ``field.identifier == "*"``.
@@ -521,9 +757,31 @@ class FieldRefAST(AST):
 		# Note that ``field`` might be ``None`` when the field can't be found.
 		self.field = field
 
+	@classmethod
+	def make_root(cls, field):
+		if isinstance(field, str):
+			# This is an invalid field reference
+			return FieldRefAST(None, field, None, field)
+		else:
+			return FieldRefAST(None, field.identifier, field, field.identifier)
+
+	@classmethod
+	def make(cls, parent, identifier):
+		result_field = None
+		parent_field = parent.field
+		if parent_field is not None:
+			group = parent_field.refgroup
+			if group is not None:
+				try:
+					result_field = group[identifier]
+				except KeyError:
+					pass
+
+		return FieldRefAST(parent, identifier, result_field, ".", identifier)
+
 	@property
-	def dbdatatype(self):
-		return self.field.datatype
+	def datatype(self):
+		return self.field.datatype if self.field is not None else None
 
 	@property
 	def dbnodevalue(self):
@@ -535,6 +793,7 @@ class FieldRefAST(AST):
 		return ".".join(identifierpath)
 
 	def _ll_repr_(self):
+		yield from super()._ll_repr_()
 		if self.parent is not None:
 			yield f"parent={self.parent!r}"
 		if self.field is None or self.field.identifier != self.identifier:
@@ -543,8 +802,9 @@ class FieldRefAST(AST):
 			yield f"field={self.field!r}"
 
 	def _ll_repr_pretty_(self, p):
+		super()._ll_repr_pretty_(p)
 		p.text(" ")
-		p.pretty(self.name)
+		p.pretty(self.identifier)
 		if self.parent is not None:
 			p.breakable()
 			p.text("parent=")
@@ -572,30 +832,42 @@ class FieldRefAST(AST):
 
 
 class BinaryAST(AST):
-	def __init__(self, source=None, pos=None, obj1=None, obj2=None):
-		super().__init__(source, pos)
+	def __init__(self, obj1, obj2, *content):
+		super().__init__(*content)
 		self.obj1 = obj1
 		self.obj2 = obj2
+
+	@classmethod
+	def make(cls, obj1, obj2):
+		return cls(
+			obj1,
+			obj2,
+			*cls._wrap(obj1, obj1.precedence < cls.precedence),
+			f" {cls.operator} ",
+			*cls._wrap(obj2, obj2.precedence <= cls.precedence),
+		)
+
+	@classmethod
+	def fromul4(cls, source, node, vars):
+		return cls(source, _offset(node.pos), AST.fromul4(source, node.obj1, vars), AST.fromul4(source, node.obj2, vars))
 
 	def dbchildren(self):
 		yield self.obj1
 		yield self.obj2
 
 	def _ll_repr_(self):
+		yield from super()._ll_repr_()
 		yield f"obj1={self.obj1!r}"
 		yield f"obj2={self.obj2!r}"
 
 	def _ll_repr_pretty_(self, p):
+		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("obj1=")
 		p.pretty(self.obj1)
 		p.breakable()
 		p.text("obj2=")
 		p.pretty(self.obj2)
-
-	@classmethod
-	def fromul4(cls, source, node, vars):
-		return cls(source, _offset(node.pos), AST.fromul4(source, node.obj1, vars), AST.fromul4(source, node.obj2, vars))
 
 	def ul4ondump(self, encoder):
 		super().ul4ondump(encoder)
@@ -611,96 +883,159 @@ class BinaryAST(AST):
 @ul4on.register("de.livinglogic.vsql.eq")
 class EQAST(BinaryAST):
 	dbnodetype = "cmp_eq"
+	precedence = 6
+	operator = "=="
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.ne")
 class NEAST(BinaryAST):
 	dbnodetype = "cmp_ne"
+	precedence = 6
+	operator = "!="
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.lt")
 class LTAST(BinaryAST):
 	dbnodetype = "cmp_lt"
+	precedence = 6
+	operator = "<"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.le")
 class LEAST(BinaryAST):
 	dbnodetype = "cmp_le"
+	precedence = 6
+	operator = "<="
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.gt")
 class GTAST(BinaryAST):
 	dbnodetype = "cmp_gt"
+	precedence = 6
+	operator = ">"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.ge")
 class GEAST(BinaryAST):
 	dbnodetype = "cmp_ge"
+	precedence = 6
+	operator = ">="
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.add")
 class AddAST(BinaryAST):
 	dbnodetype = "binop_add"
+	precedence = 11
+	operator = "+"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.sub")
 class SubAST(BinaryAST):
 	dbnodetype = "binop_sub"
+	precedence = 11
+	operator = "-"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.mul")
 class MulAST(BinaryAST):
 	dbnodetype = "binop_mul"
+	precedence = 12
+	operator = "*"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.floordiv")
 class FloorDivAST(BinaryAST):
 	dbnodetype = "binop_floordiv"
+	precedence = 12
+	operator = "//"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.truediv")
 class TrueDivAST(BinaryAST):
 	dbnodetype = "binop_truediv"
+	precedence = 12
+	operator = "/"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.mod")
 class ModAST(BinaryAST):
 	dbnodetype = "binop_mod"
+	precedence = 12
+	operator = "%"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.and")
 class AndAST(BinaryAST):
 	dbnodetype = "binop_and"
+	precedence = 4
+	operator = "and"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.or")
 class OrAST(BinaryAST):
 	dbnodetype = "binop_or"
+	precedence = 4
+	operator = "or"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.contains")
 class ContainsAST(BinaryAST):
 	dbnodetype = "binop_contains"
+	precedence = 6
+	operator = "in"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.notcontains")
 class NotContainsAST(BinaryAST):
 	dbnodetype = "binop_notcontains"
+	precedence = 6
+	operator = "not in"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.is")
 class IsAST(BinaryAST):
 	dbnodetype = "binop_is"
+	precedence = 6
+	operator = "is"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.isnot")
 class IsNotAST(BinaryAST):
 	dbnodetype = "binop_isnot"
+	precedence = 6
+	operator = "is not"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.item")
 class ItemAST(BinaryAST):
 	dbnodetype = "binop_item"
+	precedence = 16
+	rules = {}
+
+	@classmethod
+	def make(self, obj1, obj2):
+		if obj1.precedence >= self.precedence:
+			return cls(obj1, obj2, obj1, "[", obj2, "]")
+		else:
+			return cls(obj1, obj2, "(", obj1, ")[", obj2, "]")
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
@@ -712,47 +1047,72 @@ class ItemAST(BinaryAST):
 @ul4on.register("de.livinglogic.vsql.shiftleft")
 class ShiftLeftAST(BinaryAST):
 	dbnodetype = "binop_shiftleft"
+	precedence = 10
+	operator = "<<"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.shiftright")
 class ShiftRightAST(BinaryAST):
 	dbnodetype = "binop_shiftright"
+	precedence = 10
+	operator = ">>"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.bitand")
 class BitAndAST(BinaryAST):
 	dbnodetype = "binop_bitand"
+	precedence = 9
+	operator = "&"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.bitor")
 class BitOrAST(BinaryAST):
 	dbnodetype = "binop_bitor"
+	precedence = 7
+	operator = "|"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.bitxor")
 class BitXOrAST(BinaryAST):
 	dbnodetype = "binop_bitxor"
+	precedence = 8
+	operator = "^"
+	rules = {}
 
 
 class UnaryAST(AST):
-	def __init__(self, source=None, pos=None, obj=None):
-		super().__init__(source, pos)
+	def __init__(self, obj, *content):
+		super().__init__(*content)
 		self.obj = obj
+
+	@classmethod
+	def make(cls, obj):
+		return cls(
+			obj,
+			self.operator
+			*cls._wrap(obj, obj.precedence <= cls.precedence),
+		)
+
+	@classmethod
+	def fromul4(cls, source, node, vars):
+		return cls(source, _offset(node.pos), AST.fromul4(source, node.obj, vars))
 
 	def dbchildren(self):
 		yield self.obj
 
 	def _ll_repr_(self):
+		yield from super()._ll_repr_()
 		yield f"obj={self.obj!r}"
 
 	def _ll_repr_pretty_(self, p):
+		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("obj=")
 		p.pretty(self.obj)
-
-	@classmethod
-	def fromul4(cls, source, node, vars):
-		return cls(source, _offset(node.pos), AST.fromul4(source, node.obj, vars))
 
 	def ul4ondump(self, encoder):
 		super().ul4ondump(encoder)
@@ -766,46 +1126,51 @@ class UnaryAST(AST):
 @ul4on.register("de.livinglogic.vsql.not")
 class NotAST(UnaryAST):
 	dbnodetype = "unop_not"
+	precedence = 5
+	operator = "not "
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.neg")
 class NegAST(UnaryAST):
 	dbnodetype = "unop_neg"
+	precedence = 14
+	operator = "-"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.bitnot")
 class BitNotAST(UnaryAST):
 	dbnodetype = "unop_bitnot"
+	precedence = 14
+	operator = "~"
+	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.if")
 class IfAST(AST):
 	dbnodetype = "ternop_if"
+	precedence = 3
+	rules = {}
 
-	def __init__(self, source=None, pos=None, objif=None, objcond=None, objelse=None):
-		super().__init__(source, pos)
+	def __init__(self, objif, objcond, objelse, *content):
+		super().__init__(*content)
 		self.objif = objif
 		self.objcond = objcond
 		self.objelse = objelse
 
-	def dbchildren(self):
-		yield self.objif
-		yield self.objcond
-		yield self.objelse
-
-	def _ll_repr_(self):
-		yield f"objif={self.objif!r}"
-		yield f"objcond={self.objcond!r}"
-		yield f"objelse={self.objelse!r}"
-
-	def _ll_repr_pretty_(self, p):
-		p.breakable()
-		p.text("objif=")
-		p.pretty(self.objif)
-		p.text("objcond=")
-		p.pretty(self.objcond)
-		p.text("objelse=")
-		p.pretty(self.objelse)
+	@classmethod
+	def make(cls, objif, objcond, objelse):
+		return cls(
+			objif,
+			objcond,
+			objelse,
+			*cls._wrap(objif, objif.precedence <= cls.precedence),
+			" if ",
+			*cls._wrap(objcond, objcond.precedence <= cls.precedence),
+			" else ",
+			*cls._wrap(objelse, objcond.precedence <= cls.precedence),
+		)
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
@@ -816,6 +1181,29 @@ class IfAST(AST):
 			AST.fromul4(source, node.objcond, vars),
 			AST.fromul4(source, node.objelse, vars),
 		)
+
+	def dbchildren(self):
+		yield self.objif
+		yield self.objcond
+		yield self.objelse
+
+	def _ll_repr_(self):
+		yield from super()._ll_repr_()
+		yield f"objif={self.objif!r}"
+		yield f"objcond={self.objcond!r}"
+		yield f"objelse={self.objelse!r}"
+
+	def _ll_repr_pretty_(self, p):
+		super()._ll_repr_pretty_(p)
+		p.breakable()
+		p.text("objif=")
+		p.pretty(self.objif)
+		p.breakable()
+		p.text("objcond=")
+		p.pretty(self.objcond)
+		p.breakable()
+		p.text("objelse=")
+		p.pretty(self.objelse)
 
 	def ul4ondump(self, encoder):
 		super().ul4ondump(encoder)
@@ -833,12 +1221,42 @@ class IfAST(AST):
 @ul4on.register("de.livinglogic.vsql.if")
 class SliceAST(AST):
 	dbnodetype = "ternop_slice"
+	precedence = 16
+	rules = {}
 
-	def __init__(self, source=None, pos=None, obj=None, index1=None, index2=None):
-		super().__init__(source, pos)
+	def __init__(self, obj, index1, index2, *content):
+		super().__init__(*content)
 		self.obj = obj
 		self.index1 = index1
 		self.index2 = index2
+
+	@classmethod
+	def make(cls, obj, index1, index2):
+		if index1 is None:
+			index1 = NoneAST(None)
+		if index2 is None:
+			index2 = NoneAST(None)
+
+		return cls(
+			obj,
+			index1,
+			index2,
+			*cls._wrap(obj, obj.precedence < cls.precedence),
+			"[",
+			index1,
+			":",
+			index2,
+		)
+
+	@classmethod
+	def fromul4(cls, source, node, vars):
+		return cls(
+			source,
+			_offset(node.pos),
+			AST.fromul4(source, node.obj1, vars),
+			AST.fromul4(source, node.obj2.index1, vars) if node.obj2.index1 is not None else None,
+			AST.fromul4(source, node.obj2.index2, vars) if node.obj2.index2 is not None else None,
+		)
 
 	def dbchildren(self):
 		yield self.obj
@@ -854,6 +1272,7 @@ class SliceAST(AST):
 			yield self.index2
 
 	def _ll_repr_(self):
+		yield from super()._ll_repr_()
 		yield f"obj={self.obj!r}"
 		if self.index1 is not None:
 			yield f"index1={self.index1!r}"
@@ -861,6 +1280,7 @@ class SliceAST(AST):
 			yield f"index2={self.index2!r}"
 
 	def _ll_repr_pretty_(self, p):
+		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("obj=")
 		p.pretty(self.obj)
@@ -872,16 +1292,6 @@ class SliceAST(AST):
 			p.breakable()
 			p.text("index2=")
 			p.pretty(self.index2)
-
-	@classmethod
-	def fromul4(cls, source, node, vars):
-		return cls(
-			source,
-			_offset(node.pos),
-			AST.fromul4(source, node.obj1, vars),
-			AST.fromul4(source, node.obj2.index1, vars) if node.obj2.index1 is not None else None,
-			AST.fromul4(source, node.obj2.index2, vars) if node.obj2.index2 is not None else None,
-		)
 
 	def ul4ondump(self, encoder):
 		super().ul4ondump(encoder)
@@ -899,30 +1309,23 @@ class SliceAST(AST):
 @ul4on.register("de.livinglogic.vsql.attr")
 class AttrAST(AST):
 	dbnodetype = "attr"
+	precedence = 19
+	rules = {}
 
-	def __init__(self, source=None, pos=None, obj=None, attrname=None):
-		super().__init__(source, pos)
+	def __init__(self, obj, attrname, *content):
+		super().__init__(*content)
 		self.obj = obj
 		self.attrname = attrname
 
-	@property
-	def dbnodevalue(self):
-		return self.attrname
-
-	def dbchildren(self):
-		yield self.obj
-
-	def _ll_repr_(self):
-		yield f"obj={self.obj!r}"
-		yield f"attrname={self.attrname!r}"
-
-	def _ll_repr_pretty_(self, p):
-		p.breakable()
-		p.text("obj=")
-		p.pretty(self.obj)
-		p.breakable()
-		p.text("attrname=")
-		p.pretty(self.attrname)
+	@classmethod
+	def make(cls, obj, attrname):
+		return cls(
+			obj,
+			attrname,
+			*cls._wrap(obj, obj.precedence < cls.precedence),
+			".",
+			attrname,
+		)
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
@@ -932,6 +1335,27 @@ class AttrAST(AST):
 			AST.fromul4(source, node.obj1, vars),
 			node.attrname,
 		)
+
+	@property
+	def dbnodevalue(self):
+		return self.attrname
+
+	def dbchildren(self):
+		yield self.obj
+
+	def _ll_repr_(self):
+		yield from super()._ll_repr_()
+		yield f"obj={self.obj!r}"
+		yield f"attrname={self.attrname!r}"
+
+	def _ll_repr_pretty_(self, p):
+		super()._ll_repr_pretty_(p)
+		p.breakable()
+		p.text("obj=")
+		p.pretty(self.obj)
+		p.breakable()
+		p.text("attrname=")
+		p.pretty(self.attrname)
 
 	def ul4ondump(self, encoder):
 		super().ul4ondump(encoder)
@@ -947,11 +1371,24 @@ class AttrAST(AST):
 @ul4on.register("de.livinglogic.vsql.func")
 class FuncAST(AST):
 	dbnodetype = "func"
+	precedence = 18
+	rules = {}
 
-	def __init__(self, source=None, pos=None, name=None, args=None):
-		super().__init__(source, pos)
+	def __init__(self, name, args, *content):
+		super().__init__(*content)
 		self.name = name
 		self.args = args
+
+	@classmethod
+	def make(cls, name, *args):
+		content = [name, "("]
+		for (i, arg) in enumerate(args):
+			if i:
+				content.append(", ")
+			content.append(arg)
+		content.append(")")
+
+		return cls(name, args, *content)
 
 	@property
 	def dbnodevalue(self):
@@ -961,12 +1398,12 @@ class FuncAST(AST):
 		yield from self.args
 
 	def _ll_repr_(self):
+		yield from super()._ll_repr_()
 		yield f"{self.name!r}"
 		yield f"with {len(self.args):,} arguments"
 
 	def _ll_repr_pretty_(self, p):
-		p.text(" ")
-		p.pretty(self.name)
+		super()._ll_repr_pretty_(p)
 		for (i, arg) in enumerate(self.args):
 			p.breakable()
 			p.text(f"args[{i}]=")
@@ -986,12 +1423,25 @@ class FuncAST(AST):
 @ul4on.register("de.livinglogic.vsql.meth")
 class MethAST(AST):
 	dbnodetype = "meth"
+	precedence = 17
+	rules = {}
 
-	def __init__(self, source=None, pos=None, obj=None, name=None, args=None):
-		super().__init__(source, pos)
+	def __init__(self, obj, name, args, *content):
+		super().__init__(*content)
 		self.obj = obj
 		self.name = name
-		self.args = args or []
+		self.args = args or ()
+
+	@classmethod
+	def make(cls, obj, name, *args):
+		content = [*cls._wrap(obj, obj.precedence < cls.precedence), name, "("]
+		for (i, arg) in enumerate(args):
+			if i:
+				content.append(", ")
+			content.append(arg)
+		content.append(")")
+
+		return cls(obj, name, args, *content)
 
 	@property
 	def dbnodevalue(self):
@@ -1002,11 +1452,13 @@ class MethAST(AST):
 		yield from self.args
 
 	def _ll_repr_(self):
+		yield from super()._ll_repr_()
 		yield f"{self.name!r}"
 		yield f"obj={self.obj!r}"
 		yield f" with {len(self.args):,} arguments"
 
 	def _ll_repr_pretty_(self, p):
+		super()._ll_repr_pretty_(p)
 		p.text(" ")
 		p.pretty(self.name)
 		p.breakable()
@@ -1050,3 +1502,375 @@ _ul42vsql = {cls: v[cls.__name__] for cls in _ops}
 
 # Remove temporary variables
 del _ops, v
+
+
+###
+### Create vSQL rules for all AST classes for validating datatypes and type inference
+###
+
+# Subsets of datatypes
+
+INTLIKE = f"BOOL_INT"
+NUMBERLIKE = f"{INTLIKE}_NUMBER"
+TEXT = "STR_CLOB"
+LIST = f"INTLIST_NUMBERLIST_STRLIST_CLOBLIST_DATELIST_DATETIMELIST"
+SET = f"INTSET_NUMBERSET_STRSET_DATESET_DATETIMESET"
+SEQ = f"{TEXT}_{LIST}_{SET}"
+ANY = "_".join(DataType.__members__.keys())
+
+# Function ``today()``
+FuncAST.add_rule(f"DATE today", "trunc(sysdate)")
+
+# Function ``now(0``
+FuncAST.add_rule(f"DATETIME now", "sysdate")
+
+# Function ``bool()``
+FuncAST.add_rule(f"BOOL <- bool()", "0")
+FuncAST.add_rule(f"BOOL <- bool(NULL)", "0")
+FuncAST.add_rule(f"BOOL <- bool(BOOL)", "{s1}")
+FuncAST.add_rule(f"BOOL <- bool(COLOR)", "(case when {s1} is null then 0 else 1 end)")
+FuncAST.add_rule(f"BOOL <- bool(INT_NUMBER_DATEDELTA_DATETIMEDELTA_MONTHDELTA)", "(case {s1} when 0 then 0 when null then 0 else 1 end)")
+FuncAST.add_rule(f"BOOL <- bool(DATE_DATETIME_STR_GEO)", "(case when {s1} is null then 0 else 1 end)")
+FuncAST.add_rule(f"BOOL <- bool({ANY})", "vsqlimpl_pkg.bool_{t1}({s1})")
+
+# Function ``int()``
+FuncAST.add_rule(f"INT <- int()", "0")
+FuncAST.add_rule(f"INT <- int({INTLIKE})", "{s1}")
+FuncAST.add_rule(f"INT <- int(NUMBER_STR_CLOB)", "vsqlimpl_pkg.int_{t1}({s1})")
+
+# Function ``float()``
+FuncAST.add_rule(f"NUMBER <- float()", "0.0")
+FuncAST.add_rule(f"NUMBER <- float({NUMBERLIKE})", "{s1}")
+FuncAST.add_rule(f"NUMBER <- float({TEXT})", "vsqlimpl_pkg.float_{t1}({s1})")
+
+# Function ``geo()``
+FuncAST.add_rule(f"GEO <- geo({NUMBERLIKE}, {NUMBERLIKE})", "vsqlimpl_pkg.geo_number_number_str({s1}, {s2}, null)")
+FuncAST.add_rule(f"GEO <- geo({NUMBERLIKE}, {NUMBERLIKE}, STR)", "vsqlimpl_pkg.geo_number_number_str({s1}, {s2}, {s3})")
+
+# Function ``str()``
+FuncAST.add_rule(f"STR <- str()", "null")
+FuncAST.add_rule(f"STR <- str(NULL)", "null")
+FuncAST.add_rule(f"STR <- str(STR)", "{s1}")
+FuncAST.add_rule(f"CLOB <- str(CLOB)", "{s1}")
+FuncAST.add_rule(f"STR <- str(BOOL)", "(case {s1} when 0 then 'False' when null then 'None' else 'True' end)")
+FuncAST.add_rule(f"STR <- str(INT)", "to_char({s1})")
+FuncAST.add_rule(f"STR <- str(NUMBER)", "vsqlimpl_pkg.str_number({s1})")
+FuncAST.add_rule(f"STR <- str(GEO)", "vsqlimpl_pkg.repr_geo({s1})")
+FuncAST.add_rule(f"STR <- str(DATE)", "to_char({s1}, 'YYYY-MM-DD')")
+FuncAST.add_rule(f"STR <- str(DATETIME)", "to_char({s1}, 'YYYY-MM-DD HH24:MI:SS')")
+FuncAST.add_rule(f"STR <- str(DATELIST)", "vsqlimpl_pkg.repr_datelist({s1})")
+FuncAST.add_rule(f"STR <- str(INTSET)", "vsqlimpl_pkg.repr_intset({s1})")
+FuncAST.add_rule(f"STR <- str(NUMBERSET)", "vsqlimpl_pkg.repr_numberset({s1})")
+FuncAST.add_rule(f"STR <- str(STRSET)", "vsqlimpl_pkg.repr_strset({s1})")
+FuncAST.add_rule(f"STR <- str(DATESET)", "vsqlimpl_pkg.repr_dateset({s1})")
+FuncAST.add_rule(f"STR <- str(DATETIMESET)", "vsqlimpl_pkg.repr_datetimeset({s1})")
+FuncAST.add_rule(f"STR <- str({ANY})", "vsqlimpl_pkg.str_{t1}({s1})")
+
+# Function ``repr()``
+
+FuncAST.add_rule(f"STR <- repr(NULL)", "'None'")
+FuncAST.add_rule(f"STR <- repr(BOOL)", "(case {s1} when 0 then 'False' when null then 'None' else 'True' end)")
+FuncAST.add_rule(f"CLOB <- repr(CLOB_CLOBLIST)", "vsqlimpl_pkg.repr_{t1}({s1})")
+FuncAST.add_rule(f"STR <- repr(DATE)", "vsqlimpl_pkg.repr_date({s1})")
+FuncAST.add_rule(f"STR <- repr(DATELIST)", "vsqlimpl_pkg.repr_datelist({s1})")
+FuncAST.add_rule(f"STR <- repr(INTSET)", "vsqlimpl_pkg.repr_intset({s1})")
+FuncAST.add_rule(f"STR <- repr(NUMBERSET)", "vsqlimpl_pkg.repr_numberset({s1})")
+FuncAST.add_rule(f"STR <- repr(STRSET)", "vsqlimpl_pkg.repr_strset({s1})")
+FuncAST.add_rule(f"STR <- repr(DATESET)", "vsqlimpl_pkg.repr_dateset({s1})")
+FuncAST.add_rule(f"STR <- repr(DATETIMESET)", "vsqlimpl_pkg.repr_datetimeset({s1})")
+FuncAST.add_rule(f"STR <- repr({ANY})", "vsqlimpl_pkg.repr_{t1}({s1})")
+
+# Function ``date()``
+FuncAST.add_rule(f"DATE <- date(INT, INT, INT)", "vsqlimpl_pkg.date_int({s1}, {s2}, {s3})")
+FuncAST.add_rule(f"DATE <- date(DATETIME)", "trunc({s1})")
+
+# Function ``datetime()``
+FuncAST.add_rule(f"DATETIME <- datetime(INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3})")
+FuncAST.add_rule(f"DATETIME <- datetime(INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4})")
+FuncAST.add_rule(f"DATETIME <- datetime(INT, INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4}, {s5})")
+FuncAST.add_rule(f"DATETIME <- datetime(INT, INT, INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4}, {s5}, {s6})")
+FuncAST.add_rule(f"DATETIME <- datetime(DATE)", "{s1}")
+FuncAST.add_rule(f"DATETIME <- datetime(DATE, INT)", "?")
+FuncAST.add_rule(f"DATETIME <- datetime(DATE, INT, INT)", "?")
+FuncAST.add_rule(f"DATETIME <- datetime(DATE, INT, INT, INT)", "?")
+
+# Function ``len()``
+FuncAST.add_rule(f"INT <- len({TEXT})", "nvl(length({s1}), 0)")
+FuncAST.add_rule(f"INT <- len({TEXT})", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rule(f"INT <- len(INTSET)", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rule(f"INT <- len(NUMBERSET)", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rule(f"INT <- len(STRSET)", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rule(f"INT <- len(DATESET)", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rule(f"INT <- len(DATETIMESET)", "vsqlimpl_pkg.len_{t1}({s1})")
+
+# Function ``timedelta()``
+FuncAST.add_rule(f"DATEDELTA <- timedelta()", "0")
+FuncAST.add_rule(f"DATEDELTA <- timedelta(INT)", "{s1}")
+FuncAST.add_rule(f"DATETIMEDELTA <- timedelta(INT, INT)", "({s1} + {s2}/86400)")
+
+# Function ``monthdelta()``
+FuncAST.add_rule(f"MONTHDELTA <- monthdelta()", "0")
+FuncAST.add_rule(f"MONTHDELTA <- monthdelta(INT)", "{s1}")
+
+# Function ``years()``
+FuncAST.add_rule(f"MONTHDELTA <- years(INT)", "(12 * {s1})")
+
+# Function ``months()``
+FuncAST.add_rule(f"MONTHDELTA <- months(INT)", "{s1}")
+
+# Function ``weeks()``
+FuncAST.add_rule(f"DATEDELTA <- weeks(INT)", "(7 * {s1})")
+
+# Function ``days()``
+FuncAST.add_rule(f"DATEDELTA <- days(INT)", "{s1}")
+
+# Function ``hours()``
+FuncAST.add_rule(f"DATETIMEDELTA <- hours(INT)", "({s1} / 24)")
+
+# Function ``minutes()``
+FuncAST.add_rule(f"DATETIMEDELTA <- minutes(INT)", "({s1} / 1440)")
+
+# Function ``seconds()``
+FuncAST.add_rule(f"DATETIMEDELTA <- seconds(INT)", "({s1} / 86400)")
+
+# Function `md5()``
+FuncAST.add_rule(f"STR <- md5(STR)", "lower(rawtohex(dbms_crypto.hash(utl_raw.cast_to_raw({s1}), 2)))")
+
+# Function `random()``
+FuncAST.add_rule(f"NUMBER <- random()", "dbms_random.value")
+
+# Function `randrange()``
+FuncAST.add_rule(f"INT <- randrange(INT, INT)", "floor(dbms_random.value({s1}, {s2}))")
+
+# Function `seq()``
+FuncAST.add_rule(f"INT <- seq()", "livingapi_pkg.seq()")
+
+# Function `rgb()``
+FuncAST.add_rule(f"COLOR <- rgb({NUMBERLIKE}, {NUMBERLIKE}, {NUMBERLIKE})", "vsqlimpl_pkg.rgb({s1}, {s2}, {s3})")
+FuncAST.add_rule(f"COLOR <- rgb({NUMBERLIKE}, {NUMBERLIKE}, {NUMBERLIKE}, {NUMBERLIKE})", "vsqlimpl_pkg.rgb({s1}, {s2}, {s3}, {s4})")
+
+# Function `list()``
+FuncAST.add_rule(f"STRLIST <- list({TEXT})", "vsqlimpl_pkg.list_{t1}({s1})")
+FuncAST.add_rule(f"T1 <- list({LIST})", "{s1}")
+FuncAST.add_rule(f"INTLIST <- list(INTSET)", "{s1}")
+FuncAST.add_rule(f"NUMBERLIST <- list(NUMBERSET)", "{s1}")
+FuncAST.add_rule(f"STRLIST <- list(STRSET)", "{s1}")
+FuncAST.add_rule(f"DATELIST <- list(DATESET)", "{s1}")
+FuncAST.add_rule(f"DATETIMELIST <- list(DATETIMESET)", "{s1}")
+
+# Function `set()``
+FuncAST.add_rule(f"STRSET <- set({TEXT})", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rule(f"T1 <- set({SET})", "{s1}")
+FuncAST.add_rule(f"INTSET <- set(INTLIST)", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rule(f"NUMBERSET <- set(NUMBERLIST)", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rule(f"STRSET <- set(STRLIST)", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rule(f"DATESET <- set(DATELIST)", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rule(f"DATETIMESET <- set(DATETIMELIST)", "vsqlimpl_pkg.set_{t1}({s1})")
+
+# Function ``geo()``
+FuncAST.add_rule(f"NUMBER <- dist(GEO, GEO)", "vsqlimpl_pkg.dist_geo_geo({s1}, {s2})")
+
+# Function ``cos()``
+FuncAST.add_rule(f"NUMBER <- cos({NUMBERLIKE})", "cos({s1})")
+
+# Function ``sin()``
+FuncAST.add_rule(f"NUMBER <- sin({NUMBERLIKE})", "sin({s1})")
+
+# Function ``tan()``
+FuncAST.add_rule(f"NUMBER <- tan({NUMBERLIKE})", "tan({s1})")
+
+# Function ``sqrt()``
+FuncAST.add_rule(f"NUMBER <- sqrt({NUMBERLIKE})", "sqrt(case when {s1} >= 0 then {s1} else null end)")
+
+# Method ``lower()``
+MethAST.add_rule(f"T1 <- {TEXT}.lower()", "lower({s1})")
+
+# Method ``upper()``
+MethAST.add_rule(f"T1 <- {TEXT}.upper()", "upper({s1})")
+
+# Method ``startswith()``
+MethAST.add_rule(f"BOOL <- {TEXT}.startswith(STR_STRLIST)", "vsqlimpl_pkg.startswith_{t1}_{t2}({s1}, {s2})")
+
+# Method ``endswith()``
+MethAST.add_rule(f"BOOL <- {TEXT}.endswith(STR_STRLIST)", "vsqlimpl_pkg.endswith_{t1}_{t2}({s1}, {s2})")
+
+# Method ``strip()``
+MethAST.add_rule(f"T1 <- {TEXT}.strip()", "vsqlimpl_pkg.strip_{t1}({s1}, null, 1, 1)")
+MethAST.add_rule(f"T1 <- {TEXT}.strip(STR) ", "vsqlimpl_pkg.strip_{t1}({s1}, {s2}, 1, 1)")
+
+# Method ``lstrip()``
+MethAST.add_rule(f"T1 <- {TEXT}.lstrip()", "vsqlimpl_pkg.strip_{t1}({s1}, null, 1, 0)")
+MethAST.add_rule(f"T1 <- {TEXT}.lstrip(STR) ", "vsqlimpl_pkg.strip_{t1}({s1}, {s2}, 1, 0)")
+
+# Method ``rstrip()``
+MethAST.add_rule(f"T1 <- {TEXT}.rstrip()", "vsqlimpl_pkg.strip_{t1}({s1}, null, 0, 1)")
+MethAST.add_rule(f"T1 <- {TEXT}.rstrip(STR) ", "vsqlimpl_pkg.strip_{t1}({s1}, {s2}, 0, 1)")
+
+# Method ``find()``
+MethAST.add_rule(f"INT <- {TEXT}.find({TEXT})", "(instr({s1}, {s2}) - 1)")
+MethAST.add_rule(f"INT <- {TEXT}.find({TEXT}, NULL)", "(instr({s1}, {s2}) - 1)")
+MethAST.add_rule(f"INT <- {TEXT}.find({TEXT}, NULL, NULL)", "(instr({s1}, {s2}) - 1)")
+MethAST.add_rule(f"INT <- {TEXT}.find({TEXT}, NULL_INT)", "vsqlimpl_pkg.find_{t1}_{t2}({s1}, {s2}, {s3}, null)")
+MethAST.add_rule(f"INT <- {TEXT}.find({TEXT}, NULL_INT, NULL_INT)", "vsqlimpl_pkg.find_{t1}_{t2}({s1}, {s2}, {s3}, {s4})")
+
+# Method ``replace()``
+MethAST.add_rule(f"T1 <- {TEXT}.replace(STR, STR)", "replace({s1}, {s2}, {s3})")
+
+# Method ``split()``
+MethAST.add_rule(f"STRLIST <- STR.split()", "vsqlimpl_pkg.split_{t1}_str({s1}, null)")
+MethAST.add_rule(f"CLOBLIST <- CLOB.split()", "vsqlimpl_pkg.split_{t1}_str({s1}, null)")
+MethAST.add_rule(f"STRLIST <- STR.split(NULL)", "vsqlimpl_pkg.split_{t1}_str(null, null)")
+MethAST.add_rule(f"CLOBLIST <- CLOB.split(NULL)", "vsqlimpl_pkg.split_{t1}_str(null, null)")
+MethAST.add_rule(f"STRLIST <- STR.split(STR)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
+MethAST.add_rule(f"CLOBLIST <- CLOB.split(STR)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
+MethAST.add_rule(f"STRLIST <- STR.split(STR, NULL)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
+MethAST.add_rule(f"CLOBLIST <- CLOB.split(STR, NULL)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
+MethAST.add_rule(f"STRLIST <- STR.split(NULL, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, null, {s3})")
+MethAST.add_rule(f"CLOBLIST <- CLOB.split(NULL, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, null, {s3})")
+MethAST.add_rule(f"STRLIST <- STR.split(STR, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2}, {s3})")
+MethAST.add_rule(f"CLOBLIST <- CLOB.split(STR, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2}, {s3})")
+
+# Method ``join()``
+MethAST.add_rule(f"STR <- STR.join(STR_STRLIST)", "vsqlimpl_pkg.join_str_{t2}({s1}, {s2})")
+MethAST.add_rule(f"CLOB <- STR.join(CLOB_CLOBLIST)", "vsqlimpl_pkg.join_str_{t2}({s1}, {s2})")
+
+# Method ``lum()``
+MethAST.add_rule(f"NUMBER <- COLOR.lum()", "vsqlimpl_pkg.lum({s1})")
+
+# Method ``week()``
+MethAST.add_rule(f"INT <- DATE_DATETIME.week()", "to_number(to_char({s1}, 'IW'))")
+
+# Attributes
+AttrAST.add_rule(f"INT <- DATE_DATETIME.year", "extract(year from {s1})")
+AttrAST.add_rule(f"INT <- DATE_DATETIME.month", "extract(month from {s1})")
+AttrAST.add_rule(f"INT <- DATE_DATETIME.day", "extract(day from {s1})")
+AttrAST.add_rule(f"INT <- DATETIME.hour", "to_number(to_char({s1}, 'HH24'))")
+AttrAST.add_rule(f"INT <- DATETIME.minute", "to_number(to_char({s1}, 'MI'))")
+AttrAST.add_rule(f"INT <- DATETIME.second", "to_number(to_char({s1}, 'SS'))")
+AttrAST.add_rule(f"INT <- DATE_DATETIME.weekday", "(to_char({s1}, 'D')-1)")
+AttrAST.add_rule(f"INT <- DATE_DATETIME.yearday", "to_number(to_char({s1}, 'DDD'))")
+AttrAST.add_rule(f"INT <- DATEDELTA_DATETIMEDELTA.days", "trunc({s1})")
+AttrAST.add_rule(f"INT <- DATETIMEDELTA.seconds", "trunc(mod({s1}, 1) * 86400 + 0.5)")
+AttrAST.add_rule(f"NUMBER <- DATETIMEDELTA.total_days", "{s1}")
+AttrAST.add_rule(f"NUMBER <- DATETIMEDELTA.total_hours", "({s1} * 24)")
+AttrAST.add_rule(f"NUMBER <- DATETIMEDELTA.total_minutes", "({s1} * 1440)")
+AttrAST.add_rule(f"NUMBER <- DATETIMEDELTA.total_seconds", "({s1} * 86400)")
+AttrAST.add_rule(f"INT <- COLOR.r", "vsqlimpl_pkg.attr_color_r({s1})")
+AttrAST.add_rule(f"INT <- COLOR.g", "vsqlimpl_pkg.attr_color_g({s1})")
+AttrAST.add_rule(f"INT <- COLOR.b", "vsqlimpl_pkg.attr_color_b({s1})")
+AttrAST.add_rule(f"INT <- COLOR.a", "vsqlimpl_pkg.attr_color_a({s1})")
+AttrAST.add_rule(f"NUMBER <- GEO.lat", "vsqlimpl_pkg.attr_geo_lat({s1})")
+AttrAST.add_rule(f"NUMBER <- GEO.long", "vsqlimpl_pkg.attr_geo_long({s1})")
+AttrAST.add_rule(f"STR <- GEO.info", "vsqlimpl_pkg.attr_geo_info({s1})")
+
+# Equality comparison (A == B)
+EQAST.add_rule(f"BOOL <- NULL == NULL", "1")
+EQAST.add_rule(f"BOOL <- {ANY} == NULL", "(case when {s1} is null then 1 else 0 end)")
+EQAST.add_rule(f"BOOL <- NULL == {ANY}", "(case when {s2} is null then 1 else 0 end)")
+EQAST.add_rule(f"BOOL <- {INTLIKE} == {INTLIKE}", "vsqlimpl_pkg.eq_int_int({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- {NUMBERLIKE} == {NUMBERLIKE}", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- GEO == GEO", "vsqlimpl_pkg.eq_str_str({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- COLOR == COLOR", "vsqlimpl_pkg.eq_int_int({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- {TEXT} == {TEXT}", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- DATE_DATETIME == T1", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- DATEDELTA_MONTHDELTA_COLOR == T1", "vsqlimpl_pkg.eq_int_int({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- DATETIMEDELTA == DATETIMEDELTA", "vsqlimpl_pkg.eq_datetimedelta_datetimedelta({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST == INTLIST_NUMBERLIST", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- STRLIST_CLOBLIST == STRLIST_CLOBLIST", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- {SET} == T1", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- DATESET_DATETIMESET == DATESET_DATETIMESET", "vsqlimpl_pkg.eq_datetimeset_datetimeset({s1}, {s2})")
+EQAST.add_rule(f"BOOL <- {ANY} == {ANY}", "(case when {s1} is null and {s2} is null then 1 else 0 end)")
+
+# Inequality comparison (A != B)
+NEAST.add_rule(f"BOOL <- NULL != NULL", "0")
+NEAST.add_rule(f"BOOL <- {ANY} != NULL", "(case when {s1} is null then 0 else 1 end)")
+NEAST.add_rule(f"BOOL <- NULL != {ANY}", "(case when {s2} is null then 0 else 1 end)")
+NEAST.add_rule(f"BOOL <- {INTLIKE} != {INTLIKE}", "vsqlimpl_pkg.ne_int_int({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- {NUMBERLIKE} != {NUMBERLIKE}", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- GEO != GEO", "vsqlimpl_pkg.ne_str_str({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- COLOR != COLOR", "vsqlimpl_pkg.ne_int_int({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- {TEXT} != {TEXT}", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- DATE_DATETIME != T1", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- DATEDELTA_MONTHDELTA_COLOR != T1", "vsqlimpl_pkg.ne_int_int({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- DATETIMEDELTA != DATETIMEDELTA", "vsqlimpl_pkg.ne_datetimedelta_datetimedelta({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST != INTLIST_NUMBERLIST", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- STRLIST_CLOBLIST != STRLIST_CLOBLIST", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- {SET} != T1", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- DATESET_DATETIMESET != DATESET_DATETIMESET", "vsqlimpl_pkg.ne_datetimeset_datetimeset({s1}, {s2})")
+NEAST.add_rule(f"BOOL <- {ANY} != {ANY}", "(case when {s1} is null and {s2} is null then 0 else 1 end)")
+
+# The following comparisons always treat ``None`` as the smallest value
+
+# Greater-than comparison (A > B)
+GTAST.add_rule(f"BOOL <- NULL > NULL", "0")
+GTAST.add_rule(f"BOOL <- {ANY} > NULL", "(case when {s1} is null then 0 else 1 end)")
+GTAST.add_rule(f"BOOL <- NULL > {ANY}", "0")
+GTAST.add_rule(f"BOOL <- {INTLIKE} > {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) > 0 then 1 else 0 end)")
+NEAST.add_rule(f"BOOL <- {NUMBERLIKE} > {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rule(f"BOOL <- {TEXT} > {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rule(f"BOOL <- DATE_DATETIME > T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rule(f"BOOL <- DATEDELTA > DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rule(f"BOOL <- DATETIMEDELTA > DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST > INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rule(f"BOOL <- STRLIST_CLOBLIST > STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rule(f"BOOL <- DATELIST_DATETIMELIST > T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+
+# Greater-than-or equal comparison (A >= B)
+GEAST.add_rule(f"BOOL <- NULL >= NULL", "1")
+GEAST.add_rule(f"BOOL <- {ANY} >= NULL", "1")
+GEAST.add_rule(f"BOOL <- NULL >= {ANY}", "(case when {s2} is null then 1 else 0 end)")
+GEAST.add_rule(f"BOOL <- {INTLIKE} >= {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) >= 0 then 1 else 0 end)")
+NEAST.add_rule(f"BOOL <- {NUMBERLIKE} >= {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rule(f"BOOL <- {TEXT} >= {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rule(f"BOOL <- DATE_DATETIME >= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rule(f"BOOL <- DATEDELTA >= DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rule(f"BOOL <- DATETIMEDELTA >= DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST >= INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rule(f"BOOL <- STRLIST_CLOBLIST >= STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rule(f"BOOL <- DATELIST_DATETIMELIST >= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+
+# Less-than comparison (A < B)
+LTAST.add_rule(f"BOOL <- NULL < NULL", "0")
+LTAST.add_rule(f"BOOL <- {ANY} < NULL", "0")
+LTAST.add_rule(f"BOOL <- NULL < {ANY}", "(case when {s2} is null then 1 else 0 end)")
+LTAST.add_rule(f"BOOL <- {INTLIKE} < {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) < 0 then 1 else 0 end)")
+NEAST.add_rule(f"BOOL <- {NUMBERLIKE} < {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rule(f"BOOL <- {TEXT} < {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rule(f"BOOL <- DATE_DATETIME < T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rule(f"BOOL <- DATEDELTA < DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rule(f"BOOL <- DATETIMEDELTA < DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST < INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rule(f"BOOL <- STRLIST_CLOBLIST < STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rule(f"BOOL <- DATELIST_DATETIMELIST < T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+
+# Less-than-or equal comparison (A <= B)
+LEAST.add_rule(f"BOOL <- NULL <= NULL", "1")
+LEAST.add_rule(f"BOOL <- {ANY} <= NULL", "(case when {s1} is null then 1 else 0 end)")
+LEAST.add_rule(f"BOOL <- NULL <= {ANY}", "1")
+LEAST.add_rule(f"BOOL <- {INTLIKE} <= {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) <= 0 then 1 else 0 end)")
+NEAST.add_rule(f"BOOL <- {NUMBERLIKE} <= {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rule(f"BOOL <- {TEXT} <= {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rule(f"BOOL <- DATE_DATETIME <= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rule(f"BOOL <- DATEDELTA <= DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rule(f"BOOL <- DATETIMEDELTA <= DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST <= INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rule(f"BOOL <- STRLIST_CLOBLIST <= STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rule(f"BOOL <- DATELIST_DATETIMELIST <= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+
+# Addition (A + B)
+AddAST.add_rule(f"INT <- {INTLIKE} + {INTLIKE}", "({s1} + {s2})")
+AddAST.add_rule(f"NUMBER <- {NUMBERLIKE} + {NUMBERLIKE}", "({s1} + {s2})")
+AddAST.add_rule(f"STR <- STR + STR", "({s1} || {s2})")
+AddAST.add_rule(f"CLOB <- {TEXT} + {TEXT}", "({s1} || {s2})")
+AddAST.add_rule(f"INTLIST <- INTLIST + INTLIST", "vsqlimpl_pkg.add_intlist_intlist({s1}, {s2})")
+AddAST.add_rule(f"NUMBERLIST <- INTLIST_NUMBERLIST + INTLIST_NUMBERLIST", "vsqlimpl_pkg.add_{t1}_{t2}({s1}, {s2})")
+AddAST.add_rule(f"STRLIST <- STRLIST + STRLIST", "vsqlimpl_pkg.add_strlist_strlist({s1}, {s2})")
+AddAST.add_rule(f"CLOBLIST <- STRLIST_CLOBLIST + STRLIST_CLOBLIST", "vsqlimpl_pkg.add_{t1}_{t2}({s1}, {s2})")
+AddAST.add_rule(f"T1 <- DATELIST_DATETIMELIST + T1", "vsqlimpl_pkg.add_{t1}_{t2}({s1}, {s2})")
+AddAST.add_rule(f"DATE <- DATE + DATEDELTA", "({s1} + {s2})")
+AddAST.add_rule(f"DATETIME <- DATETIME + DATEDELTA_DATETIMEDELTA", "({s1} + {s2})")
+AddAST.add_rule(f"T1 <- DATE_DATETIME + MONTHDELTA", "vsqlimpl_pkg.add_{t1}_months({s1}, {s2})")
+AddAST.add_rule(f"T2 <- MONTHDELTA + DATE_DATETIME", "vsqlimpl_pkg.add_months_{t2}({s1}, {s2})")
+AddAST.add_rule(f"DATEDELTA <- DATEDELTA + DATEDELTA", "({s1} + {s2})")
+AddAST.add_rule(f"DATETIMEDELTA <- DATEDELTA_DATETIMEDELTA + DATEDELTA_DATETIMEDELTA", "({s1} + {s2})")
+AddAST.add_rule(f"MONTHDELTA <- MONTHDELTA + MONTHDELTA", "({s1} + {s2})")
