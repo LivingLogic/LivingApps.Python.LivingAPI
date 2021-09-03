@@ -612,6 +612,66 @@ class DBHandler(Handler):
 		found.update(dump)
 		return found
 
+	def _data(self, requestid=None, vt_id=None, et_id=None, vw_id=None, tpl_id=None, dat_id=None, dat_ids=None, ctl_identifier=None, searchtext=None, reqparams=None, mode=None, sync=False, exportmeta=False, funcname="data_ful4on"):
+		paramslist = []
+		if reqparams:
+			for (key, value) in reqparams.items():
+				if value is not None:
+					if isinstance(value, str):
+						paramslist.append(key)
+						paramslist.append(value)
+					elif isinstance(value, list):
+						for subvalue in value:
+							paramslist.append(key)
+							paramslist.append(subvalue)
+		paramslist = self.varchars(paramslist)
+
+		c = self.cursor()
+
+		c.execute(
+			"""
+				select
+					livingapi_pkg.data_ful4on(
+						c_user => :c_user,
+						p_requestid => :p_requestid,
+						p_vt_id => :p_vt_id,
+						p_et_id => :p_et_id,
+						p_vw_id => :p_vw_id,
+						p_tpl_id => :p_tpl_id,
+						p_dat_id => :p_dat_id,
+						p_dat_ids => :p_dat_ids,
+						p_ctl_identifier => :p_ctl_identifier,
+						p_searchtext => :p_searchtext,
+						p_reqparams => :p_reqparams,
+						p_mode => :p_mode,
+						p_sync => :p_sync,
+						p_exportmeta => :p_exportmeta,
+						p_funcname => :p_funcname
+					)
+				from dual
+			""",
+			c_user=self.ide_id,
+			p_requestid=requestid,
+			p_vt_id=vt_id,
+			p_et_id=et_id,
+			p_vw_id=vw_id,
+			p_tpl_id=tpl_id,
+			p_dat_id=dat_id,
+			p_dat_ids=self.varchars(dat_ids or []),
+			p_ctl_identifier=ctl_identifier,
+			p_searchtext=searchtext,
+			p_reqparams=paramslist,
+			p_mode=mode,
+			p_sync=int(sync),
+			p_exportmeta=int(exportmeta),
+			p_funcname=funcname,
+		)
+
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
 	def viewtemplate_data(self, *path, **params):
 		if not 1 <= len(path) <= 2:
 			raise ValueError(f"need one or two path components, got {len(path)}")
@@ -646,28 +706,8 @@ class DBHandler(Handler):
 			else:
 				raise ValueError(f"no template named {template!r} for app {appid!r}")
 		vt_id = r.vt_id
-		reqparams = []
-		for (key, value) in params.items():
-			if value is not None:
-				if isinstance(value, str):
-					reqparams.append(key)
-					reqparams.append(value)
-				elif isinstance(value, list):
-					for subvalue in value:
-						reqparams.append(key)
-						reqparams.append(subvalue)
-		reqparams = self.varchars(reqparams)
-		c.execute(
-			"select livingapi_pkg.viewtemplatedata_ful4on(:ide_id, :vt_id, :dat_id, :reqparams) from dual",
-			ide_id=self.ide_id,
-			vt_id=vt_id,
-			dat_id=datid,
-			reqparams=reqparams,
-		)
-		r = c.fetchone()
-		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump
+
+		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
 
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
