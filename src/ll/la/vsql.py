@@ -366,40 +366,39 @@ class AST(Repr):
 		return None
 
 	@classmethod
-	def _signatures(cls, signature):
-		for signature in itertools.product(*signature):
-			newsignature = list(signature)
-			for (i, type) in enumerate(signature):
+	def _specs(cls, spec):
+		# Find position of potential name in the spec, so we can correct
+		# the typeref offsets later.
+		namepos = misc.first(i for (i, p) in enumerate(spec) if len(p) == 1 and not p[0].isupper())
+		for spec in itertools.product(*spec):
+			newspec = list(spec)
+			for (i, type) in enumerate(spec):
 				typeref = cls.typeref(type)
 				if typeref:
-					type = signature[typeref]
+					# Fetch reference type (and corect offset if there's in name in ``spec``)
+					type = spec[typeref+1 if namepos and typeref >= namepos else typeref]
 					if cls.typeref(type):
 						raise ValueError("typeref to typeref")
-				newsignature[i] = type
-			yield tuple(newsignature)
+				newspec[i] = type
+			# Convert type names to ``DataType`` values
+			yield tuple(DataType[p] if p.isupper() else p for p in newspec)
 
 	@classmethod
-	def add_rule(cls, signature, source):
+	def add_rules(cls, spec, source):
 
-		parts = Rule._re_sep.split(signature)
-		name = misc.first(p for p in parts if p and not p.isupper())
-		signature = [p.split("_") for p in parts if p and p.isupper()]
+		# Split on non-names and drop empty parts
+		spec = tuple(filter(None, Rule._re_sep.split(spec)))
 
-		for signature in cls._signatures(signature):
-			if name is None:
-				key = signature[1:]
-			else:
-				key = (name, *signature[1:])
-
+		spec = [p.split("_") if p.isupper() else (p,) for p in spec]
+		for spec in cls._specs(spec):
+			# Drop return type from the lookup key
+			key = spec[1:]
 			if key not in cls.rules:
-				result = DataType(signature[0].lower())
-				signature = tuple(DataType(p.lower()) for p in signature[1:])
-				cls.rules[key] = Rule(
-					result,
-					key,
-					signature,
-					Rule._parse_source(signature, source)
-				,)
+				result = spec[0]
+				# Drop name from the signature
+				signature = tuple(p for p in key if isinstance(p, DataType))
+				parsed_source = Rule._parse_source(signature, source)
+				cls.rules[key] = Rule(result, key, signature, parsed_source)
 
 	def validate(self):
 		pass
@@ -1508,365 +1507,530 @@ del _ops, v
 
 INTLIKE = f"BOOL_INT"
 NUMBERLIKE = f"{INTLIKE}_NUMBER"
-TEXT = "STR_CLOB"
+BOOL_NUMBER = f"BOOL_INT_NUMBER_COLOR_DATEDELTA_DATETIMEDELTA_MONTHDELTA"
+
+TEXT = f"STR_CLOB"
 LIST = f"INTLIST_NUMBERLIST_STRLIST_CLOBLIST_DATELIST_DATETIMELIST"
 SET = f"INTSET_NUMBERSET_STRSET_DATESET_DATETIMESET"
 SEQ = f"{TEXT}_{LIST}_{SET}"
 ANY = "_".join(DataType.__members__.keys())
 
 # Function ``today()``
-FuncAST.add_rule(f"DATE today", "trunc(sysdate)")
+FuncAST.add_rules(f"DATE today", "trunc(sysdate)")
 
 # Function ``now(0``
-FuncAST.add_rule(f"DATETIME now", "sysdate")
+FuncAST.add_rules(f"DATETIME now", "sysdate")
 
 # Function ``bool()``
-FuncAST.add_rule(f"BOOL <- bool()", "0")
-FuncAST.add_rule(f"BOOL <- bool(NULL)", "0")
-FuncAST.add_rule(f"BOOL <- bool(BOOL)", "{s1}")
-FuncAST.add_rule(f"BOOL <- bool(COLOR)", "(case when {s1} is null then 0 else 1 end)")
-FuncAST.add_rule(f"BOOL <- bool(INT_NUMBER_DATEDELTA_DATETIMEDELTA_MONTHDELTA)", "(case {s1} when 0 then 0 when null then 0 else 1 end)")
-FuncAST.add_rule(f"BOOL <- bool(DATE_DATETIME_STR_GEO)", "(case when {s1} is null then 0 else 1 end)")
-FuncAST.add_rule(f"BOOL <- bool({ANY})", "vsqlimpl_pkg.bool_{t1}({s1})")
+FuncAST.add_rules(f"BOOL <- bool()", "0")
+FuncAST.add_rules(f"BOOL <- bool(NULL)", "0")
+FuncAST.add_rules(f"BOOL <- bool(BOOL)", "{s1}")
+FuncAST.add_rules(f"BOOL <- bool(INT_NUMBER_DATEDELTA_DATETIMEDELTA_MONTHDELTA)", "(case {s1} when 0 then 0 when null then 0 else 1 end)")
+FuncAST.add_rules(f"BOOL <- bool(DATE_DATETIME_STR_COLOR_GEO)", "(case when {s1} is null then 0 else 1 end)")
+FuncAST.add_rules(f"BOOL <- bool({ANY})", "vsqlimpl_pkg.bool_{t1}({s1})")
 
 # Function ``int()``
-FuncAST.add_rule(f"INT <- int()", "0")
-FuncAST.add_rule(f"INT <- int({INTLIKE})", "{s1}")
-FuncAST.add_rule(f"INT <- int(NUMBER_STR_CLOB)", "vsqlimpl_pkg.int_{t1}({s1})")
+FuncAST.add_rules(f"INT <- int()", "0")
+FuncAST.add_rules(f"INT <- int({INTLIKE})", "{s1}")
+FuncAST.add_rules(f"INT <- int(NUMBER_STR_CLOB)", "vsqlimpl_pkg.int_{t1}({s1})")
 
 # Function ``float()``
-FuncAST.add_rule(f"NUMBER <- float()", "0.0")
-FuncAST.add_rule(f"NUMBER <- float({NUMBERLIKE})", "{s1}")
-FuncAST.add_rule(f"NUMBER <- float({TEXT})", "vsqlimpl_pkg.float_{t1}({s1})")
+FuncAST.add_rules(f"NUMBER <- float()", "0.0")
+FuncAST.add_rules(f"NUMBER <- float({NUMBERLIKE})", "{s1}")
+FuncAST.add_rules(f"NUMBER <- float({TEXT})", "vsqlimpl_pkg.float_{t1}({s1})")
 
 # Function ``geo()``
-FuncAST.add_rule(f"GEO <- geo({NUMBERLIKE}, {NUMBERLIKE})", "vsqlimpl_pkg.geo_number_number_str({s1}, {s2}, null)")
-FuncAST.add_rule(f"GEO <- geo({NUMBERLIKE}, {NUMBERLIKE}, STR)", "vsqlimpl_pkg.geo_number_number_str({s1}, {s2}, {s3})")
+FuncAST.add_rules(f"GEO <- geo({NUMBERLIKE}, {NUMBERLIKE})", "vsqlimpl_pkg.geo_number_number_str({s1}, {s2}, null)")
+FuncAST.add_rules(f"GEO <- geo({NUMBERLIKE}, {NUMBERLIKE}, STR)", "vsqlimpl_pkg.geo_number_number_str({s1}, {s2}, {s3})")
 
 # Function ``str()``
-FuncAST.add_rule(f"STR <- str()", "null")
-FuncAST.add_rule(f"STR <- str(NULL)", "null")
-FuncAST.add_rule(f"STR <- str(STR)", "{s1}")
-FuncAST.add_rule(f"CLOB <- str(CLOB)", "{s1}")
-FuncAST.add_rule(f"STR <- str(BOOL)", "(case {s1} when 0 then 'False' when null then 'None' else 'True' end)")
-FuncAST.add_rule(f"STR <- str(INT)", "to_char({s1})")
-FuncAST.add_rule(f"STR <- str(NUMBER)", "vsqlimpl_pkg.str_number({s1})")
-FuncAST.add_rule(f"STR <- str(GEO)", "vsqlimpl_pkg.repr_geo({s1})")
-FuncAST.add_rule(f"STR <- str(DATE)", "to_char({s1}, 'YYYY-MM-DD')")
-FuncAST.add_rule(f"STR <- str(DATETIME)", "to_char({s1}, 'YYYY-MM-DD HH24:MI:SS')")
-FuncAST.add_rule(f"STR <- str(DATELIST)", "vsqlimpl_pkg.repr_datelist({s1})")
-FuncAST.add_rule(f"STR <- str(INTSET)", "vsqlimpl_pkg.repr_intset({s1})")
-FuncAST.add_rule(f"STR <- str(NUMBERSET)", "vsqlimpl_pkg.repr_numberset({s1})")
-FuncAST.add_rule(f"STR <- str(STRSET)", "vsqlimpl_pkg.repr_strset({s1})")
-FuncAST.add_rule(f"STR <- str(DATESET)", "vsqlimpl_pkg.repr_dateset({s1})")
-FuncAST.add_rule(f"STR <- str(DATETIMESET)", "vsqlimpl_pkg.repr_datetimeset({s1})")
-FuncAST.add_rule(f"STR <- str({ANY})", "vsqlimpl_pkg.str_{t1}({s1})")
+FuncAST.add_rules(f"STR <- str()", "null")
+FuncAST.add_rules(f"STR <- str(NULL)", "null")
+FuncAST.add_rules(f"STR <- str(STR)", "{s1}")
+FuncAST.add_rules(f"CLOB <- str(CLOB)", "{s1}")
+FuncAST.add_rules(f"STR <- str(BOOL)", "(case {s1} when 0 then 'False' when null then 'None' else 'True' end)")
+FuncAST.add_rules(f"STR <- str(INT)", "to_char({s1})")
+FuncAST.add_rules(f"STR <- str(NUMBER)", "vsqlimpl_pkg.str_number({s1})")
+FuncAST.add_rules(f"STR <- str(GEO)", "vsqlimpl_pkg.repr_geo({s1})")
+FuncAST.add_rules(f"STR <- str(DATE)", "to_char({s1}, 'YYYY-MM-DD')")
+FuncAST.add_rules(f"STR <- str(DATETIME)", "to_char({s1}, 'YYYY-MM-DD HH24:MI:SS')")
+FuncAST.add_rules(f"STR <- str(DATELIST)", "vsqlimpl_pkg.repr_datelist({s1})")
+FuncAST.add_rules(f"STR <- str(INTSET)", "vsqlimpl_pkg.repr_intset({s1})")
+FuncAST.add_rules(f"STR <- str(NUMBERSET)", "vsqlimpl_pkg.repr_numberset({s1})")
+FuncAST.add_rules(f"STR <- str(STRSET)", "vsqlimpl_pkg.repr_strset({s1})")
+FuncAST.add_rules(f"STR <- str(DATESET)", "vsqlimpl_pkg.repr_dateset({s1})")
+FuncAST.add_rules(f"STR <- str(DATETIMESET)", "vsqlimpl_pkg.repr_datetimeset({s1})")
+FuncAST.add_rules(f"STR <- str({ANY})", "vsqlimpl_pkg.str_{t1}({s1})")
 
 # Function ``repr()``
 
-FuncAST.add_rule(f"STR <- repr(NULL)", "'None'")
-FuncAST.add_rule(f"STR <- repr(BOOL)", "(case {s1} when 0 then 'False' when null then 'None' else 'True' end)")
-FuncAST.add_rule(f"CLOB <- repr(CLOB_CLOBLIST)", "vsqlimpl_pkg.repr_{t1}({s1})")
-FuncAST.add_rule(f"STR <- repr(DATE)", "vsqlimpl_pkg.repr_date({s1})")
-FuncAST.add_rule(f"STR <- repr(DATELIST)", "vsqlimpl_pkg.repr_datelist({s1})")
-FuncAST.add_rule(f"STR <- repr(INTSET)", "vsqlimpl_pkg.repr_intset({s1})")
-FuncAST.add_rule(f"STR <- repr(NUMBERSET)", "vsqlimpl_pkg.repr_numberset({s1})")
-FuncAST.add_rule(f"STR <- repr(STRSET)", "vsqlimpl_pkg.repr_strset({s1})")
-FuncAST.add_rule(f"STR <- repr(DATESET)", "vsqlimpl_pkg.repr_dateset({s1})")
-FuncAST.add_rule(f"STR <- repr(DATETIMESET)", "vsqlimpl_pkg.repr_datetimeset({s1})")
-FuncAST.add_rule(f"STR <- repr({ANY})", "vsqlimpl_pkg.repr_{t1}({s1})")
+FuncAST.add_rules(f"STR <- repr(NULL)", "'None'")
+FuncAST.add_rules(f"STR <- repr(BOOL)", "(case {s1} when 0 then 'False' when null then 'None' else 'True' end)")
+FuncAST.add_rules(f"CLOB <- repr(CLOB_CLOBLIST)", "vsqlimpl_pkg.repr_{t1}({s1})")
+FuncAST.add_rules(f"STR <- repr(DATE)", "vsqlimpl_pkg.repr_date({s1})")
+FuncAST.add_rules(f"STR <- repr(DATELIST)", "vsqlimpl_pkg.repr_datelist({s1})")
+FuncAST.add_rules(f"STR <- repr(INTSET)", "vsqlimpl_pkg.repr_intset({s1})")
+FuncAST.add_rules(f"STR <- repr(NUMBERSET)", "vsqlimpl_pkg.repr_numberset({s1})")
+FuncAST.add_rules(f"STR <- repr(STRSET)", "vsqlimpl_pkg.repr_strset({s1})")
+FuncAST.add_rules(f"STR <- repr(DATESET)", "vsqlimpl_pkg.repr_dateset({s1})")
+FuncAST.add_rules(f"STR <- repr(DATETIMESET)", "vsqlimpl_pkg.repr_datetimeset({s1})")
+FuncAST.add_rules(f"STR <- repr({ANY})", "vsqlimpl_pkg.repr_{t1}({s1})")
 
 # Function ``date()``
-FuncAST.add_rule(f"DATE <- date(INT, INT, INT)", "vsqlimpl_pkg.date_int({s1}, {s2}, {s3})")
-FuncAST.add_rule(f"DATE <- date(DATETIME)", "trunc({s1})")
+FuncAST.add_rules(f"DATE <- date(INT, INT, INT)", "vsqlimpl_pkg.date_int({s1}, {s2}, {s3})")
+FuncAST.add_rules(f"DATE <- date(DATETIME)", "trunc({s1})")
 
 # Function ``datetime()``
-FuncAST.add_rule(f"DATETIME <- datetime(INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3})")
-FuncAST.add_rule(f"DATETIME <- datetime(INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4})")
-FuncAST.add_rule(f"DATETIME <- datetime(INT, INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4}, {s5})")
-FuncAST.add_rule(f"DATETIME <- datetime(INT, INT, INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4}, {s5}, {s6})")
-FuncAST.add_rule(f"DATETIME <- datetime(DATE)", "{s1}")
-FuncAST.add_rule(f"DATETIME <- datetime(DATE, INT)", "?")
-FuncAST.add_rule(f"DATETIME <- datetime(DATE, INT, INT)", "?")
-FuncAST.add_rule(f"DATETIME <- datetime(DATE, INT, INT, INT)", "?")
+FuncAST.add_rules(f"DATETIME <- datetime(INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3})")
+FuncAST.add_rules(f"DATETIME <- datetime(INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4})")
+FuncAST.add_rules(f"DATETIME <- datetime(INT, INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4}, {s5})")
+FuncAST.add_rules(f"DATETIME <- datetime(INT, INT, INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4}, {s5}, {s6})")
+FuncAST.add_rules(f"DATETIME <- datetime(DATE)", "{s1}")
+FuncAST.add_rules(f"DATETIME <- datetime(DATE, INT)", "?")
+FuncAST.add_rules(f"DATETIME <- datetime(DATE, INT, INT)", "?")
+FuncAST.add_rules(f"DATETIME <- datetime(DATE, INT, INT, INT)", "?")
 
 # Function ``len()``
-FuncAST.add_rule(f"INT <- len({TEXT})", "nvl(length({s1}), 0)")
-FuncAST.add_rule(f"INT <- len({TEXT})", "vsqlimpl_pkg.len_{t1}({s1})")
-FuncAST.add_rule(f"INT <- len(INTSET)", "vsqlimpl_pkg.len_{t1}({s1})")
-FuncAST.add_rule(f"INT <- len(NUMBERSET)", "vsqlimpl_pkg.len_{t1}({s1})")
-FuncAST.add_rule(f"INT <- len(STRSET)", "vsqlimpl_pkg.len_{t1}({s1})")
-FuncAST.add_rule(f"INT <- len(DATESET)", "vsqlimpl_pkg.len_{t1}({s1})")
-FuncAST.add_rule(f"INT <- len(DATETIMESET)", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rules(f"INT <- len({TEXT})", "nvl(length({s1}), 0)")
+FuncAST.add_rules(f"INT <- len({TEXT})", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rules(f"INT <- len(INTSET)", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rules(f"INT <- len(NUMBERSET)", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rules(f"INT <- len(STRSET)", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rules(f"INT <- len(DATESET)", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rules(f"INT <- len(DATETIMESET)", "vsqlimpl_pkg.len_{t1}({s1})")
 
 # Function ``timedelta()``
-FuncAST.add_rule(f"DATEDELTA <- timedelta()", "0")
-FuncAST.add_rule(f"DATEDELTA <- timedelta(INT)", "{s1}")
-FuncAST.add_rule(f"DATETIMEDELTA <- timedelta(INT, INT)", "({s1} + {s2}/86400)")
+FuncAST.add_rules(f"DATEDELTA <- timedelta()", "0")
+FuncAST.add_rules(f"DATEDELTA <- timedelta(INT)", "{s1}")
+FuncAST.add_rules(f"DATETIMEDELTA <- timedelta(INT, INT)", "({s1} + {s2}/86400)")
 
 # Function ``monthdelta()``
-FuncAST.add_rule(f"MONTHDELTA <- monthdelta()", "0")
-FuncAST.add_rule(f"MONTHDELTA <- monthdelta(INT)", "{s1}")
+FuncAST.add_rules(f"MONTHDELTA <- monthdelta()", "0")
+FuncAST.add_rules(f"MONTHDELTA <- monthdelta(INT)", "{s1}")
 
 # Function ``years()``
-FuncAST.add_rule(f"MONTHDELTA <- years(INT)", "(12 * {s1})")
+FuncAST.add_rules(f"MONTHDELTA <- years(INT)", "(12 * {s1})")
 
 # Function ``months()``
-FuncAST.add_rule(f"MONTHDELTA <- months(INT)", "{s1}")
+FuncAST.add_rules(f"MONTHDELTA <- months(INT)", "{s1}")
 
 # Function ``weeks()``
-FuncAST.add_rule(f"DATEDELTA <- weeks(INT)", "(7 * {s1})")
+FuncAST.add_rules(f"DATEDELTA <- weeks(INT)", "(7 * {s1})")
 
 # Function ``days()``
-FuncAST.add_rule(f"DATEDELTA <- days(INT)", "{s1}")
+FuncAST.add_rules(f"DATEDELTA <- days(INT)", "{s1}")
 
 # Function ``hours()``
-FuncAST.add_rule(f"DATETIMEDELTA <- hours(INT)", "({s1} / 24)")
+FuncAST.add_rules(f"DATETIMEDELTA <- hours(INT)", "({s1} / 24)")
 
 # Function ``minutes()``
-FuncAST.add_rule(f"DATETIMEDELTA <- minutes(INT)", "({s1} / 1440)")
+FuncAST.add_rules(f"DATETIMEDELTA <- minutes(INT)", "({s1} / 1440)")
 
 # Function ``seconds()``
-FuncAST.add_rule(f"DATETIMEDELTA <- seconds(INT)", "({s1} / 86400)")
+FuncAST.add_rules(f"DATETIMEDELTA <- seconds(INT)", "({s1} / 86400)")
 
 # Function `md5()``
-FuncAST.add_rule(f"STR <- md5(STR)", "lower(rawtohex(dbms_crypto.hash(utl_raw.cast_to_raw({s1}), 2)))")
+FuncAST.add_rules(f"STR <- md5(STR)", "lower(rawtohex(dbms_crypto.hash(utl_raw.cast_to_raw({s1}), 2)))")
 
 # Function `random()``
-FuncAST.add_rule(f"NUMBER <- random()", "dbms_random.value")
+FuncAST.add_rules(f"NUMBER <- random()", "dbms_random.value")
 
 # Function `randrange()``
-FuncAST.add_rule(f"INT <- randrange(INT, INT)", "floor(dbms_random.value({s1}, {s2}))")
+FuncAST.add_rules(f"INT <- randrange(INT, INT)", "floor(dbms_random.value({s1}, {s2}))")
 
 # Function `seq()``
-FuncAST.add_rule(f"INT <- seq()", "livingapi_pkg.seq()")
+FuncAST.add_rules(f"INT <- seq()", "livingapi_pkg.seq()")
 
 # Function `rgb()``
-FuncAST.add_rule(f"COLOR <- rgb({NUMBERLIKE}, {NUMBERLIKE}, {NUMBERLIKE})", "vsqlimpl_pkg.rgb({s1}, {s2}, {s3})")
-FuncAST.add_rule(f"COLOR <- rgb({NUMBERLIKE}, {NUMBERLIKE}, {NUMBERLIKE}, {NUMBERLIKE})", "vsqlimpl_pkg.rgb({s1}, {s2}, {s3}, {s4})")
+FuncAST.add_rules(f"COLOR <- rgb({NUMBERLIKE}, {NUMBERLIKE}, {NUMBERLIKE})", "vsqlimpl_pkg.rgb({s1}, {s2}, {s3})")
+FuncAST.add_rules(f"COLOR <- rgb({NUMBERLIKE}, {NUMBERLIKE}, {NUMBERLIKE}, {NUMBERLIKE})", "vsqlimpl_pkg.rgb({s1}, {s2}, {s3}, {s4})")
 
 # Function `list()``
-FuncAST.add_rule(f"STRLIST <- list({TEXT})", "vsqlimpl_pkg.list_{t1}({s1})")
-FuncAST.add_rule(f"T1 <- list({LIST})", "{s1}")
-FuncAST.add_rule(f"INTLIST <- list(INTSET)", "{s1}")
-FuncAST.add_rule(f"NUMBERLIST <- list(NUMBERSET)", "{s1}")
-FuncAST.add_rule(f"STRLIST <- list(STRSET)", "{s1}")
-FuncAST.add_rule(f"DATELIST <- list(DATESET)", "{s1}")
-FuncAST.add_rule(f"DATETIMELIST <- list(DATETIMESET)", "{s1}")
+FuncAST.add_rules(f"STRLIST <- list({TEXT})", "vsqlimpl_pkg.list_{t1}({s1})")
+FuncAST.add_rules(f"T1 <- list({LIST})", "{s1}")
+FuncAST.add_rules(f"INTLIST <- list(INTSET)", "{s1}")
+FuncAST.add_rules(f"NUMBERLIST <- list(NUMBERSET)", "{s1}")
+FuncAST.add_rules(f"STRLIST <- list(STRSET)", "{s1}")
+FuncAST.add_rules(f"DATELIST <- list(DATESET)", "{s1}")
+FuncAST.add_rules(f"DATETIMELIST <- list(DATETIMESET)", "{s1}")
 
 # Function `set()``
-FuncAST.add_rule(f"STRSET <- set({TEXT})", "vsqlimpl_pkg.set_{t1}({s1})")
-FuncAST.add_rule(f"T1 <- set({SET})", "{s1}")
-FuncAST.add_rule(f"INTSET <- set(INTLIST)", "vsqlimpl_pkg.set_{t1}({s1})")
-FuncAST.add_rule(f"NUMBERSET <- set(NUMBERLIST)", "vsqlimpl_pkg.set_{t1}({s1})")
-FuncAST.add_rule(f"STRSET <- set(STRLIST)", "vsqlimpl_pkg.set_{t1}({s1})")
-FuncAST.add_rule(f"DATESET <- set(DATELIST)", "vsqlimpl_pkg.set_{t1}({s1})")
-FuncAST.add_rule(f"DATETIMESET <- set(DATETIMELIST)", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rules(f"STRSET <- set({TEXT})", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rules(f"T1 <- set({SET})", "{s1}")
+FuncAST.add_rules(f"INTSET <- set(INTLIST)", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rules(f"NUMBERSET <- set(NUMBERLIST)", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rules(f"STRSET <- set(STRLIST)", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rules(f"DATESET <- set(DATELIST)", "vsqlimpl_pkg.set_{t1}({s1})")
+FuncAST.add_rules(f"DATETIMESET <- set(DATETIMELIST)", "vsqlimpl_pkg.set_{t1}({s1})")
 
 # Function ``geo()``
-FuncAST.add_rule(f"NUMBER <- dist(GEO, GEO)", "vsqlimpl_pkg.dist_geo_geo({s1}, {s2})")
+FuncAST.add_rules(f"NUMBER <- dist(GEO, GEO)", "vsqlimpl_pkg.dist_geo_geo({s1}, {s2})")
 
 # Function ``cos()``
-FuncAST.add_rule(f"NUMBER <- cos({NUMBERLIKE})", "cos({s1})")
+FuncAST.add_rules(f"NUMBER <- cos({NUMBERLIKE})", "cos({s1})")
 
 # Function ``sin()``
-FuncAST.add_rule(f"NUMBER <- sin({NUMBERLIKE})", "sin({s1})")
+FuncAST.add_rules(f"NUMBER <- sin({NUMBERLIKE})", "sin({s1})")
 
 # Function ``tan()``
-FuncAST.add_rule(f"NUMBER <- tan({NUMBERLIKE})", "tan({s1})")
+FuncAST.add_rules(f"NUMBER <- tan({NUMBERLIKE})", "tan({s1})")
 
 # Function ``sqrt()``
-FuncAST.add_rule(f"NUMBER <- sqrt({NUMBERLIKE})", "sqrt(case when {s1} >= 0 then {s1} else null end)")
+FuncAST.add_rules(f"NUMBER <- sqrt({NUMBERLIKE})", "sqrt(case when {s1} >= 0 then {s1} else null end)")
 
 # Method ``lower()``
-MethAST.add_rule(f"T1 <- {TEXT}.lower()", "lower({s1})")
+MethAST.add_rules(f"T1 <- {TEXT}.lower()", "lower({s1})")
 
 # Method ``upper()``
-MethAST.add_rule(f"T1 <- {TEXT}.upper()", "upper({s1})")
+MethAST.add_rules(f"T1 <- {TEXT}.upper()", "upper({s1})")
 
 # Method ``startswith()``
-MethAST.add_rule(f"BOOL <- {TEXT}.startswith(STR_STRLIST)", "vsqlimpl_pkg.startswith_{t1}_{t2}({s1}, {s2})")
+MethAST.add_rules(f"BOOL <- {TEXT}.startswith(STR_STRLIST)", "vsqlimpl_pkg.startswith_{t1}_{t2}({s1}, {s2})")
 
 # Method ``endswith()``
-MethAST.add_rule(f"BOOL <- {TEXT}.endswith(STR_STRLIST)", "vsqlimpl_pkg.endswith_{t1}_{t2}({s1}, {s2})")
+MethAST.add_rules(f"BOOL <- {TEXT}.endswith(STR_STRLIST)", "vsqlimpl_pkg.endswith_{t1}_{t2}({s1}, {s2})")
 
 # Method ``strip()``
-MethAST.add_rule(f"T1 <- {TEXT}.strip()", "vsqlimpl_pkg.strip_{t1}({s1}, null, 1, 1)")
-MethAST.add_rule(f"T1 <- {TEXT}.strip(STR) ", "vsqlimpl_pkg.strip_{t1}({s1}, {s2}, 1, 1)")
+MethAST.add_rules(f"T1 <- {TEXT}.strip()", "vsqlimpl_pkg.strip_{t1}({s1}, null, 1, 1)")
+MethAST.add_rules(f"T1 <- {TEXT}.strip(STR) ", "vsqlimpl_pkg.strip_{t1}({s1}, {s2}, 1, 1)")
 
 # Method ``lstrip()``
-MethAST.add_rule(f"T1 <- {TEXT}.lstrip()", "vsqlimpl_pkg.strip_{t1}({s1}, null, 1, 0)")
-MethAST.add_rule(f"T1 <- {TEXT}.lstrip(STR) ", "vsqlimpl_pkg.strip_{t1}({s1}, {s2}, 1, 0)")
+MethAST.add_rules(f"T1 <- {TEXT}.lstrip()", "vsqlimpl_pkg.strip_{t1}({s1}, null, 1, 0)")
+MethAST.add_rules(f"T1 <- {TEXT}.lstrip(STR) ", "vsqlimpl_pkg.strip_{t1}({s1}, {s2}, 1, 0)")
 
 # Method ``rstrip()``
-MethAST.add_rule(f"T1 <- {TEXT}.rstrip()", "vsqlimpl_pkg.strip_{t1}({s1}, null, 0, 1)")
-MethAST.add_rule(f"T1 <- {TEXT}.rstrip(STR) ", "vsqlimpl_pkg.strip_{t1}({s1}, {s2}, 0, 1)")
+MethAST.add_rules(f"T1 <- {TEXT}.rstrip()", "vsqlimpl_pkg.strip_{t1}({s1}, null, 0, 1)")
+MethAST.add_rules(f"T1 <- {TEXT}.rstrip(STR) ", "vsqlimpl_pkg.strip_{t1}({s1}, {s2}, 0, 1)")
 
 # Method ``find()``
-MethAST.add_rule(f"INT <- {TEXT}.find({TEXT})", "(instr({s1}, {s2}) - 1)")
-MethAST.add_rule(f"INT <- {TEXT}.find({TEXT}, NULL)", "(instr({s1}, {s2}) - 1)")
-MethAST.add_rule(f"INT <- {TEXT}.find({TEXT}, NULL, NULL)", "(instr({s1}, {s2}) - 1)")
-MethAST.add_rule(f"INT <- {TEXT}.find({TEXT}, NULL_INT)", "vsqlimpl_pkg.find_{t1}_{t2}({s1}, {s2}, {s3}, null)")
-MethAST.add_rule(f"INT <- {TEXT}.find({TEXT}, NULL_INT, NULL_INT)", "vsqlimpl_pkg.find_{t1}_{t2}({s1}, {s2}, {s3}, {s4})")
+MethAST.add_rules(f"INT <- {TEXT}.find({TEXT})", "(instr({s1}, {s2}) - 1)")
+MethAST.add_rules(f"INT <- {TEXT}.find({TEXT}, NULL)", "(instr({s1}, {s2}) - 1)")
+MethAST.add_rules(f"INT <- {TEXT}.find({TEXT}, NULL, NULL)", "(instr({s1}, {s2}) - 1)")
+MethAST.add_rules(f"INT <- {TEXT}.find({TEXT}, NULL_INT)", "vsqlimpl_pkg.find_{t1}_{t2}({s1}, {s2}, {s3}, null)")
+MethAST.add_rules(f"INT <- {TEXT}.find({TEXT}, NULL_INT, NULL_INT)", "vsqlimpl_pkg.find_{t1}_{t2}({s1}, {s2}, {s3}, {s4})")
 
 # Method ``replace()``
-MethAST.add_rule(f"T1 <- {TEXT}.replace(STR, STR)", "replace({s1}, {s2}, {s3})")
+MethAST.add_rules(f"T1 <- {TEXT}.replace(STR, STR)", "replace({s1}, {s2}, {s3})")
 
 # Method ``split()``
-MethAST.add_rule(f"STRLIST <- STR.split()", "vsqlimpl_pkg.split_{t1}_str({s1}, null)")
-MethAST.add_rule(f"CLOBLIST <- CLOB.split()", "vsqlimpl_pkg.split_{t1}_str({s1}, null)")
-MethAST.add_rule(f"STRLIST <- STR.split(NULL)", "vsqlimpl_pkg.split_{t1}_str(null, null)")
-MethAST.add_rule(f"CLOBLIST <- CLOB.split(NULL)", "vsqlimpl_pkg.split_{t1}_str(null, null)")
-MethAST.add_rule(f"STRLIST <- STR.split(STR)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
-MethAST.add_rule(f"CLOBLIST <- CLOB.split(STR)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
-MethAST.add_rule(f"STRLIST <- STR.split(STR, NULL)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
-MethAST.add_rule(f"CLOBLIST <- CLOB.split(STR, NULL)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
-MethAST.add_rule(f"STRLIST <- STR.split(NULL, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, null, {s3})")
-MethAST.add_rule(f"CLOBLIST <- CLOB.split(NULL, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, null, {s3})")
-MethAST.add_rule(f"STRLIST <- STR.split(STR, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2}, {s3})")
-MethAST.add_rule(f"CLOBLIST <- CLOB.split(STR, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2}, {s3})")
+MethAST.add_rules(f"STRLIST <- STR.split()", "vsqlimpl_pkg.split_{t1}_str({s1}, null)")
+MethAST.add_rules(f"CLOBLIST <- CLOB.split()", "vsqlimpl_pkg.split_{t1}_str({s1}, null)")
+MethAST.add_rules(f"STRLIST <- STR.split(NULL)", "vsqlimpl_pkg.split_{t1}_str(null, null)")
+MethAST.add_rules(f"CLOBLIST <- CLOB.split(NULL)", "vsqlimpl_pkg.split_{t1}_str(null, null)")
+MethAST.add_rules(f"STRLIST <- STR.split(STR)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
+MethAST.add_rules(f"CLOBLIST <- CLOB.split(STR)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
+MethAST.add_rules(f"STRLIST <- STR.split(STR, NULL)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
+MethAST.add_rules(f"CLOBLIST <- CLOB.split(STR, NULL)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2})")
+MethAST.add_rules(f"STRLIST <- STR.split(NULL, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, null, {s3})")
+MethAST.add_rules(f"CLOBLIST <- CLOB.split(NULL, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, null, {s3})")
+MethAST.add_rules(f"STRLIST <- STR.split(STR, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2}, {s3})")
+MethAST.add_rules(f"CLOBLIST <- CLOB.split(STR, BOOL_INT)", "vsqlimpl_pkg.split_{t1}_str({s1}, {s2}, {s3})")
 
 # Method ``join()``
-MethAST.add_rule(f"STR <- STR.join(STR_STRLIST)", "vsqlimpl_pkg.join_str_{t2}({s1}, {s2})")
-MethAST.add_rule(f"CLOB <- STR.join(CLOB_CLOBLIST)", "vsqlimpl_pkg.join_str_{t2}({s1}, {s2})")
+MethAST.add_rules(f"STR <- STR.join(STR_STRLIST)", "vsqlimpl_pkg.join_str_{t2}({s1}, {s2})")
+MethAST.add_rules(f"CLOB <- STR.join(CLOB_CLOBLIST)", "vsqlimpl_pkg.join_str_{t2}({s1}, {s2})")
 
 # Method ``lum()``
-MethAST.add_rule(f"NUMBER <- COLOR.lum()", "vsqlimpl_pkg.lum({s1})")
+MethAST.add_rules(f"NUMBER <- COLOR.lum()", "vsqlimpl_pkg.lum({s1})")
 
 # Method ``week()``
-MethAST.add_rule(f"INT <- DATE_DATETIME.week()", "to_number(to_char({s1}, 'IW'))")
+MethAST.add_rules(f"INT <- DATE_DATETIME.week()", "to_number(to_char({s1}, 'IW'))")
 
 # Attributes
-AttrAST.add_rule(f"INT <- DATE_DATETIME.year", "extract(year from {s1})")
-AttrAST.add_rule(f"INT <- DATE_DATETIME.month", "extract(month from {s1})")
-AttrAST.add_rule(f"INT <- DATE_DATETIME.day", "extract(day from {s1})")
-AttrAST.add_rule(f"INT <- DATETIME.hour", "to_number(to_char({s1}, 'HH24'))")
-AttrAST.add_rule(f"INT <- DATETIME.minute", "to_number(to_char({s1}, 'MI'))")
-AttrAST.add_rule(f"INT <- DATETIME.second", "to_number(to_char({s1}, 'SS'))")
-AttrAST.add_rule(f"INT <- DATE_DATETIME.weekday", "(to_char({s1}, 'D')-1)")
-AttrAST.add_rule(f"INT <- DATE_DATETIME.yearday", "to_number(to_char({s1}, 'DDD'))")
-AttrAST.add_rule(f"INT <- DATEDELTA_DATETIMEDELTA.days", "trunc({s1})")
-AttrAST.add_rule(f"INT <- DATETIMEDELTA.seconds", "trunc(mod({s1}, 1) * 86400 + 0.5)")
-AttrAST.add_rule(f"NUMBER <- DATETIMEDELTA.total_days", "{s1}")
-AttrAST.add_rule(f"NUMBER <- DATETIMEDELTA.total_hours", "({s1} * 24)")
-AttrAST.add_rule(f"NUMBER <- DATETIMEDELTA.total_minutes", "({s1} * 1440)")
-AttrAST.add_rule(f"NUMBER <- DATETIMEDELTA.total_seconds", "({s1} * 86400)")
-AttrAST.add_rule(f"INT <- COLOR.r", "vsqlimpl_pkg.attr_color_r({s1})")
-AttrAST.add_rule(f"INT <- COLOR.g", "vsqlimpl_pkg.attr_color_g({s1})")
-AttrAST.add_rule(f"INT <- COLOR.b", "vsqlimpl_pkg.attr_color_b({s1})")
-AttrAST.add_rule(f"INT <- COLOR.a", "vsqlimpl_pkg.attr_color_a({s1})")
-AttrAST.add_rule(f"NUMBER <- GEO.lat", "vsqlimpl_pkg.attr_geo_lat({s1})")
-AttrAST.add_rule(f"NUMBER <- GEO.long", "vsqlimpl_pkg.attr_geo_long({s1})")
-AttrAST.add_rule(f"STR <- GEO.info", "vsqlimpl_pkg.attr_geo_info({s1})")
+AttrAST.add_rules(f"INT <- DATE_DATETIME.year", "extract(year from {s1})")
+AttrAST.add_rules(f"INT <- DATE_DATETIME.month", "extract(month from {s1})")
+AttrAST.add_rules(f"INT <- DATE_DATETIME.day", "extract(day from {s1})")
+AttrAST.add_rules(f"INT <- DATETIME.hour", "to_number(to_char({s1}, 'HH24'))")
+AttrAST.add_rules(f"INT <- DATETIME.minute", "to_number(to_char({s1}, 'MI'))")
+AttrAST.add_rules(f"INT <- DATETIME.second", "to_number(to_char({s1}, 'SS'))")
+AttrAST.add_rules(f"INT <- DATE_DATETIME.weekday", "(to_char({s1}, 'D')-1)")
+AttrAST.add_rules(f"INT <- DATE_DATETIME.yearday", "to_number(to_char({s1}, 'DDD'))")
+AttrAST.add_rules(f"INT <- DATEDELTA_DATETIMEDELTA.days", "trunc({s1})")
+AttrAST.add_rules(f"INT <- DATETIMEDELTA.seconds", "trunc(mod({s1}, 1) * 86400 + 0.5)")
+AttrAST.add_rules(f"NUMBER <- DATETIMEDELTA.total_days", "{s1}")
+AttrAST.add_rules(f"NUMBER <- DATETIMEDELTA.total_hours", "({s1} * 24)")
+AttrAST.add_rules(f"NUMBER <- DATETIMEDELTA.total_minutes", "({s1} * 1440)")
+AttrAST.add_rules(f"NUMBER <- DATETIMEDELTA.total_seconds", "({s1} * 86400)")
+AttrAST.add_rules(f"INT <- COLOR.r", "vsqlimpl_pkg.attr_color_r({s1})")
+AttrAST.add_rules(f"INT <- COLOR.g", "vsqlimpl_pkg.attr_color_g({s1})")
+AttrAST.add_rules(f"INT <- COLOR.b", "vsqlimpl_pkg.attr_color_b({s1})")
+AttrAST.add_rules(f"INT <- COLOR.a", "vsqlimpl_pkg.attr_color_a({s1})")
+AttrAST.add_rules(f"NUMBER <- GEO.lat", "vsqlimpl_pkg.attr_geo_lat({s1})")
+AttrAST.add_rules(f"NUMBER <- GEO.long", "vsqlimpl_pkg.attr_geo_long({s1})")
+AttrAST.add_rules(f"STR <- GEO.info", "vsqlimpl_pkg.attr_geo_info({s1})")
 
 # Equality comparison (A == B)
-EQAST.add_rule(f"BOOL <- NULL == NULL", "1")
-EQAST.add_rule(f"BOOL <- {ANY} == NULL", "(case when {s1} is null then 1 else 0 end)")
-EQAST.add_rule(f"BOOL <- NULL == {ANY}", "(case when {s2} is null then 1 else 0 end)")
-EQAST.add_rule(f"BOOL <- {INTLIKE} == {INTLIKE}", "vsqlimpl_pkg.eq_int_int({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- {NUMBERLIKE} == {NUMBERLIKE}", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- GEO == GEO", "vsqlimpl_pkg.eq_str_str({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- COLOR == COLOR", "vsqlimpl_pkg.eq_int_int({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- {TEXT} == {TEXT}", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- DATE_DATETIME == T1", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- DATEDELTA_MONTHDELTA_COLOR == T1", "vsqlimpl_pkg.eq_int_int({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- DATETIMEDELTA == DATETIMEDELTA", "vsqlimpl_pkg.eq_datetimedelta_datetimedelta({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST == INTLIST_NUMBERLIST", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- STRLIST_CLOBLIST == STRLIST_CLOBLIST", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- {SET} == T1", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- DATESET_DATETIMESET == DATESET_DATETIMESET", "vsqlimpl_pkg.eq_datetimeset_datetimeset({s1}, {s2})")
-EQAST.add_rule(f"BOOL <- {ANY} == {ANY}", "(case when {s1} is null and {s2} is null then 1 else 0 end)")
+EQAST.add_rules(f"BOOL <- NULL == NULL", "1")
+EQAST.add_rules(f"BOOL <- {ANY} == NULL", "(case when {s1} is null then 1 else 0 end)")
+EQAST.add_rules(f"BOOL <- NULL == {ANY}", "(case when {s2} is null then 1 else 0 end)")
+EQAST.add_rules(f"BOOL <- {INTLIKE} == {INTLIKE}", "vsqlimpl_pkg.eq_int_int({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- {NUMBERLIKE} == {NUMBERLIKE}", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- GEO == GEO", "vsqlimpl_pkg.eq_str_str({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- COLOR == COLOR", "vsqlimpl_pkg.eq_int_int({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- {TEXT} == {TEXT}", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- DATE_DATETIME == T1", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- DATEDELTA_MONTHDELTA_COLOR == T1", "vsqlimpl_pkg.eq_int_int({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- DATETIMEDELTA == DATETIMEDELTA", "vsqlimpl_pkg.eq_datetimedelta_datetimedelta({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- INTLIST_NUMBERLIST == INTLIST_NUMBERLIST", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- STRLIST_CLOBLIST == STRLIST_CLOBLIST", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- {SET} == T1", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- DATESET_DATETIMESET == DATESET_DATETIMESET", "vsqlimpl_pkg.eq_datetimeset_datetimeset({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- {ANY} == {ANY}", "(case when {s1} is null and {s2} is null then 1 else 0 end)")
 
 # Inequality comparison (A != B)
-NEAST.add_rule(f"BOOL <- NULL != NULL", "0")
-NEAST.add_rule(f"BOOL <- {ANY} != NULL", "(case when {s1} is null then 0 else 1 end)")
-NEAST.add_rule(f"BOOL <- NULL != {ANY}", "(case when {s2} is null then 0 else 1 end)")
-NEAST.add_rule(f"BOOL <- {INTLIKE} != {INTLIKE}", "vsqlimpl_pkg.ne_int_int({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- {NUMBERLIKE} != {NUMBERLIKE}", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- GEO != GEO", "vsqlimpl_pkg.ne_str_str({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- COLOR != COLOR", "vsqlimpl_pkg.ne_int_int({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- {TEXT} != {TEXT}", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- DATE_DATETIME != T1", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- DATEDELTA_MONTHDELTA_COLOR != T1", "vsqlimpl_pkg.ne_int_int({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- DATETIMEDELTA != DATETIMEDELTA", "vsqlimpl_pkg.ne_datetimedelta_datetimedelta({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST != INTLIST_NUMBERLIST", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- STRLIST_CLOBLIST != STRLIST_CLOBLIST", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- {SET} != T1", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- DATESET_DATETIMESET != DATESET_DATETIMESET", "vsqlimpl_pkg.ne_datetimeset_datetimeset({s1}, {s2})")
-NEAST.add_rule(f"BOOL <- {ANY} != {ANY}", "(case when {s1} is null and {s2} is null then 0 else 1 end)")
+NEAST.add_rules(f"BOOL <- NULL != NULL", "0")
+NEAST.add_rules(f"BOOL <- {ANY} != NULL", "(case when {s1} is null then 0 else 1 end)")
+NEAST.add_rules(f"BOOL <- NULL != {ANY}", "(case when {s2} is null then 0 else 1 end)")
+NEAST.add_rules(f"BOOL <- {INTLIKE} != {INTLIKE}", "vsqlimpl_pkg.ne_int_int({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- {NUMBERLIKE} != {NUMBERLIKE}", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- GEO != GEO", "vsqlimpl_pkg.ne_str_str({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- COLOR != COLOR", "vsqlimpl_pkg.ne_int_int({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- {TEXT} != {TEXT}", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- DATE_DATETIME != T1", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- DATEDELTA_MONTHDELTA_COLOR != T1", "vsqlimpl_pkg.ne_int_int({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- DATETIMEDELTA != DATETIMEDELTA", "vsqlimpl_pkg.ne_datetimedelta_datetimedelta({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- INTLIST_NUMBERLIST != INTLIST_NUMBERLIST", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- STRLIST_CLOBLIST != STRLIST_CLOBLIST", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- {SET} != T1", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- DATESET_DATETIMESET != DATESET_DATETIMESET", "vsqlimpl_pkg.ne_datetimeset_datetimeset({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- {ANY} != {ANY}", "(case when {s1} is null and {s2} is null then 0 else 1 end)")
 
 # The following comparisons always treat ``None`` as the smallest value
 
 # Greater-than comparison (A > B)
-GTAST.add_rule(f"BOOL <- NULL > NULL", "0")
-GTAST.add_rule(f"BOOL <- {ANY} > NULL", "(case when {s1} is null then 0 else 1 end)")
-GTAST.add_rule(f"BOOL <- NULL > {ANY}", "0")
-GTAST.add_rule(f"BOOL <- {INTLIKE} > {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) > 0 then 1 else 0 end)")
-NEAST.add_rule(f"BOOL <- {NUMBERLIKE} > {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
-GTAST.add_rule(f"BOOL <- {TEXT} > {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
-GTAST.add_rule(f"BOOL <- DATE_DATETIME > T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
-GTAST.add_rule(f"BOOL <- DATEDELTA > DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) > 0 then 1 else 0 end)")
-GTAST.add_rule(f"BOOL <- DATETIMEDELTA > DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) > 0 then 1 else 0 end)")
-GTAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST > INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
-GTAST.add_rule(f"BOOL <- STRLIST_CLOBLIST > STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
-GTAST.add_rule(f"BOOL <- DATELIST_DATETIMELIST > T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rules(f"BOOL <- NULL > NULL", "0")
+GTAST.add_rules(f"BOOL <- {ANY} > NULL", "(case when {s1} is null then 0 else 1 end)")
+GTAST.add_rules(f"BOOL <- NULL > {ANY}", "0")
+GTAST.add_rules(f"BOOL <- {INTLIKE} > {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) > 0 then 1 else 0 end)")
+NEAST.add_rules(f"BOOL <- {NUMBERLIKE} > {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rules(f"BOOL <- {TEXT} > {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rules(f"BOOL <- DATE_DATETIME > T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rules(f"BOOL <- DATEDELTA > DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rules(f"BOOL <- DATETIMEDELTA > DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rules(f"BOOL <- INTLIST_NUMBERLIST > INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rules(f"BOOL <- STRLIST_CLOBLIST > STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
+GTAST.add_rules(f"BOOL <- DATELIST_DATETIMELIST > T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
 
 # Greater-than-or equal comparison (A >= B)
-GEAST.add_rule(f"BOOL <- NULL >= NULL", "1")
-GEAST.add_rule(f"BOOL <- {ANY} >= NULL", "1")
-GEAST.add_rule(f"BOOL <- NULL >= {ANY}", "(case when {s2} is null then 1 else 0 end)")
-GEAST.add_rule(f"BOOL <- {INTLIKE} >= {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) >= 0 then 1 else 0 end)")
-NEAST.add_rule(f"BOOL <- {NUMBERLIKE} >= {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
-GEAST.add_rule(f"BOOL <- {TEXT} >= {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
-GEAST.add_rule(f"BOOL <- DATE_DATETIME >= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
-GEAST.add_rule(f"BOOL <- DATEDELTA >= DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) >= 0 then 1 else 0 end)")
-GEAST.add_rule(f"BOOL <- DATETIMEDELTA >= DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) >= 0 then 1 else 0 end)")
-GEAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST >= INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
-GEAST.add_rule(f"BOOL <- STRLIST_CLOBLIST >= STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
-GEAST.add_rule(f"BOOL <- DATELIST_DATETIMELIST >= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rules(f"BOOL <- NULL >= NULL", "1")
+GEAST.add_rules(f"BOOL <- {ANY} >= NULL", "1")
+GEAST.add_rules(f"BOOL <- NULL >= {ANY}", "(case when {s2} is null then 1 else 0 end)")
+GEAST.add_rules(f"BOOL <- {INTLIKE} >= {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) >= 0 then 1 else 0 end)")
+NEAST.add_rules(f"BOOL <- {NUMBERLIKE} >= {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rules(f"BOOL <- {TEXT} >= {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rules(f"BOOL <- DATE_DATETIME >= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rules(f"BOOL <- DATEDELTA >= DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rules(f"BOOL <- DATETIMEDELTA >= DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rules(f"BOOL <- INTLIST_NUMBERLIST >= INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rules(f"BOOL <- STRLIST_CLOBLIST >= STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
+GEAST.add_rules(f"BOOL <- DATELIST_DATETIMELIST >= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
 
 # Less-than comparison (A < B)
-LTAST.add_rule(f"BOOL <- NULL < NULL", "0")
-LTAST.add_rule(f"BOOL <- {ANY} < NULL", "0")
-LTAST.add_rule(f"BOOL <- NULL < {ANY}", "(case when {s2} is null then 1 else 0 end)")
-LTAST.add_rule(f"BOOL <- {INTLIKE} < {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) < 0 then 1 else 0 end)")
-NEAST.add_rule(f"BOOL <- {NUMBERLIKE} < {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
-LTAST.add_rule(f"BOOL <- {TEXT} < {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
-LTAST.add_rule(f"BOOL <- DATE_DATETIME < T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
-LTAST.add_rule(f"BOOL <- DATEDELTA < DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) < 0 then 1 else 0 end)")
-LTAST.add_rule(f"BOOL <- DATETIMEDELTA < DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) < 0 then 1 else 0 end)")
-LTAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST < INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
-LTAST.add_rule(f"BOOL <- STRLIST_CLOBLIST < STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
-LTAST.add_rule(f"BOOL <- DATELIST_DATETIMELIST < T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rules(f"BOOL <- NULL < NULL", "0")
+LTAST.add_rules(f"BOOL <- {ANY} < NULL", "0")
+LTAST.add_rules(f"BOOL <- NULL < {ANY}", "(case when {s2} is null then 1 else 0 end)")
+LTAST.add_rules(f"BOOL <- {INTLIKE} < {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) < 0 then 1 else 0 end)")
+NEAST.add_rules(f"BOOL <- {NUMBERLIKE} < {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rules(f"BOOL <- {TEXT} < {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rules(f"BOOL <- DATE_DATETIME < T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rules(f"BOOL <- DATEDELTA < DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rules(f"BOOL <- DATETIMEDELTA < DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rules(f"BOOL <- INTLIST_NUMBERLIST < INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rules(f"BOOL <- STRLIST_CLOBLIST < STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
+LTAST.add_rules(f"BOOL <- DATELIST_DATETIMELIST < T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
 
 # Less-than-or equal comparison (A <= B)
-LEAST.add_rule(f"BOOL <- NULL <= NULL", "1")
-LEAST.add_rule(f"BOOL <- {ANY} <= NULL", "(case when {s1} is null then 1 else 0 end)")
-LEAST.add_rule(f"BOOL <- NULL <= {ANY}", "1")
-LEAST.add_rule(f"BOOL <- {INTLIKE} <= {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) <= 0 then 1 else 0 end)")
-NEAST.add_rule(f"BOOL <- {NUMBERLIKE} <= {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
-LEAST.add_rule(f"BOOL <- {TEXT} <= {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
-LEAST.add_rule(f"BOOL <- DATE_DATETIME <= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
-LEAST.add_rule(f"BOOL <- DATEDELTA <= DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) <= 0 then 1 else 0 end)")
-LEAST.add_rule(f"BOOL <- DATETIMEDELTA <= DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) <= 0 then 1 else 0 end)")
-LEAST.add_rule(f"BOOL <- INTLIST_NUMBERLIST <= INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
-LEAST.add_rule(f"BOOL <- STRLIST_CLOBLIST <= STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
-LEAST.add_rule(f"BOOL <- DATELIST_DATETIMELIST <= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rules(f"BOOL <- NULL <= NULL", "1")
+LEAST.add_rules(f"BOOL <- {ANY} <= NULL", "(case when {s1} is null then 1 else 0 end)")
+LEAST.add_rules(f"BOOL <- NULL <= {ANY}", "1")
+LEAST.add_rules(f"BOOL <- {INTLIKE} <= {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) <= 0 then 1 else 0 end)")
+NEAST.add_rules(f"BOOL <- {NUMBERLIKE} <= {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rules(f"BOOL <- {TEXT} <= {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rules(f"BOOL <- DATE_DATETIME <= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rules(f"BOOL <- DATEDELTA <= DATEDELTA", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rules(f"BOOL <- DATETIMEDELTA <= DATETIMEDELTA", "(case when vsqlimpl_pkg.cmp_number_number({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rules(f"BOOL <- INTLIST_NUMBERLIST <= INTLIST_NUMBERLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rules(f"BOOL <- STRLIST_CLOBLIST <= STRLIST_CLOBLIST", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
+LEAST.add_rules(f"BOOL <- DATELIST_DATETIMELIST <= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) <= 0 then 1 else 0 end)")
 
 # Addition (A + B)
-AddAST.add_rule(f"INT <- {INTLIKE} + {INTLIKE}", "({s1} + {s2})")
-AddAST.add_rule(f"NUMBER <- {NUMBERLIKE} + {NUMBERLIKE}", "({s1} + {s2})")
-AddAST.add_rule(f"STR <- STR + STR", "({s1} || {s2})")
-AddAST.add_rule(f"CLOB <- {TEXT} + {TEXT}", "({s1} || {s2})")
-AddAST.add_rule(f"INTLIST <- INTLIST + INTLIST", "vsqlimpl_pkg.add_intlist_intlist({s1}, {s2})")
-AddAST.add_rule(f"NUMBERLIST <- INTLIST_NUMBERLIST + INTLIST_NUMBERLIST", "vsqlimpl_pkg.add_{t1}_{t2}({s1}, {s2})")
-AddAST.add_rule(f"STRLIST <- STRLIST + STRLIST", "vsqlimpl_pkg.add_strlist_strlist({s1}, {s2})")
-AddAST.add_rule(f"CLOBLIST <- STRLIST_CLOBLIST + STRLIST_CLOBLIST", "vsqlimpl_pkg.add_{t1}_{t2}({s1}, {s2})")
-AddAST.add_rule(f"T1 <- DATELIST_DATETIMELIST + T1", "vsqlimpl_pkg.add_{t1}_{t2}({s1}, {s2})")
-AddAST.add_rule(f"DATE <- DATE + DATEDELTA", "({s1} + {s2})")
-AddAST.add_rule(f"DATETIME <- DATETIME + DATEDELTA_DATETIMEDELTA", "({s1} + {s2})")
-AddAST.add_rule(f"T1 <- DATE_DATETIME + MONTHDELTA", "vsqlimpl_pkg.add_{t1}_months({s1}, {s2})")
-AddAST.add_rule(f"T2 <- MONTHDELTA + DATE_DATETIME", "vsqlimpl_pkg.add_months_{t2}({s1}, {s2})")
-AddAST.add_rule(f"DATEDELTA <- DATEDELTA + DATEDELTA", "({s1} + {s2})")
-AddAST.add_rule(f"DATETIMEDELTA <- DATEDELTA_DATETIMEDELTA + DATEDELTA_DATETIMEDELTA", "({s1} + {s2})")
-AddAST.add_rule(f"MONTHDELTA <- MONTHDELTA + MONTHDELTA", "({s1} + {s2})")
+AddAST.add_rules(f"INT <- {INTLIKE} + {INTLIKE}", "({s1} + {s2})")
+AddAST.add_rules(f"NUMBER <- {NUMBERLIKE} + {NUMBERLIKE}", "({s1} + {s2})")
+AddAST.add_rules(f"STR <- STR + STR", "({s1} || {s2})")
+AddAST.add_rules(f"CLOB <- {TEXT} + {TEXT}", "({s1} || {s2})")
+AddAST.add_rules(f"INTLIST <- INTLIST + INTLIST", "vsqlimpl_pkg.add_intlist_intlist({s1}, {s2})")
+AddAST.add_rules(f"NUMBERLIST <- INTLIST_NUMBERLIST + INTLIST_NUMBERLIST", "vsqlimpl_pkg.add_{t1}_{t2}({s1}, {s2})")
+AddAST.add_rules(f"STRLIST <- STRLIST + STRLIST", "vsqlimpl_pkg.add_strlist_strlist({s1}, {s2})")
+AddAST.add_rules(f"CLOBLIST <- STRLIST_CLOBLIST + STRLIST_CLOBLIST", "vsqlimpl_pkg.add_{t1}_{t2}({s1}, {s2})")
+AddAST.add_rules(f"T1 <- DATELIST_DATETIMELIST + T1", "vsqlimpl_pkg.add_{t1}_{t2}({s1}, {s2})")
+AddAST.add_rules(f"DATE <- DATE + DATEDELTA", "({s1} + {s2})")
+AddAST.add_rules(f"DATETIME <- DATETIME + DATEDELTA_DATETIMEDELTA", "({s1} + {s2})")
+AddAST.add_rules(f"T1 <- DATE_DATETIME + MONTHDELTA", "vsqlimpl_pkg.add_{t1}_months({s1}, {s2})")
+AddAST.add_rules(f"T2 <- MONTHDELTA + DATE_DATETIME", "vsqlimpl_pkg.add_months_{t2}({s1}, {s2})")
+AddAST.add_rules(f"DATEDELTA <- DATEDELTA + DATEDELTA", "({s1} + {s2})")
+AddAST.add_rules(f"DATETIMEDELTA <- DATEDELTA_DATETIMEDELTA + DATEDELTA_DATETIMEDELTA", "({s1} + {s2})")
+AddAST.add_rules(f"MONTHDELTA <- MONTHDELTA + MONTHDELTA", "({s1} + {s2})")
+
+# Subtraction (A - B)
+SubAST.add_rules(f"INT <- {INTLIKE} - {INTLIKE}", "({s1} - {s2})")
+SubAST.add_rules(f"NUMBER <- {NUMBERLIKE} - {NUMBERLIKE}", "({s1} - {s2})")
+SubAST.add_rules(f"DATE <- DATE - DATEDELTA", "({s1} - {s2})")
+SubAST.add_rules(f"DATEDELTA <- DATE - DATE", "({s1} - {s2})")
+SubAST.add_rules(f"DATETIMEDELTA <- DATETIME - DATETIME", "({s1} - {s2})")
+SubAST.add_rules(f"T1 <- DATE_DATETIME - MONTHDELTA", "vsqlimpl_pkg.add_{t1}_months({s1}, -{s2})")
+SubAST.add_rules(f"DATETIME <- DATETIME - DATEDELTA_DATETIMEDELTA", "({s1} - {s2})")
+SubAST.add_rules(f"T1 <- DATEDELTA_MONTHDELTA - T1", "({s1} - {s2})")
+SubAST.add_rules(f"DATETIMEDELTA <- DATEDELTA_DATETIMEDELTA - DATEDELTA_DATETIMEDELTA" , "({s1} - {s2})")
+
+# Multiplication (A * B)
+MulAST.add_rules(f"INT <- {INTLIKE} * {INTLIKE}", "({s1} * {s2})")
+MulAST.add_rules(f"NUMBER <- {NUMBERLIKE} * {NUMBERLIKE}", "({s1} * {s2})")
+MulAST.add_rules(f"T2 <- {INTLIKE} * DATEDELTA_DATETIMEDELTA_MONTHDELTA", "({s1} * {s2})")
+MulAST.add_rules(f"DATETIMEDELTA <- NUMBER * DATETIMEDELTA", "({s1} * {s2})")
+MulAST.add_rules(f"T2 <- {INTLIKE} * {TEXT}", "vsqlimpl_pkg.mul_int_{t2}({s1}, {s2})")
+MulAST.add_rules(f"T1 <- {TEXT} * {INTLIKE}", "vsqlimpl_pkg.mul_{t1}_int({s1}, {s2})")
+MulAST.add_rules(f"T2 <- {INTLIKE} * {LIST}", "vsqlimpl_pkg.mul_int_{t2}({s1}, {s2})")
+MulAST.add_rules(f"T1 <- {LIST} * {INTLIKE}", "vsqlimpl_pkg.mul_{t1}_int({s1}, {s2})")
+
+# True division (A / B)
+TrueDivAST.add_rules(f"INT <- BOOL / BOOL", "({s1} / {s2})")
+TrueDivAST.add_rules(f"NUMBER <- {NUMBERLIKE} / {NUMBERLIKE}", "({s1} / {s2})")
+TrueDivAST.add_rules(f"DATETIMEDELTA <- DATETIMEDELTA / {NUMBERLIKE}", "({s1} / {s2})")
+
+# Floor division (A // B)
+FloorDivAST.add_rules(f"INT <- {NUMBERLIKE} // {NUMBERLIKE}", "vsqlimpl_pkg.floordiv_{t1}_{t2}({s1}, {s2})")
+FloorDivAST.add_rules(f"T1 <- DATEDELTA_MONTHDELTA // {INTLIKE}", "vsqlimpl_pkg.floordiv_int_int({s1}, {s2})")
+FloorDivAST.add_rules(f"DATEDELTA <- DATETIMEDELTA // {NUMBERLIKE}", "vsqlimpl_pkg.floordiv_number_int({s1}, {s2})")
+
+# Modulo operator (A % B)
+ModAST.add_rules(f"INT <- {INTLIKE} % {INTLIKE}", "vsqlimpl_pkg.mod_int_int({s1}, {s2})")
+ModAST.add_rules(f"NUMBER <- {NUMBERLIKE} % {NUMBERLIKE}", "vsqlimpl_pkg.mod_{t1}_{t2}({s1}, {s2})")
+ModAST.add_rules(f"COLOR <- COLOR % COLOR", "vsqlimpl_pkg.mod_color_color({s1}, {s2})")
+
+# Left shift operator (A << B)
+ShiftLeftAST.add_rules(f"INT <- {INTLIKE} << {INTLIKE}", "trunc({s1} * power(2, {s2}))")
+
+# Right shift operator (A >> B)
+ShiftRightAST.add_rules(f"INT <- {INTLIKE} >> {INTLIKE}", "trunc({s1} / power(2, {s2}))")
+
+# Logical and (A and B)
+# Can't use the real operator ("and") in the spec, so use "?"
+AddAST.add_rules(f"T1 <- {ANY} ? NULL", "null")
+AddAST.add_rules(f"T2 <- NULL ? {ANY}", "null")
+AddAST.add_rules(f"BOOL <- BOOL ? BOOL", "(case when {s1} = 1 then {s2} else 0 end)")
+AddAST.add_rules(f"INT <- {INTLIKE} ? {INTLIKE}", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
+AddAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {NUMBERLIKE}", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
+AddAST.add_rules(f"NUMBER <- STR ? STR", "nvl2({s1}, {s2}, {s1})")
+AddAST.add_rules(f"CLOB <- CLOB ? CLOB", "(case when {s1} is not null and length({s1}) != 0 then {s2} else {s1} end)")
+AddAST.add_rules(f"T1 <- DATE_DATETIME ? T1", "nvl2({s1}, {s2}, {s1})")
+AddAST.add_rules(f"T1 <- DATEDELTA_DATETIMEDELTA_MONTHDELTA ? T1", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
+AddAST.add_rules(f"T1 <- {LIST} ? T1", "(case when {s1} is not null and {s1}.count != 0 then {s2} else {s1} end)")
+AddAST.add_rules(f"DATETIMELIST <- DATELIST_DATETIMELIST ? DATELIST_DATETIMELIST", "(case when {s1} is not null and {s1}.count != 0 then {s2} else {s1} end)")
+
+# Logical or (A or B)
+# Can't use the real operator ("or") in the spec, so use "?"
+OrAST.add_rules(f"T1 <- {ANY} ? NULL", "{s1}")
+OrAST.add_rules(f"T2 <- NULL ? {ANY}", "{s2}")
+OrAST.add_rules(f"BOOL <- BOOL ? BOOL", "(case when {s1} = 1 then 1 else {s2} end)")
+OrAST.add_rules(f"INT <- {INTLIKE} ? {INTLIKE}", "(case when nvl({s1}, 0) != 0 then {s1} else {s2} end)")
+OrAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {NUMBERLIKE}", "(case when nvl({s1}, 0) != 0 then {s1} else {s2} end)")
+OrAST.add_rules(f"STR <- STR ? STR", "nvl({s1}, {s2})")
+OrAST.add_rules(f"CLOB <- CLOB ? CLOB", "(case when {s1} is not null and length({s1}) != 0 then {s1} else {s2} end)")
+OrAST.add_rules(f"T1 <- DATE_DATETIME ? T1", "nvl({s1}, {s2})")
+OrAST.add_rules(f"T1 <- DATEDELTA_DATETIMEDELTA_MONTHDELTA ? T1", "(case when nvl({s1}, 0) != 0 then {s1} else {s2} end)")
+OrAST.add_rules(f"T1 <- {LIST} ? T1", "(case when {s1} is not null and {s1}.count != 0 then {s1} else {s2} end)")
+OrAST.add_rules(f"DATETIMELIST <- DATELIST_DATETIMELIST ? DATELIST_DATETIMELIST", "(case when {s1} is not null and {s1}.count != 0 then {s1} else {s2} end)")
+
+# Containment test (A in B)
+# Can't use the real operator ("in") in the spec, so use "?"
+ContainsAST.add_rules(f"BOOL <- NULL ? {LIST}", "vsqlimpl_pkg.contains_null_{t2}({s2})")
+ContainsAST.add_rules(f"BOOL <- STR ? STR_CLOB_STRLIST_CLOBLIST_STRSET", "vsqlimpl_pkg.contains_str_{t2}({s1}, {s2})")
+ContainsAST.add_rules(f"BOOL <- INT_NUMBER ? INTLIST_NUMBERLIST_INTSET_NUMBERSET", "vsqlimpl_pkg.contains_{t1}_{t2}({s1}, {s2})")
+ContainsAST.add_rules(f"BOOL <- DATE ? DATELIST_DATESET", "vsqlimpl_pkg.contains_{t1}_{t2}({s1}, {s2})")
+ContainsAST.add_rules(f"BOOL <- DATETIME ? DATETIMELIST_DATETIMESET", "vsqlimpl_pkg.contains_{t1}_{t2}({s1}, {s2})")
+
+# Inverted containment test (A not in B)
+# Can't use the real operator ("not in") in the spec, so use "?"
+NotContainsAST.add_rules(f"BOOL <- NULL ? {LIST}", "(1 - vsqlimpl_pkg.contains_null_{t2}({s2}))")
+NotContainsAST.add_rules(f"BOOL <- STR ? STR_CLOB_STRLIST_CLOBLIST_STRSET", "(1 - vsqlimpl_pkg.contains_str_{t2}({s1}, {s2}))")
+NotContainsAST.add_rules(f"BOOL <- INT_NUMBER ? INTLIST_NUMBERLIST_INTSET_NUMBERSET", "(1 - vsqlimpl_pkg.contains_{t1}_{t2}({s1}, {s2}))")
+NotContainsAST.add_rules(f"BOOL <- DATE ? DATELIST_DATESET", "(1 - vsqlimpl_pkg.contains_{t1}_{t2}({s1}, {s2}))")
+NotContainsAST.add_rules(f"BOOL <- DATETIME ? DATETIMELIST_DATETIMESET", "(1 - vsqlimpl_pkg.contains_{t1}_{t2}({s1}, {s2}))")
+
+# Identity test (A is B)
+# Can't use the real operator ("is") in the spec, so use "?"
+IsAST.add_rules(f"BOOL <- NULL ? NULL", "1")
+IsAST.add_rules(f"BOOL <- {ANY} ? NULL", "(case when {s1} is null then 1 else 0 end)")
+IsAST.add_rules(f"BOOL <- NULL ? {ANY}", "(case when {s2} is null then 1 else 0 end)")
+
+# Inverted identity test (A is not B)
+# Can't use the real operator ("is not") in the spec, so use "?"
+IsNotAST.add_rules(f"BOOL <- NULL ? NULL", "0")
+IsNotAST.add_rules(f"BOOL <- {ANY} ? NULL", "(case when {s1} is not null then 1 else 0 end)")
+IsNotAST.add_rules(f"BOOL <- NULL ? {ANY}", "(case when {s2} is not null then 1 else 0 end)")
+
+# Item operator (A[B])
+ItemAST.add_rules(f"STR <- STR_CLOB_STRLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
+ItemAST.add_rules(f"CLOB <- CLOBLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
+ItemAST.add_rules(f"INT <- INTLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
+ItemAST.add_rules(f"NUMBER <- NUMBERLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
+ItemAST.add_rules(f"DATE <- DATELIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
+ItemAST.add_rules(f"DATETIME <- DATETIMELIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
+
+# Slice operator (A[B:C])
+SliceAST.add_rules(f"T1 <- {SEQ}[NULL_{INTLIKE}:NULL_{INTLIKE}]", "vsqlimpl_pkg.slice_{t1}({s1}, {s2}, {s3})")
+
+# Arithmetic negation (-A)
+NegAST.add_rules(f"INT <- BOOL", "(-{s1})")
+NegAST.add_rules(f"T1 <- INT_NUMBER_DATEDELTA_DATETIMEDELTA_MONTHDELTA", "(-{s1})")
+
+# Logical negation (not A)
+# Can't use the real operator ("not") in the spec, so use "?"
+NotAST.add_rules(f"BOOL <- ? NULL", "1")
+NotAST.add_rules(f"BOOL <- ? BOOL", "(case {s1} when 1 then 0 else 1 end)")
+NotAST.add_rules(f"BOOL <- ? INT_NUMBER_DATEDELTA_DATETIMEDELTA_MONTHDELTA", "(case {s1} when 0 then 1 when null then 1 else 0 end)")
+NotAST.add_rules(f"BOOL <- ? DATE_DATETIME_STR_COLOR_GEO", "(case {s1} when null then 1 else 0 end)")
+NotAST.add_rules(f"BOOL <- ? {ANY}", "(1 - vsqlimpl_pkg.bool_{t1}({s1}))")
+
+# Ternary if (A if COND else B)
+# Can't use the real operator ("if"/"else") in the spec, so use "?"
+IfAST.add_rules(f"T1 <- {ANY} ? NULL ? T1", "{s3}")
+IfAST.add_rules(f"INT <- {INTLIKE} ? NULL ? {INTLIKE}", "{s3}")
+IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? NULL ? {NUMBERLIKE}", "{s3}")
+IfAST.add_rules(f"T1 <- {ANY} ? NULL ? NULL", "{s3}")
+IfAST.add_rules(f"T3 <- NULL ? NULL ? {ANY}", "{s3}")
+IfAST.add_rules(f"T1 <- {ANY} ? BOOL_NUMBER ? T1", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"INT <- {INTLIKE} ? BOOL_NUMBER ? {INTLIKE}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? BOOL_NUMBER ? {NUMBERLIKE}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"T1 <- {ANY} ? BOOL_NUMBER ? NULL", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"T3 <- NULL ? BOOL_NUMBER ? {ANY}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"T1 <- {ANY} ? DATE_DATETIME_STR_GEO ? T1", "(case when {s2} is not null then {s1} else {s3} end)")
+IfAST.add_rules(f"INT <- {INTLIKE} ? DATE_DATETIME_STR_GEO ? {INTLIKE}", "(case when {s2} is not null then {s1} else {s3} end)")
+IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? DATE_DATETIME_STR_GEO ? {NUMBERLIKE}", "(case when {s2} is not null then {s1} else {s3} end)")
+IfAST.add_rules(f"T1 <- {ANY} ? DATE_DATETIME_STR_GEO ? NULL", "(case when {s2} is not null then {s1} else {s3} end)")
+IfAST.add_rules(f"T3 <- NULL ? DATE_DATETIME_STR_GEO ? {ANY}", "(case when {s2} is not null then {s1} else {s3} end)")
+IfAST.add_rules(f"T1 <- {ANY} ? {ANY} ? T1", "(case when vsqlimpl_pkg.bool_{t2}({s2}) = 1 then {s1} else {s3} end)")
+IfAST.add_rules(f"INT <- {INTLIKE} ? {ANY} ? {INTLIKE}", "(case when vsqlimpl_pkg.bool_{t2}({s2}) = 1 then {s1} else {s3} end)")
+IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {ANY} ? {NUMBERLIKE}", "(case when vsqlimpl_pkg.bool_{t2}({s2}) = 1 then {s1} else {s3} end)")
+IfAST.add_rules(f"T1 <- {ANY} ? {ANY} ? NULL", "(case when vsqlimpl_pkg.bool_{t2}({s2}) = 1 then {s1} else {s3} end)")
+IfAST.add_rules(f"T3 <- NULL ? {ANY} ? {ANY}", "(case when vsqlimpl_pkg.bool_{t2}({s2}) = 1 then {s1} else {s3} end)")
+
+# Bitwise and (A & B)
+BitAndAST.add_rules(f"INT <- {INTLIKE} & {INTLIKE}", "bitand({s1}, {s2})")
+BitAndAST.add_rules(f"T1 <- INTSET & INTSET", "vsqlimpl_pkg.bitand_intset({s1}, {s2})")
+BitAndAST.add_rules(f"T1 <- NUMBERSET & NUMBERSET", "vsqlimpl_pkg.bitand_numberset({s1}, {s2})")
+BitAndAST.add_rules(f"T1 <- STRSET & STRSET", "vsqlimpl_pkg.bitand_strset({s1}, {s2})")
+BitAndAST.add_rules(f"T1 <- DATESET_DATETIMESET & T1", "vsqlimpl_pkg.bitand_datetimeset({s1}, {s2})")
+
+# Bitwise or (A | B)
+BitOrAST.add_rules(f"INT <- {INTLIKE} | {INTLIKE}", "vsqlimpl_pkg.bitor_int({s1}, {s2})")
+BitOrAST.add_rules(f"T1 <- INTSET | INTSET", "vsqlimpl_pkg.bitor_intset({s1}, {s2})")
+BitOrAST.add_rules(f"T1 <- NUMBERSET | NUMBERSET", "vsqlimpl_pkg.bitor_numberset({s1}, {s2})")
+BitOrAST.add_rules(f"T1 <- STRSET | STRSET", "vsqlimpl_pkg.bitor_strset({s1}, {s2})")
+BitOrAST.add_rules(f"T1 <- DATESET_DATETIMESET | T1", "vsqlimpl_pkg.bitor_datetimeset({s1}, {s2})")
+
+# Bitwise exclusive or (A ^ B)
+BitXOrAST.add_rules(f"INT <- {INTLIKE} ^ {INTLIKE}", "vsqlimpl_pkg.bitxor_int({s1}, {s2})")
+
+# Bitwise not (~A)
+BitNotAST.add_rules(f"INT <- {INTLIKE}", "(-{s1} - 1)")
