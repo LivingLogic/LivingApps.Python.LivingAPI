@@ -385,6 +385,61 @@ class AST(Repr):
 
 	@classmethod
 	def add_rules(cls, spec, source):
+		"""
+		Register new syntax rules to the rules of this AST class.
+
+		These rules are used for type checking and type inference and for
+		converting the vSQL AST into SQL source code.
+
+		``spec`` specifies the allowed combinations of operand types and the
+		resulting type. If consists of the following:
+
+		Upper case words
+			These specify types (for a list of allowed values see :class:`DataType`).
+			Also allowed are: ``T`` followed by an integer, this is used to refer
+			to another type in the spec and a combination of several types joined
+			with ``_``. This is a union type, i.e. any of the types in the
+			combination are allowed.
+
+		Lower case words
+			They specify to names of functions, methods or attributes
+
+		Any sequence of whitespace or other non-word characters
+			They are ignored, but can be used to separate types and names and
+			to make the rule clearer.
+
+		The first word in the rule always is the result type.
+
+		Examples:
+
+		``INT <- BOOL + BOOL``
+			Adding this rule to :class:`AddAST` specifies that the types ``BOOL``
+			and ``BOOL`` can be added and the resulting type is ``INT``. Note
+			that using ``+`` is only syntactic sugar. This rule could also have
+			been written as ``INT BOOL BOOL`` or even as ``INT?????BOOL#$%^&*BOOL``.
+
+		``INT <- BOOL_INT + BOOL_INT``
+			This is equivalent to the four rules: ``INT <- BOOL + BOOL``,
+			``INT <- INT + BOOL``, ``INT <- BOOL + INT`` and ``INT <- INT + INT``.
+
+		``T1 <- BOOL_INT + T1
+			This is equivalent to the two rules ``BOOL <- BOOL + BOOL`` and
+			``INT <- INT + INT``.
+
+		Note that each rule will only be registered once. So the following code::
+
+			AddAST.add_rules("INT <- BOOL_INT + BOOL_INT")
+			AddAST.add_rules("NUMBER <- BOOL_INT_NUMBER + BOOL_INT_NUMBER")
+
+		So this will register the rule ``INT <- BOOL + BOOL``, but not
+		``NUMBER <- BOOL + BOOL``.
+
+		``source`` specifies the SQL source that will be generated for this
+		expression. Two types of placeholders are supported: ``{s1}`` means
+		"embed the source code of the first operand in this spot" (and ``{s2}``
+		etc. accordingly) and ``{t1}`` embeds the type name (in lowercase) in this
+		spot (and ``{t2}`` etc. accordingly).
+		"""
 
 		# Split on non-names and drop empty parts
 		spec = tuple(filter(None, Rule._re_sep.split(spec)))
