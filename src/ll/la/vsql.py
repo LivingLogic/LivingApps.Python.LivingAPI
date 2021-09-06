@@ -161,6 +161,51 @@ class NodeType(misc.Enum):
 	METH = "meth"
 
 
+class Error(misc.Enum):
+	SUBNODEERROR = "subnodeerror" # Subnodes are invalid
+	NODETYPE = "nodetype" # Unknown node type (not any of the ``NODETYPE_...`` values from above
+	ARITY = "arity" # Node does not have the required number of children
+	SUBNODETYPES = "subnodetypes" # Subnodes have a combination of types that are not supported by the node
+	FIELD = "field" # ``NODETYPE_FIELD`` nodes references an unknown field
+	CONST_BOOL = "const_bool" # ``NODETYPE_CONST_BOOL`` value is ``null`` or malformed
+	CONST_INT = "const_int" # ``NODETYPE_CONST_INT`` value is ``null`` or malformed
+	CONST_NUMBER = "const_number" # ``NODETYPE_CONST_NUMBER`` value is ``null`` or malformed
+	CONST_DATE = "const_date" # ``NODETYPE_CONST_DATE`` value is ``null`` or malformed
+	CONST_DATETIME = "const_datetime" # ``NODETYPE_CONST_DATETIME`` value is ``null`` or malformed
+	CONST_TIMESTAMP = "const_timestamp" # ``NODETYPE_CONST_DATETIME`` value is ``null`` or malformed
+	CONST_COLOR = "const_color" # ``NODETYPE_CONST_COLOR`` value is ``null`` or malformed
+	NAME = "name" # Attribute/Function/Method is unknown
+	LISTTYPEUNKNOWN = "listtypeunknown" # List is empty or only has literal ``None``s as items, so the type can't be determined
+	LISTMIXEDTYPES = "listmixedtypes" # List items have incompatible types, so the type can't be determined
+	LISTUNSUPPORTEDTYPES = "listunsupportedtypes" # List items have unsupported types, so the type can't be determined
+	SETTYPEUNKNOWN = "settypeunknown" # Set is empty or only has literal ``None``s as items, so the type can't be determined
+	SETMIXEDTYPES = "setmixedtypes" # Set items have incompatible types, so the type can't be determined
+	SETUNSUPPORTEDTYPES = "setunsupportedtypes" # Set items have unsupported types, so the type can't be determined
+	DATATYPE_NULL = "datatype_null" # The datatype of the node should be ``null`` but isn't
+	DATATYPE_BOOL = "datatype_bool" # The datatype of the node should be ``bool`` but isn't
+	DATATYPE_INT = "datatype_int" # The datatype of the node should be ``int`` but isn't
+	DATATYPE_NUMBER = "datatype_number" # The datatype of the node should be ``number`` but isn't
+	DATATYPE_STR = "datatype_str" # The datatype of the node should be ``str`` but isn't
+	DATATYPE_CLOB = "datatype_clob" # The datatype of the node should be ``clob`` but isn't
+	DATATYPE_COLOR = "datatype_color" # The datatype of the node should be ``color`` but isn't
+	DATATYPE_DATE = "datatype_date" # The datatype of the node should be ``date`` but isn't
+	DATATYPE_DATETIME = "datatype_datetime" # The datatype of the node should be ``datetime`` but isn't
+	DATATYPE_DATEDELTA = "datatype_datedelta" # The datatype of the node should be ``datedelta`` but isn't
+	DATATYPE_DATETIMEDELTA = "datatype_datetimedelta" # The datatype of the node should be ``datetimedelta`` but isn't
+	DATATYPE_MONTHDELTA = "datatype_monthdelta" # The datatype of the node should be ``monthdelta`` but isn't
+	DATATYPE_INTLIST = "datatype_intlist" # The datatype of the node should be ``intlist`` but isn't
+	DATATYPE_NUMBERLIST = "datatype_numberlist" # The datatype of the node should be ``numberlist`` but isn't
+	DATATYPE_STRLIST = "datatype_strlist" # The datatype of the node should be ``strlist`` but isn't
+	DATATYPE_CLOBLIST = "datatype_cloblist" # The datatype of the node should be ``cloblist`` but isn't
+	DATATYPE_DATELIST = "datatype_datelist" # The datatype of the node should be ``datelist`` but isn't
+	DATATYPE_DATETIMELIST = "datatype_datetimelist" # The datatype of the node should be ``datetimelist`` but isn't
+	DATATYPE_INTSET = "datatype_intset" # The datatype of the node should be ``intset`` but isn't
+	DATATYPE_NUMBERSET = "datatype_numberset" # The datatype of the node should be ``numberset`` but isn't
+	DATATYPE_STRSET = "datatype_strset" # The datatype of the node should be ``strset`` but isn't
+	DATATYPE_DATESET = "datatype_dateset" # The datatype of the node should be ``dateset`` but isn't
+	DATATYPE_DATETIMESET = "datatype_datetimeset" # The datatype of the node should be ``datetimeset`` but isn't
+
+
 ###
 ### Core classes
 ###
@@ -415,6 +460,10 @@ class AST(Repr):
 		raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(node)}!")
 
 	@classmethod
+	def _add_rule(cls, rule):
+		cls.rules[rule.key] = rule
+
+	@classmethod
 	def typeref(cls, s):
 		if s.startswith("T") and s[1:].isdigit():
 			return int(s[1:])
@@ -580,12 +629,28 @@ class AST(Repr):
 		return vs_id
 
 	def __str__(self):
-		return f"{self.__class__.__module__}.{self.__class__.__qualname__}: {self.source()}"
+		parts = [f"{self.__class__.__module__}.{self.__class__.__qualname__}"]
+		if self.datatype is not None:
+			parts.append(f"(datatype {self.datatype.name})")
+		if self.error is not None:
+			parts.append(f"(error {self.error.name})")
+		parts.append(f": {self.source()}")
+		return "".join(parts)
 
 	def _ll_repr_(self):
+		if self.datatype is not None:
+			yield f"datatype={self.datatype.name}"
+		if self.error is not None:
+			yield f"error={self.error.name}"
 		yield f"source={self.source()!r}"
 
 	def _ll_repr_pretty_(self, p):
+		if self.datatype is not None:
+			p.breakable()
+			p.text(f"datatype={self.datatype.name}")
+		if self.error is not None:
+			p.breakable()
+			p.text(f"error={self.error.name}")
 		p.breakable()
 		p.text("source=")
 		p.pretty(self.source())
@@ -752,6 +817,8 @@ class ListAST(AST):
 	def __init__(self, *content):
 		super().__init__(*content)
 		self.items = [item for item in content if isinstance(item, AST)]
+		self.datatype = None
+		self.validate()
 
 	@classmethod
 	def make(cls, *items):
@@ -801,6 +868,8 @@ class SetAST(AST):
 	def __init__(self, *content):
 		super().__init__(*content)
 		self.items = [item for item in content if isinstance(item, AST)]
+		self.datatype = None
+		self.validate()
 
 	@classmethod
 	def make(cls, *items):
@@ -878,6 +947,7 @@ class FieldRefAST(AST):
 		self.identifier = identifier
 		# Note that ``field`` might be ``None`` when the field can't be found.
 		self.field = field
+		self.validate()
 
 	@classmethod
 	def make_root(cls, field):
@@ -900,6 +970,9 @@ class FieldRefAST(AST):
 					pass
 
 		return FieldRefAST(parent, identifier, result_field, ".", identifier)
+
+	def validate(self):
+		self.error = Error.FIELD if self.field is None else None
 
 	@property
 	def datatype(self):
@@ -958,6 +1031,8 @@ class BinaryAST(AST):
 		super().__init__(*content)
 		self.obj1 = obj1
 		self.obj2 = obj2
+		self.datatype = None
+		self.validate()
 
 	@classmethod
 	def make(cls, obj1, obj2):
@@ -968,6 +1043,19 @@ class BinaryAST(AST):
 			f" {cls.operator} ",
 			*cls._wrap(obj2, obj2.precedence <= cls.precedence),
 		)
+
+	def validate(self):
+		if self.obj1.error or self.obj2.error:
+			self.error = Error.SUBNODEERROR
+		signature = (self.obj1.datatype, self.obj2.datatype)
+		try:
+			rule = self.rules[signature]
+		except KeyError:
+			self.error = Error.SUBNODETYPES
+			self.datatype = None
+		else:
+			self.error = None
+			self.datatype = rule.result
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
@@ -1210,6 +1298,8 @@ class UnaryAST(AST):
 	def __init__(self, obj, *content):
 		super().__init__(*content)
 		self.obj = obj
+		self.datatype = None
+		self.validate()
 
 	@classmethod
 	def make(cls, obj):
@@ -1222,6 +1312,19 @@ class UnaryAST(AST):
 	@classmethod
 	def fromul4(cls, source, node, vars):
 		return cls(source, _offset(node.pos), AST.fromul4(source, node.obj, vars))
+
+	def validate(self):
+		if self.obj.error:
+			self.error = Error.SUBNODEERROR
+		signature = (self.obj.datatype,)
+		try:
+			rule = self.rules[signature]
+		except KeyError:
+			self.error = Error.SUBNODETYPES
+			self.datatype = None
+		else:
+			self.error = None
+			self.datatype = rule.result
 
 	def dbchildren(self):
 		yield self.obj
@@ -1280,6 +1383,8 @@ class IfAST(AST):
 		self.objif = objif
 		self.objcond = objcond
 		self.objelse = objelse
+		self.datatype = None
+		self.validate()
 
 	@classmethod
 	def make(cls, objif, objcond, objelse):
@@ -1293,6 +1398,19 @@ class IfAST(AST):
 			" else ",
 			*cls._wrap(objelse, objcond.precedence <= cls.precedence),
 		)
+
+	def validate(self):
+		if self.objif.error or self.objcond.error or self.objelse.error:
+			self.error = Error.SUBNODEERROR
+		signature = (self.objif.datatype, self.objcond.datatype, self.objelse.datatype)
+		try:
+			rule = self.rules[signature]
+		except KeyError:
+			self.error = Error.SUBNODETYPES
+			self.datatype = None
+		else:
+			self.error = None
+			self.datatype = rule.result
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
@@ -1351,6 +1469,8 @@ class SliceAST(AST):
 		self.obj = obj
 		self.index1 = index1
 		self.index2 = index2
+		self.datatype = None
+		self.validate()
 
 	@classmethod
 	def make(cls, obj, index1, index2):
@@ -1369,6 +1489,19 @@ class SliceAST(AST):
 			":",
 			index2,
 		)
+
+	def validate(self):
+		if self.obj.error or self.index1.error or self.index2.error:
+			self.error = Error.SUBNODEERROR
+		signature = (self.obj.datatype, self.index1.datatype, self.index2.datatype)
+		try:
+			rule = self.rules[signature]
+		except KeyError:
+			self.error = Error.SUBNODETYPES
+			self.datatype = None
+		else:
+			self.error = None
+			self.datatype = rule.result
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
@@ -1433,11 +1566,14 @@ class AttrAST(AST):
 	nodetype = NodeType.ATTR
 	precedence = 19
 	rules = {}
+	names = set()
 
 	def __init__(self, obj, attrname, *content):
 		super().__init__(*content)
 		self.obj = obj
 		self.attrname = attrname
+		self.datatype = None
+		self.validate()
 
 	@classmethod
 	def make(cls, obj, attrname):
@@ -1448,6 +1584,24 @@ class AttrAST(AST):
 			".",
 			attrname,
 		)
+
+	@classmethod
+	def _add_rule(cls, rule):
+		super()._add_rule(rule)
+		cls.names.add(rule.name)
+
+	def validate(self):
+		if self.obj.error:
+			self.error = Error.SUBNODEERROR
+		signature = (self.obj.datatype, self.attrname)
+		try:
+			rule = self.rules[signature]
+		except KeyError:
+			self.error = Error.SUBNODETYPES if self.name in self.names else Error.NAME
+			self.datatype = None
+		else:
+			self.error = None
+			self.datatype = rule.result
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
@@ -1495,11 +1649,14 @@ class FuncAST(AST):
 	nodetype = NodeType.FUNC
 	precedence = 18
 	rules = {}
+	names = {} # Maps function names to set of supported arities
 
 	def __init__(self, name, args, *content):
 		super().__init__(*content)
 		self.name = name
 		self.args = args
+		self.datatype = None
+		self.validate()
 
 	@classmethod
 	def make(cls, name, *args):
@@ -1511,6 +1668,31 @@ class FuncAST(AST):
 		content.append(")")
 
 		return cls(name, args, *content)
+
+	@classmethod
+	def _add_rule(cls, rule):
+		super()._add_rule(rule)
+		if rule.name not in cls.names:
+			cls.names[rule.name] = set()
+		cls.names[rule.name].add(len(rule.signature))
+
+	def validate(self):
+		if any(arg.error is not None for arg in self.args):
+			self.error = Error.SUBNODEERROR
+		signature = (self.name, *(arg.datatype for arg in self.args))
+		try:
+			rule = self.rules[signature]
+		except KeyError:
+			if self.name not in self.names:
+				self.error = Error.NAME
+			elif len(self.args) not in self.names[self.name]:
+				self.error = Error.ARITY
+			else:
+				self.error = Error.SUBNODETYPES
+			self.datatype = None
+		else:
+			self.error = None
+			self.datatype = rule.result
 
 	@property
 	def dbnodevalue(self):
@@ -1547,16 +1729,19 @@ class MethAST(AST):
 	nodetype = NodeType.METH
 	precedence = 17
 	rules = {}
+	names = {} # Maps (type, meth name) to set of supported arities
 
 	def __init__(self, obj, name, args, *content):
 		super().__init__(*content)
 		self.obj = obj
 		self.name = name
 		self.args = args or ()
+		self.datatype = None
+		self.validate()
 
 	@classmethod
 	def make(cls, obj, name, *args):
-		content = [*cls._wrap(obj, obj.precedence < cls.precedence), name, "("]
+		content = [*cls._wrap(obj, obj.precedence < cls.precedence), ".", name, "("]
 		for (i, arg) in enumerate(args):
 			if i:
 				content.append(", ")
@@ -1564,6 +1749,33 @@ class MethAST(AST):
 		content.append(")")
 
 		return cls(obj, name, args, *content)
+
+	@classmethod
+	def _add_rule(cls, rule):
+		super()._add_rule(rule)
+		key = (rule.signature[0], rule.name)
+		if key not in cls.names:
+			cls.names[key] = set()
+		cls.names[key].add(len(rule.signature)-1)
+
+	def validate(self):
+		if self.obj.error is not None or any(arg.error is not None for arg in self.args):
+			self.error = Error.SUBNODEERROR
+		signature = (self.obj.datatype, self.name, *(arg.datatype for arg in self.args))
+		try:
+			rule = self.rules[signature]
+		except KeyError:
+			key = (self.obj.datatype, self.name)
+			if key not in self.names:
+				self.error = Error.NAME
+			elif len(self.args) not in self.names[key]:
+				self.error = Error.ARITY
+			else:
+				self.error = Error.SUBNODETYPES
+			self.datatype = None
+		else:
+			self.error = None
+			self.datatype = rule.result
 
 	@property
 	def dbnodevalue(self):
