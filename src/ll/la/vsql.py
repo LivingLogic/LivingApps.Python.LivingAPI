@@ -1647,7 +1647,7 @@ FuncAST.add_rules(f"DATETIME <- datetime(DATE, INT, INT, INT)", "?")
 
 # Function ``len()``
 FuncAST.add_rules(f"INT <- len({TEXT})", "nvl(length({s1}), 0)")
-FuncAST.add_rules(f"INT <- len({TEXT})", "vsqlimpl_pkg.len_{t1}({s1})")
+FuncAST.add_rules(f"INT <- len({LIST})", "vsqlimpl_pkg.len_{t1}({s1})")
 FuncAST.add_rules(f"INT <- len(INTSET)", "vsqlimpl_pkg.len_{t1}({s1})")
 FuncAST.add_rules(f"INT <- len(NUMBERSET)", "vsqlimpl_pkg.len_{t1}({s1})")
 FuncAST.add_rules(f"INT <- len(STRSET)", "vsqlimpl_pkg.len_{t1}({s1})")
