@@ -1787,17 +1787,18 @@ class MethAST(AST):
 
 	def _ll_repr_(self):
 		yield from super()._ll_repr_()
-		yield f"{self.name!r}"
 		yield f"obj={self.obj!r}"
-		yield f" with {len(self.args):,} arguments"
+		yield f"name={self.name!r}"
+		yield f"with {len(self.args):,} arguments"
 
 	def _ll_repr_pretty_(self, p):
 		super()._ll_repr_pretty_(p)
-		p.text(" ")
-		p.pretty(self.name)
 		p.breakable()
 		p.text("obj=")
 		p.pretty(self.obj)
+		p.breakable()
+		p.text("name=")
+		p.pretty(self.name)
 		for (i, arg) in enumerate(self.args):
 			p.breakable()
 			p.text(f"args[{i}]=")
