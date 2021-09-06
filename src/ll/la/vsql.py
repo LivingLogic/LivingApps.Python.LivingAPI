@@ -1970,17 +1970,17 @@ ShiftRightAST.add_rules(f"INT <- {INTLIKE} >> {INTLIKE}", "trunc({s1} / power(2,
 
 # Logical and (A and B)
 # Can't use the real operator ("and") in the spec, so use "?"
-AddAST.add_rules(f"T1 <- {ANY} ? NULL", "null")
-AddAST.add_rules(f"T2 <- NULL ? {ANY}", "null")
-AddAST.add_rules(f"BOOL <- BOOL ? BOOL", "(case when {s1} = 1 then {s2} else 0 end)")
-AddAST.add_rules(f"INT <- {INTLIKE} ? {INTLIKE}", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
-AddAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {NUMBERLIKE}", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
-AddAST.add_rules(f"NUMBER <- STR ? STR", "nvl2({s1}, {s2}, {s1})")
-AddAST.add_rules(f"CLOB <- CLOB ? CLOB", "(case when {s1} is not null and length({s1}) != 0 then {s2} else {s1} end)")
-AddAST.add_rules(f"T1 <- DATE_DATETIME ? T1", "nvl2({s1}, {s2}, {s1})")
-AddAST.add_rules(f"T1 <- DATEDELTA_DATETIMEDELTA_MONTHDELTA ? T1", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
-AddAST.add_rules(f"T1 <- {LIST} ? T1", "(case when {s1} is not null and {s1}.count != 0 then {s2} else {s1} end)")
-AddAST.add_rules(f"DATETIMELIST <- DATELIST_DATETIMELIST ? DATELIST_DATETIMELIST", "(case when {s1} is not null and {s1}.count != 0 then {s2} else {s1} end)")
+AndAST.add_rules(f"T1 <- {ANY} ? NULL", "null")
+AndAST.add_rules(f"T2 <- NULL ? {ANY}", "null")
+AndAST.add_rules(f"BOOL <- BOOL ? BOOL", "(case when {s1} = 1 then {s2} else 0 end)")
+AndAST.add_rules(f"INT <- {INTLIKE} ? {INTLIKE}", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
+AndAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {NUMBERLIKE}", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
+AndAST.add_rules(f"NUMBER <- STR ? STR", "nvl2({s1}, {s2}, {s1})")
+AndAST.add_rules(f"CLOB <- CLOB ? CLOB", "(case when {s1} is not null and length({s1}) != 0 then {s2} else {s1} end)")
+AndAST.add_rules(f"T1 <- DATE_DATETIME ? T1", "nvl2({s1}, {s2}, {s1})")
+AndAST.add_rules(f"T1 <- DATEDELTA_DATETIMEDELTA_MONTHDELTA ? T1", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
+AndAST.add_rules(f"T1 <- {LIST} ? T1", "(case when {s1} is not null and {s1}.count != 0 then {s2} else {s1} end)")
+AndAST.add_rules(f"DATETIMELIST <- DATELIST_DATETIMELIST ? DATELIST_DATETIMELIST", "(case when {s1} is not null and {s1}.count != 0 then {s2} else {s1} end)")
 
 # Logical or (A or B)
 # Can't use the real operator ("or") in the spec, so use "?"
