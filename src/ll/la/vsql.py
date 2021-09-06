@@ -273,11 +273,13 @@ class Rule(Repr):
 		"datetimeset":  "datetimelist",
 	}
 
-	def __init__(self, result, key, signature, source):
+	def __init__(self, result, name, key, signature, source):
 		self.result = result
+		self.name = name
 		self.key = key
 		self.signature = signature
-		self.source = source
+		self.source = self._parse_source(signature, source)
+
 
 	def _key(self):
 		key = ", ".join(p.name if isinstance(p, DataType) else repr(p) for p in self.key)
@@ -288,7 +290,9 @@ class Rule(Repr):
 		return f"({signature})"
 
 	def _ll_repr_(self):
-		yield f"result={self.result}"
+		yield f"result={self.result.name}"
+		if self.name is not None:
+			yield f"name={self.name}"
 		yield f"key={self._key()}"
 		yield f"signature={self._signature()}"
 		yield f"source={self.source}"
@@ -297,6 +301,10 @@ class Rule(Repr):
 		p.breakable()
 		p.text("result=")
 		p.text(self.result.name)
+		if self.name is not None:
+			p.breakable()
+			p.text("name=")
+			p.pretty(self.name)
 		p.breakable()
 		p.text("signature=")
 		p.text(self._signature())
@@ -416,7 +424,15 @@ class AST(Repr):
 	def _specs(cls, spec):
 		# Find position of potential name in the spec, so we can correct
 		# the typeref offsets later.
-		namepos = misc.first(i for (i, p) in enumerate(spec) if len(p) == 1 and not p[0].isupper())
+		for (i, p) in enumerate(spec):
+			if len(p) == 1 and not p[0].isupper():
+				namepos = i
+				name = p[0]
+				break
+		else:
+			namepos = None
+			name = None
+
 		for spec in itertools.product(*spec):
 			newspec = list(spec)
 			for (i, type) in enumerate(spec):
@@ -427,8 +443,10 @@ class AST(Repr):
 					if cls.typeref(type):
 						raise ValueError("typeref to typeref")
 				newspec[i] = type
+
 			# Convert type names to ``DataType`` values
-			yield tuple(DataType[p] if p.isupper() else p for p in newspec)
+			newspec = tuple(DataType[p] if p.isupper() else p for p in newspec)
+			yield (name, newspec)
 
 	@classmethod
 	def add_rules(cls, spec, source):
@@ -492,17 +510,25 @@ class AST(Repr):
 		spec = tuple(filter(None, Rule._re_sep.split(spec)))
 
 		spec = [p.split("_") if p.isupper() else (p,) for p in spec]
-		for spec in cls._specs(spec):
+		for (name, spec) in cls._specs(spec):
 			# Drop return type from the lookup key
 			key = spec[1:]
 			if key not in cls.rules:
 				result = spec[0]
 				# Drop name from the signature
 				signature = tuple(p for p in key if isinstance(p, DataType))
-				parsed_source = Rule._parse_source(signature, source)
-				cls.rules[key] = Rule(result, key, signature, parsed_source)
+				cls._add_rule(Rule(result, name, key, signature, source))
 
 	def validate(self):
+		"""
+		Validate the content of this AST node.
+
+		If this node turns out to be invalid it will set ``datatype`` to ``None``
+		and ``error`` to the appropriate :class:`Error` value.
+
+		If this node turns out to be valid, :meth:`!validate` will set ``error``
+		to ``None`` and ``datatype`` to the resulting data type of this node.
+		"""
 		pass
 
 	def source(self):
