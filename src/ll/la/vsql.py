@@ -613,7 +613,6 @@ class ConstAST(AST):
 	@staticmethod
 	def make(value):
 		cls = _consts.get(type(value))
-		print(cls)
 		if cls is None:
 			raise TypeError(value)
 		return cls.make(value)
