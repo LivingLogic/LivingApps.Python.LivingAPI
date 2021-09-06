@@ -10,7 +10,7 @@
 Classes and functions for compiling vSQL expressions.
 """
 
-import datetime, itertools, re
+import sys, datetime, itertools, re, pathlib
 
 from ll import color, misc, ul4c, ul4on
 
@@ -2374,3 +2374,102 @@ BitXOrAST.add_rules(f"INT <- {INTLIKE} ^ {INTLIKE}", "vsqlimpl_pkg.bitxor_int({s
 
 # Bitwise not (~A)
 BitNotAST.add_rules(f"INT <- {INTLIKE}", "(-{s1} - 1)")
+
+
+###
+### Class for regenerating the Java type information.
+###
+
+class JavaSource:
+	def __init__(self, cls, path):
+		self.cls = cls
+		self.path = path
+		self.lines = path.read_text(encoding="utf-8").splitlines(False)
+
+	def __repr__(self):
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} cls={self.cls!r} path={str(self.path)!r} at {id(self):#x}>"
+
+	def start_lines(self):
+		yield "private static Map<List<Object>, VSQLDataType> rules = new HashMap<>()"
+		yield "private static Map<List<VSQLDataType>, VSQLDataType> rules = new HashMap<>()"
+		yield "private static Map<VSQLDataType, VSQLDataType> rules = new HashMap<>()"
+
+	def new_lines(self):
+		yield "\tstatic"
+		yield "\t{"
+
+		for rule in self.cls.rules.values():
+			key = f"VSQLDataType.{rule.result.name}, " + ", ".join(
+				f"VSQLDataType.{p.name}" if isinstance(p, DataType) else misc.javaexpr(p)
+				for p in rule.key
+			)
+			if self.cls is AttrAST:
+				method = "addRule"
+			elif self.cls is FuncAST:
+				method = "addRule"
+			elif self.cls is MethAST:
+				method = "addRule"
+			elif len(rule.signature) == 1:
+				method = "addRule1"
+			else:
+				method = "addRule"
+
+			yield f"\t\t{method}(rules, {key});"
+
+		yield "\t}"
+
+	def save(self):
+		inrules = False
+
+		start_line = "static"
+		end_line = "}"
+
+		with self.path.open("w", encoding="utf-8") as f:
+			for line in self.lines:
+				if inrules:
+					if line.strip() == end_line:
+						inrules = False
+				else:
+					if line.strip() == start_line:
+						inrules = True
+						for new_line in self.new_lines():
+							f.write(f"{new_line}\n")
+					else:
+						f.write(f"{line}\n")
+
+
+def subclasses(cls):
+	yield cls
+	for subcls in cls.__subclasses__():
+		yield from subclasses(subcls)
+
+
+def recreate_java_source(path):
+	# Find all AST classes that have rules
+	classes = {cls.__name__: cls for cls in subclasses(AST) if hasattr(cls, "rules")}
+
+	for filename in path.glob("**/*.java"):
+		try:
+			# Do we have a Python class for this Java source?
+			cls = classes[filename.stem]
+		except KeyError:
+			pass
+		else:
+			# Recreate the Java type info
+			javasource = JavaSource(cls, filename)
+			javasource.save()
+
+
+def main(args=None):
+	import argparse
+	p = argparse.ArgumentParser(description="Recreate vSQL type info for the Java and Oracle implementations")
+	p.add_argument("-j", "--javapath", dest="javapath", help="Path to the Java implementation of vSQL?", type=pathlib.Path)
+
+	args = p.parse_args(args)
+
+	if args.javapath:
+		recreate_java_source(args.javapath)
+
+
+if __name__ == "__main__":
+	sys.exit(main())
