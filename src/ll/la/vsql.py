@@ -114,6 +114,53 @@ class DataType(misc.Enum):
 	DATETIMESET = "datetimeset"
 
 
+class NodeType(misc.Enum):
+	FIELD = "field"
+	CONST_NONE = "const_none"
+	CONST_BOOL = "const_bool"
+	CONST_INT = "const_int"
+	CONST_NUMBER = "const_number"
+	CONST_STR = "const_str"
+	CONST_DATE = "const_date"
+	CONST_DATETIME = "const_datetime"
+	CONST_TIMESTAMP = "const_timestamp"
+	CONST_COLOR = "const_color"
+	LIST = "list"
+	SET = "set"
+	CMP_EQ = "cmp_eq"
+	CMP_NE = "cmp_ne"
+	CMP_LT = "cmp_lt"
+	CMP_LE = "cmp_le"
+	CMP_GT = "cmp_gt"
+	CMP_GE = "cmp_ge"
+	BINOP_ADD = "binop_add"
+	BINOP_MUL = "binop_mul"
+	BINOP_SUB = "binop_sub"
+	BINOP_FLOORDIV = "binop_floordiv"
+	BINOP_TRUEDIV = "binop_truediv"
+	BINOP_MOD = "binop_mod"
+	BINOP_AND = "binop_and"
+	BINOP_OR = "binop_or"
+	BINOP_CONTAINS = "binop_contains"
+	BINOP_NOTCONTAINS = "binop_notcontains"
+	BINOP_IS = "binop_is"
+	BINOP_ISNOT = "binop_isnot"
+	BINOP_ITEM = "binop_item"
+	BINOP_SHIFTLEFT = "binop_shiftleft"
+	BINOP_SHIFTRIGHT = "binop_shiftright"
+	BINOP_BITAND = "binop_bitand"
+	BINOP_BITOR = "binop_bitor"
+	BINOP_BITXOR = "binop_bitxor"
+	TERNOP_SLICE = "ternop_slice"
+	UNOP_NOT = "unop_not"
+	UNOP_NEG = "unop_neg"
+	UNOP_BITNOT = "unop_bitnot"
+	TERNOP_IFELSE = "ternop_ifelse"
+	ATTR = "attr"
+	FUNC = "func"
+	METH = "meth"
+
+
 ###
 ### Core classes
 ###
@@ -548,7 +595,7 @@ class ConstAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.none")
 class NoneAST(ConstAST):
-	dbnodetype = "const_none"
+	nodetype = NodeType.CONST_NONE
 	datatype = DataType.NULL
 
 	@classmethod
@@ -598,7 +645,7 @@ class _ConstWithValueAST(ConstAST):
 
 @ul4on.register("de.livinglogic.vsql.bool")
 class BoolAST(_ConstWithValueAST):
-	dbnodetype = "const_bool"
+	nodetype = NodeType.CONST_BOOL
 	datatype = DataType.BOOL
 
 	@classmethod
@@ -612,7 +659,7 @@ class BoolAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.int")
 class IntAST(_ConstWithValueAST):
-	dbnodetype = "const_int"
+	nodetype = NodeType.CONST_INT
 	datatype = DataType.INT
 
 	@property
@@ -622,7 +669,7 @@ class IntAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.number")
 class NumberAST(_ConstWithValueAST):
-	dbnodetype = "const_number"
+	nodetype = NodeType.CONST_NUMBER
 	datatype = DataType.NUMBER
 
 	@property
@@ -632,13 +679,13 @@ class NumberAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.str")
 class StrAST(_ConstWithValueAST):
-	dbnodetype = "const_str"
+	nodetype = NodeType.CONST_STR
 	datatype = DataType.STR
 
 
 @ul4on.register("de.livinglogic.vsql.color")
 class ColorAST(_ConstWithValueAST):
-	dbnodetype = "const_color"
+	nodetype = NodeType.CONST_COLOR
 	datatype = DataType.COLOR
 
 	@property
@@ -649,7 +696,7 @@ class ColorAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.date")
 class DateAST(_ConstWithValueAST):
-	dbnodetype = "const_date"
+	nodetype = NodeType.CONST_DATE
 	datatype = DataType.DATE
 
 	@property
@@ -659,7 +706,7 @@ class DateAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.datetime")
 class DateTimeAST(_ConstWithValueAST):
-	dbnodetype = "const_datetime"
+	nodetype = NodeType.CONST_DATETIME
 	datatype = DataType.DATETIME
 
 	@classmethod
@@ -674,7 +721,7 @@ class DateTimeAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.list")
 class ListAST(AST):
-	dbnodetype = "list"
+	nodetype = NodeType.LIST
 	precedence = 20
 
 	def __init__(self, *content):
@@ -723,7 +770,7 @@ class ListAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.set")
 class SetAST(AST):
-	dbnodetype = "set"
+	nodetype = NodeType.SET
 	precedence = 20
 
 	def __init__(self, *content):
@@ -775,7 +822,7 @@ class SetAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.fieldref")
 class FieldRefAST(AST):
-	dbnodetype = "field"
+	nodetype = NodeType.FIELD
 	precedence = 19
 
 	def __init__(self, parent, identifier, field, *content):
@@ -932,7 +979,7 @@ class BinaryAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.eq")
 class EQAST(BinaryAST):
-	dbnodetype = "cmp_eq"
+	nodetype = NodeType.CMP_EQ
 	precedence = 6
 	operator = "=="
 	rules = {}
@@ -940,7 +987,7 @@ class EQAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.ne")
 class NEAST(BinaryAST):
-	dbnodetype = "cmp_ne"
+	nodetype = NodeType.CMP_NE
 	precedence = 6
 	operator = "!="
 	rules = {}
@@ -948,7 +995,7 @@ class NEAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.lt")
 class LTAST(BinaryAST):
-	dbnodetype = "cmp_lt"
+	nodetype = NodeType.CMP_LT
 	precedence = 6
 	operator = "<"
 	rules = {}
@@ -956,7 +1003,7 @@ class LTAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.le")
 class LEAST(BinaryAST):
-	dbnodetype = "cmp_le"
+	nodetype = NodeType.CMP_LE
 	precedence = 6
 	operator = "<="
 	rules = {}
@@ -964,7 +1011,7 @@ class LEAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.gt")
 class GTAST(BinaryAST):
-	dbnodetype = "cmp_gt"
+	nodetype = NodeType.CMP_GT
 	precedence = 6
 	operator = ">"
 	rules = {}
@@ -972,7 +1019,7 @@ class GTAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.ge")
 class GEAST(BinaryAST):
-	dbnodetype = "cmp_ge"
+	nodetype = NodeType.CMP_GE
 	precedence = 6
 	operator = ">="
 	rules = {}
@@ -980,7 +1027,7 @@ class GEAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.add")
 class AddAST(BinaryAST):
-	dbnodetype = "binop_add"
+	nodetype = NodeType.BINOP_ADD
 	precedence = 11
 	operator = "+"
 	rules = {}
@@ -988,7 +1035,7 @@ class AddAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.sub")
 class SubAST(BinaryAST):
-	dbnodetype = "binop_sub"
+	nodetype = NodeType.BINOP_SUB
 	precedence = 11
 	operator = "-"
 	rules = {}
@@ -996,7 +1043,7 @@ class SubAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.mul")
 class MulAST(BinaryAST):
-	dbnodetype = "binop_mul"
+	nodetype = NodeType.BINOP_MUL
 	precedence = 12
 	operator = "*"
 	rules = {}
@@ -1004,7 +1051,7 @@ class MulAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.floordiv")
 class FloorDivAST(BinaryAST):
-	dbnodetype = "binop_floordiv"
+	nodetype = NodeType.BINOP_FLOORDIV
 	precedence = 12
 	operator = "//"
 	rules = {}
@@ -1012,7 +1059,7 @@ class FloorDivAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.truediv")
 class TrueDivAST(BinaryAST):
-	dbnodetype = "binop_truediv"
+	nodetype = NodeType.BINOP_TRUEDIV
 	precedence = 12
 	operator = "/"
 	rules = {}
@@ -1020,7 +1067,7 @@ class TrueDivAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.mod")
 class ModAST(BinaryAST):
-	dbnodetype = "binop_mod"
+	nodetype = NodeType.BINOP_MOD
 	precedence = 12
 	operator = "%"
 	rules = {}
@@ -1028,7 +1075,7 @@ class ModAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.and")
 class AndAST(BinaryAST):
-	dbnodetype = "binop_and"
+	nodetype = NodeType.BINOP_AND
 	precedence = 4
 	operator = "and"
 	rules = {}
@@ -1036,7 +1083,7 @@ class AndAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.or")
 class OrAST(BinaryAST):
-	dbnodetype = "binop_or"
+	nodetype = NodeType.BINOP_OR
 	precedence = 4
 	operator = "or"
 	rules = {}
@@ -1044,7 +1091,7 @@ class OrAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.contains")
 class ContainsAST(BinaryAST):
-	dbnodetype = "binop_contains"
+	nodetype = NodeType.BINOP_CONTAINS
 	precedence = 6
 	operator = "in"
 	rules = {}
@@ -1052,7 +1099,7 @@ class ContainsAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.notcontains")
 class NotContainsAST(BinaryAST):
-	dbnodetype = "binop_notcontains"
+	nodetype = NodeType.BINOP_NOTCONTAINS
 	precedence = 6
 	operator = "not in"
 	rules = {}
@@ -1060,7 +1107,7 @@ class NotContainsAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.is")
 class IsAST(BinaryAST):
-	dbnodetype = "binop_is"
+	nodetype = NodeType.BINOP_IS
 	precedence = 6
 	operator = "is"
 	rules = {}
@@ -1068,7 +1115,7 @@ class IsAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.isnot")
 class IsNotAST(BinaryAST):
-	dbnodetype = "binop_isnot"
+	nodetype = NodeType.BINOP_ISNOT
 	precedence = 6
 	operator = "is not"
 	rules = {}
@@ -1076,7 +1123,7 @@ class IsNotAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.item")
 class ItemAST(BinaryAST):
-	dbnodetype = "binop_item"
+	nodetype = NodeType.BINOP_ITEM
 	precedence = 16
 	rules = {}
 
@@ -1096,7 +1143,7 @@ class ItemAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.shiftleft")
 class ShiftLeftAST(BinaryAST):
-	dbnodetype = "binop_shiftleft"
+	nodetype = NodeType.BINOP_SHIFTLEFT
 	precedence = 10
 	operator = "<<"
 	rules = {}
@@ -1104,7 +1151,7 @@ class ShiftLeftAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.shiftright")
 class ShiftRightAST(BinaryAST):
-	dbnodetype = "binop_shiftright"
+	nodetype = NodeType.BINOP_SHIFTRIGHT
 	precedence = 10
 	operator = ">>"
 	rules = {}
@@ -1112,7 +1159,7 @@ class ShiftRightAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.bitand")
 class BitAndAST(BinaryAST):
-	dbnodetype = "binop_bitand"
+	nodetype = NodeType.BINOP_BITAND
 	precedence = 9
 	operator = "&"
 	rules = {}
@@ -1120,7 +1167,7 @@ class BitAndAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.bitor")
 class BitOrAST(BinaryAST):
-	dbnodetype = "binop_bitor"
+	nodetype = NodeType.BINOP_BITOR
 	precedence = 7
 	operator = "|"
 	rules = {}
@@ -1128,7 +1175,7 @@ class BitOrAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.bitxor")
 class BitXOrAST(BinaryAST):
-	dbnodetype = "binop_bitxor"
+	nodetype = NodeType.BINOP_BITXOR
 	precedence = 8
 	operator = "^"
 	rules = {}
@@ -1175,7 +1222,7 @@ class UnaryAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.not")
 class NotAST(UnaryAST):
-	dbnodetype = "unop_not"
+	nodetype = NodeType.UNOP_NOT
 	precedence = 5
 	operator = "not "
 	rules = {}
@@ -1183,7 +1230,7 @@ class NotAST(UnaryAST):
 
 @ul4on.register("de.livinglogic.vsql.neg")
 class NegAST(UnaryAST):
-	dbnodetype = "unop_neg"
+	nodetype = NodeType.UNOP_NEG
 	precedence = 14
 	operator = "-"
 	rules = {}
@@ -1191,7 +1238,7 @@ class NegAST(UnaryAST):
 
 @ul4on.register("de.livinglogic.vsql.bitnot")
 class BitNotAST(UnaryAST):
-	dbnodetype = "unop_bitnot"
+	nodetype = NodeType.UNOP_BITNOT
 	precedence = 14
 	operator = "~"
 	rules = {}
@@ -1199,7 +1246,7 @@ class BitNotAST(UnaryAST):
 
 @ul4on.register("de.livinglogic.vsql.if")
 class IfAST(AST):
-	dbnodetype = "ternop_if"
+	nodetype = NodeType.TERNOP_IFELSE
 	precedence = 3
 	rules = {}
 
@@ -1270,7 +1317,7 @@ class IfAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.if")
 class SliceAST(AST):
-	dbnodetype = "ternop_slice"
+	nodetype = NodeType.TERNOP_SLICE
 	precedence = 16
 	rules = {}
 
@@ -1358,7 +1405,7 @@ class SliceAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.attr")
 class AttrAST(AST):
-	dbnodetype = "attr"
+	nodetype = NodeType.ATTR
 	precedence = 19
 	rules = {}
 
@@ -1420,7 +1467,7 @@ class AttrAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.func")
 class FuncAST(AST):
-	dbnodetype = "func"
+	nodetype = NodeType.FUNC
 	precedence = 18
 	rules = {}
 
@@ -1472,7 +1519,7 @@ class FuncAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.meth")
 class MethAST(AST):
-	dbnodetype = "meth"
+	nodetype = NodeType.METH
 	precedence = 17
 	rules = {}
 
