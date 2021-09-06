@@ -1305,7 +1305,7 @@ class UnaryAST(AST):
 	def make(cls, obj):
 		return cls(
 			obj,
-			self.operator
+			cls.operator,
 			*cls._wrap(obj, obj.precedence <= cls.precedence),
 		)
 
