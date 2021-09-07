@@ -161,6 +161,10 @@ class Repr:
 
 
 class DataType(misc.Enum):
+	"""
+	The datatypes supported in vSQL expressions.
+	"""
+
 	NULL = "null"
 	BOOL = "bool"
 	INT = "int"
@@ -188,6 +192,12 @@ class DataType(misc.Enum):
 
 
 class NodeType(misc.Enum):
+	"""
+	The different types of vSQL abstract syntax tree nodes.
+
+	This corresponds to the different subclasses of :class:`AST`.
+	"""
+
 	FIELD = "field"
 	CONST_NONE = "const_none"
 	CONST_BOOL = "const_bool"
@@ -236,6 +246,12 @@ class NodeType(misc.Enum):
 
 
 class Error(misc.Enum):
+	"""
+	The types of errors that can make a vSQL AST node invalid.
+
+	Note that some of those can not be produced by the Python implementation.
+	"""
+
 	SUBNODEERROR = "subnodeerror" # Subnodes are invalid
 	NODETYPE = "nodetype" # Unknown node type (not any of the ``NODETYPE_...`` values from above
 	ARITY = "arity" # Node does not have the required number of children
@@ -279,10 +295,6 @@ class Error(misc.Enum):
 	DATATYPE_DATESET = "datatype_dateset" # The datatype of the node should be ``dateset`` but isn't
 	DATATYPE_DATETIMESET = "datatype_datetimeset" # The datatype of the node should be ``datetimeset`` but isn't
 
-
-###
-### Core classes
-###
 
 class Def(Repr):
 	pass
