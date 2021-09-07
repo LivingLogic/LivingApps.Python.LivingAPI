@@ -1124,7 +1124,7 @@ class FieldRefAST(AST):
 				except KeyError:
 					pass
 
-		return FieldRefAST(parent, identifier, result_field, ".", identifier)
+		return FieldRefAST(parent, identifier, result_field, parent, ".", identifier)
 
 	def validate(self):
 		self.error = Error.FIELD if self.field is None else None
