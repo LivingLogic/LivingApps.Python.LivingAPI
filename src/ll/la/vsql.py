@@ -1153,7 +1153,8 @@ class FieldRefAST(AST):
 
 	def _ll_repr_pretty_(self, p):
 		super()._ll_repr_pretty_(p)
-		p.text(" ")
+		p.breakable()
+		p.text("identifier=")
 		p.pretty(self.identifier)
 		if self.parent is not None:
 			p.breakable()
