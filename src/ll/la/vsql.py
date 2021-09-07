@@ -310,7 +310,7 @@ class Field(Def):
 		self.refgroup = refgroup
 
 	def _ll_repr_(self):
-		yield f"{self.identifier!r}"
+		yield f"identifier={self.identifier!r}"
 		yield f"datatype={self.datatype!r}"
 		yield f"fieldsql={self.fieldsql!r}"
 		if self.joinsql is not None:
@@ -319,7 +319,8 @@ class Field(Def):
 			yield f"refgroup.tablesql={self.refgroup.tablesql!r}"
 
 	def _ll_repr_pretty_(self, p):
-		p.text(" ")
+		p.breakable()
+		p.text("identifier=")
 		p.pretty(self.identifier)
 		p.breakable()
 		p.text("datatype=")
