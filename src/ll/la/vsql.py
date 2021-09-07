@@ -10,7 +10,7 @@
 Classes and functions for compiling vSQL expressions.
 """
 
-import sys, datetime, itertools, re, pathlib
+import sys, datetime, itertools, re, pathlib, typing
 
 from ll import color, misc, ul4c, ul4on
 
@@ -21,8 +21,81 @@ except ImportError:
 
 
 ###
+### Global configurations
+###
+
+scriptname = misc.sysinfo.short_script_name
+
+
+###
+### Fields for the table ``VSQLRULE``
+###
+
+optstr = typing.Optional[str]
+optint = typing.Optional[int]
+
+fields = dict(
+	vr_nodetype=str,
+	vr_value=optstr,
+	vr_result=str,
+	vr_signature=optstr,
+	vr_arity=int,
+	vr_literal1=optstr,
+	vr_child2=optint,
+	vr_literal3=optstr,
+	vr_child4=optint,
+	vr_literal5=optstr,
+	vr_child6=optint,
+	vr_literal7=optstr,
+	vr_child8=optint,
+	vr_literal9=optstr,
+	vr_child10=optint,
+	vr_literal11=optstr,
+	vr_child12=optint,
+	vr_literal13=optstr,
+	vr_cname=str,
+	vr_cdate=datetime.datetime,
+)
+
+
+###
 ### Helper functions and classes
 ###
+
+def subclasses(cls):
+	yield cls
+	for subcls in cls.__subclasses__():
+		yield from subclasses(subcls)
+
+
+class sqlliteral(str):
+	"""
+	Marker class that can be used to spcifiy that its value should be treated
+	as literal SQL.
+	"""
+	pass
+
+
+def sql(value):
+	"""
+	Return an SQL expression for the Python value ``value``.
+	"""
+	if value is None:
+		return "null"
+	elif isinstance(value, sqlliteral):
+		return str(value)
+	elif isinstance(value, int):
+		return str(value)
+	elif isinstance(value, datetime.datetime):
+		return f"to_date('{value:%Y-%m-%d %H:%M:%S}', 'YYYY-MM-DD HH24:MI:SS')"
+	elif isinstance(value, str):
+		if value:
+			value = value.replace("'", "''")
+			return f"'{value}'"
+		else:
+			return "null"
+	else:
+		raise TypeError(f"unknown type {type(value)!r}")
 
 
 def _offset(pos):
@@ -121,6 +194,7 @@ class NodeType(misc.Enum):
 	CONST_INT = "const_int"
 	CONST_NUMBER = "const_number"
 	CONST_STR = "const_str"
+	CONST_CLOB = "const_clob"
 	CONST_DATE = "const_date"
 	CONST_DATETIME = "const_datetime"
 	CONST_TIMESTAMP = "const_timestamp"
@@ -318,7 +392,8 @@ class Rule(Repr):
 		"datetimeset":  "datetimelist",
 	}
 
-	def __init__(self, result, name, key, signature, source):
+	def __init__(self, astcls, result, name, key, signature, source):
+		self.astcls = astcls
 		self.result = result
 		self.name = name
 		self.key = key
@@ -335,9 +410,10 @@ class Rule(Repr):
 		return f"({signature})"
 
 	def _ll_repr_(self):
+		yield f"nodetype={self.astcls.nodetype.name}"
 		yield f"result={self.result.name}"
 		if self.name is not None:
-			yield f"name={self.name}"
+			yield f"name={self.name!r}"
 		yield f"key={self._key()}"
 		yield f"signature={self._signature()}"
 		yield f"source={self.source}"
@@ -386,11 +462,66 @@ class Rule(Repr):
 			append(source[pos:])
 		return tuple(final_source)
 
+	def java_source(self):
+		key = ", ".join(
+			f"VSQLDataType.{p.name}" if isinstance(p, DataType) else misc.javaexpr(p)
+			for p in self.key
+		)
+
+		return f"addRule(rules, VSQLDataType.{self.result.name}, {key});"
+
+	def oracle_fields(self):
+		fields = {}
+
+		fields["vr_nodetype"] = self.astcls.nodetype.value
+		fields["vr_value"] = self.name
+		fields["vr_result"] = self.result.value
+		fields["vr_signature"] = " ".join(p.value for p in self.signature)
+		fields["vr_arity"] = len(self.signature)
+
+		wantlit = True
+		index = 1
+
+		for part in self.source:
+			if wantlit:
+				if isinstance(part, int):
+					index += 1 # skip this field
+					fields[f"vr_child{index}"] = part
+				else:
+					fields[f"vr_literal{index}"] = part
+				wantlit = False
+			else:
+				if isinstance(part, int):
+					fields[f"vr_child{index}"] = part
+				else:
+					raise ValueError("two children")
+				wantlit = True
+			index += 1
+
+		fields["vr_cdate"] = sqlliteral("sysdate")
+		fields["vr_cname"] = sqlliteral("c_user")
+
+		return fields
+
+	def oracle_source(self):
+		fieldnames = []
+		fieldvalues = []
+		for (fieldname, fieldvalue) in self.oracle_fields().items():
+			fieldvalue = sql(fieldvalue)
+			if fieldvalue != "null":
+				fieldnames.append(fieldname)
+				fieldvalues.append(fieldvalue)
+		fieldnames = ", ".join(fieldnames)
+		fieldvalues = ", ".join(fieldvalues)
+
+		return f"insert into vsqlrule ({fieldnames}) values ({fieldvalues});"
+
 
 class AST(Repr):
-	dbnodetype = None
-	dbnodevalue = None
+	nodetype = None
+	nodevalue = None
 	datatype = None
+	rules = None
 
 	def __init__(self, *content):
 		final_content = []
@@ -458,6 +589,29 @@ class AST(Repr):
 			elif isinstance(vsqlnode, Attr):
 				return Meth(source, _offset(node.pos), vsqlnode.obj, vsqlnode.attrname, args)
 		raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(node)}!")
+
+	@classmethod
+	def all_types(cls):
+		"""
+		Return this class and all subclasses.
+
+		This is a generator.
+		"""
+		yield cls
+		for subcls in cls.__subclasses__():
+			yield from subcls.all_types()
+
+	@classmethod
+	def all_rules(cls):
+		"""
+		Return all grammar rules of this class and all its subclasses.
+
+		This is a generator.
+		"""
+		for subcls in cls.all_types():
+			print(subcls)
+			if subcls.rules is not None:
+				yield from subcls.rules.values()
 
 	@classmethod
 	def _add_rule(cls, rule):
@@ -562,11 +716,13 @@ class AST(Repr):
 		for (name, spec) in cls._specs(spec):
 			# Drop return type from the lookup key
 			key = spec[1:]
+			if cls.rules is None:
+				cls.rules = {}
 			if key not in cls.rules:
 				result = spec[0]
 				# Drop name from the signature
 				signature = tuple(p for p in key if isinstance(p, DataType))
-				cls._add_rule(Rule(result, name, key, signature, source))
+				cls._add_rule(Rule(cls, result, name, key, signature, source))
 
 	def validate(self):
 		"""
@@ -590,42 +746,11 @@ class AST(Repr):
 			else:
 				yield from item._source()
 
-	def dbchildren(self):
+	def children(self):
 		yield from ()
 
-	def save(self, handler, cursor=None, vs_id_super=None, vs_order=None, vss_id=None):
-		"""
-		Save :obj:`self` to the :class:`DBHandler` :obj:`handler`.
-
-		``cursor``, ``vs_id_super``, ``vs_order`` and ``vss_id`` are used
-		internally for recursive calls and should not be passed by the user.
-		"""
-		if cursor is None:
-			cursor = handler.cursor()
-		if vss_id is None:
-			r = handler.proc_vsqlsource_insert(
-				cursor,
-				c_user=handler.ide_id,
-				p_vss_source=self.source(),
-			)
-			vss_id = r.p_vss_id
-		r = handler.proc_vsql_insert(
-			cursor,
-			c_user=handler.ide_id,
-			p_vs_id_super=vs_id_super,
-			p_vs_order=vs_order,
-			p_vs_nodetype=self.dbnodetype,
-			p_vs_value=self.dbnodevalue,
-			p_vs_datatype=self.datatype,
-			p_vss_id=vss_id,
-			p_vs_start=self.pos.start,
-			p_vs_stop=self.pos.stop,
-		)
-		vs_id = r.p_vs_id
-		order = 10
-		for child in self.dbchildren():
-			child.save(handler, cursor, vs_id, order, vss_id)
-			order += 10
+	def save(self, handler):
+		(vs_id, _) = handler.save_vsql(self)
 		return vs_id
 
 	def __str__(self):
@@ -711,7 +836,7 @@ class _ConstWithValueAST(ConstAST):
 		return cls(source, _offset(node.pos), node.value)
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		return self.value
 
 	def _ll_repr_(self):
@@ -743,7 +868,7 @@ class BoolAST(_ConstWithValueAST):
 		return cls(value, "True" if value else "False")
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		return "True" if self.value else "False"
 
 
@@ -753,7 +878,7 @@ class IntAST(_ConstWithValueAST):
 	datatype = DataType.INT
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		return str(self.value)
 
 
@@ -763,7 +888,7 @@ class NumberAST(_ConstWithValueAST):
 	datatype = DataType.NUMBER
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		return repr(self.value)
 
 
@@ -773,13 +898,19 @@ class StrAST(_ConstWithValueAST):
 	datatype = DataType.STR
 
 
+@ul4on.register("de.livinglogic.vsql.clob")
+class CLOBAST(_ConstWithValueAST):
+	nodetype = NodeType.CONST_CLOB
+	datatype = DataType.CLOB
+
+
 @ul4on.register("de.livinglogic.vsql.color")
 class ColorAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_COLOR
 	datatype = DataType.COLOR
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		c = self.value
 		return f"{c.r():02x}{c.g():02x}{c.b():02x}{c.a():02x}"
 
@@ -790,7 +921,7 @@ class DateAST(_ConstWithValueAST):
 	datatype = DataType.DATE
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		return f"{self.value:%Y-%m-%d}"
 
 
@@ -805,7 +936,7 @@ class DateTimeAST(_ConstWithValueAST):
 		return cls(value, ul4c._repr(value))
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		return f"{self.value:%Y-%m-%dT%H:%M:%S}"
 
 
@@ -848,7 +979,7 @@ class ListAST(AST):
 			p.breakable()
 			p.pretty(item)
 
-	def dbchildren(self):
+	def children(self):
 		yield from self.items
 
 	def ul4ondump(self, encoder):
@@ -883,7 +1014,7 @@ class SetAST(AST):
 		else:
 			return cls("{/}")
 
-	def dbchildren(self):
+	def children(self):
 		yield from self.items
 
 	def _ll_repr_(self):
@@ -979,7 +1110,7 @@ class FieldRefAST(AST):
 		return self.field.datatype if self.field is not None else None
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		identifierpath = []
 		node = self
 		while node is not None:
@@ -1061,7 +1192,7 @@ class BinaryAST(AST):
 	def fromul4(cls, source, node, vars):
 		return cls(source, _offset(node.pos), AST.fromul4(source, node.obj1, vars), AST.fromul4(source, node.obj2, vars))
 
-	def dbchildren(self):
+	def children(self):
 		yield self.obj1
 		yield self.obj2
 
@@ -1095,7 +1226,6 @@ class EQAST(BinaryAST):
 	nodetype = NodeType.CMP_EQ
 	precedence = 6
 	operator = "=="
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.ne")
@@ -1103,7 +1233,6 @@ class NEAST(BinaryAST):
 	nodetype = NodeType.CMP_NE
 	precedence = 6
 	operator = "!="
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.lt")
@@ -1111,7 +1240,6 @@ class LTAST(BinaryAST):
 	nodetype = NodeType.CMP_LT
 	precedence = 6
 	operator = "<"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.le")
@@ -1119,7 +1247,6 @@ class LEAST(BinaryAST):
 	nodetype = NodeType.CMP_LE
 	precedence = 6
 	operator = "<="
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.gt")
@@ -1127,7 +1254,6 @@ class GTAST(BinaryAST):
 	nodetype = NodeType.CMP_GT
 	precedence = 6
 	operator = ">"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.ge")
@@ -1135,7 +1261,6 @@ class GEAST(BinaryAST):
 	nodetype = NodeType.CMP_GE
 	precedence = 6
 	operator = ">="
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.add")
@@ -1143,7 +1268,6 @@ class AddAST(BinaryAST):
 	nodetype = NodeType.BINOP_ADD
 	precedence = 11
 	operator = "+"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.sub")
@@ -1151,7 +1275,6 @@ class SubAST(BinaryAST):
 	nodetype = NodeType.BINOP_SUB
 	precedence = 11
 	operator = "-"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.mul")
@@ -1159,7 +1282,6 @@ class MulAST(BinaryAST):
 	nodetype = NodeType.BINOP_MUL
 	precedence = 12
 	operator = "*"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.floordiv")
@@ -1167,7 +1289,6 @@ class FloorDivAST(BinaryAST):
 	nodetype = NodeType.BINOP_FLOORDIV
 	precedence = 12
 	operator = "//"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.truediv")
@@ -1175,7 +1296,6 @@ class TrueDivAST(BinaryAST):
 	nodetype = NodeType.BINOP_TRUEDIV
 	precedence = 12
 	operator = "/"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.mod")
@@ -1183,7 +1303,6 @@ class ModAST(BinaryAST):
 	nodetype = NodeType.BINOP_MOD
 	precedence = 12
 	operator = "%"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.and")
@@ -1191,7 +1310,6 @@ class AndAST(BinaryAST):
 	nodetype = NodeType.BINOP_AND
 	precedence = 4
 	operator = "and"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.or")
@@ -1199,7 +1317,6 @@ class OrAST(BinaryAST):
 	nodetype = NodeType.BINOP_OR
 	precedence = 4
 	operator = "or"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.contains")
@@ -1207,7 +1324,6 @@ class ContainsAST(BinaryAST):
 	nodetype = NodeType.BINOP_CONTAINS
 	precedence = 6
 	operator = "in"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.notcontains")
@@ -1215,7 +1331,6 @@ class NotContainsAST(BinaryAST):
 	nodetype = NodeType.BINOP_NOTCONTAINS
 	precedence = 6
 	operator = "not in"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.is")
@@ -1223,7 +1338,6 @@ class IsAST(BinaryAST):
 	nodetype = NodeType.BINOP_IS
 	precedence = 6
 	operator = "is"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.isnot")
@@ -1231,14 +1345,12 @@ class IsNotAST(BinaryAST):
 	nodetype = NodeType.BINOP_ISNOT
 	precedence = 6
 	operator = "is not"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.item")
 class ItemAST(BinaryAST):
 	nodetype = NodeType.BINOP_ITEM
 	precedence = 16
-	rules = {}
 
 	@classmethod
 	def make(self, obj1, obj2):
@@ -1259,7 +1371,6 @@ class ShiftLeftAST(BinaryAST):
 	nodetype = NodeType.BINOP_SHIFTLEFT
 	precedence = 10
 	operator = "<<"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.shiftright")
@@ -1267,7 +1378,6 @@ class ShiftRightAST(BinaryAST):
 	nodetype = NodeType.BINOP_SHIFTRIGHT
 	precedence = 10
 	operator = ">>"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.bitand")
@@ -1275,7 +1385,6 @@ class BitAndAST(BinaryAST):
 	nodetype = NodeType.BINOP_BITAND
 	precedence = 9
 	operator = "&"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.bitor")
@@ -1283,7 +1392,6 @@ class BitOrAST(BinaryAST):
 	nodetype = NodeType.BINOP_BITOR
 	precedence = 7
 	operator = "|"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.bitxor")
@@ -1291,7 +1399,6 @@ class BitXOrAST(BinaryAST):
 	nodetype = NodeType.BINOP_BITXOR
 	precedence = 8
 	operator = "^"
-	rules = {}
 
 
 class UnaryAST(AST):
@@ -1326,7 +1433,7 @@ class UnaryAST(AST):
 			self.error = None
 			self.datatype = rule.result
 
-	def dbchildren(self):
+	def children(self):
 		yield self.obj
 
 	def _ll_repr_(self):
@@ -1353,7 +1460,6 @@ class NotAST(UnaryAST):
 	nodetype = NodeType.UNOP_NOT
 	precedence = 5
 	operator = "not "
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.neg")
@@ -1361,7 +1467,6 @@ class NegAST(UnaryAST):
 	nodetype = NodeType.UNOP_NEG
 	precedence = 14
 	operator = "-"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.bitnot")
@@ -1369,14 +1474,12 @@ class BitNotAST(UnaryAST):
 	nodetype = NodeType.UNOP_BITNOT
 	precedence = 14
 	operator = "~"
-	rules = {}
 
 
 @ul4on.register("de.livinglogic.vsql.if")
 class IfAST(AST):
 	nodetype = NodeType.TERNOP_IFELSE
 	precedence = 3
-	rules = {}
 
 	def __init__(self, objif, objcond, objelse, *content):
 		super().__init__(*content)
@@ -1422,7 +1525,7 @@ class IfAST(AST):
 			AST.fromul4(source, node.objelse, vars),
 		)
 
-	def dbchildren(self):
+	def children(self):
 		yield self.objif
 		yield self.objcond
 		yield self.objelse
@@ -1462,7 +1565,6 @@ class IfAST(AST):
 class SliceAST(AST):
 	nodetype = NodeType.TERNOP_SLICE
 	precedence = 16
-	rules = {}
 
 	def __init__(self, obj, index1, index2, *content):
 		super().__init__(*content)
@@ -1513,7 +1615,7 @@ class SliceAST(AST):
 			AST.fromul4(source, node.obj2.index2, vars) if node.obj2.index2 is not None else None,
 		)
 
-	def dbchildren(self):
+	def children(self):
 		yield self.obj
 		if self.index1 is None:
 			pos = self.obj.pos.stop
@@ -1565,8 +1667,6 @@ class SliceAST(AST):
 class AttrAST(AST):
 	nodetype = NodeType.ATTR
 	precedence = 19
-	rules = {}
-	names = set()
 
 	def __init__(self, obj, attrname, *content):
 		super().__init__(*content)
@@ -1585,11 +1685,6 @@ class AttrAST(AST):
 			attrname,
 		)
 
-	@classmethod
-	def _add_rule(cls, rule):
-		super()._add_rule(rule)
-		cls.names.add(rule.name)
-
 	def validate(self):
 		if self.obj.error:
 			self.error = Error.SUBNODEERROR
@@ -1597,7 +1692,7 @@ class AttrAST(AST):
 		try:
 			rule = self.rules[signature]
 		except KeyError:
-			self.error = Error.SUBNODETYPES if self.name in self.names else Error.NAME
+			self.error = Error.SUBNODETYPES
 			self.datatype = None
 		else:
 			self.error = None
@@ -1613,10 +1708,10 @@ class AttrAST(AST):
 		)
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		return self.attrname
 
-	def dbchildren(self):
+	def children(self):
 		yield self.obj
 
 	def _ll_repr_(self):
@@ -1648,7 +1743,6 @@ class AttrAST(AST):
 class FuncAST(AST):
 	nodetype = NodeType.FUNC
 	precedence = 18
-	rules = {}
 	names = {} # Maps function names to set of supported arities
 
 	def __init__(self, name, args, *content):
@@ -1695,10 +1789,10 @@ class FuncAST(AST):
 			self.datatype = rule.result
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		return self.name
 
-	def dbchildren(self):
+	def children(self):
 		yield from self.args
 
 	def _ll_repr_(self):
@@ -1728,7 +1822,6 @@ class FuncAST(AST):
 class MethAST(AST):
 	nodetype = NodeType.METH
 	precedence = 17
-	rules = {}
 	names = {} # Maps (type, meth name) to set of supported arities
 
 	def __init__(self, obj, name, args, *content):
@@ -1778,10 +1871,10 @@ class MethAST(AST):
 			self.datatype = rule.result
 
 	@property
-	def dbnodevalue(self):
+	def nodevalue(self):
 		return self.name
 
-	def dbchildren(self):
+	def children(self):
 		yield self.obj
 		yield from self.args
 
@@ -1854,6 +1947,19 @@ LIST = f"INTLIST_NUMBERLIST_STRLIST_CLOBLIST_DATELIST_DATETIMELIST"
 SET = f"INTSET_NUMBERSET_STRSET_DATESET_DATETIMESET"
 SEQ = f"{TEXT}_{LIST}_{SET}"
 ANY = "_".join(DataType.__members__.keys())
+
+# Field references and constants (will not be used for generating source,
+# but for checking that the node type is valid and that they have no child nodes)
+FieldRefAST.add_rules(f"NULL", "")
+NoneAST.add_rules(f"NULL", "")
+BoolAST.add_rules(f"BOOL", "")
+IntAST.add_rules(f"INT", "")
+NumberAST.add_rules(f"NUMBER", "")
+StrAST.add_rules(f"STR", "")
+CLOBAST.add_rules(f"CLOB", "")
+ColorAST.add_rules(f"COLOR", "")
+DateAST.add_rules(f"DATE", "")
+DateTimeAST.add_rules(f"DATETIME", "")
 
 # Function ``today()``
 FuncAST.add_rules(f"DATE today", "trunc(sysdate)")
@@ -2381,44 +2487,37 @@ BitNotAST.add_rules(f"INT <- {INTLIKE}", "(-{s1} - 1)")
 ###
 
 class JavaSource:
-	def __init__(self, cls, path):
-		self.cls = cls
+	"""
+	A :class:`JavaSource` object combines the source code of a Java class that
+	implements a vSQL AST type with the Python class that implements that AST
+	type.
+	"""
+	def __init__(self, astcls, path):
+		self.astcls = astcls
 		self.path = path
 		self.lines = path.read_text(encoding="utf-8").splitlines(False)
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} cls={self.cls!r} path={str(self.path)!r} at {id(self):#x}>"
 
-	def start_lines(self):
-		yield "private static Map<List<Object>, VSQLDataType> rules = new HashMap<>()"
-		yield "private static Map<List<VSQLDataType>, VSQLDataType> rules = new HashMap<>()"
-		yield "private static Map<VSQLDataType, VSQLDataType> rules = new HashMap<>()"
-
 	def new_lines(self):
+		"""
+		Return an iterator over the new Java source code lines that should
+		replace the static initialization block inside the Java source file.
+		"""
 		yield "\tstatic"
 		yield "\t{"
 
-		for rule in self.cls.rules.values():
-			key = f"VSQLDataType.{rule.result.name}, " + ", ".join(
-				f"VSQLDataType.{p.name}" if isinstance(p, DataType) else misc.javaexpr(p)
-				for p in rule.key
-			)
-			if self.cls is AttrAST:
-				method = "addRule"
-			elif self.cls is FuncAST:
-				method = "addRule"
-			elif self.cls is MethAST:
-				method = "addRule"
-			elif len(rule.signature) == 1:
-				method = "addRule1"
-			else:
-				method = "addRule"
-
-			yield f"\t\t{method}(rules, {key});"
+		for rule in self.astcls.rules.values():
+			yield f"\t\t{rule.java_source()}"
 
 		yield "\t}"
 
 	def save(self):
+		"""
+		Resave the Java source code incorporating the new vSQL type info from the
+		Python AST class.
+		"""
 		inrules = False
 
 		start_line = "static"
@@ -2437,38 +2536,144 @@ class JavaSource:
 					else:
 						f.write(f"{line}\n")
 
+	@classmethod
+	def all_java_source_files(cls, path: pathlib.Path):
+		"""
+		Return an iterator over all :class:`!JavaSource` objects that can be found
+		in the directory ``path`` that should point to the directory containing
+		the Java vSQL AST classes.
+		"""
 
-def subclasses(cls):
-	yield cls
-	for subcls in cls.__subclasses__():
-		yield from subclasses(subcls)
+		# Find all AST classes that have rules
+		classes = {cls.__name__: cls for cls in AST.all_types() if hasattr(cls, "rules")}
 
+		for filename in path.glob("**/*.java"):
+			try:
+				# Do we have a Python class for this Java source?
+				cls = classes[filename.stem]
+			except KeyError:
+				pass
+			else:
+				yield JavaSource(cls, filename)
 
-def recreate_java_source(path):
-	# Find all AST classes that have rules
-	classes = {cls.__name__: cls for cls in subclasses(AST) if hasattr(cls, "rules")}
-
-	for filename in path.glob("**/*.java"):
-		try:
-			# Do we have a Python class for this Java source?
-			cls = classes[filename.stem]
-		except KeyError:
-			pass
-		else:
-			# Recreate the Java type info
-			javasource = JavaSource(cls, filename)
+	@classmethod
+	def rewrite_all_java_source_files(cls, path:pathlib.Path, verbose:bool=False):
+		"""
+		Rewrite all Java source code files implementing Java vSQL AST classes
+		in the directory ``path`` that should point to the directory containing
+		the Java vSQL AST classes..
+		"""
+		if verbose:
+			print(f"Rewriting Java source files in {str(path)!r}", file=sys.stderr)
+		for javasource in cls.all_java_source_files(path):
 			javasource.save()
+
+
+###
+### Functions for regenerating the Oracle type information.
+###
+
+def oracle_sql_table():
+	recordfields = [rule.oracle_fields() for rule in AST.all_rules()]
+
+	sql = []
+	sql.append("create table vsqlrule")
+	sql.append("(")
+	for (i, (fieldname, fieldtype)) in enumerate(fields.items()):
+		term = "" if i == len(fields)-1 else ","
+		if fieldname == "vr_cname":
+			sql.append(f"\t{fieldname} varchar2({len(scriptname)}) not null{term}")
+		elif fieldtype is int:
+			sql.append(f"\t{fieldname} integer not null{term}")
+		elif fieldtype is optint:
+			sql.append(f"\t{fieldname} integer{term}")
+		elif fieldtype is datetime.datetime:
+			sql.append(f"\t{fieldname} date not null{term}")
+		elif fieldtype is str:
+			size = max(len(r[fieldname]) for r in recordfields if fieldname in r and r[fieldname])
+			sql.append(f"\t{fieldname} varchar2({size}) not null{term}")
+		elif fieldtype is optstr:
+			size = max(len(r[fieldname]) for r in recordfields if fieldname in r and r[fieldname])
+			sql.append(f"\t{fieldname} varchar2({size}){term}")
+		else:
+			raise ValueError(f"unknown field type {fieldtype!r}")
+	sql.append(")")
+	return "\n".join(sql)
+
+
+def oracle_sql_procedure():
+	sql = []
+	sql.append("create or replace procedure vsqlgrammar_make(c_user varchar2)")
+	sql.append("as")
+	sql.append("begin")
+	sql.append("\tdelete from vsqlrule;")
+	for rule in AST.all_rules():
+		print(rule.oracle_source())
+		sql.append(f"\t{rule.oracle_source()}")
+	sql.append("end;")
+	return "\n".join(sql)
+
+
+def oracle_sql_index():
+	return "create unique index vsqlrule_i1 on vsqlrule(vr_nodetype, vr_value, vr_signature, vr_arity)"
+
+
+def oracle_sql_tablecomment():
+	return "comment on table vsqlrule is 'Syntax rules for vSQL expressions.'"
+
+
+def recreate_oracle(connectstring: str, verbose:bool=False):
+	from ll import orasql
+
+	db = orasql.connect(connectstring, readlobs=True)
+	cursor = db.cursor()
+
+	oldtable = orasql.Table("VSQLRULE", connection=db)
+	try:
+		oldsql = oldtable.createsql(term=False).strip().lower().replace(" byte)", ")")
+	except orasql.SQLObjectNotFoundError:
+		oldsql = None
+
+	newsql = oracle_sql_table()
+
+	if oldsql is not None and oldsql != newsql:
+		if verbose:
+			print(f"Dropping old table VSQLRULE in {db.connectstring()!r}", file=sys.stderr)
+		cursor.execute("drop table vsqlrule")
+	if oldsql != newsql:
+		if verbose:
+			print(f"Creating new table VSQLRULE in {db.connectstring()!r}", file=sys.stderr)
+		cursor.execute(newsql)
+		if verbose:
+			print(f"Creating index VSQLRULE_I1 in {db.connectstring()!r}", file=sys.stderr)
+		cursor.execute(oracle_sql_index())
+		if verbose:
+			print(f"Creating table comment for VSQLRULE in {db.connectstring()!r}", file=sys.stderr)
+		cursor.execute(oracle_sql_tablecomment())
+	if verbose:
+		print(f"Creating procedure VSQLGRAMMAR_MAKE in {db.connectstring()!r}", file=sys.stderr)
+	cursor.execute(oracle_sql_procedure())
+	if verbose:
+		print(f"Calling procedure VSQLGRAMMAR_MAKE in {db.connectstring()!r}", file=sys.stderr)
+	cursor.execute(f"begin vsqlgrammar_make('{scriptname}'); end;")
+	if verbose:
+		print(f"Committing transaction in {db.connectstring()!r}", file=sys.stderr)
+	db.commit()
 
 
 def main(args=None):
 	import argparse
 	p = argparse.ArgumentParser(description="Recreate vSQL type info for the Java and Oracle implementations")
+	p.add_argument("-c", "--connectstring", help="Oracle database where the table VSQLRULE and the procedure VSQLGRAMMAR_MAKE will be created")
 	p.add_argument("-j", "--javapath", dest="javapath", help="Path to the Java implementation of vSQL?", type=pathlib.Path)
+	p.add_argument("-v", "--verbose", dest="verbose", help="Give a progress report? (default %(default)s)", default=False, action="store_true")
 
 	args = p.parse_args(args)
 
+	if args.connectstring:
+		recreate_oracle(args.connectstring, verbose=args.verbose)
 	if args.javapath:
-		recreate_java_source(args.javapath)
+		JavaSource.rewrite_all_java_source_files(args.javapath, verbose=args.verbose)
 
 
 if __name__ == "__main__":

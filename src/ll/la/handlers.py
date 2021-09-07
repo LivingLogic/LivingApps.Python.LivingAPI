@@ -357,7 +357,51 @@ class DBHandler(Handler):
 			u = self.uploaddir/r.upl_name
 			return u.openread().read()
 
-	def save_vsql(self, cursor, source, function, datatype=None, **queryargs):
+	def save_vsql(self, vsqlexpr, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
+		"""
+		Save the vSQL expression :obj:`vsqlexpr`.
+
+		``cursor``, ``vs_id_super``, ``vs_order``, ``vss_id`` and ``pos`` are used
+		internally for recursive calls and should not be passed by the user.
+		"""
+		if cursor is None:
+			cursor = self.cursor()
+		source = vsqlexpr.source()
+		sourcelen = len(source)
+		if pos is None:
+			pos = 0
+		finalpos = pos + sourcelen
+		if vss_id is None:
+			r = self.proc_vsqlsource_insert(
+				cursor,
+				c_user=self.ide_id,
+				p_vss_source=source,
+			)
+			vss_id = r.p_vss_id
+		r = self.proc_vsql_insert(
+			cursor,
+			c_user=self.ide_id,
+			p_vs_id_super=vs_id_super,
+			p_vs_order=vs_order,
+			p_vs_nodetype=vsqlexpr.nodetype.value,
+			p_vs_value=vsqlexpr.nodevalue,
+			p_vs_datatype=vsqlexpr.datatype.value if vsqlexpr.datatype is not None else None,
+			p_vs_erroridentifier=vsqlexpr.error.value if vsqlexpr.error is not None else None,
+			p_vss_id=vss_id,
+			p_vs_start=pos,
+			p_vs_stop=finalpos,
+		)
+		vs_id = r.p_vs_id
+		order = 10
+		for child in vsqlexpr.content:
+			if isinstance(child, str):
+				pos += len(child)
+			else:
+				(_, pos) = self.save_vsql(child, cursor, vs_id, order, vss_id, pos)
+				order += 10
+		return (vs_id, finalpos)
+
+
 		from ll.la import vsql
 		return vsql.compile_and_save(self, cursor, source, datatype, function, **queryargs)
 
