@@ -392,13 +392,8 @@ class Rule(Repr):
 		"datetimeset":  "datetimelist",
 	}
 
-<<<<<<< HEAD
 	def __init__(self, astcls, result, name, key, signature, source):
 		self.astcls = astcls
-=======
-	def __init__(self, ast, result, name, key, signature, source):
-		self.ast = ast
->>>>>>> origin/develop
 		self.result = result
 		self.name = name
 		self.key = key
@@ -415,11 +410,7 @@ class Rule(Repr):
 		return f"({signature})"
 
 	def _ll_repr_(self):
-<<<<<<< HEAD
 		yield f"nodetype={self.astcls.nodetype.name}"
-=======
-		yield f"nodetype={self.ast.nodetype.name}"
->>>>>>> origin/develop
 		yield f"result={self.result.name}"
 		if self.name is not None:
 			yield f"name={self.name!r}"
@@ -482,11 +473,7 @@ class Rule(Repr):
 	def oracle_fields(self):
 		fields = {}
 
-<<<<<<< HEAD
 		fields["vr_nodetype"] = self.astcls.nodetype.value
-=======
-		fields["vr_nodetype"] = self.ast.nodetype.value
->>>>>>> origin/develop
 		fields["vr_value"] = self.name
 		fields["vr_result"] = self.result.value
 		fields["vr_signature"] = " ".join(p.value for p in self.signature)
@@ -621,14 +608,8 @@ class AST(Repr):
 
 		This is a generator.
 		"""
-<<<<<<< HEAD
 		for subcls in cls.all_types():
-			print(subcls)
 			if subcls.rules is not None:
-=======
-		for subcls in cls.__subclasses__():
-			if hasattr(subcls, "rules"):
->>>>>>> origin/develop
 				yield from subcls.rules.values()
 
 	@classmethod
