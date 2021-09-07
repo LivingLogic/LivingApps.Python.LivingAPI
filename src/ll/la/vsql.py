@@ -356,7 +356,11 @@ class Field(Def):
 class Group(Def):
 	def __init__(self, tablesql=None, **fields):
 		self.tablesql = tablesql
-		self.fields = fields
+		self.fields = {}
+		for (fieldname, fielddata) in fields.items():
+			if not isinstance(fielddata, Field):
+				fielddata = Field(fieldname, *fielddata)
+			self.fields[fieldname] = fielddata
 
 	def _ll_repr_(self):
 		yield f"tablesql={self.tablesql!r}"
@@ -378,6 +382,10 @@ class Group(Def):
 			return self.fields["*"]
 		else:
 			raise KeyError(key)
+
+	def add_field(self, identifier, datatype, fieldsql, joinsql=None, refgroup=None):
+		field = Field(identifier, datatype, fieldsql, joinsql, refgroup)
+		self.fields[identifier] = field
 
 	def ul4ondump(self, encoder):
 		encoder.dump(self.tablesql)
@@ -529,6 +537,10 @@ class Rule(Repr):
 
 		return f"insert into vsqlrule ({fieldnames}) values ({fieldvalues});"
 
+
+###
+### Classes for all vSQL abstract syntax tree node types
+###
 
 class AST(Repr):
 	nodetype = None
