@@ -6,3 +6,4 @@ build
 dist
 src/*.egg-info
 report.html
+docs/download/LivingAPI.pdf
