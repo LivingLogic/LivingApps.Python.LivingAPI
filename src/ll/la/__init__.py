@@ -16,6 +16,8 @@ import io, datetime, operator, string, json, pathlib, types
 
 from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
+from ll.la import vsql
+
 
 __docformat__ = "reStructuredText"
 
@@ -918,6 +920,18 @@ class File(Base):
 			return self._content
 		return self._gethandler(handler).file_content(self)
 
+	vsqlgroup = vsql.Group(
+		"uploadref_select",
+		internalid=(vsql.DataType.STR, "upl_id"),
+		id=(vsql.DataType.STR, "upr_id"),
+		filename=(vsql.DataType.STR, "upl_orgname"),
+		mimetype=(vsql.DataType.STR, "upl_mimetype"),
+		width=(vsql.DataType.INT, "upl_width"),
+		height=(vsql.DataType.INT, "upl_height"),
+		size=(vsql.DataType.INT, "upl_size"),
+		createdat=(vsql.DataType.DATETIME, "upl_cdate"),
+	)
+
 
 @register("geo")
 class Geo(Base):
@@ -1011,6 +1025,44 @@ class User(Base):
 	@property
 	def ul4onid(self):
 		return self.id
+
+	vsqlgroup = vsql.Group(
+		"identity",
+		id=(vsql.DataType.STR, "ide_publicid"),
+		gender=(vsql.DataType.STR, "ide_gender"),
+		title=(vsql.DataType.STR, "ide_title"),
+		firstname=(vsql.DataType.STR, "ide_firstname"),
+		surname=(vsql.DataType.STR, "ide_surname"),
+		initials=(vsql.DataType.STR, "ide_initials"),
+		email=(vsql.DataType.STR, "ide_account"),
+		street=(vsql.DataType.STR, "ide_street"),
+		streetnumber=(vsql.DataType.STR, "ide_streetnumber"),
+		zip=(vsql.DataType.STR, "ide_zip"),
+		city=(vsql.DataType.STR, "ide_city"),
+		phone=(vsql.DataType.STR, "ide_phone"),
+		fax=(vsql.DataType.STR, "ide_fax"),
+		lang=(vsql.DataType.STR, "ide_lang"),
+		# FIXME: We can't add the uploads, because the Oracle side doesn't support it yet.
+		avatar_small=(
+			vsql.DataType.STR,
+			"upl_id_avatar_small",
+			"({m}.upl_id_avatar_small = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_avatar_small')",
+			File.vsqlgroup,
+		),
+		avatar_large=(
+			vsql.DataType.STR,
+			"upl_id_avatar_large",
+			"({m}.upl_id_avatar_large = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_avatar_large')",
+			File.vsqlgroup,
+		),
+		summary=(vsql.DataType.STR, "ide_summary"),
+		interests=(vsql.DataType.STR, "ide_interests"),
+		personal_website=(vsql.DataType.STR, "ide_personal_website"),
+		company_website=(vsql.DataType.STR, "ide_company_website"),
+		company=(vsql.DataType.STR, "ide_company"),
+		position=(vsql.DataType.STR, "ide_position"),
+		department=(vsql.DataType.STR, "ide_department"),
+	)
 
 
 @register("keyview")
@@ -1297,6 +1349,8 @@ class App(Base):
 		self.internaltemplates = None
 		self.viewtemplates = None
 		self.dataactions = None
+		self._vsqlgroup_records = None
+		self._vsqlgroup_app = None
 
 	def __str__(self):
 		return self.fullname
@@ -1460,6 +1514,73 @@ class App(Base):
 			field._dirty = False # The record is dirty anyway
 		return record
 
+	def vsqlfield_records(self, ul4var, sqlvar):
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.tpl_id(+)", self.vsqlgroup_records)
+
+	def vsqlfield_app(self, ul4var, sqlvar):
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.tpl_id(+)", self.vsqlgroup_app)
+
+	@property
+	def vsqlgroup_records(self):
+		if self._vsqlgroup is None:
+			self._vsqlgroup = g = vsql.Group("data_select_la")
+			g.add_field("app", vsql.DataType.STR, "tpl_uuid")
+			g.add_field("createdat", vsql.DataType.DATETIME, "dat_cdate")
+			g.add_field("createdby", vsql.DataType.STR, "dat_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("updatedat", vsql.DataType.DATETIME, "dat_udate")
+			g.add_field("updatedby", vsql.DataType.STR, "dat_uname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("url", vsql.DataType.STR, "'https://' || parameter_pkg.str_os('INGRESS_HOST') || '/gateway/apps/' || tpl_uuid || '/' || dat_id || '/edit'")
+			if self.controls is not None:
+				for control in self.controls.values():
+					vsqlfield = control.vsqlfield
+					g.fields[vsqlfield.identifier] = vsqlfield
+		return self._vsqlgroup
+
+	@property
+	def vsqlgroup_records(self):
+		if self._vsqlgroup_records is None:
+			self._vsqlgroup_records = g = vsql.Group("data_select_la")
+			g.add_field("app", vsql.DataType.STR, "tpl_uuid")
+			g.add_field("createdat", vsql.DataType.DATETIME, "dat_cdate")
+			g.add_field("createdby", vsql.DataType.STR, "dat_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("updatedat", vsql.DataType.DATETIME, "dat_udate")
+			g.add_field("updatedby", vsql.DataType.STR, "dat_uname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("url", vsql.DataType.STR, "'https://' || parameter_pkg.str_os('INGRESS_HOST') || '/gateway/apps/' || tpl_uuid || '/' || dat_id || '/edit'")
+			if self.controls is not None:
+				for control in self.controls.values():
+					vsqlfield = control.vsqlfield
+					g.fields[vsqlfield.identifier] = vsqlfield
+		return self._vsqlgroup_records
+
+	@property
+	def vsqlgroup_app(self):
+		if self._vsqlgroup_app is None:
+			self._vsqlgroup_app = g = vsql.Group("template")
+			g.add_field("id", vsql.DataType.STR, "tpl_uuid")
+			g.add_field("name", vsql.DataType.STR, "tpl_name")
+			g.add_field("description", vsql.DataType.STR, "tpl_description")
+			g.add_field("createdat", vsql.DataType.DATETIME, "tpl_ctimstamp")
+			g.add_field("createdby", vsql.DataType.STR, "tpl_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("updatedat", vsql.DataType.DATETIME, "tpl_utimstamp")
+			g.add_field("updatedby", vsql.DataType.STR, "tpl_uname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("installation", vsql.DataType.STR, "inl_id", "{m}.inl_id = {d}.inl_id(+)", Installation.vsqlgroup)
+			# FIXME: Add app parameters
+		return self._vsqlgroup_app
+
+	def vsqlsearchexpr(self, record, maxdepth, controls=None):
+		result = None
+		if maxdepth:
+			usecontrols = controls if controls is not None else self.controls
+			for control in usecontrols.values():
+				if controls is None or control.priority:
+					vsqlexpr = control.vsqlsearchexpr(record, maxdepth-1)
+					if vsqlexpr is not None:
+						if result is None:
+							result = vsqlexpr
+						else:
+							result = vsql.OrAST.make(result, vsqlexpr)
+		return result
+
 
 class Control(Base):
 	_type = None
@@ -1510,6 +1631,7 @@ class Control(Base):
 		self.priority = priority
 		self.order = order
 		self.default = default
+		self._vsqlfield = None
 
 	@property
 	def ul4onid(self):
@@ -1615,6 +1737,9 @@ class Control(Base):
 	def _asjson(self, handler, field):
 		return self._asdbarg(handler, field)
 
+	def vsqlsearchexpr(self, record, maxdepth):
+		return None # The default is that this field cannot be searched
+
 
 class StringControl(Control):
 	_type = "string"
@@ -1623,6 +1748,18 @@ class StringControl(Control):
 	minlength = Attr(int, get="", ul4get="_minlength_get", doc="The minimum allowed string length (``None`` means unlimited).")
 	maxlength = Attr(int, get="", ul4get="_maxlength_get", doc="The maximum allowed string length (``None`` means unlimited).")
 	placeholder = Attr(str, get="", ul4get="_placeholder_get", doc="The placeholder for the HTML input.")
+
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, self.field)
+		return self._vsqlfield
+
+	def vsqlsearchexpr(self, record, maxdepth):
+		return vsql.ContainsAST.make(
+			vsql.ConstAST.make("gurk"),
+			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower"),
+		)
 
 	def _minlength_get(self):
 		vc = self._get_viewcontrol()
@@ -1706,6 +1843,12 @@ class TextAreaControl(StringControl):
 			return vc.maxlength
 		return None
 
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, self.field)
+		return self._vsqlfield
+
 
 @register("htmlcontrol")
 class HTMLControl(StringControl):
@@ -1713,6 +1856,12 @@ class HTMLControl(StringControl):
 	_fulltype = f"{StringControl._type}/{_subtype}"
 
 	ul4_type = ul4c.Type("la", "HTMLControl", "A LivingApps HTML field (type 'string/html')")
+
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, self.field)
+		return self._vsqlfield
 
 
 @register("intcontrol")
@@ -1728,6 +1877,18 @@ class IntControl(Control):
 			value = None
 		field._value = value
 
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.INT, self.field)
+		return self._vsqlfield
+
+	def vsqlsearchexpr(self, record, maxdepth):
+		return vsql.EqAST.make(
+			vsql.ConstAST.make("gurk"),
+			vsql.FuncAST.make("str", vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
+		)
+
 
 @register("numbercontrol")
 class NumberControl(Control):
@@ -1741,6 +1902,18 @@ class NumberControl(Control):
 			field.add_error(error_wrong_type(value))
 			value = None
 		field._value = value
+
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.NUMBER, self.field)
+		return self._vsqlfield
+
+	def vsqlsearchexpr(self, record, maxdepth):
+		return vsql.EqAST.make(
+			vsql.ConstAST.make("gurk"),
+			vsql.FuncAST.make("str", vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
+		)
 
 
 @register("datecontrol")
@@ -1798,6 +1971,12 @@ class DateControl(Control):
 		else:
 			return "%m/%d/%Y"
 
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATE, self.field)
+		return self._vsqlfield
+
 
 @register("datetimeminutecontrol")
 class DatetimeMinuteControl(DateControl):
@@ -1853,6 +2032,12 @@ class DatetimeMinuteControl(DateControl):
 			return "%d.%m.%Y %H:%M"
 		else:
 			return "%m/%d/%Y %H:%M"
+
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, self.field)
+		return self._vsqlfield
 
 
 @register("datetimesecondcontrol")
@@ -1910,6 +2095,12 @@ class DatetimeSecondControl(DateControl):
 		else:
 			return "%m/%d/%Y %H:%M:%S"
 
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, self.field)
+		return self._vsqlfield
+
 
 @register("boolcontrol")
 class BoolControl(Control):
@@ -1929,6 +2120,35 @@ class BoolControl(Control):
 		if value is not None:
 			value = int(value)
 		return value
+
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.BOOL, self.field)
+		return self._vsqlfield
+
+	def vsqlsearchexpr(self, record, maxdepth):
+		searchterm = vsql.ConstAST.make("gurk")
+		field = vsql.FieldRefAST.make(record, f"v_{self.identifier}")
+
+		return vsql.AndAST.make(
+			vsql.ContainsAST.make(
+				vsql.MethAST.make(
+					vsql.MethAST.make(
+						searchterm,
+						"lstrip",
+						vsql.ConstAST.make("!"),
+					),
+					"lower",
+				),
+				vsql.ConstAST.make(self.label.lower()),
+			),
+			vsql.IfAST.make(
+				vsql.NotAST.make(field),
+				vsql.MethAST.make(searchterm, "startswith", vsql.ConstAST.make("!")),
+				field,
+			)
+		)
 
 
 class LookupControl(Control):
@@ -1978,6 +2198,21 @@ class LookupControl(Control):
 		if isinstance(value, LookupItem):
 			value = value.key
 		return value
+
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, self.field)
+		return self._vsqlfield
+
+	def vsqlsearchexpr(self, record, maxdepth):
+		return vsql.ContainsAST.make(
+			vsql.ConstAST.make("gurk"),
+			vsql.MethAST.make(
+				vsql.AttrAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
+				"lower",
+			)
+		)
 
 
 @register("lookupselectcontrol")
@@ -2078,6 +2313,18 @@ class AppLookupControl(Control):
 	def lookupapp(self):
 		return self.lookup_app
 
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, self.field, f"{{m}}.{self.field} = {{d}}.dat_id", self.lookup_app.vsqlgroup_records)
+		return self._vsqlfield
+
+	def vsqlsearchexpr(self, record, maxdepth):
+		return self.lookup_app.vsqlsearchexpr(
+			vsql.FieldRefAST.make(record, f"v_{self.identifier}"),
+			maxdepth,
+		)
+
 
 @register("applookupselectcontrol")
 class AppLookupSelectControl(AppLookupControl):
@@ -2135,6 +2382,12 @@ class MultipleLookupControl(LookupControl):
 
 	def _asdbarg(self, handler, field):
 		return handler.varchars([item.key for item in field._value])
+
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST)
+		return self._vsqlfield
 
 
 @register("multiplelookupselectcontrol")
@@ -2217,6 +2470,12 @@ class MultipleAppLookupControl(AppLookupControl):
 		value = self._asjson(handler, field)
 		return handler.varchars(value)
 
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST)
+		return self._vsqlfield
+
 
 @register("multipleapplookupselectcontrol")
 class MultipleAppLookupSelectControl(MultipleAppLookupControl):
@@ -2265,6 +2524,33 @@ class FileControl(Control):
 				value = value.internalid
 		return value
 
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			# FIXME: This should reference :class:`File`, but Oracle doesn't support this yet.
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR)
+		return self._vsqlfield
+
+	def vsqlsearchexpr(self, record, maxdepth):
+		field = vsql.vsql.FieldRefAST.make(record, f"v_{self.identifier}")
+
+		# FIXME: Oracle doesn't support this yet
+		# return vsql.OrAST.make(
+		# 	vsql.ContainsAST.make(
+		# 		vsql.ConstAST.make("gurk"),
+		# 		vsql.MethAST.make(vsql.FieldRefAST.make(field, "filename"), "lower"),
+		# 	),
+		# 	vsql.ContainsAST.make(
+		# 		vsql.ConstAST.make("gurk"),
+		# 		vsql.MethAST.make(vsql.FieldRefAST.make(field, "mimetype"), "lower"),
+		# 	),
+		# )
+
+		return vsql.ContainsAST.make(
+			vsql.ConstAST.make("gurk"),
+			vsql.MethAST.make(field, "lower"),
+		)
+
 
 @register("filesignaturecontrol")
 class FileSignatureControl(FileControl):
@@ -2304,6 +2590,21 @@ class GeoControl(Control):
 		if value is not None:
 			value = f"{value.lat!r}, {value.long!r}, {value.info}"
 		return value
+
+	@property
+	def vsqlfield(self):
+		if self._vsqlfield is None:
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.GEO)
+		return self._vsqlfield
+
+	def vsqlsearchexpr(self, record, maxdepth):
+		return vsql.ContainsAST.make(
+			vsql.ConstAST.make("gurk"),
+			vsql.MethAST.make(
+				vsql.AttrAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
+				"lower",
+			)
+		)
 
 
 @register("viewcontrol")
@@ -3701,6 +4002,13 @@ class Installation(Base):
 	def __init__(self, id=None, name=None):
 		self.id = id
 		self.name = name
+
+	vsqlgroup = vsql.Group(
+		"installation_link",
+		internalid=(vsql.DataType.STR, "upl_id"),
+		id=(vsql.DataType.STR, "inl_id"),
+		name=(vsql.DataType.STR, "inl_additional_name"),
+	)
 
 
 class LayoutControl(Base):
