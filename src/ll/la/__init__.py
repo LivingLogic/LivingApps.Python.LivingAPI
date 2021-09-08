@@ -23,6 +23,15 @@ __docformat__ = "reStructuredText"
 
 
 ###
+### Typing stuff
+###
+
+from typing import *
+
+T_opt_handler = Optional["ll.la.handlers.Handler"]
+
+
+###
 ### Utility functions and classes
 ###
 
@@ -33,8 +42,10 @@ module.ul4_attrs = {"__name__", "__doc__"}
 
 def register(name):
 	"""
-	Since we must pass the ID as a keyword argument, we have to take the
-	registration logic into our own hand.
+	Used for registering a class for the UL4ON machinery.
+
+	Similar to :func:`ll.ul4on.register`, but since we must pass the ID as a
+	keyword argument, we have to take the registration logic into our own hand.
 	"""
 	def registration(cls):
 		if name is not None:
@@ -87,20 +98,20 @@ class attrdict(dict):
 	Furthermore it supports autocompletion in IPython (via :meth:`__dir__`).
 	"""
 
-	def __getattr__(self, key):
+	def __getattr__(self, key:Any) -> Any:
 		try:
 			return self[key]
 		except KeyError:
 			raise AttributeError(error_attribute_doesnt_exist(self, key))
 
-	def __dir__(self):
+	def __dir__(self) -> Iterable[str]:
 		"""
 		Make keys completeable in IPython.
 		"""
 		return set(dir(dict)) | set(self)
 
 
-def makeattrs(value):
+def makeattrs(value:Any) -> Any:
 	r"""
 	Convert :class:`dict`\s into :class:`attrdict`\s.
 
@@ -112,15 +123,15 @@ def makeattrs(value):
 	return value
 
 
-def error_attribute_doesnt_exist(instance, name):
+def error_attribute_doesnt_exist(instance:Any, name:str) -> str:
 	return f"{misc.format_class(instance)!r} object has no attribute {name!r}."
 
 
-def error_attribute_readonly(instance, name):
+def error_attribute_readonly(instance:Any, name:str) -> str:
 	return f"Attribute {name!r} of {misc.format_class(instance)!r} object is read only."
 
 
-def error_attribute_wrong_type(instance, name, value, allowed_types):
+def error_attribute_wrong_type(instance:Any, name:str, value:Any, allowed_types:List[Type]) -> str:
 	if isinstance(allowed_types, tuple):
 		allowed_types = format_list([format_class(t) for t in allowed_types])
 	else:
@@ -129,13 +140,13 @@ def error_attribute_wrong_type(instance, name, value, allowed_types):
 	return f"Value for attribute {name!r} of {misc.format_class(instance)!r} object must be {allowed_types}, but is {format_class(type(value))}."
 
 
-def attribute_wrong_value(instance, name, value, allowed_values):
+def attribute_wrong_value(instance:Any, name:str, value:Any, allowed_values:Iterable) -> str:
 	allowed_values = format_list([repr(value) for value in allowed_values])
 
 	return f"Value for attribute {name!r} of {misc.format_class(instance)} object must be {allowed_values}, but is {value!r}."
 
 
-def error_wrong_type(value):
+def error_wrong_type(value:Any) -> str:
 	"""
 	Return an error message for an unsupported field type.
 
@@ -144,7 +155,7 @@ def error_wrong_type(value):
 	return f"{misc.format_class(value)} is not supported."
 
 
-def error_wrong_value(value):
+def error_wrong_value(value:Any) -> str:
 	"""
 	Return an error message for a field value that isn't supported.
 
@@ -154,7 +165,7 @@ def error_wrong_value(value):
 	return f"Value {value!r} is not supported."
 
 
-def error_lookupitem_unknown(value):
+def error_lookupitem_unknown(value:str) -> str:
 	r"""
 	Return an error message for an unknown identifier for :class:`LookupItem`\s.
 
@@ -163,7 +174,7 @@ def error_lookupitem_unknown(value):
 	return f"Lookup item {value!r} is unknown."
 
 
-def error_lookupitem_foreign(value):
+def error_lookupitem_foreign(value:"ll.la.LookupItem") -> str:
 	"""
 	Return an error message for a foreign :class:`LookupItem`.
 
@@ -173,7 +184,7 @@ def error_lookupitem_foreign(value):
 	return f"Wrong lookup item {value!r}."
 
 
-def error_applookuprecord_unknown(value):
+def error_applookuprecord_unknown(value:str) -> str:
 	"""
 	Return an error message for a unknown record identifier.
 
@@ -183,7 +194,7 @@ def error_applookuprecord_unknown(value):
 	return f"Record with id {value!r} unknown."
 
 
-def error_applookuprecord_foreign(value):
+def error_applookuprecord_foreign(value:"ll.la.Record") -> str:
 	"""
 	Return an error message for a foreign :class:`Record`.
 
@@ -193,34 +204,34 @@ def error_applookuprecord_foreign(value):
 	return f"Record with id {value.id!r} is from wrong app."
 
 
-def error_object_unsaved(value):
+def error_object_unsaved(value:Union["ll.la.File", "ll.la.Record"]) -> str:
 	"""
 	Return an error message for an unsaved referenced object.
 	"""
 	return f"Referenced object {value!r} hasn't been saved yet."
 
 
-def error_object_deleted(value):
+def error_object_deleted(value:Union["ll.la.File", "ll.la.Record"]) -> str:
 	"""
 	Return an error message for an deleted referenced object.
 	"""
 	return f"Referenced object {value!r} has been deleted."
 
 
-def error_foreign_view(view):
+def error_foreign_view(view:"ll.la.View") -> str:
 	return f"View {view!r} belongs to the wrong app."
 
 
-def error_view_not_found(viewid):
+def error_view_not_found(viewid:str) -> str:
 	return f"View with id {viewid!r} can't be found."
 
-def _resolve_type(t):
+def _resolve_type(t:Union[Type, Callable[[], Type]]):
 	if not isinstance(t, type):
 		t = t()
 	return t
 
 
-def _is_timezone(value):
+def _is_timezone(value:str) -> bool:
 	return value[0] in "+-" and value[1:3].isdigit() and value[3] == ":" and value[4:6].isdigit()
 
 
@@ -229,7 +240,7 @@ def _is_timezone(value):
 ###
 
 class NoHandlerError(ValueError):
-	def __str__(self):
+	def __str__(self) -> str:
 		return "no handler available"
 
 
@@ -239,11 +250,11 @@ class RecordValidationError(ValueError):
 	``force=True``.
 	"""
 
-	def __init__(self, record, message):
+	def __init__(self, record:"ll.la.Record", message:str):
 		self.record = record
 		self.message = message
 
-	def __str__(self):
+	def __str__(self) -> str:
 		return f"Validation for {self.record!r} failed: {self.message}"
 
 
@@ -253,11 +264,11 @@ class FieldValidationError(ValueError):
 	is saved without ``force=True``.
 	"""
 
-	def __init__(self, field, message):
+	def __init__(self, field:"ll.la.Field", message:str):
 		self.field = field
 		self.message = message
 
-	def __str__(self):
+	def __str__(self) -> str:
 		return f"Validation for {self.field!r} failed: {self.message}"
 
 
@@ -286,7 +297,7 @@ class Attr:
 		(i.e. any :class:`object`) is allowed. (Furthermore subclasses might
 		implement certain type conversions on setting).
 
-		If :object:`required` is :const:`False` the value :const:`None` is
+		If :obj:`required` is :const:`False` the value :const:`None` is
 		allowed too.
 
 		:obj:`default` specifies the default value for the attribute (which is
@@ -508,7 +519,7 @@ class Attr:
 		getattr(instance, self._name_ul4ondefault)()
 
 	@property
-	def types(self):
+	def types(self) -> Tuple[Type, ...]:
 		if self._realtypes is None:
 			if not isinstance(self._types, tuple):
 				self._realtypes = _resolve_type(self._types)
@@ -516,7 +527,7 @@ class Attr:
 				self._realtypes = tuple(_resolve_type(t) for t in self._types)
 		return self._realtypes
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		if isinstance(self.types, tuple):
 			types = ", ".join(format_class(t) for t in self.types)
 			types = f"types=({types})"
@@ -542,7 +553,7 @@ class Attr:
 	def __set__(self, instance, value):
 		self.set(instance, value)
 
-	def make_default_value(self):
+	def make_default_value(self) -> Any:
 		"""
 		Return the default value for this attribute.
 
@@ -553,7 +564,7 @@ class Attr:
 		else:
 			return self.default
 
-	def _ul4onget(self, instance):
+	def _ul4onget(self, instance) -> Any:
 		if isinstance(self.ul4onget, str):
 			return getattr(instance, self.ul4onget)()
 		elif self.ul4onget:
@@ -561,7 +572,7 @@ class Attr:
 		else:
 			raise AttributeError(error_attribute_doesnt_exist(instance, self.name))
 
-	def _ul4onset(self, instance, value):
+	def _ul4onset(self, instance, value) -> None:
 		if isinstance(self.ul4onset, str):
 			getattr(instance, self.ul4onset)(value)
 		elif self.ul4onset:
@@ -748,10 +759,13 @@ class AttrDictAttr(Attr):
 
 
 class Base:
+	"""
+	Base class of all LivingAPI classes.
+	"""
 	ul4_attrs = set()
 
 	@classmethod
-	def attrs(cls):
+	def attrs(cls) -> Iterable[Attr]:
 		"""
 		Returns an iterator over all :class:`Attr` descriptors for the class.
 		"""
@@ -763,7 +777,7 @@ class Base:
 		return attrs.values()
 
 	@classmethod
-	def ul4oncreate(cls, id=None):
+	def ul4oncreate(cls, id=None) -> "cls":
 		"""
 		Alternative "constructor" used by the UL4ON machinery for creating new
 		objects.
@@ -839,6 +853,11 @@ class Base:
 
 @register("flashmessage")
 class FlashMessage(Base):
+	"""
+	A flash message that might be displayed on a web page to inform the user
+	that an event has taken place.
+	"""
+
 	ul4_attrs = {"timestamp", "type", "title", "message"}
 	ul4_type = ul4c.Type("la", "FlashMessage", "A flash message in a web page")
 
@@ -866,6 +885,10 @@ class FlashMessage(Base):
 
 @register("file")
 class File(Base):
+	"""
+	An uploaded file.
+	"""
+
 	ul4_attrs = {"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"}
 	ul4_type = ul4c.Type("la", "File", "An uploaded file")
 
@@ -909,10 +932,10 @@ class File(Base):
 			handler = self.handler
 		return handler
 
-	def save(self, handler=None):
+	def save(self, handler:T_opt_handler=None):
 		self._gethandler(handler).save_file(self)
 
-	def content(self, handler=None):
+	def content(self, handler:T_opt_handler=None) -> bytes:
 		"""
 		Return the file content as a :class:`bytes` object.
 		"""
@@ -935,6 +958,10 @@ class File(Base):
 
 @register("geo")
 class Geo(Base):
+	"""
+	Geolocation information.
+	"""
+
 	ul4_attrs = {"lat", "long", "info"}
 	ul4_type = ul4c.Type("la", "Geo", "Geographical coordinates and location information")
 
@@ -954,6 +981,10 @@ class Geo(Base):
 
 @register("user")
 class User(Base):
+	"""
+	A LivingApps user account.
+	"""
+
 	ul4_attrs = {
 		"id", "gender", "title", "firstname", "surname", "initials", "email",
 		"lang", "avatar_small", "avatar_large", "streetname", "streetnumber",
@@ -1067,6 +1098,11 @@ class User(Base):
 
 @register("keyview")
 class KeyView(Base):
+	"""
+	A :class:`!KeyView` makes one :class:`ViewTemplate` publicly accessible
+	for everybody with the access rights of another account.
+	"""
+
 	ul4_attrs = {"id", "identifier", "name", "key", "user"}
 	ul4_type = ul4c.Type("la", "KeyView", "Object granting access to a view template")
 
@@ -1086,6 +1122,13 @@ class KeyView(Base):
 
 @register("globals")
 class Globals(Base):
+	r"""
+	Global informattion.
+
+	An instance of this class will be passed to all :class:`ViewTemplate`\s as
+	the global variable ``globals``.
+	"""
+
 	ul4_attrs = {
 		"version",
 		"hostname",
@@ -1248,6 +1291,10 @@ class Globals(Base):
 
 @register("app")
 class App(Base):
+	"""
+	A LivingApp.
+	"""
+
 	ul4_attrs = {
 		"id",
 		"globals",
@@ -1438,7 +1485,7 @@ class App(Base):
 			handler = self.globals.handler
 		return handler
 
-	def save(self, handler=None, recursive=True):
+	def save(self, handler:T_opt_handler=None, recursive=True):
 		self._gethandler(handler).save_app(self, recursive=recursive)
 
 	_saveletters = string.ascii_letters + string.digits + "()-+_ äöüßÄÖÜ"
@@ -1583,6 +1630,12 @@ class App(Base):
 
 
 class Control(Base):
+	"""
+	Describes a field in a LivingApp.
+
+	Functionality for each field type is implented in subclasses.
+	"""
+
 	_type = None
 	_subtype = None
 	ul4_attrs = {"id", "identifier", "app", "label", "type", "subtype", "fulltype", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"}
@@ -1742,6 +1795,10 @@ class Control(Base):
 
 
 class StringControl(Control):
+	"""
+	Base class for all controls of type ``string``.
+	"""
+
 	_type = "string"
 	ul4_type = ul4c.Type("la", "StringControl", "A LivingApps string field")
 
@@ -1788,6 +1845,10 @@ class StringControl(Control):
 
 @register("textcontrol")
 class TextControl(StringControl):
+	"""
+	Describes a field of type ``string``/``text``.
+	"""
+
 	_subtype = "text"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 	ul4_type = ul4c.Type("la", "TextControl", "A LivingApps text field (type 'string/text')")
@@ -1795,6 +1856,10 @@ class TextControl(StringControl):
 
 @register("urlcontrol")
 class URLControl(StringControl):
+	"""
+	Describes a field of type ``string``/``url``.
+	"""
+
 	_subtype = "url"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 	ul4_type = ul4c.Type("la", "URLControl", "A LivingApps URL field (type 'string/url')")
@@ -1802,6 +1867,10 @@ class URLControl(StringControl):
 
 @register("emailcontrol")
 class EmailControl(StringControl):
+	"""
+	Describes a field of type ``string``/``email``.
+	"""
+
 	_subtype = "email"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 	ul4_type = ul4c.Type("la", "EmailControl", "A LivingApps email field (type 'string/email')")
@@ -1809,6 +1878,10 @@ class EmailControl(StringControl):
 
 @register("passwordcontrol")
 class PasswordControl(StringControl):
+	"""
+	Describes a field of type ``string``/``password``.
+	"""
+
 	_subtype = "password"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 	ul4_type = ul4c.Type("la", "PasswordControl", "A LivingApps email field (type 'string/email')")
@@ -1816,12 +1889,20 @@ class PasswordControl(StringControl):
 
 @register("telcontrol")
 class TelControl(StringControl):
+	"""
+	Describes a field of type ``string``/``tel``.
+	"""
+
 	_subtype = "tel"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 	ul4_type = ul4c.Type("la", "TelControl", "A LivingApps phone number field (type 'string/tel')")
 
 
 class EncryptionType(misc.IntEnum):
+	"""
+	The type of encruption for a field of type ``string``/``textarea``.
+	"""
+
 	NONE = 0
 	FORCE = 1
 	OPTIONAL = 2
@@ -1829,6 +1910,10 @@ class EncryptionType(misc.IntEnum):
 
 @register("textareacontrol")
 class TextAreaControl(StringControl):
+	"""
+	Describes a field of type ``string``/``textarea``.
+	"""
+
 	_subtype = "textarea"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 
@@ -1852,6 +1937,10 @@ class TextAreaControl(StringControl):
 
 @register("htmlcontrol")
 class HTMLControl(StringControl):
+	"""
+	Describes a field of type ``string``/``html``.
+	"""
+
 	_subtype = "html"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 
@@ -1866,6 +1955,10 @@ class HTMLControl(StringControl):
 
 @register("intcontrol")
 class IntControl(Control):
+	"""
+	Describes a field of type ``int``.
+	"""
+
 	_type = "int"
 	_fulltype = _type
 
@@ -1892,6 +1985,10 @@ class IntControl(Control):
 
 @register("numbercontrol")
 class NumberControl(Control):
+	"""
+	Describes a field of type ``number``.
+	"""
+
 	_type = "number"
 	_fulltype = _type
 
@@ -1918,6 +2015,10 @@ class NumberControl(Control):
 
 @register("datecontrol")
 class DateControl(Control):
+	"""
+	Describes a field of type ``date``/``date``.
+	"""
+
 	_type = "date"
 	_subtype = "date"
 	_fulltype = f"{_type}/{_subtype}"
@@ -1980,6 +2081,10 @@ class DateControl(Control):
 
 @register("datetimeminutecontrol")
 class DatetimeMinuteControl(DateControl):
+	"""
+	Describes a field of type ``date``/``datetimeminute``.
+	"""
+
 	_subtype = "datetimeminute"
 	_fulltype = f"{DateControl._type}/{_subtype}"
 
@@ -2042,6 +2147,10 @@ class DatetimeMinuteControl(DateControl):
 
 @register("datetimesecondcontrol")
 class DatetimeSecondControl(DateControl):
+	"""
+	Describes a field of type ``date``/``datetimesecond``.
+	"""
+
 	_subtype = "datetimesecond"
 	_fulltype = f"{DateControl._type}/{_subtype}"
 
@@ -2104,6 +2213,10 @@ class DatetimeSecondControl(DateControl):
 
 @register("boolcontrol")
 class BoolControl(Control):
+	"""
+	Describes a field of type ``bool``.
+	"""
+
 	_type = "bool"
 	_fulltype = _type
 
@@ -2152,6 +2265,10 @@ class BoolControl(Control):
 
 
 class LookupControl(Control):
+	"""
+	Base class for all controls of type ``lookup``.
+	"""
+
 	_type = "lookup"
 
 	ul4_attrs = Control.ul4_attrs.union({"lookupdata"})
@@ -2217,6 +2334,10 @@ class LookupControl(Control):
 
 @register("lookupselectcontrol")
 class LookupSelectControl(LookupControl):
+	"""
+	Describes a field of type ``lookup``/``select``.
+	"""
+
 	_subtype = "select"
 	_fulltype = f"{LookupControl._type}/{_subtype}"
 
@@ -2225,6 +2346,10 @@ class LookupSelectControl(LookupControl):
 
 @register("lookupradiocontrol")
 class LookupRadioControl(LookupControl):
+	"""
+	Describes a field of type ``lookup``/``radio``.
+	"""
+
 	_subtype = "radio"
 	_fulltype = f"{LookupControl._type}/{_subtype}"
 
@@ -2233,6 +2358,10 @@ class LookupRadioControl(LookupControl):
 
 @register("lookupchoicecontrol")
 class LookupChoiceControl(LookupControl):
+	"""
+	Describes a field of type ``lookup``/``choice``.
+	"""
+
 	_subtype = "choice"
 	_fulltype = f"{LookupControl._type}/{_subtype}"
 
@@ -2240,6 +2369,10 @@ class LookupChoiceControl(LookupControl):
 
 
 class AppLookupControl(Control):
+	"""
+	Base class for all controls of type ``applookup``.
+	"""
+
 	_type = "applookup"
 
 	ul4_attrs = Control.ul4_attrs.union({"lookup_app", "lookup_controls", "lookupapp", "lookupcontrols"})
@@ -2328,6 +2461,10 @@ class AppLookupControl(Control):
 
 @register("applookupselectcontrol")
 class AppLookupSelectControl(AppLookupControl):
+	"""
+	Describes a field of type ``applookup``/``select``.
+	"""
+
 	_subtype = "select"
 	_fulltype = f"{AppLookupControl._type}/{_subtype}"
 
@@ -2336,6 +2473,10 @@ class AppLookupSelectControl(AppLookupControl):
 
 @register("applookupradiocontrol")
 class AppLookupRadioControl(AppLookupControl):
+	"""
+	Describes a field of type ``applookup``/``radio``.
+	"""
+
 	_subtype = "radio"
 	_fulltype = f"{AppLookupControl._type}/{_subtype}"
 
@@ -2344,6 +2485,10 @@ class AppLookupRadioControl(AppLookupControl):
 
 @register("applookupchoicecontrol")
 class AppLookupChoiceControl(AppLookupControl):
+	"""
+	Describes a field of type ``applookup``/``choice``.
+	"""
+
 	_subtype = "choice"
 	_fulltype = f"{AppLookupControl._type}/{_subtype}"
 
@@ -2351,6 +2496,10 @@ class AppLookupChoiceControl(AppLookupControl):
 
 
 class MultipleLookupControl(LookupControl):
+	"""
+	Base class for all controls of type ``multiplelookup``.
+	"""
+
 	_type = "multiplelookup"
 
 	ul4_type = ul4c.Type("la", "MultipleLookupControl", "A LivingApps multiplelookup field")
@@ -2392,6 +2541,10 @@ class MultipleLookupControl(LookupControl):
 
 @register("multiplelookupselectcontrol")
 class MultipleLookupSelectControl(MultipleLookupControl):
+	"""
+	Describes a field of type ``multiplelookup``/``select``.
+	"""
+
 	_subtype = "select"
 	_fulltype = f"{MultipleLookupControl._type}/{_subtype}"
 
@@ -2400,6 +2553,10 @@ class MultipleLookupSelectControl(MultipleLookupControl):
 
 @register("multiplelookupcheckboxcontrol")
 class MultipleLookupCheckboxControl(MultipleLookupControl):
+	"""
+	Describes a field of type ``multiplelookup``/``checkbox``.
+	"""
+
 	_subtype = "checkbox"
 	_fulltype = f"{MultipleLookupControl._type}/{_subtype}"
 
@@ -2408,6 +2565,10 @@ class MultipleLookupCheckboxControl(MultipleLookupControl):
 
 @register("multiplelookupchoicecontrol")
 class MultipleLookupChoiceControl(MultipleLookupControl):
+	"""
+	Describes a field of type ``multiplelookup``/``choice``.
+	"""
+
 	_subtype = "choice"
 	_fulltype = f"{MultipleLookupControl._type}/{_subtype}"
 
@@ -2415,6 +2576,10 @@ class MultipleLookupChoiceControl(MultipleLookupControl):
 
 
 class MultipleAppLookupControl(AppLookupControl):
+	"""
+	Base class for all controls of type ``multipleapplookup``.
+	"""
+
 	_type = "multipleapplookup"
 
 	ul4_type = ul4c.Type("la", "MultipleAppLookupControl", "A LivingApps multiple applookup field")
@@ -2479,6 +2644,10 @@ class MultipleAppLookupControl(AppLookupControl):
 
 @register("multipleapplookupselectcontrol")
 class MultipleAppLookupSelectControl(MultipleAppLookupControl):
+	"""
+	Describes a field of type ``multipleapplookup``/``select``.
+	"""
+
 	_subtype = "select"
 	_fulltype = f"{MultipleAppLookupControl._type}/{_subtype}"
 
@@ -2487,6 +2656,10 @@ class MultipleAppLookupSelectControl(MultipleAppLookupControl):
 
 @register("multipleapplookupcheckboxcontrol")
 class MultipleAppLookupCheckboxControl(MultipleAppLookupControl):
+	"""
+	Describes a field of type ``multipleapplookup``/``checkbox``.
+	"""
+
 	_subtype = "checkbox"
 	_fulltype = f"{MultipleAppLookupControl._type}/{_subtype}"
 
@@ -2495,6 +2668,10 @@ class MultipleAppLookupCheckboxControl(MultipleAppLookupControl):
 
 @register("multipleapplookupchoicecontrol")
 class MultipleAppLookupChoiceControl(MultipleAppLookupControl):
+	"""
+	Describes a field of type ``multipleapplookup``/``choice``.
+	"""
+
 	_subtype = "choice"
 	_fulltype = f"{MultipleAppLookupControl._type}/{_subtype}"
 
@@ -2503,6 +2680,10 @@ class MultipleAppLookupChoiceControl(MultipleAppLookupControl):
 
 @register("filecontrol")
 class FileControl(Control):
+	"""
+	Describes a field of type ``file``.
+	"""
+
 	_type = "file"
 	_fulltype = _type
 
@@ -2554,6 +2735,10 @@ class FileControl(Control):
 
 @register("filesignaturecontrol")
 class FileSignatureControl(FileControl):
+	"""
+	Describes a field of type ``file``/``signature``.
+	"""
+
 	_subtype = "signature"
 	_fulltype = f"{FileControl._type}/{_subtype}"
 
@@ -2562,6 +2747,10 @@ class FileSignatureControl(FileControl):
 
 @register("geocontrol")
 class GeoControl(Control):
+	"""
+	Describes a field of type ``geo``.
+	"""
+
 	_type = "geo"
 	_fulltype = _type
 
@@ -2609,6 +2798,10 @@ class GeoControl(Control):
 
 @register("viewcontrol")
 class ViewControl(Base):
+	"""
+	Additional information for a :class:`Control` provided by a :class:`View`.
+	"""
+
 	ul4_attrs = {"id", "label", "identifier", "type", "subtype", "view", "control", "type", "subtype", "top", "left", "width", "height", "liveupdate", "default", "tabIndex", "minlength", "maxlength", "required", "placeholder", "mode", "labelpos", "lookup_none_key", "lookup_none_label", "lookupdata", "autoalign", "labelwidth", "autoexpandable"}
 	ul4_type = ul4c.Type("la", "ViewControl", "Contains view specific information aboutn a control")
 
@@ -2689,6 +2882,10 @@ class ViewControl(Base):
 
 @register("record")
 class Record(Base):
+	"""
+	A record from a LivingApp.
+	"""
+
 	ul4_attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update", "executeaction", "state"}
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
@@ -2919,7 +3116,7 @@ class Record(Base):
 				raise NoHandlerError()
 		return self.app._gethandler(handler)
 
-	def save(self, force=False, sync=False, handler=None):
+	def save(self, force=False, sync=False, handler:T_opt_handler=None):
 		handler = self._gethandler(handler)
 		if not force:
 			self.check_errors()
@@ -2938,10 +3135,10 @@ class Record(Base):
 			self.fields[identifier].value = value
 		self.save(force=True)
 
-	def delete(self, handler=None):
+	def delete(self, handler:T_opt_handler=None):
 		self._gethandler(handler).delete_record(self)
 
-	def executeaction(self, handler=None, identifier=None):
+	def executeaction(self, handler:T_opt_handler=None, identifier=None):
 		self._gethandler(handler)._executeaction(self, identifier)
 
 	def ul4save(self, force=False):
@@ -2997,6 +3194,11 @@ class Record(Base):
 
 
 class Field:
+	"""
+	A :class:`!Field` object contains the value of a certain field (i.e. a
+	:class:`Control`) for a certain :class:`Record`.
+	"""
+
 	ul4_attrs = {"control", "record", "label", "lookupdata", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
 	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
 
@@ -3156,6 +3358,10 @@ class Field:
 
 
 class Attachment(Base):
+	"""
+	An attachment for a :class:`Record`.
+	"""
+
 	ul4_attrs = {"id", "type", "record", "label", "active"}
 	ul4_type = ul4c.Type("la", "Attachment", "An attachment of a record")
 
@@ -3177,6 +3383,10 @@ class Attachment(Base):
 
 @register("imageattachment")
 class ImageAttachment(Attachment):
+	"""
+	An image attachment for a :class:`Record`.
+	"""
+
 	ul4_attrs = Attachment.ul4_attrs.union({"original", "thumb", "small", "medium", "large"})
 	ul4_type = ul4c.Type("la", "ImageAttachment", "An image attachment of a record")
 
@@ -3198,6 +3408,10 @@ class ImageAttachment(Attachment):
 
 
 class SimpleAttachment(Attachment):
+	"""
+	Base class for all :class:`Record` attachment that consist of a single value.
+	"""
+
 	ul4_attrs = Attachment.ul4_attrs.union({"value"})
 	ul4_type = ul4c.Type("la", "SimpleAttachment", "A simple attachment of a record")
 
@@ -3210,6 +3424,10 @@ class SimpleAttachment(Attachment):
 
 @register("fileattachment")
 class FileAttachment(SimpleAttachment):
+	"""
+	A file attachment for a :class:`Record`.
+	"""
+
 	ul4_type = ul4c.Type("la", "FileAttachment", "A file attachment of a record")
 
 	type = "fileattachment"
@@ -3219,6 +3437,10 @@ class FileAttachment(SimpleAttachment):
 
 @register("urlattachment")
 class URLAttachment(SimpleAttachment):
+	"""
+	An URL attachment for a :class:`Record`.
+	"""
+
 	ul4_type = ul4c.Type("la", "URLAttachment", "A URL attachment of a record")
 
 	type = "urlattachment"
@@ -3228,6 +3450,10 @@ class URLAttachment(SimpleAttachment):
 
 @register("noteattachment")
 class NoteAttachment(SimpleAttachment):
+	"""
+	A note attachment for a :class:`Record`.
+	"""
+
 	ul4_type = ul4c.Type("la", "NoteAttachment", "A note attachment of a record")
 
 	type = "noteattachment"
@@ -3237,6 +3463,10 @@ class NoteAttachment(SimpleAttachment):
 
 @register("jsonattachment")
 class JSONAttachment(SimpleAttachment):
+	"""
+	A JSON attachment for a :class:`Record`.
+	"""
+
 	ul4_type = ul4c.Type("la", "JSONAttachment", "A JSON attachment of a record")
 
 	type = "jsonattachment"
@@ -3251,6 +3481,13 @@ class JSONAttachment(SimpleAttachment):
 
 @register(None)
 class EMailAttachment(Base):
+	"""
+	An additional text attachment for an email to be sent.
+
+	An :class:`!EMailAttachment` can be created by an email template to attach
+	an addtional text attachment to the email to be sent.
+	"""
+
 	ul4_attrs = {"mimetype", "filename", "content"}
 	ul4_type = ul4c.InstantiableType("la", "EMailAttachment", "An email text attachment")
 
@@ -3269,6 +3506,10 @@ class EMailAttachment(Base):
 
 
 class Template(Base):
+	"""
+	Base class for various classes that use an UL4 template.
+	"""
+
 	ul4_type = ul4c.Type("la", "Template", "An UL4 template")
 
 	# Data descriptors for instance attributes
@@ -3349,20 +3590,32 @@ class Template(Base):
 
 @register("internaltemplate")
 class InternalTemplate(Template):
+	r"""
+	An internal template can be used by :class:`ViewTemplate`\s as reusable building blocks.
+
+	In internal template is not callable from outside. All internal templates
+	will be available via ``globals.templates`` (which is a :class:`dict` that
+	maps the template identifiers to the templates).
+	"""
+
 	ul4_type = ul4c.Type("la", "InternalTemplate", "Internal UL4 template")
 
 	def __str__(self):
 		return f"{self.app or '?'}/internaltemplate={self.identifier}"
 
-	def save(self, handler=None, recursive=True):
+	def save(self, handler:T_opt_handler=None, recursive=True):
 		self._gethandler(handler).save_internaltemplate(self)
 
-	def delete(self, handler=None):
+	def delete(self, handler:T_opt_handler=None):
 		self._gethandler(handler).delete_internaltemplate(self)
 
 
 @register("viewtemplate")
 class ViewTemplate(Template):
+	"""
+	A :class:`!ViewTemplate` provides a webpage.
+	"""
+
 	ul4_type = ul4c.Type("la", "ViewTemplate", "A view template")
 
 	class Type(misc.Enum):
@@ -3442,15 +3695,23 @@ class ViewTemplate(Template):
 			self.datasources[datasource.identifier] = datasource
 		return self
 
-	def save(self, handler=None, recursive=True):
+	def save(self, handler:T_opt_handler=None, recursive=True):
 		self._gethandler(handler).save_viewtemplate(self)
 
-	def delete(self, handler=None):
+	def delete(self, handler:T_opt_handler=None):
 		self._gethandler(handler).delete_viewtemplate(self)
 
 
 @register("datasource")
 class DataSource(Base):
+	"""
+	A :class:`DataSource` contains the configuration to provide information about
+	one (or more) apps and their records to a :class:`ViewTemplate` or other
+	templates.
+
+	The resulting information will be a :class:`DataSourceData` object.
+	"""
+
 	ul4_attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includeparams", "includeviews", "includecategories", "orders", "children"}
 	ul4_type = ul4c.Type("la", "DataSource", "A data source for a view, email or form template")
 
@@ -3590,12 +3851,17 @@ class DataSource(Base):
 				raise NoHandlerError()
 		return self.parent._gethandler(handler)
 
-	def save(self, handler=None, recursive=True):
+	def save(self, handler:T_opt_handler=None, recursive=True):
 		self._gethandler(handler).save_datasource(self)
 
 
 @register("datasourcechildren")
 class DataSourceChildren(Base):
+	"""
+	A :class:`DataSourceChildren` object contains the configuration for
+	attachment detail records to a master record.
+	"""
+
 	ul4_attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
 	ul4_type = ul4c.Type("la", "DataSourceChildren", "A master/detail specification in a datasource")
 
@@ -3646,6 +3912,11 @@ class DataSourceChildren(Base):
 
 @register("dataorder")
 class DataOrder(Base):
+	"""
+	A :class:`DataOrder` object contains one sort specification how multiple
+	records should be sorted.
+	"""
+
 	ul4_attrs = {"id", "parent", "expression", "direction", "nulls"}
 	ul4_type = ul4c.Type("la", "DataOrder", "A sort specification")
 
@@ -3711,12 +3982,19 @@ class DataOrder(Base):
 	def ul4onid(self):
 		return self.id
 
-	def save(self, handler=None, recursive=True):
+	def save(self, handler:T_opt_handler=None, recursive=True):
 		raise NotImplementedError("DataOrder objects can only be saved by their parent")
 
 
 @register("dataaction")
 class DataAction(Base):
+	"""
+	A :class:`DataAction` object contains the configuration of a data action.
+
+	A data action gets executed on a record in certain situation automatically
+	or on user demand.
+	"""
+
 	ul4_attrs = {
 		"id",
 		"app",
@@ -3789,6 +4067,13 @@ class DataAction(Base):
 
 
 class DataActionCommand(Base):
+	"""
+	A :class:`DataAction` consists of multiple :class:`DataActionCommand`
+	objects.
+
+	Different command types are implemented by subclasses.
+	"""
+
 	ul4_attrs = {
 		"id",
 		"parent",
@@ -3825,30 +4110,56 @@ class DataActionCommand(Base):
 
 @register("dataactioncommand_update")
 class DataActionCommandUpdate(DataActionCommand):
+	"""
+	A :class:`DataActionCommand` that updates an existing record.
+	"""
+
 	ul4_type = ul4c.Type("la", "DataActionCommandUpdate", "A data action instruction to update a rcord")
 
 
 @register("dataactioncommand_task")
 class DataActionCommandTask(DataActionCommand):
+	"""
+	A :class:`DataActionCommand` that creates a task.
+	"""
+
 	ul4_type = ul4c.Type("la", "DataActionCommandTask", "A data action instruction to create a task")
 
 
 @register("dataactioncommand_delete")
 class DataActionCommandDelete(DataActionCommand):
+	"""
+	A :class:`DataActionCommand` that deletes an existing record.
+	"""
+
 	ul4_type = ul4c.Type("la", "DataActionCommandDelete", "A data action instruction to delete a record")
 
 
 @register("dataactioncommand_onboarding")
 class DataActionCommandOnboarding(DataActionCommand):
+	"""
+	A :class:`DataActionCommand` that invites users to LivingApps and automatically
+	installs a number of apps for them.
+	"""
+
 	ul4_type = ul4c.Type("la", "DataActionCommandOnboarding", "A data action instruction for onboarding")
 
 
 @register("dataactioncommand_daterepeater")
 class DataActionCommandDateRepeater(DataActionCommand):
+	"""
+	A :class:`DataActionCommand` that creates additional records based on timing
+	information.
+	"""
+
 	ul4_type = ul4c.Type("la", "DataActionCommandDateRepeater", "A data action instruction for recurring records")
 
 
 class DataActionCommandWithIdentifier(DataActionCommand):
+	"""
+	Base class of for all data actions that have an identifier an introduce additional vSQL variables.
+	"""
+
 	ul4_attrs = DataActionCommand.ul4_attrs.union({
 		"app",
 		"identifier",
@@ -3875,26 +4186,49 @@ class DataActionCommandWithIdentifier(DataActionCommand):
 
 @register("dataactioncommand_insert")
 class DataActionCommandInsert(DataActionCommandWithIdentifier):
+	"""
+	A :class:`DataActionCommand` that creates a new record.
+	"""
+
 	ul4_type = ul4c.Type("la", "DataActionCommandInsert", "A data action instruction to insert a new record")
 
 
 @register("dataactioncommand_insertform")
 class DataActionCommandInsertForm(DataActionCommandWithIdentifier):
+	"""
+	A :class:`DataActionCommand` that interactively lets the user create a new record.
+	"""
+
 	ul4_type = ul4c.Type("la", "DataActionCommandInsertForm", "A data action instruction to insert a new record via an HTML form")
 
 
 @register("dataactioncommand_insertformstatic")
 class DataActionCommandInsertFormStatic(DataActionCommandWithIdentifier):
+	"""
+	A :class:`DataActionCommand` that interactively lets the user create a new record.
+	"""
+
 	ul4_type = ul4c.Type("la", "DataActionCommandInsertFormStatic", "A data action instruction to insert a new record via an HTML form in a static app")
 
 
 @register("dataactioncommand_loop")
 class DataActionCommandLoop(DataActionCommandWithIdentifier):
+	"""
+	A :class:`DataActionCommand` that executes sub commands for a number of
+	records.
+	"""
+
 	ul4_type = ul4c.Type("la", "DataActionCommandLoop", "A data action instruction for lookuping over a number of records")
 
 
 @register("dataactiondetail")
 class DataActionDetail(Base):
+	"""
+	A :class:`DataActionDetail` contains instructions how to set or modify a
+	single field of a record affected by a :class:`DataActionCommand` or sets
+	a parameter for a :class:`DataActionCommand`.
+	"""
+
 	ul4_attrs = {
 		"id",
 		"parent",
@@ -3993,6 +4327,11 @@ class DataActionDetail(Base):
 
 @register("installation")
 class Installation(Base):
+	"""
+	An :class:`!Installation` describes an installation proccess that has been
+	used to automatically install an app for a user.
+	"""
+
 	ul4_attrs = {"id", "name"}
 	ul4_type = ul4c.Type("la", "Installation", "The installation that created an app")
 
@@ -4012,6 +4351,14 @@ class Installation(Base):
 
 
 class LayoutControl(Base):
+	r"""
+	A :class:`!LayoutControl` is similar to a :class:`Control`, except that it
+	does not correspond to a real field of :class:`Record`\s, but simply
+	provides decoration for an input form (i.e. a :class:`View`).
+
+	Specific types of decorations are implemented by subclasses.
+	"""
+
 	ul4_attrs = {"id", "label", "identifier", "view", "type", "subtype", "top", "left", "width", "height"}
 	ul4_type = ul4c.Type("la", "LayoutControl", "A decoration in an input form")
 
@@ -4036,6 +4383,10 @@ class LayoutControl(Base):
 
 @register("htmllayoutcontrol")
 class HTMLLayoutControl(LayoutControl):
+	"""
+	A :class:`!HTMLLayoutControl` provides HTML "decorarion" in an input form.
+	"""
+
 	type = "string"
 	_subtype = "html"
 
@@ -4047,6 +4398,10 @@ class HTMLLayoutControl(LayoutControl):
 
 @register("imagelayoutcontrol")
 class ImageLayoutControl(LayoutControl):
+	"""
+	An :class:`!ImageLayoutControl` provides an image as decorarion for an input form.
+	"""
+
 	type = "image"
 	_subtype = None
 
@@ -4059,6 +4414,14 @@ class ImageLayoutControl(LayoutControl):
 
 @register("view")
 class View(Base):
+	r"""
+	An :class:`App` can have multiple :class:`View`\s which provide different
+	form for creating or changing record.
+
+	This differnt version can be used for example to provide the input form in
+	multiple languages or for multiple roles or workflow states.
+	"""
+
 	ul4_attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "lang", "controls", "layout_controls"}
 	ul4_type = ul4c.Type("la", "View", "An input form for a LivingApps application")
 
@@ -4102,6 +4465,13 @@ class View(Base):
 
 @register("datasourcedata")
 class DataSourceData(Base):
+	"""
+	A :class:`!DataSourceData` provides information about one (or more) apps
+	and their records to a :class:`ViewTemplate` or other templates.
+
+	This information is configured by :class:`DataSource` objects.
+	"""
+
 	ul4_attrs = {"id", "identifier", "app", "apps"}
 	ul4_type = ul4c.Type("la", "DataSourceData", "The data resulting from a data source configuration")
 
@@ -4123,6 +4493,11 @@ class DataSourceData(Base):
 
 @register("lookupitem")
 class LookupItem(Base):
+	r"""
+	A :class:`!LookupItem` is the field value of :class:`LookupControl`\s and
+	:class:`MultipleLookupControl`\s controls.
+	"""
+
 	ul4_attrs = {"id", "control", "key", "label", "visible"}
 	ul4_type = ul4c.Type("la", "LookupItem", "An option in a lookup control/field")
 
@@ -4186,6 +4561,11 @@ class LookupItem(Base):
 
 @register("viewlookupitem")
 class ViewLookupItem(Base):
+	"""
+	A :class:`!ViewLookupItem` provides additional view specific information
+	for a :class:`LookupItem`.
+	"""
+
 	ul4_attrs = {"key", "label", "visible"}
 	ul4_type = ul4c.Type("la", "ViewLookupItem", "View specific information about a lookup item")
 
@@ -4207,6 +4587,10 @@ class ViewLookupItem(Base):
 
 @register("category")
 class Category(Base):
+	"""
+	A navigation category.
+	"""
+
 	ul4_attrs = {"id", "identifier", "name", "order", "parent", "children", "apps"}
 	ul4_type = ul4c.Type("la", "Category", "A navigation category")
 
@@ -4234,6 +4618,13 @@ class Category(Base):
 
 @register("appparameter")
 class AppParameter(Base):
+	r"""
+	An additional parameter for an app.
+
+	This can e.g. be used to provide a simple way to configure the behaviour
+	of :class:`ViewTemplate`\s.
+	"""
+
 	ul4_attrs = {"id", "app", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
 	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application")
 

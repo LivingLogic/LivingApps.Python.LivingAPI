@@ -7,12 +7,34 @@
 ## All Rights Reserved
 
 """
-Classes and functions for compiling vSQL expressions.
+vSQL is a subset of UL4 expressions retargeted for generating SQL expressions
+used in SQL queries. Currently only Oracle is supported.
+
+This module contains classes and functions for generating and compiling
+vSQL expressions.
+
+A vSQL expression can be generated in two ways:
+
+*	By directly constructing a vSQL expression via the class method :meth:`make`
+	of the various :class:`AST` subclasses. For example a vSQL expresion for
+	``"foo".lower() + "bar".upper()`` can be constructed like this::
+
+		vsql.AddAST.make(
+			vsql.MethAST.make(
+				vsql.StrAST.make("foo"),
+				"lower",
+			),
+			vsql.MethAST.make(
+				vsql.StrAST.make("bar"),
+				"upper",
+			),
+		)
+
+*	By compiling the appropriate UL4/vSQL source code into an :class:`AST` object.
+
 """
 
 import sys, datetime, itertools, re, pathlib
-
-from typing import *
 
 from ll import color, misc, ul4c, ul4on
 
@@ -20,6 +42,14 @@ try:
 	from ll import orasql
 except ImportError:
 	orasql = None
+
+###
+### Typing stuff
+###
+
+from typing import *
+
+T_AST_Content = Union["AST", str]
 
 
 ###
@@ -72,7 +102,7 @@ class sqlliteral(str):
 	pass
 
 
-def sql(value):
+def sql(value:Any) -> str:
 	"""
 	Return an SQL expression for the Python value ``value``.
 	"""
@@ -94,7 +124,7 @@ def sql(value):
 		raise TypeError(f"unknown type {type(value)!r}")
 
 
-def _offset(pos):
+def _offset(pos:slice) -> slice:
 	# Note that we know that for our slices ``start``/``stop`` are never ``None``
 	return slice(pos.start-9, pos.stop-9)
 
@@ -126,13 +156,26 @@ def compile_and_save(handler, cursor, source, datatype, function, **queryargs):
 
 
 class Repr:
-	def _ll_repr_prefix_(self):
+	"""
+	Base class that provides functionality for implementing :meth:`__repr__`
+	and :meth:`_repr_pretty_` (used by IPython).
+	"""
+
+	def _ll_repr_prefix_(self) -> str:
+		"""
+		Return the initial part of the :meth:`__repr__` and :meth:`_repr_pretty_`
+		output (without the initial ``"<"``).
+		"""
 		return f"{self.__class__.__module__}.{self.__class__.__qualname__}"
 
-	def _ll_repr_suffix_(self):
+	def _ll_repr_suffix_(self) -> str:
+		"""
+		Return the final part of the :meth:`__repr__` and :meth:`_repr_pretty_`
+		output (without the final ``">"``).
+		"""
 		return f"at {id(self):#x}"
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		parts = itertools.chain(
 			(f"<{self._ll_repr_prefix_()}",),
 			self._ll_repr_(),
@@ -140,10 +183,14 @@ class Repr:
 		)
 		return " ".join(parts)
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> Generator[str, None, None]:
+		"""
+		Each string produced by :meth:`!_ll_repr__` will be part of the
+		:meth:`__repr__` output (joined by spaces).
+		"""
 		yield from ()
 
-	def _repr_pretty_(self, p, cycle):
+	def _repr_pretty_(self, p, cycle) -> None:
 		if cycle:
 			p.text(f"{self._ll_repr_prefix_()} ... {self._ll_repr_suffix_()}>")
 		else:
@@ -152,7 +199,13 @@ class Repr:
 				p.breakable()
 				p.text(self._ll_repr_suffix_())
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p) -> None:
+		"""
+		Implement the body of the :meth:`_repr_pretty_` method.
+
+		This means that the cycle detection and :meth:`group` call have already
+		been done.
+		"""
 		pass
 
 
@@ -243,12 +296,15 @@ class NodeType(misc.Enum):
 
 class Error(misc.Enum):
 	"""
-	The types of errors that can make a vSQL AST node invalid.
+	The types of errors that can lead to invalid vSQL AST nodes.
 
 	Note that some of those can not be produced by the Python implementation.
 	"""
 
-	SUBNODEERROR = "subnodeerror" # Subnodes are invalid
+	SUBNODEERROR = "subnodeerror"
+	"""
+	Subnodes are invalid
+	"""
 	NODETYPE = "nodetype" # Unknown node type (not any of the ``NODETYPE_...`` values from above
 	ARITY = "arity" # Node does not have the required number of children
 	SUBNODETYPES = "subnodetypes" # Subnodes have a combination of types that are not supported by the node
@@ -292,12 +348,15 @@ class Error(misc.Enum):
 	DATATYPE_DATETIMESET = "datatype_datetimeset" # The datatype of the node should be ``datetimeset`` but isn't
 
 
-class Def(Repr):
-	pass
-
-
 @ul4on.register("de.livinglogic.vsql.field")
-class Field(Def):
+class Field:
+	"""
+	A :class:`!Field` object describes a database field.
+
+	This field is either in a database table or view or a global package variable.
+
+	As a table or view field it belong to a :class:`Group` object.
+	"""
 	def __init__(self, identifier=None, datatype=None, fieldsql=None, joinsql=None, refgroup=None):
 		self.identifier = identifier
 		self.datatype = datatype
@@ -305,7 +364,7 @@ class Field(Def):
 		self.joinsql = joinsql
 		self.refgroup = refgroup
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield f"identifier={self.identifier!r}"
 		yield f"datatype={self.datatype!r}"
 		yield f"fieldsql={self.fieldsql!r}"
@@ -314,7 +373,7 @@ class Field(Def):
 		if self.refgroup is not None:
 			yield f"refgroup.tablesql={self.refgroup.tablesql!r}"
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p) -> None:
 		p.breakable()
 		p.text("identifier=")
 		p.pretty(self.identifier)
@@ -333,14 +392,14 @@ class Field(Def):
 			p.text("refgroup.tablesql=")
 			p.pretty(self.refgroup.tablesql)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		encoder.dump(self.identifier)
 		encoder.dump(self.datatype)
 		encoder.dump(self.fieldsql)
 		encoder.dump(self.joinsql)
 		encoder.dump(self.refgroup)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		self.identifier = decoder.load()
 		self.datatype = decoder.load()
 		self.fieldsql = decoder.load()
@@ -349,7 +408,7 @@ class Field(Def):
 
 
 @ul4on.register("de.livinglogic.vsql.group")
-class Group(Def):
+class Group:
 	def __init__(self, tablesql=None, **fields):
 		self.tablesql = tablesql
 		self.fields = {}
@@ -383,11 +442,11 @@ class Group(Def):
 		field = Field(identifier, datatype, fieldsql, joinsql, refgroup)
 		self.fields[identifier] = field
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		encoder.dump(self.tablesql)
 		encoder.dump(self.fields)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		self.tablesql = decoder.load()
 		self.fields = decoder.load()
 
@@ -539,12 +598,53 @@ class Rule(Repr):
 ###
 
 class AST(Repr):
+	"""
+	Base class of all vSQL abstract syntax tree node types.
+	"""
+
 	nodetype = None
+	"""
+	Type of the node. There's a one-to-one correspondence between :class:`AST`
+	subclasses and :class:`NodeType` values (except for intermediate classes
+	like :class:`BinaryAST`)
+	"""
+
 	nodevalue = None
+	"""
+	The node value is an instance attribute that represents a string that
+	isn't be represented by any child node. E.g. the values of constants or
+	the names of functions, methods and attributes. Will be overwritten by
+	properties in subclasses.
+	"""
+
 	datatype = None
 	rules = None
 
-	def __init__(self, *content):
+	def __init__(self, *content: T_AST_Content):
+		"""
+		Create a new :class:`!AST` node from its content.
+
+		``content`` is a mix of :class:`str` objects containing the UL4 source
+		and child :class:`!AST` nodes.
+
+		Normally the user doesn't call :meth:`!__init__` directly, but uses
+		:meth:`make` to create the appropriate :class:`!AST` node from child
+		nodes.
+
+		For example a function call to the function ``date`` could be created
+		like this::
+
+			FuncAST(
+				"date",
+				"(",
+				IntAST("2000", 2000),
+				", ",
+				IntAST("2", 2),
+				", ",
+				IntAST("29", 29),
+				")",
+			)
+		"""
 		final_content = []
 		for item in content:
 			if isinstance(item, str):
@@ -561,7 +661,7 @@ class AST(Repr):
 
 	@classmethod
 	def fromul4(cls, source, node, vars):
-		if isinstance(node, ul4c.Const):
+		if isinstance(node, ul4c.ConstAST):
 			if node.value is None:
 				return NoneAST.fromul4(source, node, vars)
 			else:
@@ -577,12 +677,12 @@ class AST(Repr):
 				pass
 			else:
 				return vsqltype.fromul4(source, node, vars)
-		if isinstance(node, ul4c.Var):
+		if isinstance(node, ul4c.VarAST):
 			field = vars.get(node.name, None)
-			return FieldRef(source, _offset(node.pos), None, node.name, field)
-		elif isinstance(node, ul4c.Attr):
+			return FieldRefAST(source, _offset(node.pos), None, node.name, field)
+		elif isinstance(node, ul4c.AttrAST):
 			vsqlnode = cls.fromul4(source, node.obj, vars)
-			if isinstance(vsqlnode, FieldRef) and isinstance(vsqlnode.field, Field) and vsqlnode.field.refgroup:
+			if isinstance(vsqlnode, FieldRefAST) and isinstance(vsqlnode.field, Field) and vsqlnode.field.refgroup:
 				try:
 					field = vsqlnode.field.refgroup.fields[node.attrname]
 				except KeyError:
@@ -591,18 +691,18 @@ class AST(Repr):
 					except KeyError:
 						pass # Fall through to return a generic :class:`Attr` node
 					else:
-						return FieldRef(source, _offset(node.pos), vsqlnode, node.attrname, field)
+						return FieldRefAST(source, _offset(node.pos), vsqlnode, node.attrname, field)
 				else:
-					return FieldRef(source, _offset(node.pos), vsqlnode, node.attrname, field)
+					return FieldRefAST(source, _offset(node.pos), vsqlnode, node.attrname, field)
 			return Attr(source, _offset(node.pos), vsqlnode, node.attrname)
-		elif isinstance(node, ul4c.Call):
+		elif isinstance(node, ul4c.CallAST):
 			vsqlnode = cls.fromul4(source, node.obj, vars)
 			args = []
 			for arg in node.args:
-				if not isinstance(arg, ul4c.PosArg):
+				if not isinstance(arg, ul4c.PosArgAST):
 					raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(arg)}!")
 				args.append(AST.fromul4(source, arg.value, vars))
-			if isinstance(vsqlnode, FieldRef):
+			if isinstance(vsqlnode, FieldRefAST):
 				if vsqlnode.parent is not None:
 					return Meth(source, _offset(node.pos), vsqlnode.parent, vsqlnode.identifier, args)
 				else:
@@ -612,7 +712,7 @@ class AST(Repr):
 		raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(node)}!")
 
 	@classmethod
-	def all_types(cls):
+	def all_types(cls) -> Generator[Type["AST"], None, None]:
 		"""
 		Return this class and all subclasses.
 
@@ -623,7 +723,7 @@ class AST(Repr):
 			yield from subcls.all_types()
 
 	@classmethod
-	def all_rules(cls):
+	def all_rules(cls) -> Generator[Rule, None, None]:
 		"""
 		Return all grammar rules of this class and all its subclasses.
 
@@ -634,17 +734,17 @@ class AST(Repr):
 				yield from subcls.rules.values()
 
 	@classmethod
-	def _add_rule(cls, rule):
+	def _add_rule(cls, rule:Rule) -> None:
 		cls.rules[rule.key] = rule
 
 	@classmethod
-	def typeref(cls, s):
+	def typeref(cls, s:str) -> Optional[int]:
 		if s.startswith("T") and s[1:].isdigit():
 			return int(s[1:])
 		return None
 
 	@classmethod
-	def _specs(cls, spec):
+	def _specs(cls, spec:str):
 		# Find position of potential name in the spec, so we can correct
 		# the typeref offsets later.
 		for (i, p) in enumerate(spec):
@@ -672,61 +772,111 @@ class AST(Repr):
 			yield (name, newspec)
 
 	@classmethod
-	def add_rules(cls, spec, source):
+	def add_rules(cls, spec:str, source:str) -> None:
 		"""
-		Register new syntax rules to the rules of this AST class.
+		Register new syntax rules for this AST class.
 
 		These rules are used for type checking and type inference and for
 		converting the vSQL AST into SQL source code.
 
-		``spec`` specifies the allowed combinations of operand types and the
-		resulting type. If consists of the following:
+		The arguments ``spec`` and ``source`` have the following meaning:
 
-		Upper case words
-			These specify types (for a list of allowed values see :class:`DataType`).
-			Also allowed are: ``T`` followed by an integer, this is used to refer
-			to another type in the spec and a combination of several types joined
-			with ``_``. This is a union type, i.e. any of the types in the
-			combination are allowed.
+		``spec``
+			``spec`` specifies the allowed combinations of operand types and the
+			resulting type. It consists of the following:
 
-		Lower case words
-			They specify to names of functions, methods or attributes
+			Upper case words
+				These specify types (e.g. ``INT`` or ``STR``; for a list of allowed
+				values see :class:`DataType`). Also allowed are:
 
-		Any sequence of whitespace or other non-word characters
-			They are ignored, but can be used to separate types and names and
-			to make the rule clearer.
+				*	``T`` followed by an integer, this is used to refer to another
+					type in the spec and
 
-		The first word in the rule always is the result type.
+				*	a combination of several types joined with ``_``. This is a union
+					type, i.e. any of the types in the combination are allowed.
 
-		Examples:
+			Lower case words
+				They specify the names of functions, methods or attributes
 
-		``INT <- BOOL + BOOL``
-			Adding this rule to :class:`AddAST` specifies that the types ``BOOL``
-			and ``BOOL`` can be added and the resulting type is ``INT``. Note
-			that using ``+`` is only syntactic sugar. This rule could also have
-			been written as ``INT BOOL BOOL`` or even as ``INT?????BOOL#$%^&*BOOL``.
+			Any sequence of whitespace or other non-word characters
+				They are ignored, but can be used to separate types and names and
+				to make the rule clearer.
 
-		``INT <- BOOL_INT + BOOL_INT``
-			This is equivalent to the four rules: ``INT <- BOOL + BOOL``,
-			``INT <- INT + BOOL``, ``INT <- BOOL + INT`` and ``INT <- INT + INT``.
+			The first word in the rule always is the result type.
 
-		``T1 <- BOOL_INT + T1
-			This is equivalent to the two rules ``BOOL <- BOOL + BOOL`` and
-			``INT <- INT + INT``.
+			Examples:
 
-		Note that each rule will only be registered once. So the following code::
+			``INT <- BOOL + BOOL``
+				Adding this rule to :class:`AddAST` specifies that the types ``BOOL``
+				and ``BOOL`` can be added and the resulting type is ``INT``. Note
+				that using ``+`` is only syntactic sugar. This rule could also have
+				been written as ``INT BOOL BOOL`` or even as ``INT?????BOOL#$%^&*BOOL``.
 
-			AddAST.add_rules("INT <- BOOL_INT + BOOL_INT")
-			AddAST.add_rules("NUMBER <- BOOL_INT_NUMBER + BOOL_INT_NUMBER")
+			``INT <- BOOL_INT + BOOL_INT``
+				This is equivalent to the four rules: ``INT <- BOOL + BOOL``,
+				``INT <- INT + BOOL``, ``INT <- BOOL + INT`` and ``INT <- INT + INT``.
 
-		So this will register the rule ``INT <- BOOL + BOOL``, but not
-		``NUMBER <- BOOL + BOOL``.
+			``T1 <- BOOL_INT + T1``
+				This is equivalent to the two rules ``BOOL <- BOOL + BOOL`` and
+				``INT <- INT + INT``.
 
-		``source`` specifies the SQL source that will be generated for this
-		expression. Two types of placeholders are supported: ``{s1}`` means
-		"embed the source code of the first operand in this spot" (and ``{s2}``
-		etc. accordingly) and ``{t1}`` embeds the type name (in lowercase) in this
-		spot (and ``{t2}`` etc. accordingly).
+			Note that each rule will only be registered once. So the following
+			code::
+
+				AddAST.add_rules(
+					"INT <- BOOL_INT + BOOL_INT",
+					"..."
+				)
+				AddAST.add_rules(
+					"NUMBER <- BOOL_INT_NUMBER + BOOL_INT_NUMBER",
+					"..."
+				)
+
+			will register the rule ``INT <- BOOL + BOOL``, but not
+			``NUMBER <- BOOL + BOOL`` since the first call call already registered
+			a rule for the signature ``BOOL BOOL``.
+
+		``source``
+			``source`` specifies the SQL source that will be generated for this
+			expression. Two types of placeholders are supported: ``{s1}`` means
+			"embed the source code of the first operand in this spot" (and ``{s2}``
+			etc. accordingly) and ``{t1}`` embeds the type name (in lowercase) in
+			this spot (and ``{t2}`` etc. accordingly).
+
+			Example 1::
+
+				AttrAST.add_rules(
+					f"INT <- DATE.year",
+					"extract(year from {s1})"
+				)
+
+			This specifies that a ``DATE`` value has an attribute ``year`` and that
+			for such a value ``value`` the generated SQL source code will be:
+
+			.. sourcecode:: sql
+
+				extract(year from value)
+
+			Example 2::
+
+				EQAST.add_rules(
+					f"BOOL <- STR_CLOB == STR_CLOB",
+					"vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})"
+				)
+
+			This registers four rules for equality comparison between ``STR`` and
+			``CLOB`` objects. The generated SQL source code for comparisons
+			between ``STR`` and ``STR`` will be
+
+			.. sourcecode:: sql
+
+				vsqlimpl_pkg.eq_str_str(value1, value2)
+
+			and for ``CLOB``/``CLOB`` comparison it will be
+
+			.. sourcecode:: sql
+
+				vsqlimpl_pkg.eq_clob_clob(value1, value2)
 		"""
 
 		# Split on non-names and drop empty parts
@@ -744,19 +894,24 @@ class AST(Repr):
 				signature = tuple(p for p in key if isinstance(p, DataType))
 				cls._add_rule(Rule(cls, result, name, key, signature, source))
 
-	def validate(self):
+	def validate(self) -> None:
 		"""
 		Validate the content of this AST node.
 
-		If this node turns out to be invalid it will set ``datatype`` to ``None``
-		and ``error`` to the appropriate :class:`Error` value.
+		If this node turns out to be invalid it will set the attribute
+		``datatype`` to ``None`` and ``error`` to the appropriate
+		:class:`Error` value.
 
-		If this node turns out to be valid, :meth:`!validate` will set ``error``
-		to ``None`` and ``datatype`` to the resulting data type of this node.
+		If this node turns out to be valid, :meth:`!validate` will set the
+		attribute ``error`` to ``None`` and ``datatype`` to the resulting data
+		type of this node.
 		"""
 		pass
 
-	def source(self):
+	def source(self) -> str:
+		"""
+		Return the UL4/vSQL source code of the AST.
+		"""
 		return "".join(s for s in self._source())
 
 	def _source(self):
@@ -766,10 +921,20 @@ class AST(Repr):
 			else:
 				yield from item._source()
 
-	def children(self):
+	def children(self) -> Generator["AST", None, None]:
+		"""
+		Return the child AST nodes of this node.
+		"""
 		yield from ()
 
-	def save(self, handler):
+	def save(self, handler:"ll.la.handlers.DBHandler") -> str:
+		"""
+		Save this vSQL expression to the database and return the resulting
+		database id ``vs_id``.
+
+		``handler`` must be a :class:`~ll.la.handlers.DBHandler`.
+		"""
+
 		(vs_id, _) = handler.save_vsql(self)
 		return vs_id
 
@@ -808,16 +973,20 @@ class AST(Repr):
 		if cond:
 			yield ")"
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		encoder.dump(self._source)
 		encoder.dump(self.pos)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		self._source = decoder.load()
 		self.pos = decoder.load()
 
 
 class ConstAST(AST):
+	"""
+	Base class for all vSQL expressions that are constants.
+	"""
+
 	precedence = 20
 
 	@staticmethod
@@ -830,6 +999,10 @@ class ConstAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.none")
 class NoneAST(ConstAST):
+	"""
+	The constant ``None``.
+	"""
+
 	nodetype = NodeType.CONST_NONE
 	datatype = DataType.NULL
 
@@ -843,6 +1016,12 @@ class NoneAST(ConstAST):
 
 
 class _ConstWithValueAST(ConstAST):
+	"""
+	Base class for all vSQL constants taht may have different values.
+
+	(i.e. anything except ``None``).
+	"""
+
 	def __init__(self, value, *content):
 		super().__init__(*content)
 		self.value = value
@@ -869,17 +1048,21 @@ class _ConstWithValueAST(ConstAST):
 		p.text("value=")
 		p.pretty(self.value)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.value)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.value = decoder.load()
 
 
 @ul4on.register("de.livinglogic.vsql.bool")
 class BoolAST(_ConstWithValueAST):
+	"""
+	A boolean constant (i.e. ``True`` or ``False``).
+	"""
+
 	nodetype = NodeType.CONST_BOOL
 	datatype = DataType.BOOL
 
@@ -894,6 +1077,10 @@ class BoolAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.int")
 class IntAST(_ConstWithValueAST):
+	"""
+	An integer constant.
+	"""
+
 	nodetype = NodeType.CONST_INT
 	datatype = DataType.INT
 
@@ -904,6 +1091,10 @@ class IntAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.number")
 class NumberAST(_ConstWithValueAST):
+	"""
+	A number constant (containing a decimal point).
+	"""
+
 	nodetype = NodeType.CONST_NUMBER
 	datatype = DataType.NUMBER
 
@@ -914,18 +1105,32 @@ class NumberAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.str")
 class StrAST(_ConstWithValueAST):
+	"""
+	A string constant.
+	"""
+
 	nodetype = NodeType.CONST_STR
 	datatype = DataType.STR
 
 
 @ul4on.register("de.livinglogic.vsql.clob")
 class CLOBAST(_ConstWithValueAST):
+	"""
+	A CLOB constant.
+
+	This normally will not be created by the Python implementation
+	"""
+
 	nodetype = NodeType.CONST_CLOB
 	datatype = DataType.CLOB
 
 
 @ul4on.register("de.livinglogic.vsql.color")
 class ColorAST(_ConstWithValueAST):
+	"""
+	A color constant (e.g. ``#fff``).
+	"""
+
 	nodetype = NodeType.CONST_COLOR
 	datatype = DataType.COLOR
 
@@ -937,6 +1142,10 @@ class ColorAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.date")
 class DateAST(_ConstWithValueAST):
+	"""
+	A date constant (e.g. ``@(2000-02-29)``).
+	"""
+
 	nodetype = NodeType.CONST_DATE
 	datatype = DataType.DATE
 
@@ -947,6 +1156,10 @@ class DateAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.datetime")
 class DateTimeAST(_ConstWithValueAST):
+	"""
+	A datetime constant (e.g. ``@(2000-02-29T12:34:56)``).
+	"""
+
 	nodetype = NodeType.CONST_DATETIME
 	datatype = DataType.DATETIME
 
@@ -962,6 +1175,13 @@ class DateTimeAST(_ConstWithValueAST):
 
 @ul4on.register("de.livinglogic.vsql.list")
 class ListAST(AST):
+	"""
+	A list constant.
+
+	For this to work the list may only contain items of "compatible" types, i.e.
+	types that con be converted to a common type without losing information.
+	"""
+
 	nodetype = NodeType.LIST
 	precedence = 20
 
@@ -1002,17 +1222,24 @@ class ListAST(AST):
 	def children(self):
 		yield from self.items
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.items)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.items = decoder.load()
 
 
 @ul4on.register("de.livinglogic.vsql.set")
 class SetAST(AST):
+	"""
+	A set constant.
+
+	For this to work the set may only contain items of "compatible" types, i.e.
+	types that con be converted to a common type without losing information.
+	"""
+
 	nodetype = NodeType.SET
 	precedence = 20
 
@@ -1056,17 +1283,21 @@ class SetAST(AST):
 			self.items.append(AST.fromul4(source, item.value, vars))
 		return self
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.items)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.items = decoder.load()
 
 
 @ul4on.register("de.livinglogic.vsql.fieldref")
 class FieldRefAST(AST):
+	"""
+	Reference to a field defined in the database.
+	"""
+
 	nodetype = NodeType.FIELD
 	precedence = 19
 
@@ -1165,13 +1396,13 @@ class FieldRefAST(AST):
 			p.text("field=")
 			p.pretty(self.field)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.parent)
 		encoder.dump(self.identifier)
 		encoder.dump(self.field)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.parent = decoder.load()
 		self.identifier = decoder.load()
@@ -1179,6 +1410,10 @@ class FieldRefAST(AST):
 
 
 class BinaryAST(AST):
+	"""
+	Base class of all binary expressions (i.e. expressions with two operands).
+	"""
+
 	def __init__(self, obj1, obj2, *content):
 		super().__init__(*content)
 		self.obj1 = obj1
@@ -1226,12 +1461,12 @@ class BinaryAST(AST):
 		p.text("obj2=")
 		p.pretty(self.obj2)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.obj1)
 		encoder.dump(self.obj2)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.obj1 = decoder.load()
 		self.obj2 = decoder.load()
@@ -1239,6 +1474,10 @@ class BinaryAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.eq")
 class EQAST(BinaryAST):
+	"""
+	Equality comparison (``A == B``).
+	"""
+
 	nodetype = NodeType.CMP_EQ
 	precedence = 6
 	operator = "=="
@@ -1246,6 +1485,10 @@ class EQAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.ne")
 class NEAST(BinaryAST):
+	"""
+	Inequality comparison (``A != B``).
+	"""
+
 	nodetype = NodeType.CMP_NE
 	precedence = 6
 	operator = "!="
@@ -1253,6 +1496,10 @@ class NEAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.lt")
 class LTAST(BinaryAST):
+	"""
+	Less-than comparison (``A < B``).
+	"""
+
 	nodetype = NodeType.CMP_LT
 	precedence = 6
 	operator = "<"
@@ -1260,6 +1507,10 @@ class LTAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.le")
 class LEAST(BinaryAST):
+	"""
+	Less-than-or equal comparison (``A <= B``).
+	"""
+
 	nodetype = NodeType.CMP_LE
 	precedence = 6
 	operator = "<="
@@ -1267,6 +1518,10 @@ class LEAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.gt")
 class GTAST(BinaryAST):
+	"""
+	Greater-than comparison (``A > B``).
+	"""
+
 	nodetype = NodeType.CMP_GT
 	precedence = 6
 	operator = ">"
@@ -1274,6 +1529,10 @@ class GTAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.ge")
 class GEAST(BinaryAST):
+	"""
+	Greater-than-or equal comparison (``A >= B``).
+	"""
+
 	nodetype = NodeType.CMP_GE
 	precedence = 6
 	operator = ">="
@@ -1281,6 +1540,10 @@ class GEAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.add")
 class AddAST(BinaryAST):
+	"""
+	Addition (``A + B``).
+	"""
+
 	nodetype = NodeType.BINOP_ADD
 	precedence = 11
 	operator = "+"
@@ -1288,6 +1551,10 @@ class AddAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.sub")
 class SubAST(BinaryAST):
+	"""
+	Subtraction (``A - B``).
+	"""
+
 	nodetype = NodeType.BINOP_SUB
 	precedence = 11
 	operator = "-"
@@ -1295,34 +1562,76 @@ class SubAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.mul")
 class MulAST(BinaryAST):
+	"""
+	Multiplication (``A * B``).
+	"""
+
 	nodetype = NodeType.BINOP_MUL
 	precedence = 12
 	operator = "*"
 
 
-@ul4on.register("de.livinglogic.vsql.floordiv")
-class FloorDivAST(BinaryAST):
-	nodetype = NodeType.BINOP_FLOORDIV
-	precedence = 12
-	operator = "//"
-
-
 @ul4on.register("de.livinglogic.vsql.truediv")
 class TrueDivAST(BinaryAST):
+	"""
+	True division (``A / B``).
+	"""
+
 	nodetype = NodeType.BINOP_TRUEDIV
 	precedence = 12
 	operator = "/"
 
 
+@ul4on.register("de.livinglogic.vsql.floordiv")
+class FloorDivAST(BinaryAST):
+	"""
+	Floor division (``A // B``).
+	"""
+
+	nodetype = NodeType.BINOP_FLOORDIV
+	precedence = 12
+	operator = "//"
+
+
 @ul4on.register("de.livinglogic.vsql.mod")
 class ModAST(BinaryAST):
+	"""
+	Modulo operator (``A % B``).
+	"""
+
 	nodetype = NodeType.BINOP_MOD
 	precedence = 12
 	operator = "%"
 
 
+@ul4on.register("de.livinglogic.vsql.shiftleft")
+class ShiftLeftAST(BinaryAST):
+	"""
+	Left shift operator (``A << B``).
+	"""
+
+	nodetype = NodeType.BINOP_SHIFTLEFT
+	precedence = 10
+	operator = "<<"
+
+
+@ul4on.register("de.livinglogic.vsql.shiftright")
+class ShiftRightAST(BinaryAST):
+	"""
+	Right shift operator (``A >> B``).
+	"""
+
+	nodetype = NodeType.BINOP_SHIFTRIGHT
+	precedence = 10
+	operator = ">>"
+
+
 @ul4on.register("de.livinglogic.vsql.and")
 class AndAST(BinaryAST):
+	"""
+	Logical "and" (``A and B``).
+	"""
+
 	nodetype = NodeType.BINOP_AND
 	precedence = 4
 	operator = "and"
@@ -1330,6 +1639,10 @@ class AndAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.or")
 class OrAST(BinaryAST):
+	"""
+	Logical "or" (``A or B``).
+	"""
+
 	nodetype = NodeType.BINOP_OR
 	precedence = 4
 	operator = "or"
@@ -1337,6 +1650,10 @@ class OrAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.contains")
 class ContainsAST(BinaryAST):
+	"""
+	Containment test (``A in B``).
+	"""
+
 	nodetype = NodeType.BINOP_CONTAINS
 	precedence = 6
 	operator = "in"
@@ -1344,6 +1661,10 @@ class ContainsAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.notcontains")
 class NotContainsAST(BinaryAST):
+	"""
+	Inverted containment test (``A not in B``).
+	"""
+
 	nodetype = NodeType.BINOP_NOTCONTAINS
 	precedence = 6
 	operator = "not in"
@@ -1351,6 +1672,10 @@ class NotContainsAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.is")
 class IsAST(BinaryAST):
+	"""
+	Identity test (``A is B``).
+	"""
+
 	nodetype = NodeType.BINOP_IS
 	precedence = 6
 	operator = "is"
@@ -1358,6 +1683,10 @@ class IsAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.isnot")
 class IsNotAST(BinaryAST):
+	"""
+	Inverted identity test (``A is not B``).
+	"""
+
 	nodetype = NodeType.BINOP_ISNOT
 	precedence = 6
 	operator = "is not"
@@ -1365,6 +1694,10 @@ class IsNotAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.item")
 class ItemAST(BinaryAST):
+	"""
+	Item access operator (``A[B]``).
+	"""
+
 	nodetype = NodeType.BINOP_ITEM
 	precedence = 16
 
@@ -1382,22 +1715,12 @@ class ItemAST(BinaryAST):
 		return super().fromul4(source, node, vars)
 
 
-@ul4on.register("de.livinglogic.vsql.shiftleft")
-class ShiftLeftAST(BinaryAST):
-	nodetype = NodeType.BINOP_SHIFTLEFT
-	precedence = 10
-	operator = "<<"
-
-
-@ul4on.register("de.livinglogic.vsql.shiftright")
-class ShiftRightAST(BinaryAST):
-	nodetype = NodeType.BINOP_SHIFTRIGHT
-	precedence = 10
-	operator = ">>"
-
-
 @ul4on.register("de.livinglogic.vsql.bitand")
 class BitAndAST(BinaryAST):
+	"""
+	Bitwise "and" (``A & B``).
+	"""
+
 	nodetype = NodeType.BINOP_BITAND
 	precedence = 9
 	operator = "&"
@@ -1405,6 +1728,10 @@ class BitAndAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.bitor")
 class BitOrAST(BinaryAST):
+	"""
+	Bitwise "or" (``A | B``).
+	"""
+
 	nodetype = NodeType.BINOP_BITOR
 	precedence = 7
 	operator = "|"
@@ -1412,12 +1739,20 @@ class BitOrAST(BinaryAST):
 
 @ul4on.register("de.livinglogic.vsql.bitxor")
 class BitXOrAST(BinaryAST):
+	"""
+	Bitwise "exclusive or" (``A ^ B``).
+	"""
+
 	nodetype = NodeType.BINOP_BITXOR
 	precedence = 8
 	operator = "^"
 
 
 class UnaryAST(AST):
+	"""
+	Base class of all unary expressions (i.e. expressions with one operand).
+	"""
+
 	def __init__(self, obj, *content):
 		super().__init__(*content)
 		self.obj = obj
@@ -1458,17 +1793,21 @@ class UnaryAST(AST):
 		p.text("obj=")
 		p.pretty(self.obj)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.obj)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.obj = decoder.load()
 
 
 @ul4on.register("de.livinglogic.vsql.not")
 class NotAST(UnaryAST):
+	"""
+	Logical negation (``not A``).
+	"""
+
 	nodetype = NodeType.UNOP_NOT
 	precedence = 5
 	operator = "not "
@@ -1476,6 +1815,10 @@ class NotAST(UnaryAST):
 
 @ul4on.register("de.livinglogic.vsql.neg")
 class NegAST(UnaryAST):
+	"""
+	Arithmetic negation (``-A``).
+	"""
+
 	nodetype = NodeType.UNOP_NEG
 	precedence = 14
 	operator = "-"
@@ -1483,6 +1826,10 @@ class NegAST(UnaryAST):
 
 @ul4on.register("de.livinglogic.vsql.bitnot")
 class BitNotAST(UnaryAST):
+	"""
+	Bitwise "not" (``~A``).
+	"""
+
 	nodetype = NodeType.UNOP_BITNOT
 	precedence = 14
 	operator = "~"
@@ -1490,6 +1837,10 @@ class BitNotAST(UnaryAST):
 
 @ul4on.register("de.livinglogic.vsql.if")
 class IfAST(AST):
+	"""
+	Ternary "if"/"else" (``A if COND else B``).
+	"""
+
 	nodetype = NodeType.TERNOP_IFELSE
 	precedence = 3
 
@@ -1554,13 +1905,13 @@ class IfAST(AST):
 		p.text("objelse=")
 		p.pretty(self.objelse)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.objif)
 		encoder.dump(self.objcond)
 		encoder.dump(self.objelse)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.objif = decoder.load()
 		self.objcond = decoder.load()
@@ -1569,6 +1920,10 @@ class IfAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.if")
 class SliceAST(AST):
+	"""
+	Slice operator (``A[B:C]``).
+	"""
+
 	nodetype = NodeType.TERNOP_SLICE
 	precedence = 16
 
@@ -1648,13 +2003,13 @@ class SliceAST(AST):
 			p.text("index2=")
 			p.pretty(self.index2)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.obj)
 		encoder.dump(self.index1)
 		encoder.dump(self.index1)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.obj = decoder.load()
 		self.index1 = decoder.load()
@@ -1663,6 +2018,10 @@ class SliceAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.attr")
 class AttrAST(AST):
+	"""
+	Attribute access (``A.name``).
+	"""
+
 	nodetype = NodeType.ATTR
 	precedence = 19
 
@@ -1725,12 +2084,12 @@ class AttrAST(AST):
 		p.text("attrname=")
 		p.pretty(self.attrname)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.obj)
 		encoder.dump(self.attrname)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.obj = decoder.load()
 		self.attrname = decoder.load()
@@ -1738,6 +2097,10 @@ class AttrAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.func")
 class FuncAST(AST):
+	"""
+	Function call (``name(A, ...)``).
+	"""
+
 	nodetype = NodeType.FUNC
 	precedence = 18
 	names = {} # Maps function names to set of supported arities
@@ -1804,12 +2167,12 @@ class FuncAST(AST):
 			p.text(f"args[{i}]=")
 			p.pretty(arg)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.name)
 		encoder.dump(self.args)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.name = decoder.load()
 		self.args = decoder.load()
@@ -1817,6 +2180,10 @@ class FuncAST(AST):
 
 @ul4on.register("de.livinglogic.vsql.meth")
 class MethAST(AST):
+	"""
+	Method call (``A.name(B, ...)``).
+	"""
+
 	nodetype = NodeType.METH
 	precedence = 17
 	names = {} # Maps (type, meth name) to set of supported arities
@@ -1893,13 +2260,13 @@ class MethAST(AST):
 			p.text(f"args[{i}]=")
 			p.pretty(arg)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		super().ul4ondump(encoder)
 		encoder.dump(self.obj)
 		encoder.dump(self.name)
 		encoder.dump(self.args)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		super().ul4onload(decoder)
 		self.obj = decoder.load()
 		self.name = decoder.load()
@@ -2355,7 +2722,7 @@ ShiftLeftAST.add_rules(f"INT <- {INTLIKE} << {INTLIKE}", "trunc({s1} * power(2, 
 # Right shift operator (A >> B)
 ShiftRightAST.add_rules(f"INT <- {INTLIKE} >> {INTLIKE}", "trunc({s1} / power(2, {s2}))")
 
-# Logical and (A and B)
+# Logical "and" (A and B)
 # Can't use the real operator ("and") in the spec, so use "?"
 AndAST.add_rules(f"T1 <- {ANY} ? NULL", "null")
 AndAST.add_rules(f"T2 <- NULL ? {ANY}", "null")
@@ -2369,7 +2736,7 @@ AndAST.add_rules(f"T1 <- DATEDELTA_DATETIMEDELTA_MONTHDELTA ? T1", "(case when n
 AndAST.add_rules(f"T1 <- {LIST} ? T1", "(case when {s1} is not null and {s1}.count != 0 then {s2} else {s1} end)")
 AndAST.add_rules(f"DATETIMELIST <- DATELIST_DATETIMELIST ? DATELIST_DATETIMELIST", "(case when {s1} is not null and {s1}.count != 0 then {s2} else {s1} end)")
 
-# Logical or (A or B)
+# Logical "or" (A or B)
 # Can't use the real operator ("or") in the spec, so use "?"
 OrAST.add_rules(f"T1 <- {ANY} ? NULL", "{s1}")
 OrAST.add_rules(f"T2 <- NULL ? {ANY}", "{s2}")
@@ -2411,7 +2778,7 @@ IsNotAST.add_rules(f"BOOL <- NULL ? NULL", "0")
 IsNotAST.add_rules(f"BOOL <- {ANY} ? NULL", "(case when {s1} is not null then 1 else 0 end)")
 IsNotAST.add_rules(f"BOOL <- NULL ? {ANY}", "(case when {s2} is not null then 1 else 0 end)")
 
-# Item operator (A[B])
+# Item access operator (A[B])
 ItemAST.add_rules(f"STR <- STR_CLOB_STRLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
 ItemAST.add_rules(f"CLOB <- CLOBLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
 ItemAST.add_rules(f"INT <- INTLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
@@ -2419,12 +2786,22 @@ ItemAST.add_rules(f"NUMBER <- NUMBERLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s
 ItemAST.add_rules(f"DATE <- DATELIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
 ItemAST.add_rules(f"DATETIME <- DATETIMELIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
 
-# Slice operator (A[B:C])
-SliceAST.add_rules(f"T1 <- {SEQ}[NULL_{INTLIKE}:NULL_{INTLIKE}]", "vsqlimpl_pkg.slice_{t1}({s1}, {s2}, {s3})")
+# Bitwise "and" (A & B)
+BitAndAST.add_rules(f"INT <- {INTLIKE} & {INTLIKE}", "bitand({s1}, {s2})")
+BitAndAST.add_rules(f"T1 <- INTSET & INTSET", "vsqlimpl_pkg.bitand_intset({s1}, {s2})")
+BitAndAST.add_rules(f"T1 <- NUMBERSET & NUMBERSET", "vsqlimpl_pkg.bitand_numberset({s1}, {s2})")
+BitAndAST.add_rules(f"T1 <- STRSET & STRSET", "vsqlimpl_pkg.bitand_strset({s1}, {s2})")
+BitAndAST.add_rules(f"T1 <- DATESET_DATETIMESET & T1", "vsqlimpl_pkg.bitand_datetimeset({s1}, {s2})")
 
-# Arithmetic negation (-A)
-NegAST.add_rules(f"INT <- BOOL", "(-{s1})")
-NegAST.add_rules(f"T1 <- INT_NUMBER_DATEDELTA_DATETIMEDELTA_MONTHDELTA", "(-{s1})")
+# Bitwise "or" (A | B)
+BitOrAST.add_rules(f"INT <- {INTLIKE} | {INTLIKE}", "vsqlimpl_pkg.bitor_int({s1}, {s2})")
+BitOrAST.add_rules(f"T1 <- INTSET | INTSET", "vsqlimpl_pkg.bitor_intset({s1}, {s2})")
+BitOrAST.add_rules(f"T1 <- NUMBERSET | NUMBERSET", "vsqlimpl_pkg.bitor_numberset({s1}, {s2})")
+BitOrAST.add_rules(f"T1 <- STRSET | STRSET", "vsqlimpl_pkg.bitor_strset({s1}, {s2})")
+BitOrAST.add_rules(f"T1 <- DATESET_DATETIMESET | T1", "vsqlimpl_pkg.bitor_datetimeset({s1}, {s2})")
+
+# Bitwise "exclusive or" (A ^ B)
+BitXOrAST.add_rules(f"INT <- {INTLIKE} ^ {INTLIKE}", "vsqlimpl_pkg.bitxor_int({s1}, {s2})")
 
 # Logical negation (not A)
 # Can't use the real operator ("not") in the spec, so use "?"
@@ -2434,7 +2811,14 @@ NotAST.add_rules(f"BOOL <- ? INT_NUMBER_DATEDELTA_DATETIMEDELTA_MONTHDELTA", "(c
 NotAST.add_rules(f"BOOL <- ? DATE_DATETIME_STR_COLOR_GEO", "(case {s1} when null then 1 else 0 end)")
 NotAST.add_rules(f"BOOL <- ? {ANY}", "(1 - vsqlimpl_pkg.bool_{t1}({s1}))")
 
-# Ternary if (A if COND else B)
+# Arithmetic negation (-A)
+NegAST.add_rules(f"INT <- BOOL", "(-{s1})")
+NegAST.add_rules(f"T1 <- INT_NUMBER_DATEDELTA_DATETIMEDELTA_MONTHDELTA", "(-{s1})")
+
+# Bitwise "not" (~A)
+BitNotAST.add_rules(f"INT <- {INTLIKE}", "(-{s1} - 1)")
+
+# Ternary "if"/"else" (A if COND else B)
 # Can't use the real operator ("if"/"else") in the spec, so use "?"
 IfAST.add_rules(f"T1 <- {ANY} ? NULL ? T1", "{s3}")
 IfAST.add_rules(f"INT <- {INTLIKE} ? NULL ? {INTLIKE}", "{s3}")
@@ -2457,25 +2841,8 @@ IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {ANY} ? {NUMBERLIKE}", "(case when vs
 IfAST.add_rules(f"T1 <- {ANY} ? {ANY} ? NULL", "(case when vsqlimpl_pkg.bool_{t2}({s2}) = 1 then {s1} else {s3} end)")
 IfAST.add_rules(f"T3 <- NULL ? {ANY} ? {ANY}", "(case when vsqlimpl_pkg.bool_{t2}({s2}) = 1 then {s1} else {s3} end)")
 
-# Bitwise and (A & B)
-BitAndAST.add_rules(f"INT <- {INTLIKE} & {INTLIKE}", "bitand({s1}, {s2})")
-BitAndAST.add_rules(f"T1 <- INTSET & INTSET", "vsqlimpl_pkg.bitand_intset({s1}, {s2})")
-BitAndAST.add_rules(f"T1 <- NUMBERSET & NUMBERSET", "vsqlimpl_pkg.bitand_numberset({s1}, {s2})")
-BitAndAST.add_rules(f"T1 <- STRSET & STRSET", "vsqlimpl_pkg.bitand_strset({s1}, {s2})")
-BitAndAST.add_rules(f"T1 <- DATESET_DATETIMESET & T1", "vsqlimpl_pkg.bitand_datetimeset({s1}, {s2})")
-
-# Bitwise or (A | B)
-BitOrAST.add_rules(f"INT <- {INTLIKE} | {INTLIKE}", "vsqlimpl_pkg.bitor_int({s1}, {s2})")
-BitOrAST.add_rules(f"T1 <- INTSET | INTSET", "vsqlimpl_pkg.bitor_intset({s1}, {s2})")
-BitOrAST.add_rules(f"T1 <- NUMBERSET | NUMBERSET", "vsqlimpl_pkg.bitor_numberset({s1}, {s2})")
-BitOrAST.add_rules(f"T1 <- STRSET | STRSET", "vsqlimpl_pkg.bitor_strset({s1}, {s2})")
-BitOrAST.add_rules(f"T1 <- DATESET_DATETIMESET | T1", "vsqlimpl_pkg.bitor_datetimeset({s1}, {s2})")
-
-# Bitwise exclusive or (A ^ B)
-BitXOrAST.add_rules(f"INT <- {INTLIKE} ^ {INTLIKE}", "vsqlimpl_pkg.bitxor_int({s1}, {s2})")
-
-# Bitwise not (~A)
-BitNotAST.add_rules(f"INT <- {INTLIKE}", "(-{s1} - 1)")
+# Slice operator (A[B:C])
+SliceAST.add_rules(f"T1 <- {SEQ}[NULL_{INTLIKE}:NULL_{INTLIKE}]", "vsqlimpl_pkg.slice_{t1}({s1}, {s2}, {s3})")
 
 
 ###
