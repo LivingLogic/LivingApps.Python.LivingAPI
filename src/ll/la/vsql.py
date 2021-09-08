@@ -10,7 +10,9 @@
 Classes and functions for compiling vSQL expressions.
 """
 
-import sys, datetime, itertools, re, pathlib, typing
+import sys, datetime, itertools, re, pathlib
+
+from typing import *
 
 from ll import color, misc, ul4c, ul4on
 
@@ -31,8 +33,8 @@ scriptname = misc.sysinfo.short_script_name
 ### Fields for the table ``VSQLRULE``
 ###
 
-optstr = typing.Optional[str]
-optint = typing.Optional[int]
+optstr = Optional[str]
+optint = Optional[int]
 
 fields = dict(
 	vr_nodetype=str,
