@@ -62,12 +62,6 @@ fields = dict(
 ### Helper functions and classes
 ###
 
-def subclasses(cls):
-	yield cls
-	for subcls in cls.__subclasses__():
-		yield from subclasses(subcls)
-
-
 class sqlliteral(str):
 	"""
 	Marker class that can be used to spcifiy that its value should be treated
