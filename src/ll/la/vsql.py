@@ -1221,11 +1221,6 @@ class BinaryAST(AST):
 		yield self.obj1
 		yield self.obj2
 
-	def _ll_repr_(self):
-		yield from super()._ll_repr_()
-		yield f"obj1={self.obj1!r}"
-		yield f"obj2={self.obj2!r}"
-
 	def _ll_repr_pretty_(self, p):
 		super()._ll_repr_pretty_(p)
 		p.breakable()
@@ -1461,10 +1456,6 @@ class UnaryAST(AST):
 	def children(self):
 		yield self.obj
 
-	def _ll_repr_(self):
-		yield from super()._ll_repr_()
-		yield f"obj={self.obj!r}"
-
 	def _ll_repr_pretty_(self, p):
 		super()._ll_repr_pretty_(p)
 		p.breakable()
@@ -1554,12 +1545,6 @@ class IfAST(AST):
 		yield self.objif
 		yield self.objcond
 		yield self.objelse
-
-	def _ll_repr_(self):
-		yield from super()._ll_repr_()
-		yield f"objif={self.objif!r}"
-		yield f"objcond={self.objcond!r}"
-		yield f"objelse={self.objelse!r}"
 
 	def _ll_repr_pretty_(self, p):
 		super()._ll_repr_pretty_(p)
@@ -1653,14 +1638,6 @@ class SliceAST(AST):
 		else:
 			yield self.index2
 
-	def _ll_repr_(self):
-		yield from super()._ll_repr_()
-		yield f"obj={self.obj!r}"
-		if self.index1 is not None:
-			yield f"index1={self.index1!r}"
-		if self.index2 is not None:
-			yield f"index2={self.index2!r}"
-
 	def _ll_repr_pretty_(self, p):
 		super()._ll_repr_pretty_(p)
 		p.breakable()
@@ -1741,7 +1718,6 @@ class AttrAST(AST):
 
 	def _ll_repr_(self):
 		yield from super()._ll_repr_()
-		yield f"obj={self.obj!r}"
 		yield f"attrname={self.attrname!r}"
 
 	def _ll_repr_pretty_(self, p):
@@ -1822,7 +1798,7 @@ class FuncAST(AST):
 
 	def _ll_repr_(self):
 		yield from super()._ll_repr_()
-		yield f"{self.name!r}"
+		yield f"name={self.name!r}"
 		yield f"with {len(self.args):,} arguments"
 
 	def _ll_repr_pretty_(self, p):
@@ -1905,7 +1881,6 @@ class MethAST(AST):
 
 	def _ll_repr_(self):
 		yield from super()._ll_repr_()
-		yield f"obj={self.obj!r}"
 		yield f"name={self.name!r}"
 		yield f"with {len(self.args):,} arguments"
 
