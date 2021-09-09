@@ -335,19 +335,19 @@ class Attr:
 
 		The access scenarios are the following:
 
-		:obj:`repr`
+		``repr``
 			Include the attribute in the :func:`repr` output of its object.
 			The canonical implementation will produce output in the form
 			``f"{name}={value!r}"``, except when the value is :const:`None` in which
 			case no output will be given. The signature of the callback method is
 			``(instance)``.
 
-		:obj:`get`
+		``get``
 			Return the value of the attribute when accessed from Python.
 			The canonical implementation will return the appropriate entry of the
 			instance dict. The signature of the callback method is ``(instance)``.
 
-		:obj:`set`
+		``set``
 			Set the value of the attribute from Python. The canonical
 			implementation will set the appropriate entry of the instance dict
 			after checking the value against the types given by :obj:`types`
@@ -355,30 +355,30 @@ class Attr:
 			type conversions or checks. The signature of the callback method is
 			``(instance, value)``.
 
-		:obj:`ul4get`
+		``ul4get``
 			Return the value of the attribute when accessed from UL4. The canonical
 			implementation will return the appropriate entry of the instance dict.
 			The signature of the callback method is ``(instance)``.
 
-		:obj:`ul4set`
+		``ul4set``
 			Set the value of the attribute from UL4. The canonical implementation
 			will set the appropriate entry of the instance dict after checking
 			the value against the types given by :obj:`types` and :obj:`required`.
 			Subclasses might implement certain additional type conversions or
 			checks. The signature of the callback method is ``(instance, value)``.
 
-		:obj:`ul4onget`
+		``ul4onget``
 			Return the value of the attribute for serialization via an UL4ON dump.
 			The canonical implementation will use the appropriate entry of the
 			instance dict. The signature of the callback method is ``(instance)``.
 
-		:obj:`ul4onset`
+		``ul4onset``
 			Set the value of the attribute from the deserialized value from an
 			UL4ON dump. The canonical implementation will set the appropriate
 			entry of the instance dict to the given value. No type checks will be
 			performed. The signature of the callback method is``(instance, value)``.
 
-		:obj:`ul4ondefault`
+		``ul4ondefault``
 			Set the value of the attribute to its default value when no value
 			is available from the UL4ON dump. The canonical implementation will
 			set the appropriate entry of the instance dict to the default value
