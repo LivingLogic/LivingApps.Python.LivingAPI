@@ -409,6 +409,13 @@ class Field:
 
 @ul4on.register("de.livinglogic.vsql.group")
 class Group:
+	"""
+	A :class:`!Group` object describes a group of database fields.
+
+	These fields are part of a database table or view and are instances of
+	:class:`Field`.
+	"""
+
 	def __init__(self, tablesql=None, **fields):
 		self.tablesql = tablesql
 		self.fields = {}
