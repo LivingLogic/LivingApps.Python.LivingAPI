@@ -330,12 +330,8 @@ main dl dt
 
 main dl dt .classifier:before
 {
-	content: "(";
-}
-
-main dl dt .classifier:after
-{
-	content: ")";
+	content: ":";
+	padding-right: 0.6em;
 }
 
 main dl dt .classifier
