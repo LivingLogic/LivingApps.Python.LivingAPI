@@ -1123,7 +1123,7 @@ class KeyView(Base):
 @register("globals")
 class Globals(Base):
 	r"""
-	Global informattion.
+	Global information.
 
 	An instance of this class will be passed to all :class:`ViewTemplate`\s as
 	the global variable ``globals``.
