@@ -349,15 +349,15 @@ class Error(misc.Enum):
 
 
 @ul4on.register("de.livinglogic.vsql.field")
-class Field:
+class Field(Repr):
 	"""
 	A :class:`!Field` object describes a database field.
 
 	This field is either in a database table or view or a global package variable.
 
-	As a table or view field it belong to a :class:`Group` object.
+	As a table or view field it belongs to a :class:`Group` object.
 	"""
-	def __init__(self, identifier=None, datatype=None, fieldsql=None, joinsql=None, refgroup=None):
+	def __init__(self, identifier=DataType.NULL, datatype=None, fieldsql=None, joinsql=None, refgroup=None):
 		self.identifier = identifier
 		self.datatype = datatype
 		self.fieldsql = fieldsql
@@ -408,7 +408,7 @@ class Field:
 
 
 @ul4on.register("de.livinglogic.vsql.group")
-class Group:
+class Group(Repr):
 	"""
 	A :class:`!Group` object describes a group of database fields.
 
