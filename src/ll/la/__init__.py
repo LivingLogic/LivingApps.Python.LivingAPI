@@ -2452,7 +2452,7 @@ class StringControl(Control):
 
 	def vsqlsearchexpr(self, record, maxdepth):
 		return vsql.ContainsAST.make(
-			vsql.ConstAST.make("gurk"),
+			HTTPRequest.vsqlsearchexpr(),
 			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower"),
 		)
 
@@ -2623,7 +2623,7 @@ class IntControl(Control):
 
 	def vsqlsearchexpr(self, record, maxdepth):
 		return vsql.EqAST.make(
-			vsql.ConstAST.make("gurk"),
+			HTTPRequest.vsqlsearchexpr(),
 			vsql.FuncAST.make("str", vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
 		)
 
@@ -2653,7 +2653,7 @@ class NumberControl(Control):
 
 	def vsqlsearchexpr(self, record, maxdepth):
 		return vsql.EqAST.make(
-			vsql.ConstAST.make("gurk"),
+			HTTPRequest.vsqlsearchexpr(),
 			vsql.FuncAST.make("str", vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
 		)
 
@@ -2894,7 +2894,7 @@ class BoolControl(Control):
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
-		searchterm = vsql.ConstAST.make("gurk")
+		searchterm = HTTPRequest.vsqlsearchexpr()
 		field = vsql.FieldRefAST.make(record, f"v_{self.identifier}")
 
 		return vsql.AndAST.make(
@@ -2997,7 +2997,7 @@ class LookupControl(Control):
 
 	def vsqlsearchexpr(self, record, maxdepth):
 		return vsql.ContainsAST.make(
-			vsql.ConstAST.make("gurk"),
+			HTTPRequest.vsqlsearchexpr(),
 			vsql.MethAST.make(
 				vsql.AttrAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
 				"lower",
@@ -3427,17 +3427,17 @@ class FileControl(Control):
 		# FIXME: Oracle doesn't support this yet
 		# return vsql.OrAST.make(
 		# 	vsql.ContainsAST.make(
-		# 		vsql.ConstAST.make("gurk"),
+		# 		HTTPRequest.vsqlsearchexpr(),
 		# 		vsql.MethAST.make(vsql.FieldRefAST.make(field, "filename"), "lower"),
 		# 	),
 		# 	vsql.ContainsAST.make(
-		# 		vsql.ConstAST.make("gurk"),
+		# 		HTTPRequest.vsqlsearchexpr(),
 		# 		vsql.MethAST.make(vsql.FieldRefAST.make(field, "mimetype"), "lower"),
 		# 	),
 		# )
 
 		return vsql.ContainsAST.make(
-			vsql.ConstAST.make("gurk"),
+			HTTPRequest.vsqlsearchexpr(),
 			vsql.MethAST.make(field, "lower"),
 		)
 
@@ -3497,7 +3497,7 @@ class GeoControl(Control):
 
 	def vsqlsearchexpr(self, record, maxdepth):
 		return vsql.ContainsAST.make(
-			vsql.ConstAST.make("gurk"),
+			HTTPRequest.vsqlsearchexpr(),
 			vsql.MethAST.make(
 				vsql.AttrAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
 				"lower",
@@ -6545,7 +6545,12 @@ class HTTPRequest(Base):
 
 	vsqlfield = vsql.Field("params", refgroup=vsqlgroup)
 
-	vsqlsearchexpr = vsqlgroup["str"].refgroup["search"]
+	@classmethod
+	def vsqlsearchexpr(cls):
+		expr = vsql.FieldRefAST.make_root(cls.vsqlfield)
+		expr = vsql.FieldRefAST.make(expr, "str")
+		expr = vsql.FieldRefAST.make(expr, "search")
+		return expr
 
 
 from .handlers import *
