@@ -1507,10 +1507,12 @@ class Globals(Base):
 		"""
 
 		FORM_NEW_INIT = "form/new/init"
+		FORM_NEW_SEARCH = "form/new/search"
 		FORM_NEW_LIVE = "form/new/live"
 		FORM_NEW_ERROR = "form/new/error"
 		FORM_NEW_SUCCESS = "form/new/success"
 		FORM_EDIT_INIT = "form/edit/init"
+		FORM_EDIT_SEARCH = "form/edit/search"
 		FORM_EDIT_LIVE = "form/edit/live"
 		FORM_EDIT_ERROR = "form/edit/error"
 		FORM_EDIT_SUCCESS = "form/edit/success"
