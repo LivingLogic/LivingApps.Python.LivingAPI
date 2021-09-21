@@ -607,7 +607,7 @@ class DBHandler(Handler):
 		cursor = self.cursor()
 		tpl_uuids = self.varchars(appids)
 		cursor.execute(
-			"select livingapi_pkg.metadata_ful4on(:ide_id, :tpl_uuids) from dual",
+			"select livingapi_pkg.metadata_ful4on(c_user=>:ide_id, p_tpl_uuids=>:tpl_uuids) from dual",
 			ide_id=self.ide_id,
 			tpl_uuids=tpl_uuids,
 		)
@@ -623,7 +623,7 @@ class DBHandler(Handler):
 				return result
 		c = self.cursor()
 		c.execute(
-			"select livingapi_pkg.record_sync_ful4on(:ide_id, :dat_id) from dual",
+			"select livingapi_pkg.record_sync_ful4on(c_user=>:ide_id, p_dat_id=>:dat_id) from dual",
 			ide_id=self.ide_id,
 			dat_id=dat_id,
 		)
