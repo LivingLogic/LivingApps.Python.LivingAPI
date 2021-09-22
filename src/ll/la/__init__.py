@@ -5465,13 +5465,12 @@ class DataAction(Base):
 	as_mail_link = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	before_update = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	after_update = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
-	before_insert = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	after_insert = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	before_delete = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 
 	commands = Attr(get=True, set=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, *args, id=None, identifier=None, name=None, order=None, active=True, icon=None, description=None, filter=None, as_multiple_action=None, as_single_action=None, as_mail_link=None, before_update=None, after_update=None, before_insert=None, after_insert=None, before_delete=None):
+	def __init__(self, *args, id=None, identifier=None, name=None, order=None, active=True, icon=None, description=None, filter=None, as_multiple_action=None, as_single_action=None, as_mail_link=None, before_update=None, after_update=None, after_insert=None, before_delete=None):
 		self.id = id
 		self.app = None
 		self.identifier = identifier
@@ -5486,7 +5485,6 @@ class DataAction(Base):
 		self.as_mail_link = as_mail_link
 		self.before_update = before_update
 		self.after_update = after_update
-		self.before_insert = before_insert
 		self.after_insert = after_insert
 		self.before_delete = before_delete
 		self.commands = []
