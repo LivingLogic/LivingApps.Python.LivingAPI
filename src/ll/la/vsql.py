@@ -366,8 +366,10 @@ class Field(Repr):
 
 	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield f"identifier={self.identifier!r}"
-		yield f"datatype={self.datatype!r}"
-		yield f"fieldsql={self.fieldsql!r}"
+		if self.datatype is not None:
+			yield f"datatype={self.datatype.name}"
+		if self.fieldsql is not None:
+			yield f"fieldsql={self.fieldsql!r}"
 		if self.joinsql is not None:
 			yield f"joinsql={self.joinsql!r}"
 		if self.refgroup is not None:
@@ -377,12 +379,13 @@ class Field(Repr):
 		p.breakable()
 		p.text("identifier=")
 		p.pretty(self.identifier)
-		p.breakable()
-		p.text("datatype=")
-		p.pretty(self.datatype)
-		p.breakable()
-		p.text("fieldsql=")
-		p.pretty(self.fieldsql)
+		if self.datatype is not None:
+			p.breakable()
+			p.text(f"datatype={self.datatype.name}")
+		if self.fieldsql is not None:
+			p.breakable()
+			p.text("fieldsql=")
+			p.pretty(self.fieldsql)
 		if self.joinsql is not None:
 			p.breakable()
 			p.text("joinsql=")
