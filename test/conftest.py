@@ -240,7 +240,7 @@ params = [
 	"python_db",
 	pytest.param("python_http", marks=pytest.mark.flaky(reruns=3, reruns_delay=2)),
 	pytest.param("java_db", marks=pytest.mark.java),
-	pytest.param("gateway_http", marks=pytest.mark.flaky(reruns=3, reruns_delay=2)),
+	pytest.param("gateway_http", marks=pytest.mark.flaky(reruns=0, reruns_delay=2)),
 ]
 
 
@@ -269,10 +269,10 @@ def config_apps():
 	"""
 	handler = la.DBHandler(connectstring=connect(), uploaddir=uploaddir(), ide_account=user())
 
-	apps = handler.meta_data(person_app_id(), fields_app_id())
+	vars = handler.meta_data(person_app_id(), fields_app_id())
 
-	persons_app = apps[person_app_id()]
-	fields_app = apps[fields_app_id()]
+	persons_app = vars["apps"][person_app_id()]
+	fields_app = vars["apps"][fields_app_id()]
 
 	return attrdict(
 		handler=handler,

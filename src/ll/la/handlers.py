@@ -43,6 +43,8 @@ except ImportError:
 
 from ll import la
 
+from ll.la import vsql
+
 
 __docformat__ = "reStructuredText"
 
@@ -357,7 +359,7 @@ class DBHandler(Handler):
 			u = self.uploaddir/r.upl_name
 			return u.openread().read()
 
-	def save_vsql(self, vsqlexpr, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
+	def _save_vsql_ast(self, vsqlexpr, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
 		"""
 		Save the vSQL expression :obj:`vsqlexpr`.
 
@@ -392,18 +394,36 @@ class DBHandler(Handler):
 			p_vs_stop=finalpos,
 		)
 		vs_id = r.p_vs_id
-		order = 10
-		for child in vsqlexpr.content:
-			if isinstance(child, str):
-				pos += len(child)
-			else:
-				(_, pos) = self.save_vsql(child, cursor, vs_id, order, vss_id, pos)
-				order += 10
+		# FieldRefAST has children in the implementation, but in the database it has not
+		if not isinstance(vsqlexpr, vsql.FieldRefAST):
+			order = 10
+			for child in vsqlexpr.content:
+				if isinstance(child, str):
+					pos += len(child)
+				else:
+					(_, pos) = self._save_vsql_ast(child, cursor, vs_id, order, vss_id, pos)
+					order += 10
 		return (vs_id, finalpos)
 
+	def save_vsql_ast(self, vsqlexpr, cursor=None):
+		return self._save_vsql_ast(vsqlexpr, cursor)[0]
 
-		from ll.la import vsql
-		return vsql.compile_and_save(self, cursor, source, datatype, function, **queryargs)
+	def save_vsql_source(self, cursor, source, function, datatype=None, **queryargs):
+		if not source:
+			return None
+
+		if cursor is None:
+			cursor = self.cursor()
+
+		args = ", ".join(f"{a}=>:{a}" for a in queryargs)
+		query = f"select {function}({args}) from dual"
+		cursor.execute(query, **queryargs)
+		dump = cursor.fetchone()[0]
+		dump = dump.decode("utf-8")
+		vars = ul4on.loads(dump)
+		vsqlexpr = vsql.AST.fromsource(source, **vars)
+		# FIXME: Validate target datatype
+		return self.save_vsql_ast(vsqlexpr, cursor)
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
 		template = ul4c.Template(internaltemplate.source, name=internaltemplate.identifier)
@@ -464,7 +484,7 @@ class DBHandler(Handler):
 		cursor = self.cursor()
 
 		# Compile and save the app filter
-		vs_id_appfilter = self.save_vsql(
+		vs_id_appfilter = self.save_vsql_source(
 			cursor,
 			datasource.appfilter,
 			la.DataSource.appfilter.function,
@@ -473,7 +493,7 @@ class DBHandler(Handler):
 		)
 
 		# Compile and save the record filter
-		vs_id_recordfilter = self.save_vsql(
+		vs_id_recordfilter = self.save_vsql_source(
 			cursor,
 			datasource.recordfilter,
 			la.DataSource.recordfilter.function,
@@ -539,7 +559,7 @@ class DBHandler(Handler):
 		ctl_id = cursor.fetchone()[0]
 
 		# Compile and save the record filter
-		vs_id_filter = self.save_vsql(
+		vs_id_filter = self.save_vsql_source(
 			cursor,
 			datasourcechildren.filter,
 			la.DataSourceChildren.filter.function,
@@ -581,7 +601,7 @@ class DBHandler(Handler):
 				(do_id, do_order) = (None, last_order + 10)
 			if dataorder is not None:
 				# Compile and save the order expression
-				vs_id_expression = self.save_vsql(
+				vs_id_expression = self.save_vsql_source(
 					cursor,
 					dataorder.expression,
 					function,

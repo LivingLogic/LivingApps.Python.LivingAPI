@@ -129,32 +129,6 @@ def _offset(pos:slice) -> slice:
 	return slice(pos.start-9, pos.stop-9)
 
 
-def compile(source, vars={}):
-	template = ul4c.Template(f"<?return {source}?>")
-	expr = template.content[-1].obj
-	return AST.fromul4(source, expr, vars)
-
-
-def compile_and_save(handler, cursor, source, datatype, function, **queryargs):
-	if source is None:
-		return None
-	else:
-		args = ", ".join(f"{a}=>:{a}" for a in queryargs)
-		query = f"select {function}({args}) from dual"
-		cursor.execute(query, **queryargs)
-		dump = cursor.fetchone()[0]
-		dump = dump.decode("utf-8")
-		vars = ul4on.loads(dump)
-		ast = compile(source, vars)
-		vs_id = ast.save(handler, cursor=cursor)
-		cursor.execute(
-			"begin vsql_pkg.vsql_validate(:vs_id, :datatype); end;",
-			vs_id=vs_id,
-			datatype=datatype,
-		)
-		return vs_id
-
-
 class Repr:
 	"""
 	Base class that provides functionality for implementing :meth:`__repr__`
@@ -659,10 +633,12 @@ class AST(Repr):
 		final_content = []
 		for item in content:
 			if isinstance(item, str):
-				if final_content and isinstance(final_content[-1], str):
-					final_content[-1] += item
-				else:
-					final_content.append(item)
+				if item: # Ignore empty strings
+					if final_content and isinstance(final_content[-1], str):
+						# Merge string with previous string
+						final_content[-1] += item
+					else:
+						final_content.append(item)
 			elif isinstance(item, AST):
 				final_content.append(item)
 			elif item is not None:
@@ -671,56 +647,74 @@ class AST(Repr):
 		self.content = final_content
 
 	@classmethod
-	def fromul4(cls, source, node, vars):
-		if isinstance(node, ul4c.ConstAST):
-			if node.value is None:
-				return NoneAST.fromul4(source, node, vars)
-			else:
-				try:
-					vsqltype = _consts[type(node.value)]
-				except KeyError:
-					raise TypeError(f"constant of type {misc.format_class(node.value)} not supported!") from None
-				return vsqltype.fromul4(source, node, vars)
+	def fromul4(cls, node, **vars):
+		try:
+			vsqltype = _ul42vsql[type(node)]
+		except KeyError:
+			pass
 		else:
-			try:
-				vsqltype = _ul42vsql[type(node)]
-			except KeyError:
-				pass
-			else:
-				return vsqltype.fromul4(source, node, vars)
+			return vsqltype.fromul4(node, **vars)
+
 		if isinstance(node, ul4c.VarAST):
 			field = vars.get(node.name, None)
-			return FieldRefAST(source, _offset(node.pos), None, node.name, field)
+			return FieldRefAST(None, node.name, field, *cls._make_content_from_ul4(node))
 		elif isinstance(node, ul4c.AttrAST):
-			vsqlnode = cls.fromul4(source, node.obj, vars)
-			if isinstance(vsqlnode, FieldRefAST) and isinstance(vsqlnode.field, Field) and vsqlnode.field.refgroup:
+			obj = cls.fromul4(node.obj, **vars)
+			if isinstance(obj, FieldRefAST) and isinstance(obj.field, Field) and obj.field.refgroup:
 				try:
-					field = vsqlnode.field.refgroup.fields[node.attrname]
+					field = obj.field.refgroup[node.attrname]
 				except KeyError:
-					try:
-						field = vsqlnode.field.refgroup.fields["*"]
-					except KeyError:
-						pass # Fall through to return a generic :class:`Attr` node
-					else:
-						return FieldRefAST(source, _offset(node.pos), vsqlnode, node.attrname, field)
+					pass # Fall through to return a generic :class:`AttrAST` node
 				else:
-					return FieldRefAST(source, _offset(node.pos), vsqlnode, node.attrname, field)
-			return Attr(source, _offset(node.pos), vsqlnode, node.attrname)
+					return FieldRefAST(
+						obj,
+						node.attrname,
+						field,
+						*cls._make_content_from_ul4(node, node.obj, obj)
+					)
+			return AttrAST(
+				obj,
+				node.attrname,
+				*cls._make_content_from_ul4(node, node.obj, obj),
+			)
 		elif isinstance(node, ul4c.CallAST):
-			vsqlnode = cls.fromul4(source, node.obj, vars)
-			args = []
-			for arg in node.args:
-				if not isinstance(arg, ul4c.PosArgAST):
-					raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(arg)}!")
-				args.append(AST.fromul4(source, arg.value, vars))
-			if isinstance(vsqlnode, FieldRefAST):
-				if vsqlnode.parent is not None:
-					return Meth(source, _offset(node.pos), vsqlnode.parent, vsqlnode.identifier, args)
+			obj = cls.fromul4(node.obj, **vars)
+
+			content = [*obj.content]
+			callargs = []
+
+			if isinstance(obj, FieldRefAST):
+				if obj.parent is not None:
+					asttype = MethAST
+					args = (obj.parent, obj.identifier)
 				else:
-					return Func(source, _offset(node.pos), vsqlnode.identifier, args)
-			elif isinstance(vsqlnode, Attr):
-				return Meth(source, _offset(node.pos), vsqlnode.obj, vsqlnode.attrname, args)
+					asttype = FuncAST
+					args = (obj.identifier,)
+
+			elif isinstance(obj, AttrAST):
+				asttype = MethAST
+				args = (obj.obj, obj.attrname)
+
+			for arg in node.args:
+				if not isinstance(arg, ul4c.PositionalArgumentAST):
+					raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(arg)}!")
+				content.append(arg.value)
+				arg = AST.fromul4(arg.value, **vars)
+				content.append(arg)
+				callargs.append(arg)
+
+			return asttype(
+				*args,
+				callargs,
+				*cls._make_content_from_ul4(node, *content),
+			)
 		raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(node)}!")
+
+	@classmethod
+	def fromsource(cls, source, **vars):
+		template = ul4c.Template(f"<?return {source}?>")
+		expr = template.content[-1].obj
+		return cls.fromul4(expr, **vars)
 
 	@classmethod
 	def all_types(cls) -> Generator[Type["AST"], None, None]:
@@ -946,8 +940,7 @@ class AST(Repr):
 		``handler`` must be a :class:`~ll.la.handlers.DBHandler`.
 		"""
 
-		(vs_id, _) = handler.save_vsql(self)
-		return vs_id
+		return handler.save_vsql_ast(self)[0]
 
 	def __str__(self):
 		parts = [f"{self.__class__.__module__}.{self.__class__.__qualname__}"]
@@ -992,6 +985,25 @@ class AST(Repr):
 		self._source = decoder.load()
 		self.pos = decoder.load()
 
+	@classmethod
+	def _make_content_from_ul4(cls, node, *args):
+		content = []
+		lastnode = None
+		for (i, subnode) in enumerate(args):
+			if isinstance(subnode, AST):
+				content.append(subnode)
+			elif isinstance(subnode, ul4c.AST):
+				if lastnode is None:
+					content.append(node.fullsource[node.pos.start:subnode.pos.start])
+				else:
+					content.append(node.fullsource[lastnode.pos.stop:subnode.pos.start])
+				lastnode = subnode
+		if lastnode is None:
+			content.append(node.fullsource[node.pos])
+		else:
+			content.append(node.fullsource[lastnode.pos.stop:node.pos.stop])
+		return content
+
 
 class ConstAST(AST):
 	"""
@@ -1005,7 +1017,18 @@ class ConstAST(AST):
 		cls = _consts.get(type(value))
 		if cls is None:
 			raise TypeError(value)
-		return cls.make(value)
+		elif cls is NoneAST:
+			return cls.make()
+		else:
+			return cls.make(value)
+
+	@classmethod
+	def fromul4(cls, node, **vars):
+		try:
+			vsqltype = _consts[type(node.value)]
+		except KeyError:
+			raise TypeError(f"constant of type {misc.format_class(node.value)} not supported!") from None
+		return vsqltype.fromul4(node, **vars)
 
 
 @ul4on.register("de.livinglogic.vsql.none")
@@ -1022,8 +1045,8 @@ class NoneAST(ConstAST):
 		return cls("None")
 
 	@classmethod
-	def fromul4(cls, source, node, vars):
-		return cls(source, _offset(node.pos))
+	def fromul4(cls, node, **vars):
+		return cls(node.source)
 
 
 class _ConstWithValueAST(ConstAST):
@@ -1042,8 +1065,8 @@ class _ConstWithValueAST(ConstAST):
 		return cls(value, ul4c._repr(value))
 
 	@classmethod
-	def fromul4(cls, source, node, vars):
-		return cls(source, _offset(node.pos), node.value)
+	def fromul4(cls, node, **vars):
+		return cls(node.value, node.source)
 
 	@property
 	def nodevalue(self):
@@ -1184,17 +1207,10 @@ class DateTimeAST(_ConstWithValueAST):
 		return f"{self.value:%Y-%m-%dT%H:%M:%S}"
 
 
-@ul4on.register("de.livinglogic.vsql.list")
-class ListAST(AST):
+class _SeqAST(AST):
 	"""
-	A list constant.
-
-	For this to work the list may only contain items of "compatible" types, i.e.
-	types that con be converted to a common type without losing information.
+	Base class of :class:`ListAST` and :class:`SetAST`.
 	"""
-
-	nodetype = NodeType.LIST
-	precedence = 20
 
 	def __init__(self, *content):
 		super().__init__(*content)
@@ -1203,22 +1219,16 @@ class ListAST(AST):
 		self.validate()
 
 	@classmethod
-	def make(cls, *items):
+	def fromul4(cls, node, **vars):
 		content = []
-		for (i, item) in enumerate(items):
-			content.append(", " if i else "[")
-			content.append(item)
-		content.append("]")
-		return cls(*content)
 
-	@classmethod
-	def fromul4(cls, source, node, vars):
-		self = cls(source, _offset(node.pos))
+		lastpos = None # This value is never used
 		for item in node.items:
-			if not isinstance(item, ul4c.SeqItem):
+			if not isinstance(item, ul4c.SeqItemAST):
 				raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(item)}!")
-			self.items.append(AST.fromul4(source, item.value, vars))
-		return self
+			content.append(item.value)
+			content.append(AST.fromul4(item.value, **vars))
+		return cls(*cls._make_content_from_ul4(node, *content))
 
 	def _ll_repr_(self):
 		yield from super()._ll_repr_()
@@ -1242,8 +1252,71 @@ class ListAST(AST):
 		self.items = decoder.load()
 
 
+@ul4on.register("de.livinglogic.vsql.list")
+class ListAST(_SeqAST):
+	"""
+	A list constant.
+
+	For this to work the list may only contain items of "compatible" types, i.e.
+	types that con be converted to a common type without losing information.
+	"""
+
+	nodetype = NodeType.LIST
+	precedence = 20
+
+	def __init__(self, *content):
+		super().__init__(*content)
+		self.validate()
+
+	@classmethod
+	def make(cls, *items):
+		if items:
+			content = []
+			for (i, item) in enumerate(items):
+				content.append(", " if i else "[")
+				content.append(item)
+			content.append("]")
+			return cls(*content)
+		else:
+			return cls("[]")
+
+	def validate(self):
+		if any(item.error for item in self.items):
+			self.error = Error.SUBNODEERROR
+			self.datatype = None
+		else:
+			types = {item.datatype for item in self.items}
+			if DataType.NULL in types:
+				types.remove(DataType.NULL)
+			if not types:
+				self.error = Error.LISTTYPEUNKNOWN
+				self.datatype = None
+			elif len(types) == 1:
+				self.error = None
+				datatype = misc.first(types)
+				if datatype is DataType.INT:
+					datatype = DataType.INTLIST
+				elif datatype is DataType.NUMBER:
+					datatype = DataType.NUMBERLIST
+				elif datatype is DataType.STR:
+					datatype = DataType.STRLIST
+				elif datatype is DataType.CLOB:
+					datatype = DataType.CLOBLIST
+				elif datatype is DataType.DATE:
+					datatype = DataType.DATELIST
+				elif datatype is DataType.DATETIME:
+					datatype = DataType.DATETIMELIST
+				else:
+					datatype = None
+				self.datatype = datatype
+				self.error = None if datatype else Error.LISTUNSUPPORTEDTYPES
+			else:
+				self.error = Error.LISTMIXEDTYPES
+				self.datatype = None
+
+
 @ul4on.register("de.livinglogic.vsql.set")
-class SetAST(AST):
+class SetAST(_SeqAST):
 	"""
 	A set constant.
 
@@ -1256,8 +1329,6 @@ class SetAST(AST):
 
 	def __init__(self, *content):
 		super().__init__(*content)
-		self.items = [item for item in content if isinstance(item, AST)]
-		self.datatype = None
 		self.validate()
 
 	@classmethod
@@ -1272,35 +1343,37 @@ class SetAST(AST):
 		else:
 			return cls("{/}")
 
-	def children(self):
-		yield from self.items
-
-	def _ll_repr_(self):
-		yield from super()._ll_repr_()
-		yield f"with {len(self.items):,} items"
-
-	def _ll_repr_pretty_(self, p):
-		super()._ll_repr_pretty_(p)
-		for item in self.items:
-			p.breakable()
-			p.pretty(item)
-
-	@classmethod
-	def fromul4(cls, source, node, vars):
-		self = cls(source, _offset(node.pos))
-		for item in node.items:
-			if not isinstance(item, ul4c.SeqItem):
-				raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(item)}!")
-			self.items.append(AST.fromul4(source, item.value, vars))
-		return self
-
-	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
-		super().ul4ondump(encoder)
-		encoder.dump(self.items)
-
-	def ul4onload(self, decoder:ul4on.Decoder) -> None:
-		super().ul4onload(decoder)
-		self.items = decoder.load()
+	def validate(self):
+		if any(item.error for item in self.items):
+			self.error = Error.SUBNODEERROR
+			self.datatype = None
+		else:
+			types = {item.datatype for item in self.items}
+			if DataType.NULL in types:
+				types.remove(DataType.NULL)
+			if not types:
+				self.error = Error.SETTYPEUNKNOWN
+				self.datatype = None
+			elif len(types) == 1:
+				self.error = None
+				datatype = misc.first(types)
+				if datatype is DataType.INT:
+					datatype = DataType.INTLIST
+				elif datatype is DataType.NUMBER:
+					datatype = DataType.NUMBERLIST
+				elif datatype is DataType.STR:
+					datatype = DataType.STRLIST
+				elif datatype is DataType.DATE:
+					datatype = DataType.DATELIST
+				elif datatype is DataType.DATETIME:
+					datatype = DataType.DATETIMELIST
+				else:
+					datatype = None
+				self.datatype = datatype
+				self.error = None if datatype else Error.SETUNSUPPORTEDTYPES
+			else:
+				self.error = Error.LISTMIXEDTYPES
+				self.datatype = None
 
 
 @ul4on.register("de.livinglogic.vsql.fieldref")
@@ -1456,8 +1529,14 @@ class BinaryAST(AST):
 			self.datatype = rule.result
 
 	@classmethod
-	def fromul4(cls, source, node, vars):
-		return cls(source, _offset(node.pos), AST.fromul4(source, node.obj1, vars), AST.fromul4(source, node.obj2, vars))
+	def fromul4(cls, node, **vars):
+		obj1 = AST.fromul4(node.obj1, **vars)
+		obj2 = AST.fromul4(node.obj2, **vars)
+		return cls(
+			obj1,
+			obj2,
+			*cls._make_content_from_ul4(node, node.obj1, obj1, node.obj2, obj2),
+		)
 
 	def children(self):
 		yield self.obj1
@@ -1720,10 +1799,10 @@ class ItemAST(BinaryAST):
 			return cls(obj1, obj2, "(", obj1, ")[", obj2, "]")
 
 	@classmethod
-	def fromul4(cls, source, node, vars):
-		if isinstance(node.obj2, ul4c.Slice):
-			return Slice.fromul4(source, node, vars)
-		return super().fromul4(source, node, vars)
+	def fromul4(cls, node, **vars):
+		if isinstance(node.obj2, ul4c.SliceAST):
+			return SliceAST.fromul4(node, **vars)
+		return super().fromul4(node, **vars)
 
 
 @ul4on.register("de.livinglogic.vsql.bitand")
@@ -1779,8 +1858,12 @@ class UnaryAST(AST):
 		)
 
 	@classmethod
-	def fromul4(cls, source, node, vars):
-		return cls(source, _offset(node.pos), AST.fromul4(source, node.obj, vars))
+	def fromul4(cls, node, **vars):
+		obj = AST.fromul4(node.obj, **vars)
+		return cls(
+			obj,
+			*cls._make_content_from_ul4(node, node.obj, obj),
+		)
 
 	def validate(self):
 		if self.obj.error:
@@ -1890,13 +1973,16 @@ class IfAST(AST):
 			self.datatype = rule.result
 
 	@classmethod
-	def fromul4(cls, source, node, vars):
+	def fromul4(cls, node, **vars):
+		objif = AST.fromul4(node.objif, **vars)
+		objcond = AST.fromul4(node.objcond, **vars)
+		objelse = AST.fromul4(node.objelse, **vars)
+
 		return cls(
-			source,
-			_offset(node.pos),
-			AST.fromul4(source, node.objif, vars),
-			AST.fromul4(source, node.objcond, vars),
-			AST.fromul4(source, node.objelse, vars),
+			objif,
+			objcond,
+			objelse,
+			*cls._make_content_from_ul4(node, node.objif, objif, node.objcond, objcond, node.objelse, objelse),
 		)
 
 	def children(self):
@@ -1962,6 +2048,7 @@ class SliceAST(AST):
 			index1,
 			":",
 			index2,
+			"]",
 		)
 
 	def validate(self):
@@ -1978,27 +2065,22 @@ class SliceAST(AST):
 			self.datatype = rule.result
 
 	@classmethod
-	def fromul4(cls, source, node, vars):
+	def fromul4(cls, node, **vars):
+		obj = AST.fromul4(node.obj1, **vars)
+		index1 = AST.fromul4(node.obj2.index1, **vars) if node.obj2.index1 is not None else NoneAST("")
+		index2 = AST.fromul4(node.obj2.index2, **vars) if node.obj2.index2 is not None else NoneAST("")
+
 		return cls(
-			source,
-			_offset(node.pos),
-			AST.fromul4(source, node.obj1, vars),
-			AST.fromul4(source, node.obj2.index1, vars) if node.obj2.index1 is not None else None,
-			AST.fromul4(source, node.obj2.index2, vars) if node.obj2.index2 is not None else None,
+			obj,
+			index1,
+			index2,
+			*cls._make_content_from_ul4(node, node.obj1, obj, node.obj2.index1, index1, node.obj2.index2, index2)
 		)
 
 	def children(self):
 		yield self.obj
-		if self.index1 is None:
-			pos = self.obj.pos.stop
-			yield None_(self._source, slice(pos, pos))
-		else:
-			pos = self.index1.stop
-			yield self.index1
-		if self.index2 is None:
-			yield None_(self._source, slice(pos, pos))
-		else:
-			yield self.index2
+		yield self.index1 if self.index1 is None else NoneAST("")
+		yield self.index2 if self.index2 is None else NoneAST("")
 
 	def _ll_repr_pretty_(self, p):
 		super()._ll_repr_pretty_(p)
@@ -2065,15 +2147,6 @@ class AttrAST(AST):
 		else:
 			self.error = None
 			self.datatype = rule.result
-
-	@classmethod
-	def fromul4(cls, source, node, vars):
-		return cls(
-			source,
-			_offset(node.pos),
-			AST.fromul4(source, node.obj1, vars),
-			node.attrname,
-		)
 
 	@property
 	def nodevalue(self):
@@ -2285,6 +2358,7 @@ class MethAST(AST):
 
 
 _consts = {
+	type(None): NoneAST,
 	bool: BoolAST,
 	int: IntAST,
 	float: NumberAST,
@@ -2295,8 +2369,17 @@ _consts = {
 }
 
 # Set of UL4 AST nodes that directly map to their equivalent vSQL version
-_ops = {ul4c.IfAST, ul4c.NotAST, ul4c.NegAST, ul4c.BitNotAST, ul4c.ListAST, ul4c.SetAST}
-_ops.update(ul4c.BinaryAST.__subclasses__())
+_ops = {
+	ul4c.ConstAST,
+	ul4c.NotAST,
+	ul4c.NegAST,
+	ul4c.BitNotAST,
+	*ul4c.BinaryAST.__subclasses__(),
+	ul4c.IfAST,
+	ul4c.SliceAST,
+	ul4c.ListAST,
+	ul4c.SetAST
+}
 
 # Create the mapping that maps the UL4 AST type to the vSQL AST type
 v = vars()
@@ -2956,7 +3039,7 @@ def oracle_sql_table():
 	for (i, (fieldname, fieldtype)) in enumerate(fields.items()):
 		term = "" if i == len(fields)-1 else ","
 		if fieldname == "vr_cname":
-			sql.append(f"\t{fieldname} varchar2({len(scriptname)}) not null{term}")
+			sql.append(f"\t{fieldname} varchar2(200) not null{term}")
 		elif fieldtype is int:
 			sql.append(f"\t{fieldname} integer not null{term}")
 		elif fieldtype is optint:
