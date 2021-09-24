@@ -397,14 +397,15 @@ class Field(Repr):
 
 	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		encoder.dump(self.identifier)
-		encoder.dump(self.datatype)
+		encoder.dump(self.datatype.value if self.datatype is not None else None)
 		encoder.dump(self.fieldsql)
 		encoder.dump(self.joinsql)
 		encoder.dump(self.refgroup)
 
 	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		self.identifier = decoder.load()
-		self.datatype = decoder.load()
+		datatype = decoder.load()
+		self.datatype = DataType(datatype) if datatype is not None else None
 		self.fieldsql = decoder.load()
 		self.joinsql = decoder.load()
 		self.refgroup = decoder.load()
