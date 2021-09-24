@@ -3491,7 +3491,10 @@ class GeoControl(Control):
 		return vsql.ContainsAST.make(
 			Globals.vsqlsearchexpr(),
 			vsql.MethAST.make(
-				vsql.AttrAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
+				vsql.AttrAST.make(
+					vsql.FieldRefAST.make(record, f"v_{self.identifier}"),
+					"info"
+				),
 				"lower",
 			)
 		)
