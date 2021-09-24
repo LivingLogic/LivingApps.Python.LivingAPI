@@ -2079,22 +2079,6 @@ class App(Base):
 
 	@property
 	def vsqlgroup_records(self):
-		if self._vsqlgroup is None:
-			self._vsqlgroup = g = vsql.Group("data_select_la")
-			g.add_field("app", vsql.DataType.STR, "tpl_uuid")
-			g.add_field("createdat", vsql.DataType.DATETIME, "dat_cdate")
-			g.add_field("createdby", vsql.DataType.STR, "dat_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
-			g.add_field("updatedat", vsql.DataType.DATETIME, "dat_udate")
-			g.add_field("updatedby", vsql.DataType.STR, "dat_uname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
-			g.add_field("url", vsql.DataType.STR, "'https://' || parameter_pkg.str_os('INGRESS_HOST') || '/gateway/apps/' || tpl_uuid || '/' || dat_id || '/edit'")
-			if self.controls is not None:
-				for control in self.controls.values():
-					vsqlfield = control.vsqlfield
-					g.fields[vsqlfield.identifier] = vsqlfield
-		return self._vsqlgroup
-
-	@property
-	def vsqlgroup_records(self):
 		if self._vsqlgroup_records is None:
 			self._vsqlgroup_records = g = vsql.Group("data_select_la")
 			g.add_field("app", vsql.DataType.STR, "tpl_uuid")
