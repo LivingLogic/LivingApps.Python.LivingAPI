@@ -2614,7 +2614,7 @@ class IntControl(Control):
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
-		return vsql.EqAST.make(
+		return vsql.EQAST.make(
 			Globals.vsqlsearchexpr(),
 			vsql.FuncAST.make("str", vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
 		)
@@ -2644,7 +2644,7 @@ class NumberControl(Control):
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
-		return vsql.EqAST.make(
+		return vsql.EQAST.make(
 			Globals.vsqlsearchexpr(),
 			vsql.FuncAST.make("str", vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
 		)
