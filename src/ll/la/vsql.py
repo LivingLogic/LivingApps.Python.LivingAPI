@@ -410,10 +410,6 @@ class Group(Repr):
 		p.breakable()
 		p.text("tablesql=")
 		p.pretty(self.tablesql)
-		for (fieldname, field) in self.fields.items():
-			p.breakable()
-			p.text(f"fields.{fieldname}=")
-			p.pretty(field)
 
 	def __getitem__(self, key):
 		if key in self.fields:
