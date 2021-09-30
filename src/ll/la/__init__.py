@@ -1834,6 +1834,7 @@ class App(Base):
 		"templates",
 		"insert",
 		"favorite",
+		"active_view",
 		"internaltemplates",
 		"viewtemplates",
 		"dataactions",
