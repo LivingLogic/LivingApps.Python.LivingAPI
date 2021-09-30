@@ -873,7 +873,7 @@ class Base:
 	def ul4_setattr(self, name, value):
 		attr = getattr(self.__class__, name, None)
 		if isinstance(attr, Attr):
-			attr.ul4set(self, value)
+			return attr.ul4set(self, value)
 		elif isinstance(attr, property):
 			return attr.fset(self, value)
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
