@@ -213,6 +213,52 @@ class DataType(misc.Enum):
 	DATESET = "dateset"
 	DATETIMESET = "datetimeset"
 
+	@classmethod
+	def compatible_to(cls, given:"DataType", required:"DataType") -> "Error":
+		"""
+		Check whether the type ``given`` is compatible to ``required``.
+
+		If ``required`` is ``None`` every ``given`` type is accepted. Otherwise
+		the types must be compatible (for example ``DataType.INT`` is compatible
+		to ``DataType.NUMBER``, but not the other way around). Every type is
+		compatible to itself.
+
+		If ``given`` is not compatible to ``required`` the appropriate error value
+		is returned, otherwise ``None`` is returned.
+		"""
+		# If we have no requirement for the datatype the given one is OK.
+		if required is None:
+			return None
+		# ``NULL`` is compatible with everything
+		elif given is DataType.NULL:
+			return None
+		# perfect match
+		elif given is required:
+			return None
+		# some type of string
+		elif required in {DataType.STR, DataType.CLOB} and given in {DataType.STR, DataType.CLOB}:
+			return None
+		# bool and int can be used for numbers
+		elif required is DataType.NUMBER and given in {DataType.BOOL, DataType.INT, DataType.NUMBER}:
+			return None
+		# bool can be used for ints
+		elif required is DataType.INT and given in {DataType.BOOL, DataType.INT}:
+			return None
+		# intlist can be used for numberlist
+		elif required is DataType.NUMBERLIST and given in {DataType.INTLIST, DataType.NUMBERLIST}:
+			return None
+		# datelist can be used for datetimelist
+		elif required is DataType.DATELIST and given in {DataType.INTLIST, DataType.DATETIMELIST}:
+			return None
+		# intset can be used for numberset
+		elif required is DataType.NUMBERSET and given in {DataType.INTSET, DataType.NUMBERSET}:
+			return None
+		# dateset can be used for datetimeset
+		elif required is DataType.DATESET and given in {DataType.INTSET, DataType.DATETIMESET}:
+			return None
+		else:
+			return Error[f"DATATYPE_{required.name}"]
+
 
 class NodeType(misc.Enum):
 	"""
@@ -331,7 +377,7 @@ class Field(Repr):
 
 	As a table or view field it belongs to a :class:`Group` object.
 	"""
-	def __init__(self, identifier=DataType.NULL, datatype=None, fieldsql=None, joinsql=None, refgroup=None):
+	def __init__(self, identifier=None, datatype=DataType.NULL, fieldsql=None, joinsql=None, refgroup=None):
 		self.identifier = identifier
 		self.datatype = datatype
 		self.fieldsql = fieldsql
@@ -643,7 +689,7 @@ class AST(Repr):
 		self.content = final_content
 
 	@classmethod
-	def fromul4(cls, node, **vars):
+	def fromul4(cls, node, **vars: "Field") -> "AST":
 		try:
 			vsqltype = _ul42vsql[type(node)]
 		except KeyError:
@@ -711,6 +757,9 @@ class AST(Repr):
 		template = ul4c.Template(f"<?return {source}?>")
 		expr = template.content[-1].obj
 		return cls.fromul4(expr, **vars)
+
+	def sqlsource(self):
+		return "".join(s for s in self._sqlsource())
 
 	@classmethod
 	def all_types(cls) -> Generator[Type["AST"], None, None]:
@@ -1019,7 +1068,7 @@ class ConstAST(AST):
 			return cls.make(value)
 
 	@classmethod
-	def fromul4(cls, node, **vars):
+	def fromul4(cls, node, **vars: "Field") -> "AST":
 		try:
 			vsqltype = _consts[type(node.value)]
 		except KeyError:
@@ -1040,8 +1089,11 @@ class NoneAST(ConstAST):
 	def make(cls):
 		return cls("None")
 
+	def _sqlsource(self):
+		yield "null"
+
 	@classmethod
-	def fromul4(cls, node, **vars):
+	def fromul4(cls, node, **vars: "Field") -> "AST":
 		return cls(node.source)
 
 
@@ -1061,7 +1113,7 @@ class _ConstWithValueAST(ConstAST):
 		return cls(value, ul4c._repr(value))
 
 	@classmethod
-	def fromul4(cls, node, **vars):
+	def fromul4(cls, node, **vars: "Field") -> "AST":
 		return cls(node.value, node.source)
 
 	@property
@@ -1100,6 +1152,9 @@ class BoolAST(_ConstWithValueAST):
 	def make(cls, value):
 		return cls(value, "True" if value else "False")
 
+	def _sqlsource(self):
+		yield "1" if self.value else "0"
+
 	@property
 	def nodevalue(self):
 		return "True" if self.value else "False"
@@ -1113,6 +1168,9 @@ class IntAST(_ConstWithValueAST):
 
 	nodetype = NodeType.CONST_INT
 	datatype = DataType.INT
+
+	def _sqlsource(self):
+		yield str(self.value)
 
 	@property
 	def nodevalue(self):
@@ -1128,6 +1186,9 @@ class NumberAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_NUMBER
 	datatype = DataType.NUMBER
 
+	def _sqlsource(self):
+		yield str(self.value)
+
 	@property
 	def nodevalue(self):
 		return repr(self.value)
@@ -1142,6 +1203,10 @@ class StrAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_STR
 	datatype = DataType.STR
 
+	def _sqlsource(self):
+		s = self.value.replace("'", "''")
+		yield f"'{s}'"
+
 
 @ul4on.register("de.livinglogic.vsql.clob")
 class CLOBAST(_ConstWithValueAST):
@@ -1154,6 +1219,10 @@ class CLOBAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_CLOB
 	datatype = DataType.CLOB
 
+	def _sqlsource(self):
+		s = self.value.replace("'", "''")
+		yield f"'{s}'"
+
 
 @ul4on.register("de.livinglogic.vsql.color")
 class ColorAST(_ConstWithValueAST):
@@ -1163,6 +1232,10 @@ class ColorAST(_ConstWithValueAST):
 
 	nodetype = NodeType.CONST_COLOR
 	datatype = DataType.COLOR
+
+	def _sqlsource(self):
+		c = self.value
+		yield str((c.r() << 24) + (c.g() << 16) + (c.b() << 8) + c.a())
 
 	@property
 	def nodevalue(self):
@@ -1178,6 +1251,9 @@ class DateAST(_ConstWithValueAST):
 
 	nodetype = NodeType.CONST_DATE
 	datatype = DataType.DATE
+
+	def _sqlsource(self):
+		yield f"to_date('{self.value:%Y-%m-%d}', 'YYYY-MM-DD')";
 
 	@property
 	def nodevalue(self):
@@ -1198,6 +1274,9 @@ class DateTimeAST(_ConstWithValueAST):
 		value = value.replace(microsecond=0)
 		return cls(value, ul4c._repr(value))
 
+	def _sqlsource(self):
+		yield f"to_date('{self.value:%Y-%m-%d %H:%M:%S}', 'YYYY-MM-DD HH24:MI:SS')";
+
 	@property
 	def nodevalue(self):
 		return f"{self.value:%Y-%m-%dT%H:%M:%S}"
@@ -1215,7 +1294,7 @@ class _SeqAST(AST):
 		self.validate()
 
 	@classmethod
-	def fromul4(cls, node, **vars):
+	def fromul4(cls, node, **vars: "Field") -> "AST":
 		content = []
 
 		lastpos = None # This value is never used
@@ -1225,6 +1304,15 @@ class _SeqAST(AST):
 			content.append(item.value)
 			content.append(AST.fromul4(item.value, **vars))
 		return cls(*cls._make_content_from_ul4(node, *content))
+
+	def _sqlsource(self):
+		(prefix, suffix) = self.sqltypes[self.datatype]
+		yield prefix
+		for (i, item) in self.items():
+			if i:
+				yield ", "
+			yield from item._sqlsource()
+		yield suffix
 
 	def _ll_repr_(self):
 		yield from super()._ll_repr_()
@@ -1259,6 +1347,15 @@ class ListAST(_SeqAST):
 
 	nodetype = NodeType.LIST
 	precedence = 20
+
+	sqltypes = {
+		DataType.INTLIST: ("integers(", ")"),
+		DataType.NUMBERLIST: ("numbers(", ")"),
+		DataType.STRLIST: ("varchars(", ")"),
+		DataType.CLOBLIST: ("clobs(", ")"),
+		DataType.DATELIST: ("dates(", ")"),
+		DataType.DATETIMELIST: ("dates(", ")"),
+	}
 
 	def __init__(self, *content):
 		super().__init__(*content)
@@ -1322,6 +1419,14 @@ class SetAST(_SeqAST):
 
 	nodetype = NodeType.SET
 	precedence = 20
+
+	sqltypes = {
+		DataType.INTLIST: ("vsqlimpl_pkg.set_intlist(integers(", "))"),
+		DataType.NUMBERLIST: ("vsqlimpl_pkg.set_numberlist(numbers(", "))"),
+		DataType.STRLIST: ("vsqlimpl_pkg.set_strlist(varchars(", "))"),
+		DataType.DATELIST: ("vsqlimpl_pkg.set_datetimelist(dates(", "))"),
+		DataType.DATETIMELIST: ("vsqlimpl_pkg.set_datetimelist(dates(", "))"),
+	}
 
 	def __init__(self, *content):
 		super().__init__(*content)
@@ -1525,7 +1630,7 @@ class BinaryAST(AST):
 			self.datatype = rule.result
 
 	@classmethod
-	def fromul4(cls, node, **vars):
+	def fromul4(cls, node, **vars: "Field") -> "AST":
 		obj1 = AST.fromul4(node.obj1, **vars)
 		obj2 = AST.fromul4(node.obj2, **vars)
 		return cls(
@@ -1533,6 +1638,17 @@ class BinaryAST(AST):
 			obj2,
 			*cls._make_content_from_ul4(node, node.obj1, obj1, node.obj2, obj2),
 		)
+
+	def _sqlsource(self):
+		rule = self.rules[(self.obj1.datatype, self.obj2.datatype)]
+		result = []
+		for child in rule.source:
+			if child == 1:
+				yield from self.obj1._sqlsource()
+			elif child == 2:
+				yield from self.obj2._sqlsource()
+			else:
+				yield child
 
 	def children(self):
 		yield self.obj1
@@ -1795,7 +1911,7 @@ class ItemAST(BinaryAST):
 			return cls(obj1, obj2, "(", obj1, ")[", obj2, "]")
 
 	@classmethod
-	def fromul4(cls, node, **vars):
+	def fromul4(cls, node, **vars: "Field") -> "AST":
 		if isinstance(node.obj2, ul4c.SliceAST):
 			return SliceAST.fromul4(node, **vars)
 		return super().fromul4(node, **vars)
@@ -1854,7 +1970,7 @@ class UnaryAST(AST):
 		)
 
 	@classmethod
-	def fromul4(cls, node, **vars):
+	def fromul4(cls, node, **vars: "Field") -> "AST":
 		obj = AST.fromul4(node.obj, **vars)
 		return cls(
 			obj,
@@ -1873,6 +1989,15 @@ class UnaryAST(AST):
 		else:
 			self.error = None
 			self.datatype = rule.result
+
+	def _sqlsource(self):
+		rule = self.rules[(self.obj.datatype, )]
+		result = []
+		for child in rule.source:
+			if child == 1:
+				yield from self.obj._sqlsource()
+			else:
+				yield child
 
 	def children(self):
 		yield self.obj
@@ -1969,7 +2094,7 @@ class IfAST(AST):
 			self.datatype = rule.result
 
 	@classmethod
-	def fromul4(cls, node, **vars):
+	def fromul4(cls, node, **vars: "Field") -> "AST":
 		objif = AST.fromul4(node.objif, **vars)
 		objcond = AST.fromul4(node.objcond, **vars)
 		objelse = AST.fromul4(node.objelse, **vars)
@@ -1980,6 +2105,19 @@ class IfAST(AST):
 			objelse,
 			*cls._make_content_from_ul4(node, node.objif, objif, node.objcond, objcond, node.objelse, objelse),
 		)
+
+	def _sqlsource(self):
+		rule = self.rules[(self.objif.datatype, self.objcond.datatype, self.objelse.datatype)]
+		result = []
+		for child in rule.source:
+			if child == 1:
+				yield from self.objif._sqlsource()
+			elif child == 2:
+				yield from self.objcond._sqlsource()
+			elif child == 3:
+				yield from self.objelse._sqlsource()
+			else:
+				yield child
 
 	def children(self):
 		yield self.objif
@@ -2061,7 +2199,7 @@ class SliceAST(AST):
 			self.datatype = rule.result
 
 	@classmethod
-	def fromul4(cls, node, **vars):
+	def fromul4(cls, node, **vars: "Field") -> "AST":
 		obj = AST.fromul4(node.obj1, **vars)
 		index1 = AST.fromul4(node.obj2.index1, **vars) if node.obj2.index1 is not None else NoneAST("")
 		index2 = AST.fromul4(node.obj2.index2, **vars) if node.obj2.index2 is not None else NoneAST("")
@@ -2072,6 +2210,19 @@ class SliceAST(AST):
 			index2,
 			*cls._make_content_from_ul4(node, node.obj1, obj, node.obj2.index1, index1, node.obj2.index2, index2)
 		)
+
+	def _sqlsource(self):
+		rule = self.rules[(self.obj.datatype, self.index1.datatype, self.index2.datatype)]
+		result = []
+		for child in rule.source:
+			if child == 1:
+				yield from self.obj._sqlsource()
+			elif child == 2:
+				yield from self.index1._sqlsource()
+			elif child == 3:
+				yield from self.index2._sqlsource()
+			else:
+				yield child
 
 	def children(self):
 		yield self.obj
@@ -2144,6 +2295,14 @@ class AttrAST(AST):
 			self.error = None
 			self.datatype = rule.result
 
+	def _sqlsource(self):
+		rule = self.rules[(self.obj.datatype, self.attrname)]
+		for child in rule.source:
+			if child == 1:
+				yield from self.obj._sqlsource()
+			else:
+				yield child
+
 	@property
 	def nodevalue(self):
 		return self.attrname
@@ -2202,6 +2361,15 @@ class FuncAST(AST):
 		content.append(")")
 
 		return cls(name, args, *content)
+
+	def _sqlsource(self):
+		rule = self.rules[(self.name,) + tuple(c.datatype for c in self.args)]
+		result = []
+		for child in rule.source:
+			if isinstance(child, int):
+				yield from self.args[child-1]._sqlsource()
+			else:
+				yield child
 
 	@classmethod
 	def _add_rule(cls, rule):
@@ -2286,6 +2454,17 @@ class MethAST(AST):
 		content.append(")")
 
 		return cls(obj, name, args, *content)
+
+	def _sqlsource(self):
+		rule = self.rules[(self.obj.datatype, self.name) + tuple(c.datatype for c in self.args)]
+		result = []
+		for child in rule.source:
+			if isinstance(child, int):
+				if child == 0:
+					yield from self.obj._sqlsource()
+				yield from self.args[child-1]._sqlsource()
+			else:
+				yield child
 
 	@classmethod
 	def _add_rule(cls, rule):

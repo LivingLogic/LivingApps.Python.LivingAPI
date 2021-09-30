@@ -359,7 +359,7 @@ class DBHandler(Handler):
 			u = self.uploaddir/r.upl_name
 			return u.openread().read()
 
-	def _save_vsql_ast(self, vsqlexpr, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
+	def _save_vsql_ast(self, vsqlexpr, required_datatype=None, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
 		"""
 		Save the vSQL expression :obj:`vsqlexpr`.
 
@@ -373,7 +373,16 @@ class DBHandler(Handler):
 		if pos is None:
 			pos = 0
 		finalpos = pos + sourcelen
+
+		datatype = vsqlexpr.datatype
+		error = vsqlexpr.error
 		if vss_id is None:
+			# Validate target datatype (if the tree is valid so far)
+			if datatype is not None:
+				error = vsql.DataType.compatible_to(datatype, required_datatype)
+				if error is not None:
+					datatype = None
+
 			r = self.proc_vsqlsource_insert(
 				cursor,
 				c_user=self.ide_id,
@@ -387,8 +396,8 @@ class DBHandler(Handler):
 			p_vs_order=vs_order,
 			p_vs_nodetype=vsqlexpr.nodetype.value,
 			p_vs_value=vsqlexpr.nodevalue,
-			p_vs_datatype=vsqlexpr.datatype.value if vsqlexpr.datatype is not None else None,
-			p_vs_erroridentifier=vsqlexpr.error.value if vsqlexpr.error is not None else None,
+			p_vs_datatype=datatype.value if datatype is not None else None,
+			p_vs_erroridentifier=error.value if error is not None else None,
 			p_vss_id=vss_id,
 			p_vs_start=pos,
 			p_vs_stop=finalpos,
@@ -401,12 +410,12 @@ class DBHandler(Handler):
 				if isinstance(child, str):
 					pos += len(child)
 				else:
-					(_, pos) = self._save_vsql_ast(child, cursor, vs_id, order, vss_id, pos)
+					(_, pos) = self._save_vsql_ast(child, None, cursor, vs_id, order, vss_id, pos)
 					order += 10
 		return (vs_id, finalpos)
 
-	def save_vsql_ast(self, vsqlexpr, cursor=None):
-		return self._save_vsql_ast(vsqlexpr, cursor)[0]
+	def save_vsql_ast(self, vsqlexpr, datatype=None, cursor=None):
+		return self._save_vsql_ast(vsqlexpr, datatype, cursor)[0]
 
 	def save_vsql_source(self, cursor, source, function, datatype=None, **queryargs):
 		if not source:
@@ -422,8 +431,7 @@ class DBHandler(Handler):
 		dump = dump.decode("utf-8")
 		vars = ul4on.loads(dump)
 		vsqlexpr = vsql.AST.fromsource(source, **vars)
-		# FIXME: Validate target datatype
-		return self.save_vsql_ast(vsqlexpr, cursor)
+		return self.save_vsql_ast(vsqlexpr, cursor, datatype)
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
 		template = ul4c.Template(internaltemplate.source, name=internaltemplate.identifier)

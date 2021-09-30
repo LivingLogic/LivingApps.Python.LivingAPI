@@ -1295,6 +1295,10 @@ class User(Base):
 	def ul4onid(self):
 		return self.id
 
+	@classmethod
+	def vsqlfield(cls, ul4var="user", sqlvar="livingapi_pkg.global_user"):
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.ide_id(+)", cls.vsqlgroup)
+
 	vsqlgroup = vsql.Group(
 		"identity",
 		id=(vsql.DataType.STR, "ide_publicid"),
