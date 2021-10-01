@@ -2572,7 +2572,7 @@ del _ops, v
 
 INTLIKE = f"BOOL_INT"
 NUMBERLIKE = f"{INTLIKE}_NUMBER"
-BOOL_NUMBER = f"BOOL_INT_NUMBER_COLOR_DATEDELTA_DATETIMEDELTA_MONTHDELTA"
+ASNUMBER = f"BOOL_INT_NUMBER_COLOR_DATEDELTA_DATETIMEDELTA_MONTHDELTA"
 
 TEXT = f"STR_CLOB"
 LIST = f"INTLIST_NUMBERLIST_STRLIST_CLOBLIST_DATELIST_DATETIMELIST"
@@ -2851,7 +2851,10 @@ EQAST.add_rules(f"BOOL <- DATEDELTA_MONTHDELTA_COLOR == T1", "vsqlimpl_pkg.eq_in
 EQAST.add_rules(f"BOOL <- DATETIMEDELTA == DATETIMEDELTA", "vsqlimpl_pkg.eq_datetimedelta_datetimedelta({s1}, {s2})")
 EQAST.add_rules(f"BOOL <- INTLIST_NUMBERLIST == INTLIST_NUMBERLIST", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
 EQAST.add_rules(f"BOOL <- STRLIST_CLOBLIST == STRLIST_CLOBLIST", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
-EQAST.add_rules(f"BOOL <- {SET} == T1", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- DATELIST_DATETIMELIST == DATELIST_DATETIMELIST", "vsqlimpl_pkg.eq_{t1}_{t2}({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- INTSET == INTSET", "vsqlimpl_pkg.eq_intset_intset({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- NUMBERSET == NUMBERSET", "vsqlimpl_pkg.eq_numberset_numberset({s1}, {s2})")
+EQAST.add_rules(f"BOOL <- STRSET == STRSET", "vsqlimpl_pkg.eq_strset_strset({s1}, {s2})")
 EQAST.add_rules(f"BOOL <- DATESET_DATETIMESET == DATESET_DATETIMESET", "vsqlimpl_pkg.eq_datetimeset_datetimeset({s1}, {s2})")
 EQAST.add_rules(f"BOOL <- {ANY} == {ANY}", "(case when {s1} is null and {s2} is null then 1 else 0 end)")
 
@@ -2869,7 +2872,10 @@ NEAST.add_rules(f"BOOL <- DATEDELTA_MONTHDELTA_COLOR != T1", "vsqlimpl_pkg.ne_in
 NEAST.add_rules(f"BOOL <- DATETIMEDELTA != DATETIMEDELTA", "vsqlimpl_pkg.ne_datetimedelta_datetimedelta({s1}, {s2})")
 NEAST.add_rules(f"BOOL <- INTLIST_NUMBERLIST != INTLIST_NUMBERLIST", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
 NEAST.add_rules(f"BOOL <- STRLIST_CLOBLIST != STRLIST_CLOBLIST", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
-NEAST.add_rules(f"BOOL <- {SET} != T1", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- DATELIST_DATETIMELIST != DATELIST_DATETIMELIST", "vsqlimpl_pkg.ne_{t1}_{t2}({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- INTSET != INTSET", "vsqlimpl_pkg.ne_intset_intset({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- NUMBERSET != NUMBERSET", "vsqlimpl_pkg.ne_numberset_numberset({s1}, {s2})")
+NEAST.add_rules(f"BOOL <- STRSET != STRSET", "vsqlimpl_pkg.ne_strset_strset({s1}, {s2})")
 NEAST.add_rules(f"BOOL <- DATESET_DATETIMESET != DATESET_DATETIMESET", "vsqlimpl_pkg.ne_datetimeset_datetimeset({s1}, {s2})")
 NEAST.add_rules(f"BOOL <- {ANY} != {ANY}", "(case when {s1} is null and {s2} is null then 0 else 1 end)")
 
@@ -3094,11 +3100,11 @@ IfAST.add_rules(f"INT <- {INTLIKE} ? NULL ? {INTLIKE}", "{s3}")
 IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? NULL ? {NUMBERLIKE}", "{s3}")
 IfAST.add_rules(f"T1 <- {ANY} ? NULL ? NULL", "{s3}")
 IfAST.add_rules(f"T3 <- NULL ? NULL ? {ANY}", "{s3}")
-IfAST.add_rules(f"T1 <- {ANY} ? BOOL_NUMBER ? T1", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
-IfAST.add_rules(f"INT <- {INTLIKE} ? BOOL_NUMBER ? {INTLIKE}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
-IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? BOOL_NUMBER ? {NUMBERLIKE}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
-IfAST.add_rules(f"T1 <- {ANY} ? BOOL_NUMBER ? NULL", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
-IfAST.add_rules(f"T3 <- NULL ? BOOL_NUMBER ? {ANY}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"T1 <- {ANY} ? {ASNUMBER} ? T1", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"INT <- {INTLIKE} ? {ASNUMBER} ? {INTLIKE}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {ASNUMBER} ? {NUMBERLIKE}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"T1 <- {ANY} ? {ASNUMBER} ? NULL", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"T3 <- NULL ? {ASNUMBER} ? {ANY}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
 IfAST.add_rules(f"T1 <- {ANY} ? DATE_DATETIME_STR_GEO ? T1", "(case when {s2} is not null then {s1} else {s3} end)")
 IfAST.add_rules(f"INT <- {INTLIKE} ? DATE_DATETIME_STR_GEO ? {INTLIKE}", "(case when {s2} is not null then {s1} else {s3} end)")
 IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? DATE_DATETIME_STR_GEO ? {NUMBERLIKE}", "(case when {s2} is not null then {s1} else {s3} end)")
