@@ -1414,7 +1414,7 @@ class SetAST(_SeqAST):
 	A set constant.
 
 	For this to work the set may only contain items of "compatible" types, i.e.
-	types that con be converted to a common type without losing information.
+	types that can be converted to a common type without losing information.
 	"""
 
 	nodetype = NodeType.SET
