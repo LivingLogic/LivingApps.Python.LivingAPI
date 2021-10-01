@@ -127,6 +127,9 @@ def test_int_str_ok(config_persons):
 def test_int_str_bad(config_persons):
 	check_vsql(config_persons, "int('42.5') is None")
 
+def test_int_str_very_bad(config_persons):
+	check_vsql(config_persons, "int('verybad') is None")
+
 def test_float(config_persons):
 	check_vsql(config_persons, "float() == 0.0")
 
@@ -141,6 +144,12 @@ def test_float_int(config_persons):
 
 def test_float_number(config_persons):
 	check_vsql(config_persons, "float(42.5) == 42.5")
+
+def test_float_str(config_persons):
+	check_vsql(config_persons, "float('42.5') == 42.5")
+
+def test_float_str_bad(config_persons):
+	check_vsql(config_persons, "float('bad') == 42.5")
 
 def test_str(config_persons):
 	check_vsql(config_persons, "str() is None")
@@ -210,6 +219,12 @@ def test_str_color_3(config_persons):
 
 def test_str_color_4(config_persons):
 	check_vsql(config_persons, "str(#12345678) == 'rgba(18, 52, 86, 0.471)'")
+
+def test_str_geo_without_info(config_persons):
+	check_vsql(config_persons, "str(geo(49.95, 11.59)) == '<geo lat=49.95 long=11.59 info=None>'")
+
+def test_str_geo_with_info(config_persons):
+	check_vsql(config_persons, "str(geo(49.95, 11.59, 'Here')) == '<geo lat=49.95 long=11.59 info=\\'Here\\'>'")
 
 def test_str_intlist(config_persons):
 	check_vsql(config_persons, "str([1, 2, 3, None]) == '[1, 2, 3, None]'")
@@ -310,6 +325,12 @@ def test_repr_color_3(config_persons):
 
 def test_repr_color_4(config_persons):
 	check_vsql(config_persons, "repr(#12345678) == '#12345678'")
+
+def test_repr_geo_without_info(config_persons):
+	check_vsql(config_persons, "repr(geo(49.95, 11.59)) == '<geo lat=49.95 long=11.59 info=None>'")
+
+def test_repr_geo_with_info(config_persons):
+	check_vsql(config_persons, "repr(geo(49.95, 11.59, 'Here')) == '<geo lat=49.95 long=11.59 info=\\'Here\\'>'")
 
 def test_repr_intlist(config_persons):
 	check_vsql(config_persons, "repr([1, 2, 3, None]) == '[1, 2, 3, None]'")
@@ -520,3 +541,6 @@ def test_set_dateset(config_persons):
 
 def test_set_datetimeset(config_persons):
 	check_vsql(config_persons, "set({@(2000-02-29T12:34:56), None}) == {@(2000-02-29T12:34:56), None}")
+
+def test_dist(config_persons):
+	check_vsql(config_persons, "dist(geo(49.95, 11.59, 'Here'), geo(12.34, 56.67, 'There')) == 5845.77551787602")
