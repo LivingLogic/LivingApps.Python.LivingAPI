@@ -260,9 +260,12 @@ def test_intset_intset3(config_persons):
 	check_vsql(config_persons, "not ({1, 2} == {1})")
 
 def test_intset_intset4(config_persons):
-	check_vsql(config_persons, "not ({1, None} == {1})")
+	check_vsql(config_persons, "not ({1, 2} == {2, 1})")
 
 def test_intset_intset5(config_persons):
+	check_vsql(config_persons, "not ({1, None} == {1})")
+
+def test_intset_intset6(config_persons):
 	check_vsql(config_persons, "{1, None, 2, None, 3} == {None, 3, 2, 1, None}")
 
 def test_numberset_numberset1(config_persons):
