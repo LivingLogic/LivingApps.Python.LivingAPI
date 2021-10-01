@@ -1421,11 +1421,11 @@ class SetAST(_SeqAST):
 	precedence = 20
 
 	sqltypes = {
-		DataType.INTLIST: ("vsqlimpl_pkg.set_intlist(integers(", "))"),
-		DataType.NUMBERLIST: ("vsqlimpl_pkg.set_numberlist(numbers(", "))"),
-		DataType.STRLIST: ("vsqlimpl_pkg.set_strlist(varchars(", "))"),
-		DataType.DATELIST: ("vsqlimpl_pkg.set_datetimelist(dates(", "))"),
-		DataType.DATETIMELIST: ("vsqlimpl_pkg.set_datetimelist(dates(", "))"),
+		DataType.INTSET: ("vsqlimpl_pkg.set_intlist(integers(", "))"),
+		DataType.NUMBERSET: ("vsqlimpl_pkg.set_numberlist(numbers(", "))"),
+		DataType.STRSET: ("vsqlimpl_pkg.set_strlist(varchars(", "))"),
+		DataType.DATESET: ("vsqlimpl_pkg.set_datetimelist(dates(", "))"),
+		DataType.DATETIMESET: ("vsqlimpl_pkg.set_datetimelist(dates(", "))"),
 	}
 
 	def __init__(self, *content):
@@ -1459,21 +1459,21 @@ class SetAST(_SeqAST):
 				self.error = None
 				datatype = misc.first(types)
 				if datatype is DataType.INT:
-					datatype = DataType.INTLIST
+					datatype = DataType.INTSET
 				elif datatype is DataType.NUMBER:
-					datatype = DataType.NUMBERLIST
+					datatype = DataType.NUMBERSET
 				elif datatype is DataType.STR:
-					datatype = DataType.STRLIST
+					datatype = DataType.STRSET
 				elif datatype is DataType.DATE:
-					datatype = DataType.DATELIST
+					datatype = DataType.DATESET
 				elif datatype is DataType.DATETIME:
-					datatype = DataType.DATETIMELIST
+					datatype = DataType.DATETIMESET
 				else:
 					datatype = None
 				self.datatype = datatype
 				self.error = None if datatype else Error.SETUNSUPPORTEDTYPES
 			else:
-				self.error = Error.LISTMIXEDTYPES
+				self.error = Error.SETMIXEDTYPES
 				self.datatype = None
 
 
