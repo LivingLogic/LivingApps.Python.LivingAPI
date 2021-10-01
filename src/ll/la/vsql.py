@@ -308,7 +308,7 @@ class NodeType(misc.Enum):
 	UNOP_NOT = "unop_not"
 	UNOP_NEG = "unop_neg"
 	UNOP_BITNOT = "unop_bitnot"
-	TERNOP_IFELSE = "ternop_ifelse"
+	TERNOP_IF = "ternop_if"
 	ATTR = "attr"
 	FUNC = "func"
 	METH = "meth"
@@ -2056,7 +2056,7 @@ class IfAST(AST):
 	Ternary "if"/"else" (``A if COND else B``).
 	"""
 
-	nodetype = NodeType.TERNOP_IFELSE
+	nodetype = NodeType.TERNOP_IF
 	precedence = 3
 
 	def __init__(self, objif, objcond, objelse, *content):
