@@ -2663,9 +2663,9 @@ FuncAST.add_rules(f"DATETIME <- datetime(INT, INT, INT, INT)", "vsqlimpl_pkg.dat
 FuncAST.add_rules(f"DATETIME <- datetime(INT, INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4}, {s5})")
 FuncAST.add_rules(f"DATETIME <- datetime(INT, INT, INT, INT, INT, INT)", "vsqlimpl_pkg.datetime_int({s1}, {s2}, {s3}, {s4}, {s5}, {s6})")
 FuncAST.add_rules(f"DATETIME <- datetime(DATE)", "{s1}")
-FuncAST.add_rules(f"DATETIME <- datetime(DATE, INT)", "?")
-FuncAST.add_rules(f"DATETIME <- datetime(DATE, INT, INT)", "?")
-FuncAST.add_rules(f"DATETIME <- datetime(DATE, INT, INT, INT)", "?")
+FuncAST.add_rules(f"DATETIME <- datetime(DATE, INT)", "({s1} + {s2}/24)")
+FuncAST.add_rules(f"DATETIME <- datetime(DATE, INT, INT)", "({s1} + {s2}/24 + {s3}/24/60)")
+FuncAST.add_rules(f"DATETIME <- datetime(DATE, INT, INT, INT)", "({s1} + {s2}/24 + {s3}/24/60 + {s4}/24/60/60)")
 
 # Function ``len()``
 FuncAST.add_rules(f"INT <- len({TEXT})", "nvl(length({s1}), 0)")
