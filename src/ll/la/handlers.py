@@ -431,7 +431,7 @@ class DBHandler(Handler):
 		dump = dump.decode("utf-8")
 		vars = ul4on.loads(dump)
 		vsqlexpr = vsql.AST.fromsource(source, **vars)
-		return self.save_vsql_ast(vsqlexpr, cursor, datatype)
+		return self.save_vsql_ast(vsqlexpr, datatype, cursor)
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
 		template = ul4c.Template(internaltemplate.source, name=internaltemplate.identifier)
