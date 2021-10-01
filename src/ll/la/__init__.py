@@ -12,7 +12,8 @@
 See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 """
 
-import io, datetime, operator, string, json, pathlib, types, collections
+import io, datetime, operator, string, json, pathlib, types
+from collections import abc
 
 import requests.structures
 
@@ -764,9 +765,9 @@ class CaseInsensitiveDictAttr(Attr):
 		Create an :class:`CaseInsensitiveDictAttr` data descriptor.
 		"""
 		if kwargs.get("required", False):
-			super().__init__(dict, collections.MutableMapping, default_factory=requests.structures.CaseInsensitiveDict, **kwargs)
+			super().__init__(dict, abc.MutableMapping, default_factory=requests.structures.CaseInsensitiveDict, **kwargs)
 		else:
-			super().__init__(dict, collections.MutableMapping, **kwargs)
+			super().__init__(dict, abc.MutableMapping, **kwargs)
 
 	def _default_set(self, instance, value):
 		"""
@@ -777,7 +778,7 @@ class CaseInsensitiveDictAttr(Attr):
 		be converted to an :class:`~requests.structures.CaseInsensitiveDict`
 		automatically.
 		"""
-		if isinstance(value, (dict, collections.MutableMapping)) and not isinstance(value, requests.structures.CaseInsensitiveDict):
+		if isinstance(value, (dict, abc.MutableMapping)) and not isinstance(value, requests.structures.CaseInsensitiveDict):
 			value = requests.structures.CaseInsensitiveDict(value)
 		super()._default_set(instance, value)
 
