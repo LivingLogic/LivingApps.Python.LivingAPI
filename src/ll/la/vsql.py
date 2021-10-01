@@ -2739,6 +2739,11 @@ FuncAST.add_rules(f"DATETIMESET <- set(DATETIMELIST)", "vsqlimpl_pkg.set_{t1}({s
 # Function ``dist()``
 FuncAST.add_rules(f"NUMBER <- dist(GEO, GEO)", "vsqlimpl_pkg.dist_geo_geo({s1}, {s2})")
 
+# Function ``abs()``
+FuncAST.add_rules(f"INT <- abs(BOOL)", "{s1}")
+FuncAST.add_rules(f"INT <- abs(INT)", "abs({s1})")
+FuncAST.add_rules(f"NUMBER <- abs(NUMBER)", "abs({s1})")
+
 # Function ``cos()``
 FuncAST.add_rules(f"NUMBER <- cos({NUMBERLIKE})", "cos({s1})")
 
