@@ -1308,7 +1308,7 @@ class _SeqAST(AST):
 	def _sqlsource(self):
 		(prefix, suffix) = self.sqltypes[self.datatype]
 		yield prefix
-		for (i, item) in self.items():
+		for (i, item) in enumerate(self.items):
 			if i:
 				yield ", "
 			yield from item._sqlsource()
