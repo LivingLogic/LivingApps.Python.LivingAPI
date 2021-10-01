@@ -260,9 +260,12 @@ def test_intset_intset3(config_persons):
 	check_vsql(config_persons, "{1, 2} != {1}")
 
 def test_intset_intset4(config_persons):
-	check_vsql(config_persons, "{1, None} != {1}")
+	check_vsql(config_persons, "not ({1, 2} != {2, 1})")
 
 def test_intset_intset5(config_persons):
+	check_vsql(config_persons, "{1, None} != {1}")
+
+def test_intset_intset6(config_persons):
 	check_vsql(config_persons, "not ({1, None, 2, None, 3} != {None, 3, 2, 1, None})")
 
 def test_numberset_numberset1(config_persons):
@@ -275,9 +278,12 @@ def test_numberset_numberset3(config_persons):
 	check_vsql(config_persons, "{1.5, 2.5} != {1.5}")
 
 def test_numberset_numberset4(config_persons):
-	check_vsql(config_persons, "{1.5, None} != {1.5}")
+	check_vsql(config_persons, "not ({1.5, 2.5} != {2.5, 1.5})")
 
 def test_numberset_numberset5(config_persons):
+	check_vsql(config_persons, "{1.5, None} != {1.5}")
+
+def test_numberset_numberset6(config_persons):
 	check_vsql(config_persons, "not ({1.5, None, 2.5, None, 3.5} != {None, 3.5, 2.5, 1.5, None})")
 
 def test_strset_strset1(config_persons):
@@ -290,9 +296,12 @@ def test_strset_strset3(config_persons):
 	check_vsql(config_persons, "{'foo', 'bar'} != {'foo'}")
 
 def test_strset_strset4(config_persons):
-	check_vsql(config_persons, "{'foo', None} != {'foo'}")
+	check_vsql(config_persons, "not ({'foo', 'bar'} != {'bar', 'foo'})")
 
 def test_strset_strset5(config_persons):
+	check_vsql(config_persons, "{'foo', None} != {'foo'}")
+
+def test_strset_strset6(config_persons):
 	check_vsql(config_persons, "not ({'foo', None, 'bar', None, 'baz'} != {None, 'baz', 'bar', 'foo', None})")
 
 def test_dateset_dateset1(config_persons):
@@ -305,6 +314,9 @@ def test_dateset_dateset3(config_persons):
 	check_vsql(config_persons, "{@(2000-02-29), @(2000-03-01)} != {@(2000-02-29)}")
 
 def test_dateset_dateset4(config_persons):
+	check_vsql(config_persons, "not ({@(2000-02-29), @(2000-03-01)} != {@(2000-03-01), @(2000-02-29)})")
+
+def test_dateset_dateset5(config_persons):
 	check_vsql(config_persons, "{@(2000-02-29), None} != {@(2000-02-29)}")
 
 def test_dateset_dateset5(config_persons):
@@ -320,9 +332,12 @@ def test_datetimeset_datetimeset3(config_persons):
 	check_vsql(config_persons, "{@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)} != {@(2000-02-29T12:34:56)}")
 
 def test_datetimeset_datetimeset4(config_persons):
-	check_vsql(config_persons, "{@(2000-02-29T12:34:56), None} != {@(2000-02-29T12:34:56)}")
+	check_vsql(config_persons, "not ({@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)} != {@(2000-03-01T12:34:56), @(2000-02-29T12:34:56)})")
 
 def test_datetimeset_datetimeset5(config_persons):
+	check_vsql(config_persons, "{@(2000-02-29T12:34:56), None} != {@(2000-02-29T12:34:56)}")
+
+def test_datetimeset_datetimeset6(config_persons):
 	check_vsql(config_persons, "not ({@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)} != {None, @(2000-03-02T12:34:56), @(2000-03-01T12:34:56), @(2000-02-29T12:34:56), None})")
 
 # FIXME Add tests for mixed type comparisons?
