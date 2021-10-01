@@ -134,7 +134,7 @@ def test_app_attributes(handler):
 		identifier="livingapi_app_attributes",
 		source="<?print app.id?>;<?print app.name?>",
 	)
-	assert f"{person_app_id()};LA-Demo: Persons" == handler.renders(person_app_id(), template=vt.identifier)
+	assert f"{person_app_id()};LA-Demo: Persons (ORI)" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_datasources(handler, config_apps):

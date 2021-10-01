@@ -2896,7 +2896,6 @@ GTAST.add_rules(f"BOOL <- STRLIST_CLOBLIST > STRLIST_CLOBLIST", "(case when vsql
 GTAST.add_rules(f"BOOL <- DATELIST_DATETIMELIST > T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) > 0 then 1 else 0 end)")
 
 # Greater-than-or equal comparison (A >= B)
-GEAST.add_rules(f"BOOL <- NULL >= NULL", "1")
 GEAST.add_rules(f"BOOL <- {ANY} >= NULL", "1")
 GEAST.add_rules(f"BOOL <- NULL >= {ANY}", "(case when {s2} is null then 1 else 0 end)")
 GEAST.add_rules(f"BOOL <- {INTLIKE} >= {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) >= 0 then 1 else 0 end)")
@@ -2910,9 +2909,8 @@ GEAST.add_rules(f"BOOL <- STRLIST_CLOBLIST >= STRLIST_CLOBLIST", "(case when vsq
 GEAST.add_rules(f"BOOL <- DATELIST_DATETIMELIST >= T1", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) >= 0 then 1 else 0 end)")
 
 # Less-than comparison (A < B)
-LTAST.add_rules(f"BOOL <- NULL < NULL", "0")
 LTAST.add_rules(f"BOOL <- {ANY} < NULL", "0")
-LTAST.add_rules(f"BOOL <- NULL < {ANY}", "(case when {s2} is null then 1 else 0 end)")
+LTAST.add_rules(f"BOOL <- NULL < {ANY}", "(case when {s2} is null then 0 else 1 end)")
 LTAST.add_rules(f"BOOL <- {INTLIKE} < {INTLIKE}", "(case when vsqlimpl_pkg.cmp_int_int({s1}, {s2}) < 0 then 1 else 0 end)")
 LTAST.add_rules(f"BOOL <- {NUMBERLIKE} < {NUMBERLIKE}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
 LTAST.add_rules(f"BOOL <- {TEXT} < {TEXT}", "(case when vsqlimpl_pkg.cmp_{t1}_{t2}({s1}, {s2}) < 0 then 1 else 0 end)")
