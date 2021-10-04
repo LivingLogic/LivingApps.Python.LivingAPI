@@ -43,17 +43,39 @@ def test_str_str1(config_persons):
 def test_str_str2(config_persons):
 	check_vsql(config_persons, "(app.p_str_value.value and 'hurz') == 'hurz'")
 
-# def test_bool_bool3(config_persons):
-# 	check_vsql(config_persons, "app.p_bool_true.value >> False == 1")
+def test_date_date1(config_persons):
+	check_vsql(config_persons, "(app.p_date_none.value and @(2000-02-20)) is None")
 
-# def test_bool_bool4(config_persons):
-# 	check_vsql(config_persons, "app.p_bool_true.value >> True == 0")
+def test_date_date2(config_persons):
+	check_vsql(config_persons, "(app.p_date_value.value and @(2000-02-20)) == @(2000-02-20)")
 
-# def test_bool_int(config_persons):
-# 	check_vsql(config_persons, "app.p_bool_true.value >> 1 == 0")
+def test_datetime_datetime1(config_persons):
+	check_vsql(config_persons, "(app.p_datetime_none.value and @(2000-02-20T12:34:56)) is None")
 
-# def test_int_bool(config_persons):
-# 	check_vsql(config_persons, "128 >> app.p_bool_true.value == 64")
+def test_datetime_datetime2(config_persons):
+	check_vsql(config_persons, "(app.p_datetime_value.value and @(2000-02-20T12:34:56)) == @(2000-02-20T12:34:56)")
 
-# def test_int_int(config_persons):
-# 	check_vsql(config_persons, "app.p_int_value.value >> 2 == 444")
+def test_datedelta_datedelta1(config_persons):
+	check_vsql(config_persons, "(app.p_datedelta_none.value and days(10)) is None")
+
+def test_datedelta_datedelta2(config_persons):
+	check_vsql(config_persons, "(app.p_datedelta_value.value and days(10)) == days(10)")
+
+def test_datetimedelta_datetimedelta1(config_persons):
+	check_vsql(config_persons, "(app.p_datetimedelta_none.value and hours(12)) is None")
+
+def test_datetimedelta_datetimedelta2(config_persons):
+	check_vsql(config_persons, "(app.p_datetimedelta_value.value and hours(12)) == hours(12)")
+
+def test_intlist_intlist1(config_persons):
+	check_vsql(config_persons, "(0*[1] and [4, 5, 6]) == 0*[1]")
+
+def test_intlist_intlist2(config_persons):
+	check_vsql(config_persons, "([1, 2, 3] and [4, 5, 6]) == [4, 5, 6]")
+
+def test_numberlist_numberlist1(config_persons):
+	check_vsql(config_persons, "(0*[1.1] and [4.4, 5.5, 6.6]) == 0*[1.1]")
+
+def test_numberlist_numberlist2(config_persons):
+	check_vsql(config_persons, "([1.1, 2.2, 3.3] and [4.4, 5.5, 6.6]) == [4.4, 5.5, 6.6]")
+

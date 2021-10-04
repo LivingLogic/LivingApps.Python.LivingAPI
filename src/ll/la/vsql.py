@@ -3006,8 +3006,7 @@ AndAST.add_rules(f"STR <- STR ? STR", "nvl2({s1}, {s2}, {s1})")
 AndAST.add_rules(f"CLOB <- CLOB ? CLOB", "(case when {s1} is not null and length({s1}) != 0 then {s2} else {s1} end)")
 AndAST.add_rules(f"T1 <- DATE_DATETIME ? T1", "nvl2({s1}, {s2}, {s1})")
 AndAST.add_rules(f"T1 <- DATEDELTA_DATETIMEDELTA_MONTHDELTA ? T1", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
-AndAST.add_rules(f"T1 <- {LIST} ? T1", "(case when {s1} is not null and {s1}.count != 0 then {s2} else {s1} end)")
-AndAST.add_rules(f"DATETIMELIST <- DATELIST_DATETIMELIST ? DATELIST_DATETIMELIST", "(case when {s1} is not null and {s1}.count != 0 then {s2} else {s1} end)")
+AndAST.add_rules(f"T1 <- {LIST} ? T1", "(case when nvl(vsqlimpl_pkg.len_{t1}({s1}), 0) != 0 then {s2} else {s1} end)")
 
 # Logical "or" (A or B)
 # Can't use the real operator ("or") in the spec, so use "?"
@@ -3020,8 +3019,7 @@ OrAST.add_rules(f"STR <- STR ? STR", "nvl({s1}, {s2})")
 OrAST.add_rules(f"CLOB <- CLOB ? CLOB", "(case when {s1} is not null and length({s1}) != 0 then {s1} else {s2} end)")
 OrAST.add_rules(f"T1 <- DATE_DATETIME ? T1", "nvl({s1}, {s2})")
 OrAST.add_rules(f"T1 <- DATEDELTA_DATETIMEDELTA_MONTHDELTA ? T1", "(case when nvl({s1}, 0) != 0 then {s1} else {s2} end)")
-OrAST.add_rules(f"T1 <- {LIST} ? T1", "(case when {s1} is not null and {s1}.count != 0 then {s1} else {s2} end)")
-OrAST.add_rules(f"DATETIMELIST <- DATELIST_DATETIMELIST ? DATELIST_DATETIMELIST", "(case when {s1} is not null and {s1}.count != 0 then {s1} else {s2} end)")
+OrAST.add_rules(f"T1 <- {LIST} ? T1", "(case when nvl(vsqlimpl_pkg.len_{t1}({s1}), 0) != 0 then {s1} else {s2} end)")
 
 # Containment test (A in B)
 # Can't use the real operator ("in") in the spec, so use "?"
