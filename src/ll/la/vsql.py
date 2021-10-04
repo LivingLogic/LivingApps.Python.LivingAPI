@@ -124,11 +124,6 @@ def sql(value:Any) -> str:
 		raise TypeError(f"unknown type {type(value)!r}")
 
 
-def _offset(pos:slice) -> slice:
-	# Note that we know that for our slices ``start``/``stop`` are never ``None``
-	return slice(pos.start-9, pos.stop-9)
-
-
 class Repr:
 	"""
 	Base class that provides functionality for implementing :meth:`__repr__`
