@@ -31,6 +31,9 @@ A vSQL expression can be generated in two ways:
 		)
 
 *	By compiling the appropriate UL4/vSQL source code into an :class:`AST` object.
+	So ``"foo".lower() + "bar".upper()`` can be compiled like this::
+
+		vsql.AST.fromsource("'foo'.lower() + 'bar'.upper()")
 
 """
 
