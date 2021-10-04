@@ -51,6 +51,13 @@ from typing import *
 
 T_AST_Content = Union["AST", str]
 
+T_optstr = Optional[str]
+T_optint = Optional[int]
+T_optast = Optional["AST"]
+
+def T_gen(type):
+	return Generator[type, None, None]
+
 
 ###
 ### Global configurations
@@ -63,28 +70,25 @@ scriptname = misc.sysinfo.short_script_name
 ### Fields for the table ``VSQLRULE``
 ###
 
-optstr = Optional[str]
-optint = Optional[int]
-
 fields = dict(
 	vr_nodetype=str,
-	vr_value=optstr,
+	vr_value=T_optstr,
 	vr_result=str,
-	vr_signature=optstr,
+	vr_signature=T_optstr,
 	vr_arity=int,
-	vr_literal1=optstr,
-	vr_child2=optint,
-	vr_literal3=optstr,
-	vr_child4=optint,
-	vr_literal5=optstr,
-	vr_child6=optint,
-	vr_literal7=optstr,
-	vr_child8=optint,
-	vr_literal9=optstr,
-	vr_child10=optint,
-	vr_literal11=optstr,
-	vr_child12=optint,
-	vr_literal13=optstr,
+	vr_literal1=T_optstr,
+	vr_child2=T_optint,
+	vr_literal3=T_optstr,
+	vr_child4=T_optint,
+	vr_literal5=T_optstr,
+	vr_child6=T_optint,
+	vr_literal7=T_optstr,
+	vr_child8=T_optint,
+	vr_literal9=T_optstr,
+	vr_child10=T_optint,
+	vr_literal11=T_optstr,
+	vr_child12=T_optint,
+	vr_literal13=T_optstr,
 	vr_cname=str,
 	vr_cdate=datetime.datetime,
 )
@@ -152,14 +156,14 @@ class Repr:
 		)
 		return " ".join(parts)
 
-	def _ll_repr_(self) -> Generator[str, None, None]:
+	def _ll_repr_(self) -> T_gen(str):
 		"""
 		Each string produced by :meth:`!_ll_repr__` will be part of the
 		:meth:`__repr__` output (joined by spaces).
 		"""
 		yield from ()
 
-	def _repr_pretty_(self, p, cycle) -> None:
+	def _repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter", cycle:bool) -> None:
 		if cycle:
 			p.text(f"{self._ll_repr_prefix_()} ... {self._ll_repr_suffix_()}>")
 		else:
@@ -168,7 +172,7 @@ class Repr:
 				p.breakable()
 				p.text(self._ll_repr_suffix_())
 
-	def _ll_repr_pretty_(self, p) -> None:
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		"""
 		Implement the body of the :meth:`_repr_pretty_` method.
 
@@ -209,7 +213,7 @@ class DataType(misc.Enum):
 	DATETIMESET = "datetimeset"
 
 	@classmethod
-	def compatible_to(cls, given:"DataType", required:"DataType") -> "Error":
+	def compatible_to(cls, given:"DataType", required:"DataType") -> Optional["Error"]:
 		"""
 		Check whether the type ``given`` is compatible to ``required``.
 
@@ -372,14 +376,14 @@ class Field(Repr):
 
 	As a table or view field it belongs to a :class:`Group` object.
 	"""
-	def __init__(self, identifier=None, datatype=DataType.NULL, fieldsql=None, joinsql=None, refgroup=None):
+	def __init__(self, identifier:T_optstr=None, datatype:DataType=DataType.NULL, fieldsql:T_optstr=None, joinsql:T_optstr=None, refgroup:Optional["Group"]=None):
 		self.identifier = identifier
 		self.datatype = datatype
 		self.fieldsql = fieldsql
 		self.joinsql = joinsql
 		self.refgroup = refgroup
 
-	def _ll_repr_(self) -> Generator[str, None, None]:
+	def _ll_repr_(self) -> T_gen(str):
 		yield f"identifier={self.identifier!r}"
 		if self.datatype is not None:
 			yield f"datatype={self.datatype.name}"
@@ -390,7 +394,7 @@ class Field(Repr):
 		if self.refgroup is not None:
 			yield f"refgroup.tablesql={self.refgroup.tablesql!r}"
 
-	def _ll_repr_pretty_(self, p) -> None:
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		p.breakable()
 		p.text("identifier=")
 		p.pretty(self.identifier)
@@ -435,7 +439,7 @@ class Group(Repr):
 	:class:`Field`.
 	"""
 
-	def __init__(self, tablesql=None, **fields):
+	def __init__(self, tablesql:T_optstr=None, **fields:Union["Field", Tuple[DataType, str], Tuple[DataType, str, str, "Group"]]):
 		self.tablesql = tablesql
 		self.fields = {}
 		for (fieldname, fielddata) in fields.items():
@@ -447,7 +451,7 @@ class Group(Repr):
 		yield f"tablesql={self.tablesql!r}"
 		yield f"with {len(self.fields):,} fields"
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		p.breakable()
 		p.text("tablesql=")
 		p.pretty(self.tablesql)
@@ -516,7 +520,7 @@ class Rule(Repr):
 		yield f"signature={self._signature()}"
 		yield f"source={self.source}"
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		p.breakable()
 		p.text("result=")
 		p.text(self.result.name)
@@ -535,7 +539,7 @@ class Rule(Repr):
 		p.pretty(self.source)
 
 	@classmethod
-	def _parse_source(cls, signature, source):
+	def _parse_source(cls, signature:str, source:str) -> Tuple[Union[int, str], ...]:
 		final_source = []
 
 		def append(text):
@@ -560,7 +564,7 @@ class Rule(Repr):
 			append(source[pos:])
 		return tuple(final_source)
 
-	def java_source(self):
+	def java_source(self) -> str:
 		key = ", ".join(
 			f"VSQLDataType.{p.name}" if isinstance(p, DataType) else misc.javaexpr(p)
 			for p in self.key
@@ -568,7 +572,7 @@ class Rule(Repr):
 
 		return f"addRule(rules, VSQLDataType.{self.result.name}, {key});"
 
-	def oracle_fields(self):
+	def oracle_fields(self) -> Dict[str, Union[int, str, sqlliteral]]:
 		fields = {}
 
 		fields["vr_nodetype"] = self.astcls.nodetype.value
@@ -601,7 +605,7 @@ class Rule(Repr):
 
 		return fields
 
-	def oracle_source(self):
+	def oracle_source(self) -> str:
 		fieldnames = []
 		fieldvalues = []
 		for (fieldname, fieldvalue) in self.oracle_fields().items():
@@ -684,7 +688,7 @@ class AST(Repr):
 		self.content = final_content
 
 	@classmethod
-	def fromul4(cls, node, **vars: "Field") -> "AST":
+	def fromul4(cls, node:ul4c.AST, **vars: "Field") -> "AST":
 		try:
 			vsqltype = _ul42vsql[type(node)]
 		except KeyError:
@@ -748,16 +752,16 @@ class AST(Repr):
 		raise TypeError(f"Can't compile UL4 expression of type {misc.format_class(node)}!")
 
 	@classmethod
-	def fromsource(cls, source, **vars):
+	def fromsource(cls, source:str, **vars: "Field") -> "AST":
 		template = ul4c.Template(f"<?return {source}?>")
 		expr = template.content[-1].obj
 		return cls.fromul4(expr, **vars)
 
-	def sqlsource(self):
+	def sqlsource(self) -> str:
 		return "".join(s for s in self._sqlsource())
 
 	@classmethod
-	def all_types(cls) -> Generator[Type["AST"], None, None]:
+	def all_types(cls) -> T_gen(Type["AST"]):
 		"""
 		Return this class and all subclasses.
 
@@ -768,7 +772,7 @@ class AST(Repr):
 			yield from subcls.all_types()
 
 	@classmethod
-	def all_rules(cls) -> Generator[Rule, None, None]:
+	def all_rules(cls) -> T_gen(Rule):
 		"""
 		Return all grammar rules of this class and all its subclasses.
 
@@ -783,13 +787,13 @@ class AST(Repr):
 		cls.rules[rule.key] = rule
 
 	@classmethod
-	def typeref(cls, s:str) -> Optional[int]:
+	def typeref(cls, s:str) -> T_optint:
 		if s.startswith("T") and s[1:].isdigit():
 			return int(s[1:])
 		return None
 
 	@classmethod
-	def _specs(cls, spec:str):
+	def _specs(cls, spec:Tuple[str, ...]) -> T_gen(Tuple[str, Tuple[Union[DataType, str], ...]]):
 		# Find position of potential name in the spec, so we can correct
 		# the typeref offsets later.
 		for (i, p) in enumerate(spec):
@@ -959,14 +963,14 @@ class AST(Repr):
 		"""
 		return "".join(s for s in self._source())
 
-	def _source(self):
+	def _source(self) -> T_gen(str):
 		for item in self.content:
 			if isinstance(item, str):
 				yield item
 			else:
 				yield from item._source()
 
-	def children(self) -> Generator["AST", None, None]:
+	def children(self) -> T_gen("AST"):
 		"""
 		Return the child AST nodes of this node.
 		"""
@@ -982,7 +986,7 @@ class AST(Repr):
 
 		return handler.save_vsql_ast(self)[0]
 
-	def __str__(self):
+	def __str__(self) -> str:
 		parts = [f"{self.__class__.__module__}.{self.__class__.__qualname__}"]
 		if self.datatype is not None:
 			parts.append(f"(datatype {self.datatype.name})")
@@ -991,14 +995,14 @@ class AST(Repr):
 		parts.append(f": {self.source()}")
 		return "".join(parts)
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> T_gen(str):
 		if self.datatype is not None:
 			yield f"datatype={self.datatype.name}"
 		if self.error is not None:
 			yield f"error={self.error.name}"
 		yield f"source={self.source()!r}"
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		if self.datatype is not None:
 			p.breakable()
 			p.text(f"datatype={self.datatype.name}")
@@ -1010,7 +1014,7 @@ class AST(Repr):
 		p.pretty(self.source())
 
 	@classmethod
-	def _wrap(cls, obj, cond):
+	def _wrap(cls, obj:T_AST_Content, cond:bool) -> T_gen(T_AST_Content):
 		if cond:
 			yield "("
 		yield obj
@@ -1026,7 +1030,7 @@ class AST(Repr):
 		self.pos = decoder.load()
 
 	@classmethod
-	def _make_content_from_ul4(cls, node, *args):
+	def _make_content_from_ul4(cls, node:ul4c.AST, *args:Union[ul4c.AST, "AST", None]) -> Tuple[T_AST_Content, ...]:
 		content = []
 		lastnode = None
 		for (i, subnode) in enumerate(args):
@@ -1053,7 +1057,7 @@ class ConstAST(AST):
 	precedence = 20
 
 	@staticmethod
-	def make(value):
+	def make(value:Any) -> "ConstAST":
 		cls = _consts.get(type(value))
 		if cls is None:
 			raise TypeError(value)
@@ -1081,14 +1085,14 @@ class NoneAST(ConstAST):
 	datatype = DataType.NULL
 
 	@classmethod
-	def make(cls):
+	def make(cls) -> "NoneAST":
 		return cls("None")
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		yield "null"
 
 	@classmethod
-	def fromul4(cls, node, **vars: "Field") -> "AST":
+	def fromul4(cls, node:ul4c.ConstAST, **vars: "Field") -> "AST":
 		return cls(node.source)
 
 
@@ -1104,22 +1108,22 @@ class _ConstWithValueAST(ConstAST):
 		self.value = value
 
 	@classmethod
-	def make(cls, value):
+	def make(cls, value:Any) -> "ConstAST":
 		return cls(value, ul4c._repr(value))
 
 	@classmethod
-	def fromul4(cls, node, **vars: "Field") -> "AST":
+	def fromul4(cls, node:ul4c.ConstAST, **vars: "Field") -> "ConstAST":
 		return cls(node.value, node.source)
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		return self.value
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> T_gen(str):
 		yield from super()._ll_repr_()
 		yield f"value={self.value!r}"
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("value=")
@@ -1144,14 +1148,14 @@ class BoolAST(_ConstWithValueAST):
 	datatype = DataType.BOOL
 
 	@classmethod
-	def make(cls, value):
+	def make(cls, value:Any) -> "BoolAST":
 		return cls(value, "True" if value else "False")
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		yield "1" if self.value else "0"
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		return "True" if self.value else "False"
 
 
@@ -1164,11 +1168,11 @@ class IntAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_INT
 	datatype = DataType.INT
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		yield str(self.value)
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		return str(self.value)
 
 
@@ -1181,11 +1185,11 @@ class NumberAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_NUMBER
 	datatype = DataType.NUMBER
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		yield str(self.value)
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		return repr(self.value)
 
 
@@ -1198,7 +1202,7 @@ class StrAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_STR
 	datatype = DataType.STR
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		s = self.value.replace("'", "''")
 		yield f"'{s}'"
 
@@ -1214,7 +1218,7 @@ class CLOBAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_CLOB
 	datatype = DataType.CLOB
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		s = self.value.replace("'", "''")
 		yield f"'{s}'"
 
@@ -1228,12 +1232,12 @@ class ColorAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_COLOR
 	datatype = DataType.COLOR
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		c = self.value
 		yield str((c.r() << 24) + (c.g() << 16) + (c.b() << 8) + c.a())
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		c = self.value
 		return f"{c.r():02x}{c.g():02x}{c.b():02x}{c.a():02x}"
 
@@ -1247,11 +1251,11 @@ class DateAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_DATE
 	datatype = DataType.DATE
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		yield f"to_date('{self.value:%Y-%m-%d}', 'YYYY-MM-DD')";
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		return f"{self.value:%Y-%m-%d}"
 
 
@@ -1265,15 +1269,15 @@ class DateTimeAST(_ConstWithValueAST):
 	datatype = DataType.DATETIME
 
 	@classmethod
-	def make(cls, value):
+	def make(cls, value:datetime.datetime) -> "DateTimeAST":
 		value = value.replace(microsecond=0)
 		return cls(value, ul4c._repr(value))
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		yield f"to_date('{self.value:%Y-%m-%d %H:%M:%S}', 'YYYY-MM-DD HH24:MI:SS')";
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		return f"{self.value:%Y-%m-%dT%H:%M:%S}"
 
 
@@ -1282,14 +1286,14 @@ class _SeqAST(AST):
 	Base class of :class:`ListAST` and :class:`SetAST`.
 	"""
 
-	def __init__(self, *content):
+	def __init__(self, *content:T_AST_Content):
 		super().__init__(*content)
 		self.items = [item for item in content if isinstance(item, AST)]
 		self.datatype = None
 		self.validate()
 
 	@classmethod
-	def fromul4(cls, node, **vars: "Field") -> "AST":
+	def fromul4(cls, node:ul4c.AST, **vars: "Field") -> "AST":
 		content = []
 
 		lastpos = None # This value is never used
@@ -1300,7 +1304,7 @@ class _SeqAST(AST):
 			content.append(AST.fromul4(item.value, **vars))
 		return cls(*cls._make_content_from_ul4(node, *content))
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		(prefix, suffix) = self.sqltypes[self.datatype]
 		yield prefix
 		for (i, item) in enumerate(self.items):
@@ -1309,17 +1313,17 @@ class _SeqAST(AST):
 			yield from item._sqlsource()
 		yield suffix
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> T_gen(str):
 		yield from super()._ll_repr_()
 		yield f"with {len(self.items):,} items"
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		super()._ll_repr_pretty_(p)
 		for item in self.items:
 			p.breakable()
 			p.pretty(item)
 
-	def children(self):
+	def children(self) -> T_gen("AST"):
 		yield from self.items
 
 	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
@@ -1352,12 +1356,12 @@ class ListAST(_SeqAST):
 		DataType.DATETIMELIST: ("dates(", ")"),
 	}
 
-	def __init__(self, *content):
+	def __init__(self, *content:T_AST_Content):
 		super().__init__(*content)
 		self.validate()
 
 	@classmethod
-	def make(cls, *items):
+	def make(cls, *items:"AST") -> "ListAST":
 		if items:
 			content = []
 			for (i, item) in enumerate(items):
@@ -1368,7 +1372,7 @@ class ListAST(_SeqAST):
 		else:
 			return cls("[]")
 
-	def validate(self):
+	def validate(self) -> None:
 		if any(item.error for item in self.items):
 			self.error = Error.SUBNODEERROR
 			self.datatype = None
@@ -1423,12 +1427,12 @@ class SetAST(_SeqAST):
 		DataType.DATETIMESET: ("vsqlimpl_pkg.set_datetimelist(dates(", "))"),
 	}
 
-	def __init__(self, *content):
+	def __init__(self, *content:T_AST_Content):
 		super().__init__(*content)
 		self.validate()
 
 	@classmethod
-	def make(cls, *items):
+	def make(cls, *items:"AST") -> "SetAST":
 		if items:
 			content = []
 			for (i, item) in enumerate(items):
@@ -1439,7 +1443,7 @@ class SetAST(_SeqAST):
 		else:
 			return cls("{/}")
 
-	def validate(self):
+	def validate(self) -> None:
 		if any(item.error for item in self.items):
 			self.error = Error.SUBNODEERROR
 			self.datatype = None
@@ -1481,7 +1485,7 @@ class FieldRefAST(AST):
 	nodetype = NodeType.FIELD
 	precedence = 19
 
-	def __init__(self, parent, identifier, field, *content):
+	def __init__(self, parent:Optional["FieldRefAST"], identifier:str, field:Optional["Field"], *content:T_AST_Content):
 		"""
 		Create a :class:`FieldRef` object.
 
@@ -1512,7 +1516,7 @@ class FieldRefAST(AST):
 		self.validate()
 
 	@classmethod
-	def make_root(cls, field):
+	def make_root(cls, field:Union[str, "Field"]) -> "FieldRefAST":
 		if isinstance(field, str):
 			# This is an invalid field reference
 			return FieldRefAST(None, field, None, field)
@@ -1520,7 +1524,7 @@ class FieldRefAST(AST):
 			return FieldRefAST(None, field.identifier, field, field.identifier)
 
 	@classmethod
-	def make(cls, parent, identifier):
+	def make(cls, parent:"FieldRefAST", identifier:str) -> "FieldRefAST":
 		result_field = None
 		parent_field = parent.field
 		if parent_field is not None:
@@ -1533,15 +1537,15 @@ class FieldRefAST(AST):
 
 		return FieldRefAST(parent, identifier, result_field, parent, ".", identifier)
 
-	def validate(self):
+	def validate(self) -> None:
 		self.error = Error.FIELD if self.field is None else None
 
 	@property
-	def datatype(self):
+	def datatype(self) -> Optional[DataType]:
 		return self.field.datatype if self.field is not None else None
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		identifierpath = []
 		node = self
 		while node is not None:
@@ -1549,7 +1553,7 @@ class FieldRefAST(AST):
 			node = node.parent
 		return ".".join(identifierpath)
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> T_gen(str):
 		yield from super()._ll_repr_()
 		if self.parent is not None:
 			yield f"parent={self.parent!r}"
@@ -1558,7 +1562,7 @@ class FieldRefAST(AST):
 		if self.field is not None:
 			yield f"field={self.field!r}"
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("identifier=")
@@ -1594,7 +1598,7 @@ class BinaryAST(AST):
 	Base class of all binary expressions (i.e. expressions with two operands).
 	"""
 
-	def __init__(self, obj1, obj2, *content):
+	def __init__(self, obj1:AST, obj2:AST, *content:T_AST_Content):
 		super().__init__(*content)
 		self.obj1 = obj1
 		self.obj2 = obj2
@@ -1602,7 +1606,7 @@ class BinaryAST(AST):
 		self.validate()
 
 	@classmethod
-	def make(cls, obj1, obj2):
+	def make(cls, obj1:AST, obj2:AST) -> "BinaryAST":
 		return cls(
 			obj1,
 			obj2,
@@ -1611,7 +1615,7 @@ class BinaryAST(AST):
 			*cls._wrap(obj2, obj2.precedence <= cls.precedence),
 		)
 
-	def validate(self):
+	def validate(self) -> None:
 		if self.obj1.error or self.obj2.error:
 			self.error = Error.SUBNODEERROR
 		signature = (self.obj1.datatype, self.obj2.datatype)
@@ -1625,7 +1629,7 @@ class BinaryAST(AST):
 			self.datatype = rule.result
 
 	@classmethod
-	def fromul4(cls, node, **vars: "Field") -> "AST":
+	def fromul4(cls, node:ul4c.BinaryAST, **vars: "Field") -> "AST":
 		obj1 = AST.fromul4(node.obj1, **vars)
 		obj2 = AST.fromul4(node.obj2, **vars)
 		return cls(
@@ -1634,7 +1638,7 @@ class BinaryAST(AST):
 			*cls._make_content_from_ul4(node, node.obj1, obj1, node.obj2, obj2),
 		)
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		rule = self.rules[(self.obj1.datatype, self.obj2.datatype)]
 		result = []
 		for child in rule.source:
@@ -1645,11 +1649,11 @@ class BinaryAST(AST):
 			else:
 				yield child
 
-	def children(self):
+	def children(self) -> T_gen(AST):
 		yield self.obj1
 		yield self.obj2
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("obj1=")
@@ -1899,14 +1903,14 @@ class ItemAST(BinaryAST):
 	precedence = 16
 
 	@classmethod
-	def make(self, obj1, obj2):
+	def make(self, obj1:AST, obj2:AST) -> "ItemAST":
 		if obj1.precedence >= self.precedence:
 			return cls(obj1, obj2, obj1, "[", obj2, "]")
 		else:
 			return cls(obj1, obj2, "(", obj1, ")[", obj2, "]")
 
 	@classmethod
-	def fromul4(cls, node, **vars: "Field") -> "AST":
+	def fromul4(cls, node:ul4c.ItemAST, **vars: "Field") -> "AST":
 		if isinstance(node.obj2, ul4c.SliceAST):
 			return SliceAST.fromul4(node, **vars)
 		return super().fromul4(node, **vars)
@@ -1950,14 +1954,14 @@ class UnaryAST(AST):
 	Base class of all unary expressions (i.e. expressions with one operand).
 	"""
 
-	def __init__(self, obj, *content):
+	def __init__(self, obj:AST, *content:T_AST_Content):
 		super().__init__(*content)
 		self.obj = obj
 		self.datatype = None
 		self.validate()
 
 	@classmethod
-	def make(cls, obj):
+	def make(cls, obj:AST) -> "UnaryAST":
 		return cls(
 			obj,
 			cls.operator,
@@ -1965,14 +1969,14 @@ class UnaryAST(AST):
 		)
 
 	@classmethod
-	def fromul4(cls, node, **vars: "Field") -> "AST":
+	def fromul4(cls, node:ul4c.UnaryAST, **vars: "Field") -> "AST":
 		obj = AST.fromul4(node.obj, **vars)
 		return cls(
 			obj,
 			*cls._make_content_from_ul4(node, node.obj, obj),
 		)
 
-	def validate(self):
+	def validate(self) -> None:
 		if self.obj.error:
 			self.error = Error.SUBNODEERROR
 		signature = (self.obj.datatype,)
@@ -1985,7 +1989,7 @@ class UnaryAST(AST):
 			self.error = None
 			self.datatype = rule.result
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		rule = self.rules[(self.obj.datatype, )]
 		result = []
 		for child in rule.source:
@@ -1994,10 +1998,10 @@ class UnaryAST(AST):
 			else:
 				yield child
 
-	def children(self):
+	def children(self) -> T_gen(AST):
 		yield self.obj
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("obj=")
@@ -2054,7 +2058,7 @@ class IfAST(AST):
 	nodetype = NodeType.TERNOP_IF
 	precedence = 3
 
-	def __init__(self, objif, objcond, objelse, *content):
+	def __init__(self, objif:AST, objcond:AST, objelse:AST, *content:T_AST_Content):
 		super().__init__(*content)
 		self.objif = objif
 		self.objcond = objcond
@@ -2063,7 +2067,7 @@ class IfAST(AST):
 		self.validate()
 
 	@classmethod
-	def make(cls, objif, objcond, objelse):
+	def make(cls, objif:AST, objcond:AST, objelse:AST) -> "IfAST":
 		return cls(
 			objif,
 			objcond,
@@ -2075,7 +2079,7 @@ class IfAST(AST):
 			*cls._wrap(objelse, objcond.precedence <= cls.precedence),
 		)
 
-	def validate(self):
+	def validate(self) -> None:
 		if self.objif.error or self.objcond.error or self.objelse.error:
 			self.error = Error.SUBNODEERROR
 		signature = (self.objif.datatype, self.objcond.datatype, self.objelse.datatype)
@@ -2089,7 +2093,7 @@ class IfAST(AST):
 			self.datatype = rule.result
 
 	@classmethod
-	def fromul4(cls, node, **vars: "Field") -> "AST":
+	def fromul4(cls, node:ul4c.IfAST, **vars: "Field") -> "IfAST":
 		objif = AST.fromul4(node.objif, **vars)
 		objcond = AST.fromul4(node.objcond, **vars)
 		objelse = AST.fromul4(node.objelse, **vars)
@@ -2101,7 +2105,7 @@ class IfAST(AST):
 			*cls._make_content_from_ul4(node, node.objif, objif, node.objcond, objcond, node.objelse, objelse),
 		)
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		rule = self.rules[(self.objif.datatype, self.objcond.datatype, self.objelse.datatype)]
 		result = []
 		for child in rule.source:
@@ -2114,12 +2118,12 @@ class IfAST(AST):
 			else:
 				yield child
 
-	def children(self):
+	def children(self) -> T_gen(AST):
 		yield self.objif
 		yield self.objcond
 		yield self.objelse
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("objif=")
@@ -2153,7 +2157,7 @@ class SliceAST(AST):
 	nodetype = NodeType.TERNOP_SLICE
 	precedence = 16
 
-	def __init__(self, obj, index1, index2, *content):
+	def __init__(self, obj:AST, index1:T_optast, index2:T_optast, *content:T_AST_Content):
 		super().__init__(*content)
 		self.obj = obj
 		self.index1 = index1
@@ -2162,7 +2166,7 @@ class SliceAST(AST):
 		self.validate()
 
 	@classmethod
-	def make(cls, obj, index1, index2):
+	def make(cls, obj:AST, index1:T_optast, index2:T_optast) -> "SliceAST":
 		if index1 is None:
 			index1 = NoneAST(None)
 		if index2 is None:
@@ -2180,7 +2184,7 @@ class SliceAST(AST):
 			"]",
 		)
 
-	def validate(self):
+	def validate(self) -> None:
 		if self.obj.error or self.index1.error or self.index2.error:
 			self.error = Error.SUBNODEERROR
 		signature = (self.obj.datatype, self.index1.datatype, self.index2.datatype)
@@ -2194,7 +2198,7 @@ class SliceAST(AST):
 			self.datatype = rule.result
 
 	@classmethod
-	def fromul4(cls, node, **vars: "Field") -> "AST":
+	def fromul4(cls, node:ul4c.ItemAST, **vars: "Field") -> "AST":
 		obj = AST.fromul4(node.obj1, **vars)
 		index1 = AST.fromul4(node.obj2.index1, **vars) if node.obj2.index1 is not None else NoneAST("")
 		index2 = AST.fromul4(node.obj2.index2, **vars) if node.obj2.index2 is not None else NoneAST("")
@@ -2206,7 +2210,7 @@ class SliceAST(AST):
 			*cls._make_content_from_ul4(node, node.obj1, obj, node.obj2.index1, index1, node.obj2.index2, index2)
 		)
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		rule = self.rules[(self.obj.datatype, self.index1.datatype, self.index2.datatype)]
 		result = []
 		for child in rule.source:
@@ -2219,12 +2223,12 @@ class SliceAST(AST):
 			else:
 				yield child
 
-	def children(self):
+	def children(self) -> T_gen(AST):
 		yield self.obj
 		yield self.index1 if self.index1 is None else NoneAST("")
 		yield self.index2 if self.index2 is None else NoneAST("")
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("obj=")
@@ -2260,7 +2264,7 @@ class AttrAST(AST):
 	nodetype = NodeType.ATTR
 	precedence = 19
 
-	def __init__(self, obj, attrname, *content):
+	def __init__(self, obj:AST, attrname:str, *content:T_AST_Content):
 		super().__init__(*content)
 		self.obj = obj
 		self.attrname = attrname
@@ -2268,7 +2272,7 @@ class AttrAST(AST):
 		self.validate()
 
 	@classmethod
-	def make(cls, obj, attrname):
+	def make(cls, obj:AST, attrname:str) -> "AttrAST":
 		return cls(
 			obj,
 			attrname,
@@ -2277,7 +2281,7 @@ class AttrAST(AST):
 			attrname,
 		)
 
-	def validate(self):
+	def validate(self) -> None:
 		if self.obj.error:
 			self.error = Error.SUBNODEERROR
 		signature = (self.obj.datatype, self.attrname)
@@ -2290,7 +2294,7 @@ class AttrAST(AST):
 			self.error = None
 			self.datatype = rule.result
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		rule = self.rules[(self.obj.datatype, self.attrname)]
 		for child in rule.source:
 			if child == 1:
@@ -2299,17 +2303,17 @@ class AttrAST(AST):
 				yield child
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		return self.attrname
 
-	def children(self):
+	def children(self) -> T_gen(AST):
 		yield self.obj
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> T_gen(str):
 		yield from super()._ll_repr_()
 		yield f"attrname={self.attrname!r}"
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("obj=")
@@ -2339,7 +2343,7 @@ class FuncAST(AST):
 	precedence = 18
 	names = {} # Maps function names to set of supported arities
 
-	def __init__(self, name, args, *content):
+	def __init__(self, name:str, args:Tuple[AST, ...], *content:T_AST_Content):
 		super().__init__(*content)
 		self.name = name
 		self.args = args
@@ -2347,7 +2351,7 @@ class FuncAST(AST):
 		self.validate()
 
 	@classmethod
-	def make(cls, name, *args):
+	def make(cls, name:str, *args:AST) -> "FuncAST":
 		content = [name, "("]
 		for (i, arg) in enumerate(args):
 			if i:
@@ -2357,7 +2361,7 @@ class FuncAST(AST):
 
 		return cls(name, args, *content)
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		rule = self.rules[(self.name,) + tuple(c.datatype for c in self.args)]
 		result = []
 		for child in rule.source:
@@ -2367,13 +2371,13 @@ class FuncAST(AST):
 				yield child
 
 	@classmethod
-	def _add_rule(cls, rule):
+	def _add_rule(cls, rule:Rule) -> None:
 		super()._add_rule(rule)
 		if rule.name not in cls.names:
 			cls.names[rule.name] = set()
 		cls.names[rule.name].add(len(rule.signature))
 
-	def validate(self):
+	def validate(self) -> None:
 		if any(arg.error is not None for arg in self.args):
 			self.error = Error.SUBNODEERROR
 		signature = (self.name, *(arg.datatype for arg in self.args))
@@ -2392,18 +2396,18 @@ class FuncAST(AST):
 			self.datatype = rule.result
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		return self.name
 
-	def children(self):
+	def children(self) -> T_gen(AST):
 		yield from self.args
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> T_gen(str):
 		yield from super()._ll_repr_()
 		yield f"name={self.name!r}"
 		yield f"with {len(self.args):,} arguments"
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		super()._ll_repr_pretty_(p)
 		for (i, arg) in enumerate(self.args):
 			p.breakable()
@@ -2431,7 +2435,7 @@ class MethAST(AST):
 	precedence = 17
 	names = {} # Maps (type, meth name) to set of supported arities
 
-	def __init__(self, obj, name, args, *content):
+	def __init__(self, obj:AST, name:str, args:Tuple[AST, ...], *content:T_AST_Content):
 		super().__init__(*content)
 		self.obj = obj
 		self.name = name
@@ -2440,7 +2444,7 @@ class MethAST(AST):
 		self.validate()
 
 	@classmethod
-	def make(cls, obj, name, *args):
+	def make(cls, obj:AST, name:str, *args:AST) -> "MethAST":
 		content = [*cls._wrap(obj, obj.precedence < cls.precedence), ".", name, "("]
 		for (i, arg) in enumerate(args):
 			if i:
@@ -2450,7 +2454,7 @@ class MethAST(AST):
 
 		return cls(obj, name, args, *content)
 
-	def _sqlsource(self):
+	def _sqlsource(self) -> T_gen(str):
 		rule = self.rules[(self.obj.datatype, self.name) + tuple(c.datatype for c in self.args)]
 		result = []
 		for child in rule.source:
@@ -2462,14 +2466,14 @@ class MethAST(AST):
 				yield child
 
 	@classmethod
-	def _add_rule(cls, rule):
+	def _add_rule(cls, rule:Rule) -> None:
 		super()._add_rule(rule)
 		key = (rule.signature[0], rule.name)
 		if key not in cls.names:
 			cls.names[key] = set()
 		cls.names[key].add(len(rule.signature)-1)
 
-	def validate(self):
+	def validate(self) -> None:
 		if self.obj.error is not None or any(arg.error is not None for arg in self.args):
 			self.error = Error.SUBNODEERROR
 		signature = (self.obj.datatype, self.name, *(arg.datatype for arg in self.args))
@@ -2489,19 +2493,19 @@ class MethAST(AST):
 			self.datatype = rule.result
 
 	@property
-	def nodevalue(self):
+	def nodevalue(self) -> str:
 		return self.name
 
-	def children(self):
+	def children(self) -> T_gen(AST):
 		yield self.obj
 		yield from self.args
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> T_gen(str):
 		yield from super()._ll_repr_()
 		yield f"name={self.name!r}"
 		yield f"with {len(self.args):,} arguments"
 
-	def _ll_repr_pretty_(self, p):
+	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		super()._ll_repr_pretty_(p)
 		p.breakable()
 		p.text("obj=")
@@ -3121,7 +3125,7 @@ class JavaSource:
 	implements a vSQL AST type with the Python class that implements that AST
 	type.
 	"""
-	def __init__(self, astcls, path):
+	def __init__(self, astcls:Type[AST], path:pathlib.Path):
 		self.astcls = astcls
 		self.path = path
 		self.lines = path.read_text(encoding="utf-8").splitlines(False)
@@ -3129,7 +3133,7 @@ class JavaSource:
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} cls={self.cls!r} path={str(self.path)!r} at {id(self):#x}>"
 
-	def new_lines(self):
+	def new_lines(self) -> T_gen(str):
 		"""
 		Return an iterator over the new Java source code lines that should
 		replace the static initialization block inside the Java source file.
@@ -3142,7 +3146,7 @@ class JavaSource:
 
 		yield "\t}"
 
-	def save(self):
+	def save(self) -> None:
 		"""
 		Resave the Java source code incorporating the new vSQL type info from the
 		Python AST class.
@@ -3166,7 +3170,7 @@ class JavaSource:
 						f.write(f"{line}\n")
 
 	@classmethod
-	def all_java_source_files(cls, path: pathlib.Path):
+	def all_java_source_files(cls, path: pathlib.Path) -> T_gen("JavaSource"):
 		"""
 		Return an iterator over all :class:`!JavaSource` objects that can be found
 		in the directory ``path`` that should point to the directory containing
@@ -3186,11 +3190,11 @@ class JavaSource:
 				yield JavaSource(cls, filename)
 
 	@classmethod
-	def rewrite_all_java_source_files(cls, path:pathlib.Path, verbose:bool=False):
+	def rewrite_all_java_source_files(cls, path:pathlib.Path, verbose:bool=False) -> None:
 		"""
 		Rewrite all Java source code files implementing Java vSQL AST classes
 		in the directory ``path`` that should point to the directory containing
-		the Java vSQL AST classes..
+		the Java vSQL AST classes.
 		"""
 		if verbose:
 			print(f"Rewriting Java source files in {str(path)!r}")
@@ -3202,7 +3206,7 @@ class JavaSource:
 ### Functions for regenerating the Oracle type information.
 ###
 
-def oracle_sql_table():
+def oracle_sql_table() -> str:
 	recordfields = [rule.oracle_fields() for rule in AST.all_rules()]
 
 	sql = []
@@ -3214,14 +3218,14 @@ def oracle_sql_table():
 			sql.append(f"\t{fieldname} varchar2(200) not null{term}")
 		elif fieldtype is int:
 			sql.append(f"\t{fieldname} integer not null{term}")
-		elif fieldtype is optint:
+		elif fieldtype is T_optint:
 			sql.append(f"\t{fieldname} integer{term}")
 		elif fieldtype is datetime.datetime:
 			sql.append(f"\t{fieldname} date not null{term}")
 		elif fieldtype is str:
 			size = max(len(r[fieldname]) for r in recordfields if fieldname in r and r[fieldname])
 			sql.append(f"\t{fieldname} varchar2({size}) not null{term}")
-		elif fieldtype is optstr:
+		elif fieldtype is T_optstr:
 			size = max(len(r[fieldname]) for r in recordfields if fieldname in r and r[fieldname])
 			sql.append(f"\t{fieldname} varchar2({size}){term}")
 		else:
@@ -3230,7 +3234,7 @@ def oracle_sql_table():
 	return "\n".join(sql)
 
 
-def oracle_sql_procedure():
+def oracle_sql_procedure() -> str:
 	sql = []
 	sql.append("create or replace procedure vsqlgrammar_make(c_user varchar2)")
 	sql.append("as")
@@ -3242,15 +3246,15 @@ def oracle_sql_procedure():
 	return "\n".join(sql)
 
 
-def oracle_sql_index():
+def oracle_sql_index() -> str:
 	return "create unique index vsqlrule_i1 on vsqlrule(vr_nodetype, vr_value, vr_signature, vr_arity)"
 
 
-def oracle_sql_tablecomment():
+def oracle_sql_tablecomment() -> str:
 	return "comment on table vsqlrule is 'Syntax rules for vSQL expressions.'"
 
 
-def recreate_oracle(connectstring: str, verbose:bool=False):
+def recreate_oracle(connectstring:str, verbose:bool=False) -> None:
 	from ll import orasql
 
 	db = orasql.connect(connectstring, readlobs=True)
@@ -3289,7 +3293,7 @@ def recreate_oracle(connectstring: str, verbose:bool=False):
 	db.commit()
 
 
-def main(args=None):
+def main(args:Optional[Tuple[str, ...]]=None) -> None:
 	import argparse
 	p = argparse.ArgumentParser(description="Recreate vSQL type info for the Java and Oracle implementations")
 	p.add_argument("-c", "--connectstring", help="Oracle database where the table VSQLRULE and the procedure VSQLGRAMMAR_MAKE will be created")
