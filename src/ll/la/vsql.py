@@ -691,6 +691,15 @@ class AST(Repr):
 		self.content = final_content
 
 	@classmethod
+	@misc.notimplemented
+	def make(cls) -> "AST":
+		"""
+		Create an instance of this AST class from its child AST nodes.
+
+		This method is abstract and is overwritten in each subclass.
+		"""
+
+	@classmethod
 	def fromul4(cls, node:ul4c.AST, **vars: "Field") -> "AST":
 		try:
 			vsqltype = _ul42vsql[type(node)]
@@ -885,7 +894,7 @@ class AST(Repr):
 				)
 
 			will register the rule ``INT <- BOOL + BOOL``, but not
-			``NUMBER <- BOOL + BOOL`` since the first call call already registered
+			``NUMBER <- BOOL + BOOL`` since the first call already registered
 			a rule for the signature ``BOOL BOOL``.
 
 		``source``
@@ -950,8 +959,8 @@ class AST(Repr):
 		"""
 		Validate the content of this AST node.
 
-		If this node turns out to be invalid it will set the attribute
-		``datatype`` to ``None`` and ``error`` to the appropriate
+		If this node turns out to be invalid :meth:`!validate` will set the
+		attribute ``datatype`` to ``None`` and ``error`` to the appropriate
 		:class:`Error` value.
 
 		If this node turns out to be valid, :meth:`!validate` will set the
@@ -1492,8 +1501,8 @@ class FieldRefAST(AST):
 		"""
 		Create a :class:`FieldRef` object.
 
-		There are three possible scenarios with respect to :obj`identifier` and
-		:obj:`field`:
+		There are three possible scenarios with respect to ``identifier`` and
+		``field``:
 
 		``field is not None and field.identifier == identifier``
 			In this case we have a valid :class:`Field` that describes a real
@@ -1504,7 +1513,7 @@ class FieldRefAST(AST):
 			typed request parameters. E.g. when the vSQL expression is
 			``params.str.foo`` then :obj:`field` references the :class:`Field` for
 			``params.str.*``, so ``field.identifier == "*" and
-			``identifier == "foo"``.
+			identifier == "foo"``.
 
 		``field is None``
 			In this case the field is unknown.
@@ -3127,6 +3136,8 @@ class JavaSource:
 	A :class:`JavaSource` object combines the source code of a Java class that
 	implements a vSQL AST type with the Python class that implements that AST
 	type.
+
+	It is used to update the vSQL syntax rules in the Java implemenatio of vSQL.
 	"""
 	def __init__(self, astcls:Type[AST], path:pathlib.Path):
 		self.astcls = astcls
@@ -3176,8 +3187,8 @@ class JavaSource:
 	def all_java_source_files(cls, path: pathlib.Path) -> T_gen("JavaSource"):
 		"""
 		Return an iterator over all :class:`!JavaSource` objects that can be found
-		in the directory ``path`` that should point to the directory containing
-		the Java vSQL AST classes.
+		in the directory ``path``. ``path`` should point to the directory
+		containing the Java vSQL AST classes.
 		"""
 
 		# Find all AST classes that have rules
@@ -3196,8 +3207,8 @@ class JavaSource:
 	def rewrite_all_java_source_files(cls, path:pathlib.Path, verbose:bool=False) -> None:
 		"""
 		Rewrite all Java source code files implementing Java vSQL AST classes
-		in the directory ``path`` that should point to the directory containing
-		the Java vSQL AST classes.
+		in the directory ``path``. ``path`` should point to the directory
+		containing the Java vSQL AST classes.
 		"""
 		if verbose:
 			print(f"Rewriting Java source files in {str(path)!r}")
@@ -3210,6 +3221,10 @@ class JavaSource:
 ###
 
 def oracle_sql_table() -> str:
+	"""
+	Return the SQL statement for creating the table ``VSQLRULE``.
+	"""
+
 	recordfields = [rule.oracle_fields() for rule in AST.all_rules()]
 
 	sql = []
@@ -3238,6 +3253,10 @@ def oracle_sql_table() -> str:
 
 
 def oracle_sql_procedure() -> str:
+	"""
+	Return the SQL statement for creating the procedure ``VSQLGRAMMAR_MAKE``.
+	"""
+
 	sql = []
 	sql.append("create or replace procedure vsqlgrammar_make(c_user varchar2)")
 	sql.append("as")
@@ -3250,14 +3269,29 @@ def oracle_sql_procedure() -> str:
 
 
 def oracle_sql_index() -> str:
+	"""
+	Return the SQL statement for creating the index ``VSQLRULE_I1``.
+	"""
+
 	return "create unique index vsqlrule_i1 on vsqlrule(vr_nodetype, vr_value, vr_signature, vr_arity)"
 
 
 def oracle_sql_tablecomment() -> str:
+	"""
+	Return the SQL statement for creating a comment on the table ``VSQLRULE``.
+	"""
+
 	return "comment on table vsqlrule is 'Syntax rules for vSQL expressions.'"
 
 
 def recreate_oracle(connectstring:str, verbose:bool=False) -> None:
+	"""
+	Recreate the vSQL syntax rules in the database.
+
+	This recreate the procedure ``VSQLGRAMMAR_MAKE`` and the table ``VSQLRULE``
+	and its content.
+	"""
+
 	from ll import orasql
 
 	db = orasql.connect(connectstring, readlobs=True)
