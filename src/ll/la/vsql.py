@@ -3089,8 +3089,8 @@ BitXOrAST.add_rules(f"INT <- {INTLIKE} ^ {INTLIKE}", "vsqlimpl_pkg.bitxor_int({s
 # Can't use the real operator ("not") in the spec, so use "?"
 NotAST.add_rules(f"BOOL <- ? NULL", "1")
 NotAST.add_rules(f"BOOL <- ? BOOL", "(case {s1} when 1 then 0 else 1 end)")
-NotAST.add_rules(f"BOOL <- ? INT_NUMBER_DATEDELTA_DATETIMEDELTA_MONTHDELTA", "(case {s1} when 0 then 1 when null then 1 else 0 end)")
-NotAST.add_rules(f"BOOL <- ? DATE_DATETIME_STR_COLOR_GEO", "(case {s1} when null then 1 else 0 end)")
+NotAST.add_rules(f"BOOL <- ? INT_NUMBER_DATEDELTA_DATETIMEDELTA_MONTHDELTA", "(case nvl({s1}, 0) when 0 then 1 else 0 end)")
+NotAST.add_rules(f"BOOL <- ? DATE_DATETIME_STR_COLOR_GEO", "(case when {s1} is null then 1 else 0 end)")
 NotAST.add_rules(f"BOOL <- ? {ANY}", "(1 - vsqlimpl_pkg.bool_{t1}({s1}))")
 
 # Arithmetic negation (-A)
