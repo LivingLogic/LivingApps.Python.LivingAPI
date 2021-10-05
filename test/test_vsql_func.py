@@ -201,6 +201,9 @@ def test_str_datetimedelta_5(config_persons):
 def test_str_datetimedelta_6(config_persons):
 	check_vsql(config_persons, "str(days(42) + hours(17) + minutes(23)) == '42 days, 17:23:00'")
 
+def test_str_datetimedelta_7(config_persons):
+	check_vsql(config_persons, "str(-days(1) - hours(12) - minutes(34) - seconds(56)) == '-2 days, 11:25:04'")
+
 def test_str_monthdelta_1(config_persons):
 	check_vsql(config_persons, "str(monthdelta(0)) == '0 months'")
 
