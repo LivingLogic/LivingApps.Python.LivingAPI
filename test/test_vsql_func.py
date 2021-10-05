@@ -560,7 +560,7 @@ def test_set_datetimeset(config_persons):
 	check_vsql(config_persons, "set({@(2000-02-29T12:34:56), None}) == {@(2000-02-29T12:34:56), None}")
 
 def test_dist(config_persons):
-	check_vsql(config_persons, "dist(geo(49.95, 11.59, 'Here'), geo(12.34, 56.67, 'There')) == 5845.77551787602")
+	check_vsql(config_persons, "abs(dist(geo(49.95, 11.59, 'Here'), geo(12.34, 56.67, 'There')) - 5845.77551787602) < 1e-5")
 
 def test_cos_bool(config_persons):
 	check_vsql(config_persons, "cos(False) == 1")
