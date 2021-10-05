@@ -575,7 +575,7 @@ def test_cos_number2(config_persons):
 	check_vsql(config_persons, f"abs(cos({math.pi} / 2)) < 1e-10")
 
 def test_cos_number3(config_persons):
-	check_vsql(config_persons, f"abs(cos({math.pi}) - 1) < 1e-10")
+	check_vsql(config_persons, f"abs(cos({math.pi}) + 1) < 1e-10")
 
 def test_sin_bool(config_persons):
 	check_vsql(config_persons, "sin(False) == 0")
