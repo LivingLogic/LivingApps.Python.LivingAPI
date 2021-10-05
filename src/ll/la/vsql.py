@@ -2583,7 +2583,7 @@ del _ops, v
 
 INTLIKE = f"BOOL_INT"
 NUMBERLIKE = f"{INTLIKE}_NUMBER"
-ASNUMBER = f"BOOL_INT_NUMBER_COLOR_DATEDELTA_DATETIMEDELTA_MONTHDELTA"
+NUMBERSTORED = f"BOOL_INT_NUMBER_COLOR_DATEDELTA_DATETIMEDELTA_MONTHDELTA"
 
 TEXT = f"STR_CLOB"
 LIST = f"INTLIST_NUMBERLIST_STRLIST_CLOBLIST_DATELIST_DATETIMELIST"
@@ -3107,11 +3107,11 @@ IfAST.add_rules(f"INT <- {INTLIKE} ? NULL ? {INTLIKE}", "{s3}")
 IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? NULL ? {NUMBERLIKE}", "{s3}")
 IfAST.add_rules(f"T1 <- {ANY} ? NULL ? NULL", "{s3}")
 IfAST.add_rules(f"T3 <- NULL ? NULL ? {ANY}", "{s3}")
-IfAST.add_rules(f"T1 <- {ANY} ? {ASNUMBER} ? T1", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
-IfAST.add_rules(f"INT <- {INTLIKE} ? {ASNUMBER} ? {INTLIKE}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
-IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {ASNUMBER} ? {NUMBERLIKE}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
-IfAST.add_rules(f"T1 <- {ANY} ? {ASNUMBER} ? NULL", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
-IfAST.add_rules(f"T3 <- NULL ? {ASNUMBER} ? {ANY}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"T1 <- {ANY} ? {NUMBERSTORED} ? T1", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"INT <- {INTLIKE} ? {NUMBERSTORED} ? {INTLIKE}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {NUMBERSTORED} ? {NUMBERLIKE}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"T1 <- {ANY} ? {NUMBERSTORED} ? NULL", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
+IfAST.add_rules(f"T3 <- NULL ? {NUMBERSTORED} ? {ANY}", "(case when nvl({s2}, 0) != 0 then {s1} else {s3} end)")
 IfAST.add_rules(f"T1 <- {ANY} ? DATE_DATETIME_STR_GEO ? T1", "(case when {s2} is not null then {s1} else {s3} end)")
 IfAST.add_rules(f"INT <- {INTLIKE} ? DATE_DATETIME_STR_GEO ? {INTLIKE}", "(case when {s2} is not null then {s1} else {s3} end)")
 IfAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? DATE_DATETIME_STR_GEO ? {NUMBERLIKE}", "(case when {s2} is not null then {s1} else {s3} end)")
