@@ -1,5 +1,5 @@
 """
-Tests for the vSQL unary bitwise inversion operator ``~``.
+Tests for the vSQL unary bitwise not operator ``~``.
 
 The test are done via the Python DB interface.
 
