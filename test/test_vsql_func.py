@@ -33,6 +33,9 @@ def test_bool_false(config_persons):
 def test_bool_true(config_persons):
 	check_vsql(config_persons, "bool(True)")
 
+def test_bool_int_none(config_persons):
+	check_vsql(config_persons, "not bool(app.p_int_none.value)")
+
 def test_bool_int_false(config_persons):
 	check_vsql(config_persons, "not bool(0)")
 

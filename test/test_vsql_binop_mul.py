@@ -171,3 +171,51 @@ def test_int_intlist1(config_persons):
 
 def test_int_intlist2(config_persons):
 	check_vsql(config_persons, "2 * [1, 2, 3] == [1, 2, 3, 1, 2, 3]")
+
+def test_bool_nulllist1(config_persons):
+	check_vsql(config_persons, "False * [] == []")
+
+def test_bool_nulllist2(config_persons):
+	check_vsql(config_persons, "True * [] == []")
+
+def test_bool_nulllist3(config_persons):
+	check_vsql(config_persons, "False * [None, None] == []")
+
+def test_bool_nulllist4(config_persons):
+	check_vsql(config_persons, "True * [None, None] == [None, None]")
+
+def test_int_nulllist1(config_persons):
+	check_vsql(config_persons, "0 * [] == []")
+
+def test_int_nulllist2(config_persons):
+	check_vsql(config_persons, "2 * [] == []")
+
+def test_int_nulllist3(config_persons):
+	check_vsql(config_persons, "0 * [None, None] == []")
+
+def test_int_nulllist4(config_persons):
+	check_vsql(config_persons, "2 * [None, None] == [None, None, None, None]")
+
+def test_nulllist1_bool(config_persons):
+	check_vsql(config_persons, "[] * False == []")
+
+def test_nulllist2_bool(config_persons):
+	check_vsql(config_persons, "[] * True == []")
+
+def test_nulllist3_bool(config_persons):
+	check_vsql(config_persons, "[None, None] * False == []")
+
+def test_nulllist4_bool(config_persons):
+	check_vsql(config_persons, "[None, None] * True == [None, None]")
+
+def test_nulllist1_int(config_persons):
+	check_vsql(config_persons, "[] * 0 == []")
+
+def test_nulllist2_int(config_persons):
+	check_vsql(config_persons, "[] * 2 == []")
+
+def test_nulllist3_int(config_persons):
+	check_vsql(config_persons, "[None, None] * 0 == []")
+
+def test_nulllist4_int(config_persons):
+	check_vsql(config_persons, "[None, None] * 2 == [None, None, None, None]")

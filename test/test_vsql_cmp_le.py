@@ -381,3 +381,102 @@ def test_datetimelist_datetimelist3(config_persons):
 
 def test_datetimelist_datetimelist4(config_persons):
 	check_vsql(config_persons, "[@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)] <= [@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)]")
+
+def test_nulllist_nulllist1(config_persons):
+	check_vsql(config_persons, "[] <= []")
+
+def test_nulllist_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([None, None] <= [])")
+
+def test_nulllist_nulllist3(config_persons):
+	check_vsql(config_persons, "[] <= [None, None]")
+
+def test_nulllist_intlist1(config_persons):
+	check_vsql(config_persons, "[] <= [1]")
+
+def test_nulllist_intlist2(config_persons):
+	check_vsql(config_persons, "[None] <= [1]")
+
+def test_nulllist_intlist3(config_persons):
+	check_vsql(config_persons, "[None, None] <= [1]")
+
+def test_nulllist_numberlist1(config_persons):
+	check_vsql(config_persons, "[] <= [1.1]")
+
+def test_nulllist_numberlist2(config_persons):
+	check_vsql(config_persons, "[None] <= [1.1]")
+
+def test_nulllist_numberlist3(config_persons):
+	check_vsql(config_persons, "[None, None] <= [1.1]")
+
+def test_nulllist_strlist1(config_persons):
+	check_vsql(config_persons, "[] <= ['gurk']")
+
+def test_nulllist_strlist2(config_persons):
+	check_vsql(config_persons, "[None] <= ['gurk']")
+
+def test_nulllist_strlist3(config_persons):
+	check_vsql(config_persons, "[None, None] <= ['gurk']")
+
+def test_nulllist_datelist1(config_persons):
+	check_vsql(config_persons, "[] <= [@(2000-02-29)]")
+
+def test_nulllist_datelist2(config_persons):
+	check_vsql(config_persons, "[None] <= [@(2000-02-29)]")
+
+def test_nulllist_datelist3(config_persons):
+	check_vsql(config_persons, "[None, None] <= [@(2000-02-29)]")
+
+def test_nulllist_datetimelist1(config_persons):
+	check_vsql(config_persons, "[] <= [@(2000-02-29T12:34:56)]")
+
+def test_nulllist_datetimelist2(config_persons):
+	check_vsql(config_persons, "[None] <= [@(2000-02-29T12:34:56)]")
+
+def test_nulllist_datetimelist3(config_persons):
+	check_vsql(config_persons, "[None, None] <= [@(2000-02-29T12:34:56)]")
+
+def test_intlist_nulllist1(config_persons):
+	check_vsql(config_persons, "not ([1] <= [])")
+
+def test_intlist_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([1] <= [None])")
+
+def test_intlist_nulllist3(config_persons):
+	check_vsql(config_persons, "not ([1] <= [None, None])")
+
+def test_numberlist_nulllist1(config_persons):
+	check_vsql(config_persons, "not ([1.1] <= [])")
+
+def test_numberlist_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([1.1] <= [None])")
+
+def test_numberlist_nulllist3(config_persons):
+	check_vsql(config_persons, "not ([1.1] <= [None, None])")
+
+def test_strlist_nulllist1(config_persons):
+	check_vsql(config_persons, "not (['gurk'] <= [])")
+
+def test_strlist_nulllist2(config_persons):
+	check_vsql(config_persons, "not (['gurk'] <= [None])")
+
+def test_strlist_nulllist3(config_persons):
+	check_vsql(config_persons, "not (['gurk'] <= [None, None])")
+
+def test_datelist_nulllist1(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29)] <= [])")
+
+def test_datelist_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29)] <= [None])")
+
+def test_datelist_nulllist3(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29)] <= [None, None])")
+
+def test_datetimelist_nulllist1(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29T12:34:56)] <= [])")
+
+def test_datetimelist_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29T12:34:56)] <= [None])")
+
+def test_datetimelist_nulllist3(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29T12:34:56)] <= [None, None])")

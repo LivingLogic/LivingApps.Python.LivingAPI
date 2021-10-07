@@ -250,6 +250,105 @@ def test_datetimelist_datetimelist4(config_persons):
 def test_datetimelist_datetimelist5(config_persons):
 	check_vsql(config_persons, "[@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)] == [@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)]")
 
+def test_nulllist_nulllist1(config_persons):
+	check_vsql(config_persons, "[] == []")
+
+def test_nulllist_nulllist2(config_persons):
+	check_vsql(config_persons, "[None, None] == [None, None]")
+
+def test_nulllist_nulllist3(config_persons):
+	check_vsql(config_persons, "not ([None] == [None, None])")
+
+def test_nulllist_intlist1(config_persons):
+	check_vsql(config_persons, "not ([] == [1])")
+
+def test_nulllist_intlist2(config_persons):
+	check_vsql(config_persons, "not ([None] == [1])")
+
+def test_nulllist_intlist3(config_persons):
+	check_vsql(config_persons, "not ([None, None] == [1])")
+
+def test_nulllist_numberlist1(config_persons):
+	check_vsql(config_persons, "not ([] == [1.1])")
+
+def test_nulllist_numberlist2(config_persons):
+	check_vsql(config_persons, "not ([None] == [1.1])")
+
+def test_nulllist_numberlist3(config_persons):
+	check_vsql(config_persons, "not ([None, None] == [1.1])")
+
+def test_nulllist_strlist1(config_persons):
+	check_vsql(config_persons, "not ([] == ['gurk'])")
+
+def test_nulllist_strlist2(config_persons):
+	check_vsql(config_persons, "not ([None] == ['gurk'])")
+
+def test_nulllist_strlist3(config_persons):
+	check_vsql(config_persons, "not ([None, None] == ['gurk'])")
+
+def test_nulllist_datelist1(config_persons):
+	check_vsql(config_persons, "not ([] == [@(2000-02-29)])")
+
+def test_nulllist_datelist2(config_persons):
+	check_vsql(config_persons, "not ([None] == [@(2000-02-29)])")
+
+def test_nulllist_datelist3(config_persons):
+	check_vsql(config_persons, "not ([None, None] == [@(2000-02-29)])")
+
+def test_nulllist_datetimelist1(config_persons):
+	check_vsql(config_persons, "not ([] == [@(2000-02-29T12:34:56)])")
+
+def test_nulllist_datetimelist2(config_persons):
+	check_vsql(config_persons, "not ([None] == [@(2000-02-29T12:34:56)])")
+
+def test_nulllist_datetimelist3(config_persons):
+	check_vsql(config_persons, "not ([None, None] == [@(2000-02-29T12:34:56)])")
+
+def test_intlist_nulllist1(config_persons):
+	check_vsql(config_persons, "not ([1] == [])")
+
+def test_intlist_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([1] == [None])")
+
+def test_intlist_nulllist3(config_persons):
+	check_vsql(config_persons, "not ([1] == [None, None])")
+
+def test_numberlist_nulllist1(config_persons):
+	check_vsql(config_persons, "not ([1.1] == [])")
+
+def test_numberlist_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([1.1] == [None])")
+
+def test_numberlist_nulllist3(config_persons):
+	check_vsql(config_persons, "not ([1.1] == [None, None])")
+
+def test_strlist_nulllist1(config_persons):
+	check_vsql(config_persons, "not (['gurk'] == [])")
+
+def test_strlist_nulllist2(config_persons):
+	check_vsql(config_persons, "not (['gurk'] == [None])")
+
+def test_strlist_nulllist3(config_persons):
+	check_vsql(config_persons, "not (['gurk'] == [None, None])")
+
+def test_datelist_nulllist1(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29)] == [])")
+
+def test_datelist_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29)] == [None])")
+
+def test_datelist_nulllist3(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29)] == [None, None])")
+
+def test_datetimelist_nulllist1(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29T12:34:56)] == [])")
+
+def test_datetimelist_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29T12:34:56)] == [None])")
+
+def test_datetimelist_nulllist3(config_persons):
+	check_vsql(config_persons, "not ([@(2000-02-29T12:34:56)] == [None, None])")
+
 def test_intset_intset1(config_persons):
 	check_vsql(config_persons, "not ({1} == {2})")
 
@@ -339,5 +438,137 @@ def test_datetimeset_datetimeset5(config_persons):
 
 def test_datetimeset_datetimeset6(config_persons):
 	check_vsql(config_persons, "{@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56), None, @(2000-03-02T12:34:56)} == {None, @(2000-03-02T12:34:56), @(2000-03-01T12:34:56), @(2000-02-29T12:34:56), None}")
+
+def test_nullset_nullset1(config_persons):
+	check_vsql(config_persons, "{/} == {/}")
+
+def test_nullset_nullset2(config_persons):
+	check_vsql(config_persons, "{None} == {None}")
+
+def test_nullset_nullset3(config_persons):
+	check_vsql(config_persons, "{None} == {None, None}")
+
+def test_nullset_nullset4(config_persons):
+	check_vsql(config_persons, "not ({/} == {None, None})")
+
+def test_nullset_intset1(config_persons):
+	check_vsql(config_persons, "not ({/} == {1})")
+
+def test_nullset_intset2(config_persons):
+	check_vsql(config_persons, "not ({None} == {1})")
+
+def test_nullset_intset3(config_persons):
+	check_vsql(config_persons, "not ({None, None} == {1})")
+
+def test_nullset_intset4(config_persons):
+	check_vsql(config_persons, "not ({None, None} == {1, 2})")
+
+def test_nullset_numberset1(config_persons):
+	check_vsql(config_persons, "not ({/} == {1.1})")
+
+def test_nullset_numberset2(config_persons):
+	check_vsql(config_persons, "not ({None} == {1.1})")
+
+def test_nullset_numberset3(config_persons):
+	check_vsql(config_persons, "not ({None, None} == {1.1})")
+
+def test_nullset_numberset4(config_persons):
+	check_vsql(config_persons, "not ({None, None} == {1.1, 2.2})")
+
+def test_nullset_strset1(config_persons):
+	check_vsql(config_persons, "not ({/} == {'gurk'})")
+
+def test_nullset_strset2(config_persons):
+	check_vsql(config_persons, "not ({None} == {'gurk'})")
+
+def test_nullset_strset3(config_persons):
+	check_vsql(config_persons, "not ({None, None} == {'gurk'})")
+
+def test_nullset_strset4(config_persons):
+	check_vsql(config_persons, "not ({None, None} == {'gurk', 'hurz'})")
+
+def test_nullset_dateset1(config_persons):
+	check_vsql(config_persons, "not ({/} == {@(2000-02-29)})")
+
+def test_nullset_dateset2(config_persons):
+	check_vsql(config_persons, "not ({None} == {@(2000-02-29)})")
+
+def test_nullset_dateset3(config_persons):
+	check_vsql(config_persons, "not ({None, None} == {@(2000-02-29)})")
+
+def test_nullset_dateset4(config_persons):
+	check_vsql(config_persons, "not ({None, None} == {@(2000-02-29), @(2000-03-01)})")
+
+def test_nullset_datetimeset1(config_persons):
+	check_vsql(config_persons, "not ({/} == {@(2000-02-29T12:34:56)})")
+
+def test_nullset_datetimeset2(config_persons):
+	check_vsql(config_persons, "not ({None} == {@(2000-02-29T12:34:56)})")
+
+def test_nullset_datetimeset3(config_persons):
+	check_vsql(config_persons, "not ({None, None} == {@(2000-02-29T12:34:56)})")
+
+def test_nullset_datetimeset4(config_persons):
+	check_vsql(config_persons, "not ({None, None} == {@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)})")
+
+def test_intset_nullset1(config_persons):
+	check_vsql(config_persons, "not ({1} == {/})")
+
+def test_intset_nullset2(config_persons):
+	check_vsql(config_persons, "not ({1} == {None})")
+
+def test_intset_nullset3(config_persons):
+	check_vsql(config_persons, "not ({1} == {None, None})")
+
+def test_intset_nullset4(config_persons):
+	check_vsql(config_persons, "not ({1, 2} == {None, None})")
+
+def test_numberset_nullset1(config_persons):
+	check_vsql(config_persons, "not ({1.1} == {/})")
+
+def test_numberset_nullset2(config_persons):
+	check_vsql(config_persons, "not ({1.1} == {None})")
+
+def test_numberset_nullset3(config_persons):
+	check_vsql(config_persons, "not ({1.1} == {None, None})")
+
+def test_numberset_nullset4(config_persons):
+	check_vsql(config_persons, "not ({1.1, 2.2} == {None, None})")
+
+def test_strset_nullset1(config_persons):
+	check_vsql(config_persons, "not ({'gurk'} == {/})")
+
+def test_strset_nullset2(config_persons):
+	check_vsql(config_persons, "not ({'gurk'} == {None})")
+
+def test_strset_nullset3(config_persons):
+	check_vsql(config_persons, "not ({'gurk'} == {None, None})")
+
+def test_strset_nullset4(config_persons):
+	check_vsql(config_persons, "not ({'gurk', 'hurz'} == {None, None})")
+
+def test_dateset_nullset1(config_persons):
+	check_vsql(config_persons, "not ({@(2000-02-29)} == {/})")
+
+def test_dateset_nullset2(config_persons):
+	check_vsql(config_persons, "not ({@(2000-02-29)} == {None})")
+
+def test_dateset_nullset3(config_persons):
+	check_vsql(config_persons, "not ({@(2000-02-29)} == {None, None})")
+
+def test_dateset_nullset4(config_persons):
+	check_vsql(config_persons, "not ({@(2000-02-29), @(2000-03-01)} == {None, None})")
+
+def test_datetimeset_nullset1(config_persons):
+	check_vsql(config_persons, "not ({@(2000-02-29T12:34:56)} == {/})")
+
+def test_datetimeset_nullset2(config_persons):
+	check_vsql(config_persons, "not ({@(2000-02-29T12:34:56)} == {None})")
+
+def test_datetimeset_nullset3(config_persons):
+	check_vsql(config_persons, "not ({@(2000-02-29T12:34:56)} == {None, None})")
+
+def test_datetimeset_nullset4(config_persons):
+	check_vsql(config_persons, "not ({@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)} == {None, None})")
 
 # FIXME Add tests for mixed type comparisons?

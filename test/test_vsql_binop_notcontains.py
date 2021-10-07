@@ -13,6 +13,10 @@ from conftest import *
 ### Tests
 ###
 
+d1 = "@(2000-02-29)"
+
+dt1 = "@(2000-02-29T12:34:56)"
+
 def test_null_intlist1(config_persons):
 	check_vsql(config_persons, "None not in [1, 2]")
 
@@ -132,3 +136,54 @@ def test_datetime_datetimeset1(config_persons):
 
 def test_datetime_datetimeset2(config_persons):
 	check_vsql(config_persons, "not (@(2000-02-29T12:34:56) not in {@(2000-02-29T12:34:56), @(2000-03-01T12:34:56)})")
+
+def test_null_nulllist1(config_persons):
+	check_vsql(config_persons, "None not in []")
+
+def test_null_nulllist2(config_persons):
+	check_vsql(config_persons, "not (None not in [None, None])")
+
+def test_int_nulllist1(config_persons):
+	check_vsql(config_persons, "[None, 1][0] not in []")
+
+def test_int_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([None, 1][0] not in [None])")
+
+def test_int_nulllist3(config_persons):
+	check_vsql(config_persons, "1 not in [None]")
+
+def test_number_nulllist1(config_persons):
+	check_vsql(config_persons, "[None, 1.1][0] not in []")
+
+def test_number_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([None, 1.1][0] not in [None])")
+
+def test_number_nulllist3(config_persons):
+	check_vsql(config_persons, "1.1 not in [None]")
+
+def test_str_nulllist1(config_persons):
+	check_vsql(config_persons, "[None, 'gurk'][0] not in []")
+
+def test_str_nulllist2(config_persons):
+	check_vsql(config_persons, "not ([None, 'gurk'][0] not in [None])")
+
+def test_str_nulllist3(config_persons):
+	check_vsql(config_persons, "'gurk' not in [None]")
+
+def test_date_nulllist1(config_persons):
+	check_vsql(config_persons, f"[None, {d1}][0] not in []")
+
+def test_date_nulllist2(config_persons):
+	check_vsql(config_persons, f"not ([None, {d1}][0] not in [None])")
+
+def test_date_nulllist3(config_persons):
+	check_vsql(config_persons, f"{d1} not in [None]")
+
+def test_datetime_nulllist1(config_persons):
+	check_vsql(config_persons, f"[None, {dt1}][0] not in []")
+
+def test_datetime_nulllist2(config_persons):
+	check_vsql(config_persons, f"not ([None, {dt1}][0] not in [None])")
+
+def test_datetime_nulllist3(config_persons):
+	check_vsql(config_persons, f"{dt1} not in [None]")

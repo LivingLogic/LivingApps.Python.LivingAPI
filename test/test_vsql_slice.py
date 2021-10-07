@@ -72,10 +72,10 @@ def test_intlist_2(config_persons):
 	check_vsql(config_persons, "[1, 2, 3, 4][-3:-1] == [2, 3]")
 
 def test_intlist_3(config_persons):
-	check_vsql(config_persons, "len([1, 2, 3, 4][4:10]) == 0")
+	check_vsql(config_persons, "[1, 2, 3, 4][4:10] == []")
 
 def test_intlist_4(config_persons):
-	check_vsql(config_persons, "len([1, 2, 3, 4][-10:-5]) == 0")
+	check_vsql(config_persons, "[1, 2, 3, 4][-10:-5] == []")
 
 def test_intlist_5(config_persons):
 	check_vsql(config_persons, "[1, 2, 3, 4][1:] == [2, 3, 4]")
@@ -84,7 +84,7 @@ def test_intlist_6(config_persons):
 	check_vsql(config_persons, "[1, 2, 3, 4][-3:] == [2, 3, 4]")
 
 def test_intlist_7(config_persons):
-	check_vsql(config_persons, "len([1, 2, 3, 4][4:]) == 0")
+	check_vsql(config_persons, "[1, 2, 3, 4][4:] == []")
 
 def test_intlist_8(config_persons):
 	check_vsql(config_persons, "[1, 2, 3, 4][-10:] == [1, 2, 3, 4]")
@@ -99,7 +99,7 @@ def test_intlist_11(config_persons):
 	check_vsql(config_persons, "[1, 2, 3, 4][:10] == [1, 2, 3, 4]")
 
 def test_intlist_12(config_persons):
-	check_vsql(config_persons, "len([1, 2, 3, 4][:-5]) == 0")
+	check_vsql(config_persons, "[1, 2, 3, 4][:-5] == []")
 
 def test_intlist_13(config_persons):
 	check_vsql(config_persons, "[1, 2, 3, 4][:] == [1, 2, 3, 4]")
@@ -114,10 +114,10 @@ def test_numberlist_2(config_persons):
 	check_vsql(config_persons, "[1.1, 2.2, 3.3, 4.4][-3:-1] == [2.2, 3.3]")
 
 def test_numberlist_3(config_persons):
-	check_vsql(config_persons, "len([1.1, 2.2, 3.3, 4.4][4:10]) == 0")
+	check_vsql(config_persons, "[1.1, 2.2, 3.3, 4.4][4:10] == []")
 
 def test_numberlist_4(config_persons):
-	check_vsql(config_persons, "len([1.1, 2.2, 3.3, 4.4][-10:-5]) == 0")
+	check_vsql(config_persons, "[1.1, 2.2, 3.3, 4.4][-10:-5] == []")
 
 def test_numberlist_5(config_persons):
 	check_vsql(config_persons, "[1.1, 2.2, 3.3, 4.4][1:] == [2.2, 3.3, 4.4]")
@@ -126,7 +126,7 @@ def test_numberlist_6(config_persons):
 	check_vsql(config_persons, "[1.1, 2.2, 3.3, 4.4][-3:] == [2.2, 3.3, 4.4]")
 
 def test_numberlist_7(config_persons):
-	check_vsql(config_persons, "len([1.1, 2.2, 3.3, 4.4][4:]) == 0")
+	check_vsql(config_persons, "[1.1, 2.2, 3.3, 4.4][4:] == []")
 
 def test_numberlist_8(config_persons):
 	check_vsql(config_persons, "[1.1, 2.2, 3.3, 4.4][-10:] == [1.1, 2.2, 3.3, 4.4]")
@@ -141,7 +141,7 @@ def test_numberlist_11(config_persons):
 	check_vsql(config_persons, "[1.1, 2.2, 3.3, 4.4][:10] == [1.1, 2.2, 3.3, 4.4]")
 
 def test_numberlist_12(config_persons):
-	check_vsql(config_persons, "len([1.1, 2.2, 3.3, 4.4][:-5]) == 0")
+	check_vsql(config_persons, "[1.1, 2.2, 3.3, 4.4][:-5] == []")
 
 def test_numberlist_13(config_persons):
 	check_vsql(config_persons, "[1.1, 2.2, 3.3, 4.4][:] == [1.1, 2.2, 3.3, 4.4]")
@@ -156,10 +156,10 @@ def test_datelist_2(config_persons):
 	check_vsql(config_persons, f"[{d1}, {d2}, {d3}, {d4}][-3:-1] == [{d2}, {d3}]")
 
 def test_datelist_3(config_persons):
-	check_vsql(config_persons, f"len([{d1}, {d2}, {d3}, {d4}][4:10]) == 0")
+	check_vsql(config_persons, f"[{d1}, {d2}, {d3}, {d4}][4:10] == []")
 
 def test_datelist_4(config_persons):
-	check_vsql(config_persons, f"len([{d1}, {d2}, {d3}, {d4}][-10:-5]) == 0")
+	check_vsql(config_persons, f"[{d1}, {d2}, {d3}, {d4}][-10:-5] == []")
 
 def test_datelist_5(config_persons):
 	check_vsql(config_persons, f"[{d1}, {d2}, {d3}, {d4}][1:] == [{d2}, {d3}, {d4}]")
@@ -168,7 +168,7 @@ def test_datelist_6(config_persons):
 	check_vsql(config_persons, f"[{d1}, {d2}, {d3}, {d4}][-3:] == [{d2}, {d3}, {d4}]")
 
 def test_datelist_7(config_persons):
-	check_vsql(config_persons, f"len([{d1}, {d2}, {d3}, {d4}][4:]) == 0")
+	check_vsql(config_persons, f"[{d1}, {d2}, {d3}, {d4}][4:] == []")
 
 def test_datelist_8(config_persons):
 	check_vsql(config_persons, f"[{d1}, {d2}, {d3}, {d4}][-10:] == [{d1}, {d2}, {d3}, {d4}]")
@@ -183,7 +183,7 @@ def test_datelist_11(config_persons):
 	check_vsql(config_persons, f"[{d1}, {d2}, {d3}, {d4}][:10] == [{d1}, {d2}, {d3}, {d4}]")
 
 def test_datelist_12(config_persons):
-	check_vsql(config_persons, f"len([{d1}, {d2}, {d3}, {d4}][:-5]) == 0")
+	check_vsql(config_persons, f"[{d1}, {d2}, {d3}, {d4}][:-5] == []")
 
 def test_datelist_13(config_persons):
 	check_vsql(config_persons, f"[{d1}, {d2}, {d3}, {d4}][:] == [{d1}, {d2}, {d3}, {d4}]")
@@ -198,10 +198,10 @@ def test_datetimelist_2(config_persons):
 	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][-3:-1] == [{dt2}, {dt3}]")
 
 def test_datetimelist_3(config_persons):
-	check_vsql(config_persons, f"len([{dt1}, {dt2}, {dt3}, {dt4}][4:10]) == 0")
+	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][4:10] == []")
 
 def test_datetimelist_4(config_persons):
-	check_vsql(config_persons, f"len([{dt1}, {dt2}, {dt3}, {dt4}][-10:-5]) == 0")
+	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][-10:-5] == []")
 
 def test_datetimelist_5(config_persons):
 	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][1:] == [{dt2}, {dt3}, {dt4}]")
@@ -210,7 +210,7 @@ def test_datetimelist_6(config_persons):
 	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][-3:] == [{dt2}, {dt3}, {dt4}]")
 
 def test_datetimelist_7(config_persons):
-	check_vsql(config_persons, f"len([{dt1}, {dt2}, {dt3}, {dt4}][4:]) == 0")
+	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][4:] == []")
 
 def test_datetimelist_8(config_persons):
 	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][-10:] == [{dt1}, {dt2}, {dt3}, {dt4}]")
@@ -225,7 +225,7 @@ def test_datetimelist_11(config_persons):
 	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][:10] == [{dt1}, {dt2}, {dt3}, {dt4}]")
 
 def test_datetimelist_12(config_persons):
-	check_vsql(config_persons, f"len([{dt1}, {dt2}, {dt3}, {dt4}][:-5]) == 0")
+	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][:-5] == []")
 
 def test_datetimelist_13(config_persons):
 	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][:] == [{dt1}, {dt2}, {dt3}, {dt4}]")

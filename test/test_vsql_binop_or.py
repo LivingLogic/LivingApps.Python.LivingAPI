@@ -13,6 +13,12 @@ from conftest import *
 ### Tests
 ###
 
+d1 = "@(2000-02-29)"
+d2 = "@(2000-03-01)"
+
+dt1 = "@(2000-02-29T12:34:56)"
+dt2 = "@(2000-03-01T12:34:56)"
+
 def test_null_bool(config_persons):
 	check_vsql(config_persons, "(None or app.p_bool_true.value) == app.p_bool_true.value")
 
@@ -44,16 +50,16 @@ def test_str_str2(config_persons):
 	check_vsql(config_persons, "('hurz' or app.p_str_value.value) == 'hurz'")
 
 def test_date_date1(config_persons):
-	check_vsql(config_persons, "(@(2000-02-20) or app.p_date_none.value) == @(2000-02-20)")
+	check_vsql(config_persons, f"({d1} or app.p_date_none.value) == {d1}")
 
 def test_date_date2(config_persons):
-	check_vsql(config_persons, "(@(2000-02-20) or app.p_date_value.value) == @(2000-02-20)")
+	check_vsql(config_persons, f"({d1} or app.p_date_value.value) == {d1}")
 
 def test_datetime_datetime1(config_persons):
-	check_vsql(config_persons, "(app.p_datetime_none.value or @(2000-02-20T12:34:56)) == @(2000-02-20T12:34:56)")
+	check_vsql(config_persons, f"(app.p_datetime_none.value or {dt1}) == {dt1}")
 
 def test_datetime_datetime2(config_persons):
-	check_vsql(config_persons, "(app.p_datetime_value.value or @(2000-02-20T12:34:56)) == app.p_datetime_value.value")
+	check_vsql(config_persons, f"(app.p_datetime_value.value or {dt1}) == app.p_datetime_value.value")
 
 def test_datedelta_datedelta1(config_persons):
 	check_vsql(config_persons, "(app.p_datedelta_none.value or days(10)) == days(10)")
@@ -79,3 +85,62 @@ def test_numberlist_numberlist1(config_persons):
 def test_numberlist_numberlist2(config_persons):
 	check_vsql(config_persons, "([1.1, 2.2, 3.3] or [4.4, 5.5, 6.6]) == [1.1, 2.2, 3.3]")
 
+def test_nulllist_intlist1(config_persons):
+	check_vsql(config_persons, "([] or [4, 5, 6]) == [4, 5, 6]")
+
+def test_nulllist_intlist2(config_persons):
+	check_vsql(config_persons, "([None] or [4, 5, 6]) == [None]")
+
+def test_nulllist_numberlist1(config_persons):
+	check_vsql(config_persons, "([] or [4.4, 5.5, 6.6]) == [4.4, 5.5, 6.6]")
+
+def test_nulllist_numberlist2(config_persons):
+	check_vsql(config_persons, "([None] or [4.4, 5.5, 6.6]) == [None]")
+
+def test_nulllist_strlist1(config_persons):
+	check_vsql(config_persons, "([] or ['gurk', 'hurz']) == ['gurk', 'hurz']")
+
+def test_nulllist_strlist2(config_persons):
+	check_vsql(config_persons, "([None] or ['gurk', 'hurz']) == [None]")
+
+def test_nulllist_datelist1(config_persons):
+	check_vsql(config_persons, f"([] or [{d1}, {d2}]) == [{d1}, {d2}]")
+
+def test_nulllist_datelist2(config_persons):
+	check_vsql(config_persons, f"([None] or [{d1}, {d2}]) == [None]")
+
+def test_nulllist_datetimelist1(config_persons):
+	check_vsql(config_persons, f"([] or [{dt1}, {dt2}]) == [{dt1}, {dt2}]")
+
+def test_nulllist_datetimelist2(config_persons):
+	check_vsql(config_persons, f"([None] or [{dt1}, {dt2}]) == [None]")
+
+def test_intlist_nulllist1(config_persons):
+	check_vsql(config_persons, "([1, 2, 3] or []) == [1, 2, 3]")
+
+def test_intlist_nulllist2(config_persons):
+	check_vsql(config_persons, "([1, 2, 3] or [None]) == [1, 2, 3]")
+
+def test_numberlist_nulllist1(config_persons):
+	check_vsql(config_persons, "([1.1, 2.2, 3.3] or []) == [1.1, 2.2, 3.3]")
+
+def test_numberlist_nulllist2(config_persons):
+	check_vsql(config_persons, "([1.1, 2.2, 3.3] or [None]) == [1.1, 2.2, 3.3]")
+
+def test_strlist_nulllist1(config_persons):
+	check_vsql(config_persons, "(['gurk', 'hurz'] or []) == ['gurk', 'hurz']")
+
+def test_strlist_nulllist2(config_persons):
+	check_vsql(config_persons, "(['gurk', 'hurz'] or [None]) == ['gurk', 'hurz']")
+
+def test_datelist_nulllist1(config_persons):
+	check_vsql(config_persons, f"([{d1}, {d2}] or []) == [{d1}, {d2}]")
+
+def test_datelist_nulllist2(config_persons):
+	check_vsql(config_persons, f"([{d1}, {d2}] or [None]) == [{d1}, {d2}]")
+
+def test_datetimelist_nulllist1(config_persons):
+	check_vsql(config_persons, f"([{dt1}, {dt2}] or []) == [{dt1}, {dt2}]")
+
+def test_datetimelist_nulllist2(config_persons):
+	check_vsql(config_persons, f"([{dt1}, {dt2}] or [None]) == [{dt1}, {dt2}]")
