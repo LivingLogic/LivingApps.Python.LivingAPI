@@ -3141,6 +3141,7 @@ IsNotAST.add_rules(f"BOOL <- {ANY} ? NULL", "(case when {s1} is not null then 1 
 IsNotAST.add_rules(f"BOOL <- NULL ? {ANY}", "(case when {s2} is not null then 1 else 0 end)")
 
 # Item access operator (A[B])
+ItemAST.add_rules(f"NULL <- NULLLIST[{INTLIKE}]", "null")
 ItemAST.add_rules(f"STR <- STR_CLOB_STRLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
 ItemAST.add_rules(f"CLOB <- CLOBLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
 ItemAST.add_rules(f"INT <- INTLIST[{INTLIKE}]", "vsqlimpl_pkg.item_{t1}({s1}, {s2})")
@@ -3205,6 +3206,7 @@ IfAST.add_rules(f"T3 <- NULL ? {ANY} ? {ANY}", "(case when vsqlimpl_pkg.bool_{t2
 
 # Slice operator (A[B:C])
 SliceAST.add_rules(f"T1 <- {TEXT}_{LIST}[NULL_{INTLIKE}:NULL_{INTLIKE}]", "vsqlimpl_pkg.slice_{t1}({s1}, {s2}, {s3})")
+SliceAST.add_rules(f"NULLLIST <- NULLLIST[NULL_{INTLIKE}:NULL_{INTLIKE}]", "vsqlimpl_pkg.slice_{t1}({s1}, {s2}, {s3})")
 
 
 ###

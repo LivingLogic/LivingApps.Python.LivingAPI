@@ -48,3 +48,16 @@ def test_datetimelist_bool(config_persons):
 
 def test_datetimelist_int(config_persons):
 	check_vsql(config_persons, "[@(2000-02-29T12:34:56), @(2000-03-01T12:34:56), @(2000-03-02T12:34:56)][2] == @(2000-03-02T12:34:56)")
+
+def test_nulllist_bool1(config_persons):
+	check_vsql(config_persons, "[][False] is None")
+
+def test_nulllist_bool2(config_persons):
+	check_vsql(config_persons, "[None, None][True] is None")
+
+def test_nulllist_int1(config_persons):
+	check_vsql(config_persons, "[][0] is None")
+
+def test_nulllist_int2(config_persons):
+	check_vsql(config_persons, "[None, None][1] is None")
+

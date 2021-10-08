@@ -232,3 +232,51 @@ def test_datetimelist_13(config_persons):
 
 def test_datetimelist_14(config_persons):
 	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][None:None] == [{dt1}, {dt2}, {dt3}, {dt4}]")
+
+
+
+
+def test_nulllist_1(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][1:3] == [None, None]")
+
+def test_nulllist_2(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][-3:-1] == [None, None]")
+
+def test_nulllist_3(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][4:10] == []")
+
+def test_nulllist_4(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][-10:-5] == []")
+
+def test_nulllist_5(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][1:] == [None, None, None]")
+
+def test_nulllist_6(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][-3:] == [None, None, None]")
+
+def test_nulllist_7(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][4:] == []")
+
+def test_nulllist_8(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][-10:] == [None, None, None, None]")
+
+def test_nulllist_9(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][:3] == [None, None, None]")
+
+def test_nulllist_10(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][:-1] == [None, None, None]")
+
+def test_nulllist_11(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][:10] == [None, None, None, None]")
+
+def test_nulllist_12(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][:-5] == []")
+
+def test_nulllist_13(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][:] == [None, None, None, None]")
+
+def test_nulllist_14(config_persons):
+	check_vsql(config_persons, f"[None, None, None, None][None:None] == [None, None, None, None]")
+
+def test_nulllist_15(config_persons):
+	check_vsql(config_persons, f"[][:] == []")
