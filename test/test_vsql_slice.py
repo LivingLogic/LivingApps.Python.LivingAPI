@@ -233,9 +233,6 @@ def test_datetimelist_13(config_persons):
 def test_datetimelist_14(config_persons):
 	check_vsql(config_persons, f"[{dt1}, {dt2}, {dt3}, {dt4}][None:None] == [{dt1}, {dt2}, {dt3}, {dt4}]")
 
-
-
-
 def test_nulllist_1(config_persons):
 	check_vsql(config_persons, f"[None, None, None, None][1:3] == [None, None]")
 
