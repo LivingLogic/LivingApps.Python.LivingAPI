@@ -880,7 +880,6 @@ class Base:
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 
-
 @register("flashmessage")
 class FlashMessage(Base):
 	"""
