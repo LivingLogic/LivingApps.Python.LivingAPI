@@ -3221,6 +3221,10 @@ class JavaSource:
 
 	It is used to update the vSQL syntax rules in the Java implemenatio of vSQL.
 	"""
+
+	_start_line = "//BEGIN RULES (don't remove this comment)"
+	_end_line = "//END RULES (don't remove this comment)"
+
 	def __init__(self, astcls:Type[AST], path:pathlib.Path):
 		self.astcls = astcls
 		self.path = path
@@ -3234,13 +3238,35 @@ class JavaSource:
 		Return an iterator over the new Java source code lines that should
 		replace the static initialization block inside the Java source file.
 		"""
-		yield "\tstatic"
-		yield "\t{"
 
-		for rule in self.astcls.rules.values():
+		# How many ``addRule()`` calls to pack in one static method.
+		# This avoids the ``code too large`` error from the Java compiler.
+		bunch = 100
+
+		number = 0
+
+		yield f"\t{self._start_line}"
+		for (i, rule) in enumerate(self.astcls.rules.values()):
+			if i % bunch == 0:
+				number += 1
+				yield f"\tprivate static void addRulesPart{number}()"
+				yield "\t{"
 			yield f"\t\t{rule.java_source()}"
+			if i % bunch == bunch-1:
+				yield "\t}"
+				yield ""
 
+		if i % bunch != bunch-1:
+			yield "\t}"
+			yield ""
+
+		yield f"\tstatic"
+		yield "\t{"
+		for i in range(1, number+1):
+			yield f"\t\taddRulesPart{i}();"
 		yield "\t}"
+
+		yield f"\t{self._end_line}"
 
 	def save(self) -> None:
 		"""
@@ -3249,16 +3275,13 @@ class JavaSource:
 		"""
 		inrules = False
 
-		start_line = "static"
-		end_line = "}"
-
 		with self.path.open("w", encoding="utf-8") as f:
 			for line in self.lines:
 				if inrules:
-					if line.strip() == end_line:
+					if line.strip() == self._end_line:
 						inrules = False
 				else:
-					if line.strip() == start_line:
+					if line.strip() == self._start_line:
 						inrules = True
 						for new_line in self.new_lines():
 							f.write(f"{new_line}\n")
