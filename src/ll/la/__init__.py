@@ -3109,7 +3109,7 @@ class AppLookupControl(Control):
 			else:
 				value = record
 		if isinstance(value, Record):
-			if value.app is not self.lookup_app:
+			if self.lookup_app is not None and value.app is not self.lookup_app:
 				field.add_error(error_applookuprecord_foreign(value))
 				value = None
 		elif value is not None:
@@ -3311,7 +3311,7 @@ class MultipleAppLookupControl(AppLookupControl):
 					else:
 						v = record
 				if isinstance(v, Record):
-					if v.app is not self.lookup_app:
+					if self.lookup_app is not None and v.app is not self.lookup_app:
 						field.add_error(error_applookuprecord_foreign(v))
 					else:
 						field._value.append(v)
