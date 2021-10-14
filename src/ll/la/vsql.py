@@ -16,7 +16,7 @@ vSQL expressions.
 A vSQL expression can be generated in two ways:
 
 *	By directly constructing a vSQL expression via the class method :meth:`make`
-	of the various :class:`AST` subclasses. For example a vSQL expresion for
+	of the various :class:`AST` subclasses. For example a vSQL expression for
 	``"foo".lower() + "bar".upper()`` can be constructed like this::
 
 		vsql.AddAST.make(
