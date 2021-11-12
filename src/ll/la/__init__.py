@@ -1587,13 +1587,85 @@ class Globals(Base):
 
 	def scaled_url(self, /, image:Union["File", str], width:T_opt_int, height:T_opt_int, *, type:str="fill", enlarge:bool=True, gravity:str="sm", quality:T_opt_int=None, rotate:int=0, blur:T_opt_float=None, sharpen:T_opt_float=None, format:T_opt_str=None, cache:bool=True) -> str:
 		"""
-		Return a new URL for a scaled version of an existing image.
+		Return a new URL for a scaled version of an existing image. These images
+		will be scaled by imgproxy__
+
+		__ https://imgproxy.net/
 
 		Arguments are:
 
 		``image`` : :class:`File` or :class:`str`
 			Either the URL of an image or a :class:`File` object that contains
 			an image.
+
+		``type`` : :class:`str` or ``None``
+			Allowed values are: ``"fit"``, ``"fill"``, ``"fill-down"``, ``"force"``
+			and  ``"auto"``. The default is ``"fill"``. For more information see
+			`the imgproxy documentation`__.
+
+			__ https://docs.imgproxy.net/generating_the_url?id=resizing-type
+
+		``width`` : :class:`int` or ``None``
+			The target width of the image. The default is ``None``. For more
+			information see `the imgproxy documentation`__.
+
+			__ https://docs.imgproxy.net/generating_the_url?id=width
+
+		``height`` : :class:`int` or ``None``
+			The target height of the image. The default is ``None``. ``width`` and
+			``height`` may not be both ``None``. For more information see
+			`the imgproxy documentation`__.
+
+			__ https://docs.imgproxy.net/generating_the_url?id=height
+
+		``enlarge`` : :class:`bool`
+			Enlarge the image if it is smaller than the target size? The default
+			is ``True``. For more information see
+			`the imgproxy documentation`__.
+
+			__ https://docs.imgproxy.net/generating_the_url?id=enlarge
+
+		``gravity`` : :class:`str` or ``None``
+			Allowed values are ``"no"``, ``"so"``, ``"ea"``, ``"we"``, ``"noea"``,
+			``"nowe"``, ``"soea"``, ``"sowe"``, ``"ce"`` and ``"sm"``. The default
+			is ``"sm"``. For more information see `the imgproxy documentation`__.
+
+			__ https://docs.imgproxy.net/generating_the_url?id=gravity
+
+		``quality`` : :class:`int` or ``None``
+			If given, the value mut be between 0 and 100. The default is ``None``.
+			For more information see `the imgproxy documentation`__.
+
+			__ https://docs.imgproxy.net/generating_the_url?id=quality
+
+		``rotate`` : :class:`int` or ``None``
+			Rotation. If given, the value must be a multiple of 90.
+			For more information see `the imgproxy documentation`__.
+
+			__ https://docs.imgproxy.net/generating_the_url?id=rotate
+
+		``blur`` : :class:`float` or ``None``
+			Blurs the image. For more information see
+			`the imgproxy documentation`__.
+
+			__ https://docs.imgproxy.net/generating_the_url?id=blur
+
+		``sharpen`` : :class:`float` or ``None``
+			Sharpens the image. For more information see
+			`the imgproxy documentation`__.
+
+			__ https://docs.imgproxy.net/generating_the_url?id=sharpen
+
+		``format`` : :class:`str` or ``None``
+			Resulting image format. For more information see
+			`the imgproxy documentation`__.
+
+			__ https://docs.imgproxy.net/generating_the_url?id=format
+
+		``cache`` : :class:`bool`
+			If true, return an URL that caches the scaled image, so that is doesn't
+			have to be rescaled on each request. Otherwise return an URL that
+			rescales the image on each request.
 		"""
 		v = []
 		if cache:
