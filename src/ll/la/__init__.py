@@ -13,6 +13,7 @@ See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 """
 
 import io, datetime, operator, string, json, pathlib, types
+import urllib.parse as urlparse
 from collections import abc
 
 import requests.structures
