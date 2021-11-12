@@ -490,6 +490,172 @@ class Group(Repr):
 		self.fields = decoder.load()
 
 
+class Query(Repr):
+	class Expr(Repr):
+		def __init__(self, sql:str, *, comment:T_optstr=None):
+			self.sql = sql
+			self.comment = comment
+
+		def __eq__(self, other:Any) -> bool:
+			if type(other) is not Expr:
+				return False
+			return self.sql == other.sql # Ignore comment
+
+		def __hash__(self) -> str:
+			return hash((self.sql, self.comment))
+
+		def _ll_repr_(self):
+			yield f"sql={self.sql!r}"
+			if self.comment is not None:
+				yield f"comment={self.comment!r}"
+
+		def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
+			p.breakable()
+			p.text("sql=")
+			p.pretty(self.sql)
+			if self.comment is not None:
+				p.breakable()
+				p.text("comment=")
+				p.pretty(self.comment)
+
+	class AliasedExpr(Expr):
+		def __init__(self, sql:str, *, alias:T_optstr=None, comment:T_optstr=None):
+			super().__init__(sql, comment=comment)
+			self.alias = alias
+
+		def __eq__(self, other:Any) -> bool:
+			if type(other) is not AliasedExpr:
+				return False
+			return self.sql == other.sql and self.alias == other.alias # Ignore comment
+
+		def __hash__(self) -> str:
+			return hash((self.sql, self.alias, self.comment))
+
+		def _ll_repr_(self):
+			yield f"sql={self.sql!r}"
+			if self.alias is not None:
+				yield f"alias={self.alias!r}"
+			if self.comment is not None:
+				yield f"comment={self.comment!r}"
+
+		def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
+			p.breakable()
+			p.text("sql=")
+			p.pretty(self.sql)
+			if self.alias is not None:
+				p.breakable()
+				p.text("alias=")
+				p.pretty(self.alias)
+			if self.comment is not None:
+				p.breakable()
+				p.text("comment=")
+				p.pretty(self.comment)
+
+	class _OpChain(Repr):
+		def __init__(self, *args:Union[str, "Query.Expr"]):
+			self.args = []
+			for arg in args:
+				if isinstance(arg, str):
+					arg = Query.Expr(arg)
+				self.args.append(arg)
+
+	class And(_OpChain):
+		pass
+
+	class Or(_OpChain):
+		pass
+
+	def __init__(self, comment:T_optstr=None, **vars:"Field"):
+		self.comment = comment
+		self.vars = vars
+		self._fields:Dict[Query.AliasedExpr, None] = {}
+		self._identifier_aliases:Dict[Tuple[str], str] = {}
+		self._where = {}
+		self._tables = {}
+
+	def _vsql_register(self, fieldref:"FieldRefAST") -> T_optstr:
+		if fieldref.error is not None:
+			return # Don't register broken expressions
+		if fieldref.parent is None:
+			# No need to register anything as this is a "global variable".
+			# Also we don't need a table alias to access this field.
+			return None
+
+		identifier_chain = fieldref.parent.identifier_chain()
+		if identifier_chain in self._identifier_aliases:
+			alias = self._identifier_aliases[identifier_chain]
+			return alias
+		alias = self._vsql_register(fieldref.parent)
+
+		newalias = f"t{len(self._tables)+1}"
+		joincond = fieldref.parent.field.joinsql
+		if alias is not None:
+			joincond = joincond.replace("{m}", alias)
+		joincond = joincond.replace("{d}", newalias)
+
+		self._identifier_aliases[identifier_chain] = newalias
+		self._where[joincond] = None
+		self._tables[f"{fieldref.parent.field.refgroup.tablesql} {newalias}"] = fieldref.parent.field.refgroup
+		return newalias
+
+	def _vsql(self, expr:str) -> None:
+		expr = AST.fromsource(expr, **self.vars)
+		for fieldref in expr.fieldrefs():
+			self._vsql_register(fieldref)
+		return expr
+
+	def add_field(self, *exprs:str) -> "AST":
+		for expr in exprs:
+			expr = self._vsql(expr)
+			sqlsource = expr.sqlsource(self)
+			if sqlsource not in self._fields:
+				if isinstance(expr, FieldRefAST):
+					# If the expression is itself a field reference, it includes
+					# the vSQL source anyway, so there's no need to append it again.
+					self._fields[sqlsource] = expr
+				else:
+					self._fields[f"{sqlsource} /* {expr.source()} */"] = expr
+		return self
+
+	def add_where(self, *exprs:str) -> "AST":
+		for expr in exprs:
+			expr = self._vsql(expr)
+			if expr.datatype is not DataType.BOOL:
+				expr = FuncAST.make("bool", expr)
+			sqlsource = expr.sqlsource(self)
+			if sqlsource not in self._where:
+				self._where[f"{sqlsource} = 1 /* {expr.source()} */"] = expr
+		return self
+
+	def sqlsource(self) -> str:
+		v = []
+		if self.comment:
+			v.append(f"/* {self.comment} */ ")
+		v.append("select ")
+		if self._fields:
+			for (i, field) in enumerate(self._fields):
+				if i:
+					v.append(", ")
+				v.append(field)
+		else:
+			v.append("42")
+		v.append(" from ")
+		if self._tables:
+			for (i, table) in enumerate(self._tables):
+				if i:
+					v.append(", ")
+				v.append(table)
+		else:
+			v.append("dual")
+		if self._where:
+			v.append(" where ")
+			for (i, table) in enumerate(self._where):
+				if i:
+					v.append(" and ")
+				v.append(table)
+		return "".join(v)
+
+
 class Rule(Repr):
 	_re_specials = re.compile(r"{([st])(\d)}")
 	_re_sep = re.compile(r"\W+")
@@ -753,7 +919,6 @@ class AST(Repr):
 				else:
 					asttype = FuncAST
 					args = (obj.identifier,)
-
 			elif isinstance(obj, AttrAST):
 				asttype = MethAST
 				args = (obj.obj, obj.attrname)
@@ -779,8 +944,12 @@ class AST(Repr):
 		expr = template.content[-1].obj
 		return cls.fromul4(expr, **vars)
 
-	def sqlsource(self) -> str:
-		return "".join(s for s in self._sqlsource())
+	def sqlsource(self, query:"Query") -> str:
+		return "".join(s for s in self._sqlsource(query))
+
+	def fieldrefs(self) -> T_gen("FieldRefAST"):
+		for child in self.children():
+			yield from child.fieldrefs()
 
 	@classmethod
 	def all_types(cls) -> T_gen(Type["AST"]):
@@ -1052,22 +1221,22 @@ class AST(Repr):
 		self.pos = decoder.load()
 
 	@classmethod
-	def _make_content_from_ul4(cls, node:ul4c.AST, *args:Union[ul4c.AST, "AST", None]) -> Tuple[T_AST_Content, ...]:
+	def _make_content_from_ul4(cls, node:ul4c.AST, *args:Union[ul4c.AST, "AST", str, None]) -> Tuple[T_AST_Content, ...]:
 		content = []
-		lastnode = None
-		for (i, subnode) in enumerate(args):
+		lastpos = node.pos.start
+		for subnode in args:
 			if isinstance(subnode, AST):
 				content.append(subnode)
+				lastpos += len(subnode.source())
 			elif isinstance(subnode, ul4c.AST):
-				if lastnode is None:
-					content.append(node.fullsource[node.pos.start:subnode.pos.start])
-				else:
-					content.append(node.fullsource[lastnode.pos.stop:subnode.pos.start])
-				lastnode = subnode
-		if lastnode is None:
-			content.append(node.fullsource[node.pos])
-		else:
-			content.append(node.fullsource[lastnode.pos.stop:node.pos.stop])
+				if lastpos != subnode.pos.start:
+					content.append(node.fullsource[lastpos:subnode.pos.start])
+					lastpos = subnode.pos.start
+			elif isinstance(subnode, str):
+				content.append(subnode)
+				lastpos += len(subnode)
+		if lastpos != node.pos.stop:
+			content.append(node.fullsource[lastpos:node.pos.stop])
 		return content
 
 
@@ -1110,7 +1279,7 @@ class NoneAST(ConstAST):
 	def make(cls) -> "NoneAST":
 		return cls("None")
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		yield "null"
 
 	@classmethod
@@ -1173,7 +1342,7 @@ class BoolAST(_ConstWithValueAST):
 	def make(cls, value:Any) -> "BoolAST":
 		return cls(value, "True" if value else "False")
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		yield "1" if self.value else "0"
 
 	@property
@@ -1190,7 +1359,7 @@ class IntAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_INT
 	datatype = DataType.INT
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		yield str(self.value)
 
 	@property
@@ -1207,7 +1376,7 @@ class NumberAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_NUMBER
 	datatype = DataType.NUMBER
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		yield str(self.value)
 
 	@property
@@ -1224,7 +1393,7 @@ class StrAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_STR
 	datatype = DataType.STR
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		s = self.value.replace("'", "''")
 		yield f"'{s}'"
 
@@ -1240,7 +1409,7 @@ class CLOBAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_CLOB
 	datatype = DataType.CLOB
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		s = self.value.replace("'", "''")
 		yield f"'{s}'"
 
@@ -1254,7 +1423,7 @@ class ColorAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_COLOR
 	datatype = DataType.COLOR
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		c = self.value
 		yield str((c.r() << 24) + (c.g() << 16) + (c.b() << 8) + c.a())
 
@@ -1273,7 +1442,7 @@ class DateAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_DATE
 	datatype = DataType.DATE
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		yield f"to_date('{self.value:%Y-%m-%d}', 'YYYY-MM-DD')";
 
 	@property
@@ -1295,7 +1464,7 @@ class DateTimeAST(_ConstWithValueAST):
 		value = value.replace(microsecond=0)
 		return cls(value, ul4c._repr(value))
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		yield f"to_date('{self.value:%Y-%m-%d %H:%M:%S}', 'YYYY-MM-DD HH24:MI:SS')";
 
 	@property
@@ -1326,7 +1495,7 @@ class _SeqAST(AST):
 			content.append(AST.fromul4(item.value, **vars))
 		return cls(*cls._make_content_from_ul4(node, *content))
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		if self.datatype is self.nulltype:
 			yield self.nodevalue
 		else:
@@ -1335,7 +1504,7 @@ class _SeqAST(AST):
 			for (i, item) in enumerate(self.items):
 				if i:
 					yield ", "
-				yield from item._sqlsource()
+				yield from item._sqlsource(query)
 			yield suffix
 
 	def _ll_repr_(self) -> T_gen(str):
@@ -1572,6 +1741,10 @@ class FieldRefAST(AST):
 
 		return FieldRefAST(parent, identifier, result_field, parent, ".", identifier)
 
+	def _sqlsource(self, query:"Query") -> T_gen(str):
+		alias = query._vsql_register(self)
+		yield f"{alias}.{self.field.fieldsql} /* {self.source()} */"
+
 	def validate(self) -> None:
 		self.error = Error.FIELD if self.field is None else None
 
@@ -1588,10 +1761,20 @@ class FieldRefAST(AST):
 			node = node.parent
 		return ".".join(identifierpath)
 
+	def fieldrefs(self) -> T_gen("FieldRefAST"):
+		yield self
+		yield from super().fieldrefs()
+
+	def identifier_chain(self) -> Tuple[str]:
+		chain = ()
+		node = self
+		while node is not None:
+			chain = (node.identifier,) + chain
+			node = node.parent
+		return chain
+
 	def _ll_repr_(self) -> T_gen(str):
 		yield from super()._ll_repr_()
-		if self.parent is not None:
-			yield f"parent={self.parent!r}"
 		if self.field is None or self.field.identifier != self.identifier:
 			yield f"identifier={self.identifier!r}"
 		if self.field is not None:
@@ -1602,10 +1785,6 @@ class FieldRefAST(AST):
 		p.breakable()
 		p.text("identifier=")
 		p.pretty(self.identifier)
-		if self.parent is not None:
-			p.breakable()
-			p.text("parent=")
-			p.pretty(self.parent)
 		if self.field is None or self.field.identifier != self.identifier:
 			p.breakable()
 			p.text("identifier=")
@@ -1673,14 +1852,14 @@ class BinaryAST(AST):
 			*cls._make_content_from_ul4(node, node.obj1, obj1, node.obj2, obj2),
 		)
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		rule = self.rules[(self.obj1.datatype, self.obj2.datatype)]
 		result = []
 		for child in rule.source:
 			if child == 1:
-				yield from self.obj1._sqlsource()
+				yield from self.obj1._sqlsource(query)
 			elif child == 2:
-				yield from self.obj2._sqlsource()
+				yield from self.obj2._sqlsource(query)
 			else:
 				yield child
 
@@ -2024,12 +2203,12 @@ class UnaryAST(AST):
 			self.error = None
 			self.datatype = rule.result
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		rule = self.rules[(self.obj.datatype, )]
 		result = []
 		for child in rule.source:
 			if child == 1:
-				yield from self.obj._sqlsource()
+				yield from self.obj._sqlsource(query)
 			else:
 				yield child
 
@@ -2140,16 +2319,16 @@ class IfAST(AST):
 			*cls._make_content_from_ul4(node, node.objif, objif, node.objcond, objcond, node.objelse, objelse),
 		)
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		rule = self.rules[(self.objif.datatype, self.objcond.datatype, self.objelse.datatype)]
 		result = []
 		for child in rule.source:
 			if child == 1:
-				yield from self.objif._sqlsource()
+				yield from self.objif._sqlsource(query)
 			elif child == 2:
-				yield from self.objcond._sqlsource()
+				yield from self.objcond._sqlsource(query)
 			elif child == 3:
-				yield from self.objelse._sqlsource()
+				yield from self.objelse._sqlsource(query)
 			else:
 				yield child
 
@@ -2245,16 +2424,16 @@ class SliceAST(AST):
 			*cls._make_content_from_ul4(node, node.obj1, obj, node.obj2.index1, index1, node.obj2.index2, index2)
 		)
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		rule = self.rules[(self.obj.datatype, self.index1.datatype, self.index2.datatype)]
 		result = []
 		for child in rule.source:
 			if child == 1:
-				yield from self.obj._sqlsource()
+				yield from self.obj._sqlsource(query)
 			elif child == 2:
-				yield from self.index1._sqlsource()
+				yield from self.index1._sqlsource(query)
 			elif child == 3:
-				yield from self.index2._sqlsource()
+				yield from self.index2._sqlsource(query)
 			else:
 				yield child
 
@@ -2329,11 +2508,11 @@ class AttrAST(AST):
 			self.error = None
 			self.datatype = rule.result
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		rule = self.rules[(self.obj.datatype, self.attrname)]
 		for child in rule.source:
 			if child == 1:
-				yield from self.obj._sqlsource()
+				yield from self.obj._sqlsource(query)
 			else:
 				yield child
 
@@ -2396,12 +2575,12 @@ class FuncAST(AST):
 
 		return cls(name, args, *content)
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		rule = self.rules[(self.name,) + tuple(c.datatype for c in self.args)]
 		result = []
 		for child in rule.source:
 			if isinstance(child, int):
-				yield from self.args[child-1]._sqlsource()
+				yield from self.args[child-1]._sqlsource(query)
 			else:
 				yield child
 
@@ -2489,14 +2668,15 @@ class MethAST(AST):
 
 		return cls(obj, name, args, *content)
 
-	def _sqlsource(self) -> T_gen(str):
+	def _sqlsource(self, query:"Query") -> T_gen(str):
 		rule = self.rules[(self.obj.datatype, self.name) + tuple(c.datatype for c in self.args)]
 		result = []
 		for child in rule.source:
 			if isinstance(child, int):
-				if child == 0:
-					yield from self.obj._sqlsource()
-				yield from self.args[child-1]._sqlsource()
+				if child == 1:
+					yield from self.obj._sqlsource(query)
+				else:
+					yield from self.args[child-2]._sqlsource(query)
 			else:
 				yield child
 
