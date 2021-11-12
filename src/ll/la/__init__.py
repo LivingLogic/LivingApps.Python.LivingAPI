@@ -32,6 +32,9 @@ __docformat__ = "reStructuredText"
 from typing import *
 
 T_opt_handler = Optional["ll.la.handlers.Handler"]
+T_opt_int = Optional[int]
+T_opt_float = Optional[float]
+T_opt_str = Optional[str]
 
 
 ###
@@ -1502,6 +1505,7 @@ class Globals(Base):
 		"request",
 		"response",
 		"geo",
+		"scaled_url",
 	}
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
@@ -1579,6 +1583,52 @@ class Globals(Base):
 
 	def geo(self, lat=None, long=None, info=None):
 		return self.handler.geo(lat, long, info)
+
+	def scaled_url(self, /, image:Union["File", str], width:T_opt_int, height:T_opt_int, *, type:str="fill", enlarge:bool=True, gravity:str="sm", quality:T_opt_int=None, rotate:int=0, blur:T_opt_float=None, sharpen:T_opt_float=None, format:T_opt_str=None, cache:bool=True) -> str:
+		"""
+		Return a new URL for a scaled version of an existing image.
+
+		Arguments are:
+
+		``image`` : :class:`File` or :class:`str`
+			Either the URL of an image or a :class:`File` object that contains
+			an image.
+		"""
+		v = []
+		if cache:
+			v.append("/imgproxycache/insecure")
+		else:
+			v.append("/imgproxy/insecure")
+
+		v.append(f"/rt:{type}")
+		if width and width > 0:
+			v.append(f"/w:{width}")
+		if height and height > 0:
+			v.append(f"/h:{height}")
+		if enlarge:
+			v.append(f"/el:1")
+		if gravity is not None:
+			v.append(f"/g:{gravity}")
+		if quality is not None:
+			v.append(f"/q:{quality}")
+		if rotate:
+			v.append(f"/rot:{rotate}")
+		if blur is not None:
+			v.append(f"/bl:{blur}")
+		if sharpen is not None:
+			v.append(f"/sh:{sharpen}")
+		if format is not None:
+			v.append(f"/f:{format}")
+		if isinstance(image, File):
+			filename = image.filename.rsplit("/", 1)[-1]
+			encoded_filename = urlparse.quote(filename)
+			if encoded_filename == filename:
+				v.append(f"/fn:{encoded_filename}")
+			v.append(f"/plain/https://{self.hostname}/gateway/files/{image.id}")
+		else:
+			v.append(f"/plain/{urlparse.quote(image)}")
+		return "".join(v)
+
 
 	def log_debug(self, *args):
 		pass
