@@ -3206,7 +3206,7 @@ class AppLookupControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, self.field, f"{{m}}.{self.field} = {{d}}.dat_id", self.lookup_app.vsqlgroup_records)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, self.field, f"{{m}}.{self.field} = {{d}}.dat_id(+)", self.lookup_app.vsqlgroup_records)
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
