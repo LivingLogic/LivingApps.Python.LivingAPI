@@ -490,87 +490,33 @@ class Group(Repr):
 
 
 class Query(Repr):
-	class Expr(Repr):
-		def __init__(self, sql:str, *, comment:T_optstr=None):
-			self.sql = sql
-			self.comment = comment
-
-		def __eq__(self, other:Any) -> bool:
-			if type(other) is not Expr:
-				return False
-			return self.sql == other.sql # Ignore comment
-
-		def __hash__(self) -> str:
-			return hash((self.sql, self.comment))
-
-		def _ll_repr_(self):
-			yield f"sql={self.sql!r}"
-			if self.comment is not None:
-				yield f"comment={self.comment!r}"
-
-		def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
-			p.breakable()
-			p.text("sql=")
-			p.pretty(self.sql)
-			if self.comment is not None:
-				p.breakable()
-				p.text("comment=")
-				p.pretty(self.comment)
-
-	class AliasedExpr(Expr):
-		def __init__(self, sql:str, *, alias:T_optstr=None, comment:T_optstr=None):
-			super().__init__(sql, comment=comment)
-			self.alias = alias
-
-		def __eq__(self, other:Any) -> bool:
-			if type(other) is not AliasedExpr:
-				return False
-			return self.sql == other.sql and self.alias == other.alias # Ignore comment
-
-		def __hash__(self) -> str:
-			return hash((self.sql, self.alias, self.comment))
-
-		def _ll_repr_(self):
-			yield f"sql={self.sql!r}"
-			if self.alias is not None:
-				yield f"alias={self.alias!r}"
-			if self.comment is not None:
-				yield f"comment={self.comment!r}"
-
-		def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
-			p.breakable()
-			p.text("sql=")
-			p.pretty(self.sql)
-			if self.alias is not None:
-				p.breakable()
-				p.text("alias=")
-				p.pretty(self.alias)
-			if self.comment is not None:
-				p.breakable()
-				p.text("comment=")
-				p.pretty(self.comment)
-
-	class _OpChain(Repr):
-		def __init__(self, *args:Union[str, "Query.Expr"]):
-			self.args = []
-			for arg in args:
-				if isinstance(arg, str):
-					arg = Query.Expr(arg)
-				self.args.append(arg)
-
-	class And(_OpChain):
-		pass
-
-	class Or(_OpChain):
-		pass
-
+	"""
+	A :class:`!Query` object can be used to build an SQL query using vSQL expressions.
+	"""
 	def __init__(self, comment:T_optstr=None, **vars:"Field"):
+		"""
+		Create a new empty :class:`!Query` object.
+
+		Arguments are:
+
+		``comment`` : :class:`str` or ``None``
+			A comment that will be included in the generated SQL.
+
+			Note that the comment test may not include ``/*`` or ``*/``.
+
+		``vars`` : :class:`Field`
+			These are the top level variables that will be availabe for vSQL
+			expressions added to this query. The argument name is the name of
+			the variable. The argument value is a :class:`Field` object that
+			describes this variable.
+		"""
 		self.comment = comment
 		self.vars = vars
-		self._fields:Dict[Query.AliasedExpr, None] = {}
-		self._identifier_aliases:Dict[Tuple[str], str] = {}
-		self._where = {}
-		self._tables = {}
+		self._fields : Dict[str, "AST"] = {}
+		self._from : Dict[str, "AST"] = {}
+		self._where : Dict[str, "AST"] = {}
+		self._orderby : List[Tuple[str, "AST", T_optstr, T_optstr]] = []
+		self._identifier_aliases : Dict[str, str] = {}
 
 	def _vsql_register(self, fieldref:"FieldRefAST") -> T_optstr:
 		if fieldref.error is not None:
@@ -580,21 +526,21 @@ class Query(Repr):
 			# Also we don't need a table alias to access this field.
 			return None
 
-		identifier_chain = fieldref.parent.identifier_chain()
-		if identifier_chain in self._identifier_aliases:
-			alias = self._identifier_aliases[identifier_chain]
+		identifier = fieldref.parent.full_identifier
+		if identifier in self._identifier_aliases:
+			alias = self._identifier_aliases[identifier]
 			return alias
 		alias = self._vsql_register(fieldref.parent)
 
-		newalias = f"t{len(self._tables)+1}"
+		newalias = f"t{len(self._from)+1}"
 		joincond = fieldref.parent.field.joinsql
 		if alias is not None:
 			joincond = joincond.replace("{m}", alias)
 		joincond = joincond.replace("{d}", newalias)
 
-		self._identifier_aliases[identifier_chain] = newalias
-		self._where[joincond] = None
-		self._tables[f"{fieldref.parent.field.refgroup.tablesql} {newalias}"] = fieldref.parent.field.refgroup
+		self._identifier_aliases[identifier] = newalias
+		self._where[joincond] = fieldref.parent
+		self._from[f"{fieldref.parent.field.refgroup.tablesql} {newalias}"] = fieldref.parent
 		return newalias
 
 	def _vsql(self, expr:str) -> None:
@@ -603,56 +549,143 @@ class Query(Repr):
 			self._vsql_register(fieldref)
 		return expr
 
-	def add_field(self, *exprs:str) -> "AST":
+	def select(self, *exprs:str) -> "Query":
 		for expr in exprs:
 			expr = self._vsql(expr)
 			sqlsource = expr.sqlsource(self)
 			if sqlsource not in self._fields:
-				if isinstance(expr, FieldRefAST):
-					# If the expression is itself a field reference, it includes
-					# the vSQL source anyway, so there's no need to append it again.
-					self._fields[sqlsource] = expr
-				else:
-					self._fields[f"{sqlsource} /* {expr.source()} */"] = expr
+				self._fields[sqlsource] = expr
 		return self
 
-	def add_where(self, *exprs:str) -> "AST":
+	def where(self, *exprs:str) -> "Query":
 		for expr in exprs:
 			expr = self._vsql(expr)
 			if expr.datatype is not DataType.BOOL:
 				expr = FuncAST.make("bool", expr)
 			sqlsource = expr.sqlsource(self)
+			sqlsource = f"{sqlsource} = 1"
 			if sqlsource not in self._where:
-				self._where[f"{sqlsource} = 1 /* {expr.source()} */"] = expr
+				self._where[sqlsource] = expr
 		return self
 
-	def sqlsource(self) -> str:
-		v = []
+	def orderby(self, expr:str, direction:T_sortdirection=None, nulls:T_sortnulls=None) -> "Query":
+		r"""
+		Add an "order by" specification to this query.
+
+		"order by" specifications will be output in the query in the order they
+		have been added.
+
+		Argument are:
+
+		``expr`` : :class:`str`
+			vSQL expression to be sorted by
+
+		``direction`` : ``None``, ``"asc"`` or ``"desc"``
+			Sort in ascending order (``"asc"``) or descending order (``"desc"``).
+
+			The default ``None`` adds neither ``asc`` nor ``desc`` (which is
+			equivalent to ``asc``.
+
+		Example::
+
+			>>> from ll import la
+			>>> from ll.la import vsql
+			>>> q = vsql.Query("Example query", user=la.User.vsqlfield())
+			>>> q.orderby("user.firstname", "asc") \
+			...  .orderby("user.surname", "desc")
+			>>> print(q.sqlsource())
+			/* Example query */
+			select
+				42
+			from
+				identity t1 /* user */
+			where
+				livingapi_pkg.global_user = t1.ide_id(+) /* user */
+			order by
+				t1.ide_firstname /* user.firstname */ asc,
+				t1.ide_surname /* user.surname */ desc
+
+		"""
+		expr = self._vsql(expr)
+		sqlsource = expr.sqlsource(self)
+		self._orderby.append((sqlsource, expr, direction, nulls))
+		return self
+
+	def sqlsource(self, indent="\t") -> str:
+		tokens = []
+
+		def a(*parts):
+			tokens.extend(parts)
+
+		def s(sqlsource, expr):
+			tokens.append(sqlsource)
+			vsqlsource = f" /* {expr.source()} */"
+			if not sqlsource.endswith(vsqlsource):
+				tokens.append(vsqlsource)
+
 		if self.comment:
-			v.append(f"/* {self.comment} */ ")
-		v.append("select ")
+			a("/* ", self.comment, " */", None)
+
+		a("select", None, +1)
 		if self._fields:
-			for (i, field) in enumerate(self._fields):
+			for (i, (field, expr)) in enumerate(self._fields.items()):
 				if i:
-					v.append(", ")
-				v.append(field)
+					a(",", None)
+				s(field, expr)
 		else:
-			v.append("42")
-		v.append(" from ")
-		if self._tables:
-			for (i, table) in enumerate(self._tables):
+			a("42")
+		a(None, -1)
+
+		a("from", None, +1)
+		if self._from:
+			for (i, (table, expr)) in enumerate(self._from.items()):
 				if i:
-					v.append(", ")
-				v.append(table)
+					a(",", None)
+				s(table, expr)
+			a(None, -1)
 		else:
-			v.append("dual")
+			a("dual", None, -1)
+
 		if self._where:
-			v.append(" where ")
-			for (i, table) in enumerate(self._where):
+			a("where", None, +1)
+			for (i, (where, expr)) in enumerate(self._where.items()):
 				if i:
-					v.append(" and ")
-				v.append(table)
-		return "".join(v)
+					a(" and", None)
+				s(where, expr)
+			a(None, -1)
+
+		if self._orderby:
+			a("order by", None, +1)
+			for (i, (sqlsource, expr, direction, nulls)) in enumerate(self._orderby):
+				if i:
+					a(",", None)
+				s(sqlsource, expr)
+				if direction:
+					a(" ", direction)
+				if nulls:
+					a(" nulls ", nulls)
+			a(None, -1)
+
+		source = []
+		first = True
+		level = 0
+		for part in tokens:
+			if part is None:
+				if indent:
+					source.append("\n")
+					first = True
+			elif isinstance(part, int):
+				level += part
+			else:
+				if first:
+					if indent:
+						source.append(level*indent)
+					else:
+						source.append(" ")
+				source.append(part)
+				first = False
+
+		return "".join(source)
 
 
 class Rule(Repr):
@@ -1778,13 +1811,12 @@ class FieldRefAST(AST):
 		yield self
 		yield from super().fieldrefs()
 
-	def identifier_chain(self) -> Tuple[str]:
-		chain = ()
-		node = self
-		while node is not None:
-			chain = (node.identifier,) + chain
-			node = node.parent
-		return chain
+	@property
+	def full_identifier(self) -> Tuple[str]:
+		if self.parent is None:
+			return self.identifier
+		else:
+			return f"{self.parent.full_identifier}.{self.identifier}"
 
 	def _ll_repr_(self) -> T_gen(str):
 		yield from super()._ll_repr_()
