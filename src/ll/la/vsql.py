@@ -591,12 +591,13 @@ class Query(Repr):
 			>>> from ll import la
 			>>> from ll.la import vsql
 			>>> q = vsql.Query("Example query", user=la.User.vsqlfield())
-			>>> q.orderby("user.firstname", "asc") \
+			>>> q.select("user.email") \
+			...  .orderby("user.firstname", "asc") \
 			...  .orderby("user.surname", "desc")
 			>>> print(q.sqlsource())
 			/* Example query */
 			select
-				42
+				t1.ide_account /* user.email */
 			from
 				identity t1 /* user */
 			where
@@ -604,7 +605,6 @@ class Query(Repr):
 			order by
 				t1.ide_firstname /* user.firstname */ asc,
 				t1.ide_surname /* user.surname */ desc
-
 		"""
 		expr = self._vsql(expr)
 		sqlsource = expr.sqlsource(self)
