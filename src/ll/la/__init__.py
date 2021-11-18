@@ -2209,6 +2209,7 @@ class App(Base):
 	def vsqlgroup_records(self):
 		if self._vsqlgroup_records is None:
 			self._vsqlgroup_records = g = vsql.Group("data_select_la")
+			g.add_field("id", vsql.DataType.STR, "dat_id")
 			g.add_field("app", vsql.DataType.STR, "tpl_uuid")
 			g.add_field("createdat", vsql.DataType.DATETIME, "dat_cdate")
 			g.add_field("createdby", vsql.DataType.STR, "dat_cname", "{m}.dat_cname = {d}.ide_id(+)", User.vsqlgroup)
