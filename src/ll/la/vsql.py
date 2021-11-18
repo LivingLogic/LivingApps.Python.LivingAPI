@@ -57,6 +57,8 @@ T_AST_Content = Union["AST", str]
 T_optstr = Optional[str]
 T_optint = Optional[int]
 T_optast = Optional["AST"]
+T_sortdirection = Union[None, Literal["asc", "desc"]]
+T_sortnulls = Union[None, Literal["first", "last"]]
 
 def T_gen(type):
 	return Generator[type, None, None]
@@ -457,7 +459,7 @@ class Group(Repr):
 				fielddata = Field(fieldname, *fielddata)
 			self.fields[fieldname] = fielddata
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> T_gen(str):
 		yield f"tablesql={self.tablesql!r}"
 		yield f"with {len(self.fields):,} fields"
 
@@ -466,7 +468,7 @@ class Group(Repr):
 		p.text("tablesql=")
 		p.pretty(self.tablesql)
 
-	def __getitem__(self, key):
+	def __getitem__(self, key:str) -> "Field":
 		if key in self.fields:
 			return self.fields[key]
 		elif "*" in self.fields:
@@ -474,7 +476,7 @@ class Group(Repr):
 		else:
 			raise KeyError(key)
 
-	def add_field(self, identifier, datatype, fieldsql, joinsql=None, refgroup=None):
+	def add_field(self, identifier:str, datatype:DataType, fieldsql:str, joinsql:T_optstr=None, refgroup:Optional["Group"]=None) -> None:
 		field = Field(identifier, datatype, fieldsql, joinsql, refgroup)
 		self.fields[identifier] = field
 
@@ -679,7 +681,7 @@ class Rule(Repr):
 		self.source = self._parse_source(signature, source)
 
 
-	def _key(self):
+	def _key(self) -> str:
 		key = ", ".join(p.name if isinstance(p, DataType) else repr(p) for p in self.key)
 		return f"({key})"
 
@@ -687,7 +689,7 @@ class Rule(Repr):
 		signature = ", ".join(p.name for p in self.signature)
 		return f"({signature})"
 
-	def _ll_repr_(self):
+	def _ll_repr_(self) -> T_gen(str):
 		yield f"nodetype={self.astcls.nodetype.name}"
 		yield f"result={self.result.name}"
 		if self.name is not None:
