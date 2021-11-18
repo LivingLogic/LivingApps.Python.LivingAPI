@@ -331,10 +331,7 @@ class Error(misc.Enum):
 	Note that some of those can not be produced by the Python implementation.
 	"""
 
-	SUBNODEERROR = "subnodeerror"
-	"""
-	Subnodes are invalid
-	"""
+	SUBNODEERROR = "subnodeerror" # Subnodes are invalid
 	NODETYPE = "nodetype" # Unknown node type (not any of the ``NODETYPE_...`` values from above
 	ARITY = "arity" # Node does not have the required number of children
 	SUBNODETYPES = "subnodetypes" # Subnodes have a combination of types that are not supported by the node
