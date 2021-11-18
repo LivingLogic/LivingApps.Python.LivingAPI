@@ -848,6 +848,15 @@ class AST(Repr):
 				IntAST("29", 29),
 				")",
 			)
+
+		but more conveniently like this::
+
+			FuncAST.make(
+				"date",
+				ConstAST.make(2000),
+				ConstAST.make(2),
+				ConstAST.make(29),
+			)
 		"""
 		final_content = []
 		for item in content:
@@ -947,6 +956,11 @@ class AST(Repr):
 		return "".join(s for s in self._sqlsource(query))
 
 	def fieldrefs(self) -> T_gen("FieldRefAST"):
+		"""
+		Return all :class:`FieldRefAST` objects in this :class:`!AST`.
+
+		This is a generator.
+		"""
 		for child in self.children():
 			yield from child.fieldrefs()
 
