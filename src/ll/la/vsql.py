@@ -1801,7 +1801,9 @@ class FieldRefAST(AST):
 		full_identifier = self.full_identifier
 		if full_identifier.startswith("params."):
 			# If the innermost field is "params" we need special treatment
-			yield f"livingapi_pkg.reqparam_{self.parent.identifier}('{self.identifier}')  /* {self.source()} */"
+			yield f"livingapi_pkg.reqparam_{self.parent.identifier}('{self.identifier}') /* {self.source()} */"
+		elif alias is None:
+			yield f"{self.field.fieldsql} /* {self.source()} */"
 		else:
 			yield f"{alias}.{self.field.fieldsql} /* {self.source()} */"
 
