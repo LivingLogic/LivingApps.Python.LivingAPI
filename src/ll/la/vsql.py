@@ -534,12 +534,21 @@ class Query(Repr):
 
 		newalias = f"t{len(self._from)+1}"
 		joincond = fieldref.parent.field.joinsql
-		if alias is not None:
-			joincond = joincond.replace("{m}", alias)
-		joincond = joincond.replace("{d}", newalias)
+		if joincond is not None:
+			# Only add to "where" if the join condition is not empty
+			if alias is not None:
+				joincond = joincond.replace("{m}", alias)
+			joincond = joincond.replace("{d}", newalias)
+			self._where[joincond] = fieldref.parent
+
+		if fieldref.parent.field.refgroup.tablesql is None:
+			# If this field is not part of a table (which can happen e.g. for
+			# the request parameters, which we get from function calls),
+			# we don't add the table aliases to the list of table aliases
+			# and we don't add a table to the "from" list.
+			return None
 
 		self._identifier_aliases[identifier] = newalias
-		self._where[joincond] = fieldref.parent
 		self._from[f"{fieldref.parent.field.refgroup.tablesql} {newalias}"] = fieldref.parent
 		return newalias
 
@@ -1789,7 +1798,12 @@ class FieldRefAST(AST):
 
 	def _sqlsource(self, query:"Query") -> T_gen(str):
 		alias = query._vsql_register(self)
-		yield f"{alias}.{self.field.fieldsql} /* {self.source()} */"
+		full_identifier = self.full_identifier
+		if full_identifier.startswith("params."):
+			# If the innermost field is "params" we need special treatment
+			yield f"livingapi_pkg.reqparam_{self.parent.identifier}('{self.identifier}')  /* {self.source()} */"
+		else:
+			yield f"{alias}.{self.field.fieldsql} /* {self.source()} */"
 
 	def validate(self) -> None:
 		self.error = Error.FIELD if self.field is None else None
