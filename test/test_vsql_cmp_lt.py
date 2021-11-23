@@ -323,7 +323,7 @@ def test_number_number4(config_persons):
 	check_vsql(config_persons, "app.p_number_value.value < 73.0")
 
 def test_str_str(config_persons):
-	check_vsql(config_persons, "'aef' < 'dbc'")
+	check_vsql(config_persons, "'abc' < app.p_str_value.value")
 
 def test_date_date(config_persons):
 	check_vsql(config_persons, "@(2000-02-28) < @(2000-02-29)")
