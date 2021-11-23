@@ -326,10 +326,10 @@ def test_str_str(config_persons):
 	check_vsql(config_persons, "app.p_str_value.value > 'abc'")
 
 def test_date_date(config_persons):
-	check_vsql(config_persons, "@(2000-02-29) > @(2000-02-28)")
+	check_vsql(config_persons, "app.p_date_value.value > @(2000-02-28)")
 
 def test_datetime_datetime(config_persons):
-	check_vsql(config_persons, "@(2000-02-29T00:00:00) > @(2000-02-28T23:59:59)")
+	check_vsql(config_persons, "app.p_datetime_value.value > @(2000-02-28T23:59:59)")
 
 def test_datedelta_datedelta(config_persons):
 	check_vsql(config_persons, "days(2) > days(1)")
