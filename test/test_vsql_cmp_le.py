@@ -322,6 +322,30 @@ def test_number_number3(config_persons):
 def test_number_number4(config_persons):
 	check_vsql(config_persons, "app.p_number_value.value <= 73.0")
 
+def test_str_str1(config_persons):
+	check_vsql(config_persons, "'aef' <= 'dbc'")
+
+def test_str_str2(config_persons):
+	check_vsql(config_persons, "'abc' <= 'abc'")
+
+def test_date_date(config_persons):
+	check_vsql(config_persons, "@(2000-02-28) <= @(2000-02-29)")
+
+def test_datetime_datetime(config_persons):
+	check_vsql(config_persons, "@(2000-02-28T23:59:59) <= @(2000-02-29T00:00:00)")
+
+def test_datedelta_datedelta1(config_persons):
+	check_vsql(config_persons, "days(1) <= days(2)")
+
+def test_datedelta_datedelta2(config_persons):
+	check_vsql(config_persons, "days(1) <= days(1)")
+
+def test_datetimedelta_datetimedelta1(config_persons):
+	check_vsql(config_persons, "hours(1) <= hours(2)")
+
+def test_datetimedelta_datetimedelta2(config_persons):
+	check_vsql(config_persons, "hours(1) <= hours(1)")
+
 def test_intlist_intlist1(config_persons):
 	check_vsql(config_persons, "[1] <= [1, 2]")
 

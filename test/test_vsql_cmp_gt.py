@@ -322,6 +322,21 @@ def test_number_number3(config_persons):
 def test_number_number4(config_persons):
 	check_vsql(config_persons, "not (app.p_number_value.value > 73.0)")
 
+def test_str_str(config_persons):
+	check_vsql(config_persons, "'def' > 'abc'")
+
+def test_date_date(config_persons):
+	check_vsql(config_persons, "@(2000-02-29) > @(2000-02-28)")
+
+def test_datetime_datetime(config_persons):
+	check_vsql(config_persons, "@(2000-02-29T00:00:00) > @(2000-02-28T23:59:59)")
+
+def test_datedelta_datedelta(config_persons):
+	check_vsql(config_persons, "days(2) > days(1)")
+
+def test_datetimedelta_datetimedelta(config_persons):
+	check_vsql(config_persons, "hours(2) >= hours(1)")
+
 def test_intlist_intlist1(config_persons):
 	check_vsql(config_persons, "[1, 2] > [1]")
 
