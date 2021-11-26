@@ -4027,6 +4027,11 @@ class Record(Base):
 
 		Dictionary containing the field values for each field.
 
+	.. attribute:: errors
+		:type: list[str]
+
+		List of error messages attached to the record.
+
 	.. attribute:: attachments
 		:type: Optional[dict[str, Attachment]]
 
