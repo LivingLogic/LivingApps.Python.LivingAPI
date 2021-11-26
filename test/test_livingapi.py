@@ -773,7 +773,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 	assert output == expected
 
 
-def test_view_control_overwrite_lookup(handler, config_apps):
+def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 	c = config_apps
 
 	source_print = """
@@ -843,3 +843,104 @@ def test_view_control_overwrite_lookup(handler, config_apps):
 	output = handler.renders(person_app_id(), template=vt_view_de.identifier)
 	expected = "lang='de';isstr(none_key)=True;none_label=Nichts gefunden!"
 	assert output == expected
+
+
+def test_globals_d_shortcuts(handler, config_apps):
+	c = config_apps
+
+	source_print = "<?print globals.d_persons.app.c_firstname.identifier?>"
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=c.apps.persons,
+			includerecords=la.DataSource.IncludeRecords.RECORDS,
+		),
+		identifier="test_globals_d_shortcuts",
+		source=f"""
+		<?whitespace strip?>
+		{source_print}
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "firstname"
+	assert output == expected
+
+
+def test_globals_t_shortcuts(handler, config_apps):
+	# TODO: implement App::fetchTemplates in the java living api and remove the second isinstance condition
+	if not isinstance(handler, PythonHTTP) and not isinstance(handler, JavaDB):
+		source_print = "<?print globals.t_test_globals_t_shortcuts_internal.name?>;<?print app.t_test_globals_t_shortcuts_internal.name?>"
+
+		handler.make_internaltemplate(identifier="test_globals_t_shortcuts_internal", source="")
+
+		vt = handler.make_viewtemplate(
+			identifier="test_globals_t_shortcuts",
+			source=f"""
+			<?whitespace strip?>
+			{source_print}
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = "test_globals_t_shortcuts_internal;test_globals_t_shortcuts_internal"
+		assert output == expected
+
+
+def test_view_defaultedfields_default(handler, config_apps):
+	# <?code app.active_view = first(v for v in app.views.values() if v.lang == 'de')?>
+	source_print = """
+		<?code r = app()?>
+		<?print repr(r.v_firstname)?>|
+		<?print repr(r.v_lastname)?>|
+		<?print repr(r.v_date_of_birth)?>|
+		<?print repr(r.v_country_of_birth)?>|
+		<?print ':'.join(r.f_firstname.errors)?>|
+		<?print ':'.join(r.f_lastname.errors)?>|
+		<?print ':'.join(r.f_date_of_birth.errors)?>|
+		<?print ':'.join(r.f_country_of_birth.errors)?>"""
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=config_apps.apps.persons,
+		),
+		identifier="test_view_defaultedfields_default",
+		source=f"""
+		<?whitespace strip?>
+		{source_print}
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "'Walter'|'Dörwald'|now()|<com.livinglogic.livingapps.livingapi.LookupItem key='germany' label='Germany'>||||"
+	assert output == expected
+
+
+tests = '''
+test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption
+Neue: test_view_control_overwrite_lookup_label ???
+
+
+Test für Shortcut-Attbut globals.d_*    done
+Test für Template-Shortcutattribute globals.t_* und app.t_*.
+App.fetchTemplates() implementieren.  spaeter
+
+Feld-Defaultwerte bei aktivem und inaktivem View.
+
+Field-Methode is_dirty() und has_errors() testen.
+App-Konstruktur mit falschen Argumenten aufrufen.
+Record.save()-Argument sync testen. (id, cname und cdate(not None))
+
+Globals.seq() testen.
+Record.add_error() und Field.add_error() testen.
+Globals.flash_info() und Kollegen testen.
+Globals.log_info() und Kollegen testen.
+Record.c_*-Shortcut-Attribute testen.
+Richtige Zuordnung Control <-> ViewControl testen (Java view_controls())
+Globals.dist() testen (Java geo_dist())
+Geo-Attribute testen (Java geo_constructor()).
+isinstance()-Tests (Java isinstance_la())
+FileSignature-Feldwerte testen (Java signature)
+'''
