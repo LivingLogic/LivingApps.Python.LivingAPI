@@ -678,6 +678,12 @@ class EnumAttr(Attr):
 			value = value.value
 		return value
 
+	def _default_ul4onget(self, instance):
+		value = self.get(instance)
+		if value is not None:
+			value = value.value
+		return value
+
 	def _default_repr(self, instance):
 		value = self.get(instance)
 		if value is not None:
@@ -2118,6 +2124,14 @@ class App(Base):
 		else:
 			return False
 
+	def ul4_getattr(self, name):
+		attr = getattr(self.__class__, name, None)
+		if isinstance(attr, Attr):
+			return attr.ul4get(self)
+		elif self.ul4_hasattr(name):
+			return getattr(self, name)
+		raise AttributeError(error_attribute_doesnt_exist(self, name))
+
 	def _gethandler(self, handler):
 		if handler is None:
 			if self.globals is None or self.globals.handler is None:
@@ -2193,12 +2207,11 @@ class App(Base):
 
 	def __call__(self, **kwargs):
 		record = Record(app=self)
-		for (identifier, value) in kwargs.items():
+		for identifier in kwargs:
 			if identifier not in self.controls:
 				raise TypeError(f"app_{self.id}() got an unexpected keyword argument {identifier!r}")
-			field = record.fields[identifier]
-			field.value = value
-			field._dirty = False # The record is dirty anyway
+
+		record._make_fields(True, kwargs, {}, {})
 		return record
 
 	def vsqlfield_records(self, ul4var, sqlvar):
@@ -2405,7 +2418,7 @@ class Control(Base):
 	label = Attr(str, get="", set=True, ul4get="_label_get", ul4onget=True, ul4onset=True)
 	priority = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	order = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	default = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	default = Attr(get="", ul4get="_default_get")
 	ininsertprocedure = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	inupdateprocedure = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	top = Attr(int, get="", ul4get="_top_get")
@@ -2419,7 +2432,7 @@ class Control(Base):
 	labelpos = EnumAttr(LabelPos, get="", ul4get="")
 	in_active_view = BoolAttr(get="", ul4get="_in_active_view_get")
 
-	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, default=None):
+	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None):
 		self.id = id
 		self.app = None
 		self.identifier = identifier
@@ -2427,7 +2440,6 @@ class Control(Base):
 		self.label = label
 		self.priority = priority
 		self.order = order
-		self.default = default
 		self._vsqlfield = None
 
 	@property
@@ -2525,6 +2537,9 @@ class Control(Base):
 		vc = self._get_viewcontrol()
 		return vc is not None
 
+	def _default_get(self):
+		return None
+
 	def _set_value(self, field, value):
 		field._value = value
 
@@ -2578,6 +2593,66 @@ class StringControl(Control):
 			Globals.vsqlsearchexpr(),
 			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower"),
 		)
+
+	def _get_user_placeholder(self, user, placeholder):
+		if placeholder is None:
+			return None
+		elif placeholder == "{gender}":
+			return user.gender if user is not None else None
+		elif placeholder == "{title}":
+			return user.title if user is not None else None
+		elif placeholder == "{firstname}":
+			return user.firstname if user is not None else None
+		elif placeholder == "{surname}":
+			return user.surname if user is not None else None
+		elif placeholder == "{account}":
+			return user.email if user is not None else None
+		elif placeholder == "{streetname}":
+			return user.streetname if user is not None else None
+		elif placeholder == "{streetnumber}":
+			return user.streetnumber if user is not None else None
+		elif placeholder == "{street}":
+			if user is None:
+				return None
+			elif user.street:
+				if user.streetnumber:
+					return f"{user.street} {user.streetnumber}"
+				else:
+					return user.street
+			else:
+				return user.streetnumber
+		elif placeholder == "{zip}":
+			return user.zip if user is not None else None
+		elif placeholder == "{phone}":
+			return user.phone if user is not None else None
+		elif placeholder == "{fax}":
+			return user.fax if user is not None else None
+		elif placeholder == "{company}":
+			return user.company if user is not None else None
+		elif placeholder == "{city}":
+			return user.city if user is not None else None
+		elif placeholder == "{summary}":
+			return user.summary if user is not None else None
+		elif placeholder == "{interests}":
+			return user.interests if user is not None else None
+		elif placeholder == "{personal_website}":
+			return user.personal_website if user is not None else None
+		elif placeholder == "{company_website}":
+			return user.company_website if user is not None else None
+		elif placeholder == "{position}":
+			return user.position if user is not None else None
+		elif placeholder == "{department}":
+			return user.department if user is not None else None
+		elif placeholder == "{today}":
+			return r"{datetime.date.today():%Y-%m-%d}"
+		else:
+			return placeholder
+
+	def _default_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return self._get_user_placeholder(self.app.globals.user, vc.default)
+		return None
 
 	def _minlength_get(self):
 		vc = self._get_viewcontrol()
@@ -2804,6 +2879,14 @@ class DateControl(Control):
 
 	format = Attr(str, get="", ul4get="_format_get")
 
+	def _default_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			default = vc.default
+			if default == "{today}":
+				return datetime.date.today()
+		return None
+
 	def _set_value(self, field, value):
 		if isinstance(value, datetime.datetime):
 			value = value.date()
@@ -2865,6 +2948,14 @@ class DatetimeMinuteControl(DateControl):
 	_fulltype = f"{DateControl._type}/{_subtype}"
 
 	ul4_type = ul4c.Type("la", "DatetimeMinuteControl", "A LivingApps date field (type 'date/datetimeminute')")
+
+	def _default_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			default = vc.default
+			if default == "{today}":
+				return datetime.datetime.now().replace(second=0, microsecond=0)
+		return None
 
 	def _set_value(self, field, value):
 		if isinstance(value, datetime.datetime):
@@ -2931,6 +3022,14 @@ class DatetimeSecondControl(DateControl):
 	_fulltype = f"{DateControl._type}/{_subtype}"
 
 	ul4_type = ul4c.Type("la", "DatetimeSecondControl", "A LivingApps date field (type 'date/datetimesecond')")
+
+	def _default_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			default = vc.default
+			if default == "{today}":
+				return datetime.datetime.now().replace(microsecond=0)
+		return None
 
 	def _set_value(self, field, value):
 		if isinstance(value, datetime.datetime):
@@ -3074,9 +3173,15 @@ class LookupControl(Control):
 	none_key = Attr(str, get="", ul4get="_none_key_get")
 	none_label = Attr(str, get="", ul4get="_none_label_get")
 
-	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, default=None, lookupdata=None):
-		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order, default=default)
+	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, lookupdata=None):
+		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order)
 		self.lookupdata = lookupdata
+
+	def _default_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return self.lookupdata.get(vc.default, None)
+		return None
 
 	def _none_key_get(self):
 		vc = self._get_viewcontrol()
@@ -3218,8 +3323,8 @@ class AppLookupControl(Control):
 	none_key = Attr(str, get="", ul4get="_none_key_get")
 	none_label = Attr(str, get="", ul4get="_none_label_get")
 
-	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, default=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None):
-		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order, default=default)
+	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None):
+		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order)
 		self.lookup_app = lookup_app
 		self.lookup_controls = lookup_controls
 		self.local_master_control = local_master_control
@@ -3335,6 +3440,14 @@ class MultipleLookupControl(LookupControl):
 	_type = "multiplelookup"
 
 	ul4_type = ul4c.Type("la", "MultipleLookupControl", "A LivingApps multiplelookup field")
+
+	def _default_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			value = self.lookupdata.get(vc.default, None)
+			if value is not None:
+				return [value]
+		return None
 
 	def _set_value(self, field, value):
 		if value is None:
@@ -3847,7 +3960,7 @@ class ViewControl(Base):
 		return self.control.subtype
 
 	def _mode_ul4onget(self):
-		return mode is Control.Mode.DISPLAY
+		return self.mode is Control.Mode.DISPLAY
 
 	def _mode_ul4onset(self, value):
 		self.mode = Control.Mode.DISPLAY if value else Control.Mode.EDIT
@@ -3964,9 +4077,12 @@ class Record(Base):
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatecount = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fields = AttrDictAttr(get="", ul4get="_fields_get")
-	values = AttrDictAttr(get="", set=True, ul4get="_values_get", ul4onget=True, ul4onset="")
+	values = AttrDictAttr(get="", set=True, ul4get="_values_get", ul4onget="", ul4onset="")
 	attachments = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	errors = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
+	lookupdata = AttrDictAttr(ul4onget="", ul4onset="")
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
 		self.id = id
@@ -3977,6 +4093,8 @@ class Record(Base):
 		self.updatedby = updatedby
 		self.updatecount = updatecount
 		self._sparsevalues = attrdict()
+		self._sparsefielderrors = attrdict()
+		self._sparselookupdata = attrdict()
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
 		self.children = attrdict()
@@ -3993,23 +4111,33 @@ class Record(Base):
 		self._new = False
 		self._deleted = False
 
+	def _make_fields(self, use_defaults, values, errors, lookupdata):
+		fields = attrdict()
+		for control in self.app.controls.values():
+			identifier = control.identifier
+			value = None
+			if values is not None:
+				if use_defaults and identifier not in values:
+					value = control.default
+				else:
+					value = values.get(identifier, None)
+			field = Field(control, self, value)
+			fields[identifier] = field
+		self.__dict__["fields"] = fields
+		self._sparsevalues = None
+		self._sparsefielderrors = None
+		self._sparselookupdata = None
+
 	def _fields_get(self):
-		fields = self.__dict__["fields"]
-		if fields is None:
-			fields = attrdict()
-			for control in self.app.controls.values():
-				field = Field(control, self, self._sparsevalues.get(control.identifier))
-				fields[control.identifier] = field
-			self._sparsevalues = None
-			self.__dict__["fields"] = fields
-		return fields
+		if self.__dict__["fields"] is None:
+			self._make_fields(False, self._sparsevalues, self._sparsefielderrors, self._sparselookupdata)
+		return self.__dict__["fields"]
 
 	def _values_get(self):
 		values = self.__dict__["values"]
 		if values is None:
 			values = attrdict()
-			fields = self.fields
-			for field in fields.values():
+			for field in self.fields.values():
 				values[field.control.identifier] = field.value
 			self._sparsevalues = None
 			self.__dict__["values"] = values
@@ -4018,11 +4146,33 @@ class Record(Base):
 	def _values_ul4onget(self):
 		values = self._sparsevalues
 		if values is None:
-			values = {identifier: value for (identifier, value) in self.values.items() if value is not None}
+			values = {field.control.identifier: field.value for field in self.fields.values() if not field.is_empty()}
 		return values
 
 	def _values_ul4onset(self, value):
 		self._sparsevalues = value
+		# Set the following attributes via ``__dict__``, as they are "read only".
+		self.__dict__["values"] = None
+		self.__dict__["fields"] = None
+
+	def _fielderrors_ul4onget(self):
+		if self._sparsefielderrors is not None:
+			return self._sparsefielderrors
+
+		result = {field.control.identifier: field.errors for field in self.fields.values() if field.has_errors()}
+		return result or None
+
+	def _fielderrors_ul4onset(self, value):
+		self._sparsefielderrors = value
+		# Set the following attributes via ``__dict__``, as they are "read only".
+		self.__dict__["values"] = None
+		self.__dict__["fields"] = None
+
+	def _lookupdata_ul4onget(self):
+		pass
+
+	def _lookupdata_ul4onset(self, value):
+		self._sparselookupdata = value
 		# Set the following attributes via ``__dict__``, as they are "read only".
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
