@@ -2417,7 +2417,7 @@ class Control(Base):
 	required = BoolAttr(get="", ul4get="_required_get")
 	mode = EnumAttr(Mode, get="", ul4get="")
 	labelpos = EnumAttr(LabelPos, get="", ul4get="")
-	in_activ_view = BoolAttr(get="", ul4get="_in_activ_view_get")
+	in_active_view = BoolAttr(get="", ul4get="_in_active_view_get")
 
 	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, default=None):
 		self.id = id
@@ -2521,7 +2521,7 @@ class Control(Base):
 			return labelpos.value
 		return None
 
-	def _in_activ_view_get(self):
+	def _in_active_view_get(self):
 		vc = self._get_viewcontrol()
 		return vc is not None
 
