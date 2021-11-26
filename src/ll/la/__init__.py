@@ -871,8 +871,10 @@ class Base:
 			return attr.ul4get(self)
 		elif isinstance(attr, property):
 			return attr.fget(self)
-		elif self.ul4_hasattr(name):
-			return getattr(self, name)
+		else:
+			ul4_attrs = getattr(self, 'ul4_attrs', None)
+			if ul4_attrs is not None and name in ul4_attrs:
+				return getattr(self, name)
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def ul4_setattr(self, name, value):
