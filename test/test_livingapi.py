@@ -964,6 +964,7 @@ def test_changeapi_dirty(handler, config_apps):
 def test_changeapi_has_errors(handler, config_apps):
 	source_print = """
 		<?whitespace strip?>
+		<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>
 		<?code r = app(firstname='01')?>
 		<?print r.f_firstname.has_errors()?>
 		"""
@@ -983,9 +984,32 @@ def test_changeapi_has_errors(handler, config_apps):
 	assert output == expected
 
 
+def test_view_specific_lookups(handler, config_apps):
+	source_print = """
+		<?code m = app.c_sex.lookupdata.male?><?code f = app.c_sex.lookupdata.female?>
+		<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>
+		<?print app.active_view.lang?>,<?print m.label?>,<?print f.label?>|
+		<?code app.active_view = first(v for v in app.views.values() if v.lang == 'de')?>
+		<?print app.active_view.lang?>,<?print m.label?>,<?print f.label?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=config_apps.apps.persons,
+			includeviews=True
+		),
+		identifier=f"test_view_specific_lookups",
+		source=source_print
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expexted = "en,Male (en),Female (en)|de,Männlich (de),Weiblich (de)"
+	
+
 tests = '''
 test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption
-Neue: test_view_control_overwrite_lookup_label ???
+Neue: test_view_control_overwrite_lookup_label ???  view_specific_lookups
 
 
 Test für Shortcut-Attbut globals.d_*    done
@@ -994,8 +1018,8 @@ App.fetchTemplates() implementieren.  spaeter
 
 Feld-Defaultwerte bei aktivem und inaktivem View. done
 
-Field-Methode is_dirty() und has_errors() testen.
-App-Konstruktur mit falschen Argumenten aufrufen.
+Field-Methode is_dirty() und has_errors() testen.   done
+App-Konstruktur mit falschen Argumenten aufrufen.   Exception
 Record.save()-Argument sync testen. (id, cname und cdate(not None))
 
 Globals.seq() testen.
