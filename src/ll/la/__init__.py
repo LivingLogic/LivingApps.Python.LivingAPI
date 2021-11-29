@@ -4044,7 +4044,7 @@ class Record(Base):
 		record.
 	"""
 
-	ul4_attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "save", "update", "executeaction", "state"}
+	ul4_attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "is_dirty", "save", "update", "executeaction", "state"}
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
 	class State(misc.Enum):
