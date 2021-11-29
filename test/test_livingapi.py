@@ -889,7 +889,6 @@ def test_globals_t_shortcuts(handler, config_apps):
 
 
 def test_view_defaultedfields_default(handler, config_apps):
-	# <?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>  country_of_birth='germany'
 	testoptions = {'withview': {
 			'activateview': "<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>",
 			'expected': f"'Walter'|'Dörwald'|@({datetime.date.today()})|germany||||",
@@ -960,7 +959,28 @@ def test_changeapi_dirty(handler, config_apps):
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = "FalseFalseFalseFalseTrueTrueTrueTrue"
 	assert output == expected
-	#assertEquals("FalseFalseFalseFalseTrueTrueTrueTrue", rendersWithLogging(template, variables));
+
+
+def test_changeapi_has_errors(handler, config_apps):
+	source_print = """
+		<?whitespace strip?>
+		<?code r = app(firstname='01')?>
+		<?print r.f_firstname.has_errors()?>
+		"""
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=config_apps.apps.persons,
+			includeviews=True
+		),
+		identifier=f"test_changeapi_has_errors",
+		source=source_print
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "True"
+	assert output == expected
 
 
 tests = '''
