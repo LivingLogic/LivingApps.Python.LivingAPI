@@ -889,33 +889,78 @@ def test_globals_t_shortcuts(handler, config_apps):
 
 
 def test_view_defaultedfields_default(handler, config_apps):
-	# <?code app.active_view = first(v for v in app.views.values() if v.lang == 'de')?>
+	# <?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>  country_of_birth='germany'
+	testoptions = {'withview': {
+			'activateview': "<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>",
+			'expected': f"'Walter'|'Dörwald'|@({datetime.date.today()})|germany||||",
+		},
+		'withoutview': {
+			'activateview': '',
+			'expected': f"None|None|None|||||",
+		}}
+	
+	for name, param in testoptions.items():
+		source_print = f"""{param['activateview']}
+			<?code r = app()?>
+			<?print repr(r.v_firstname)?>|
+			<?print repr(r.v_lastname)?>|
+			<?print repr(r.v_date_of_birth)?>|
+			<?print r.v_country_of_birth.key?>|
+			<?print ':'.join(r.f_firstname.errors)?>|
+			<?print ':'.join(r.f_lastname.errors)?>|
+			<?print ':'.join(r.f_date_of_birth.errors)?>|
+			<?print ':'.join(r.f_country_of_birth.errors)?>"""
+
+		vt = handler.make_viewtemplate(
+			la.DataSource(
+				identifier="persons",
+				app=config_apps.apps.persons,
+				includeviews=True
+			),
+			identifier=f"test_view_defaultedfields_default_{name}",
+			source=f"""
+			<?whitespace strip?>
+			{source_print}
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		assert output == param['expected']
+
+
+def test_changeapi_dirty(handler, config_apps):
 	source_print = """
-		<?code r = app()?>
-		<?print repr(r.v_firstname)?>|
-		<?print repr(r.v_lastname)?>|
-		<?print repr(r.v_date_of_birth)?>|
-		<?print repr(r.v_country_of_birth)?>|
-		<?print ':'.join(r.f_firstname.errors)?>|
-		<?print ':'.join(r.f_lastname.errors)?>|
-		<?print ':'.join(r.f_date_of_birth.errors)?>|
-		<?print ':'.join(r.f_country_of_birth.errors)?>"""
+		<?whitespace strip?>
+		<?for r in app.records.values()?>
+			<?print r.f_date_of_birth.is_dirty()?>
+			<?print r.is_dirty()?>
+			<?code r.v_date_of_birth = r.v_date_of_birth?>
+			<?print r.f_date_of_birth.is_dirty()?>
+			<?print r.is_dirty()?>
+			<?code r.v_date_of_birth = (r.v_date_of_birth or today()) + timedelta(1)?>
+			<?print r.f_date_of_birth.is_dirty()?>
+			<?print r.is_dirty()?>
+			<?code r.v_date_of_birth += timedelta(1)?>
+			<?print r.f_date_of_birth.is_dirty()?>
+			<?print r.is_dirty()?>
+			<?break?>
+		<?end for?>
+		"""
 
 	vt = handler.make_viewtemplate(
 		la.DataSource(
 			identifier="persons",
 			app=config_apps.apps.persons,
+			includeviews=True
 		),
-		identifier="test_view_defaultedfields_default",
-		source=f"""
-		<?whitespace strip?>
-		{source_print}
-		""",
+		identifier=f"test_changeapi_dirty",
+		source=source_print
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
-	expected = "'Walter'|'Dörwald'|now()|<com.livinglogic.livingapps.livingapi.LookupItem key='germany' label='Germany'>||||"
+	expected = "FalseFalseFalseFalseTrueTrueTrueTrue"
 	assert output == expected
+	#assertEquals("FalseFalseFalseFalseTrueTrueTrueTrue", rendersWithLogging(template, variables));
 
 
 tests = '''
@@ -924,10 +969,10 @@ Neue: test_view_control_overwrite_lookup_label ???
 
 
 Test für Shortcut-Attbut globals.d_*    done
-Test für Template-Shortcutattribute globals.t_* und app.t_*.
+Test für Template-Shortcutattribute globals.t_* und app.t_*. done
 App.fetchTemplates() implementieren.  spaeter
 
-Feld-Defaultwerte bei aktivem und inaktivem View.
+Feld-Defaultwerte bei aktivem und inaktivem View. done
 
 Field-Methode is_dirty() und has_errors() testen.
 App-Konstruktur mit falschen Argumenten aufrufen.
