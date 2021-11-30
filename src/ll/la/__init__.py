@@ -1594,6 +1594,9 @@ class Globals(Base):
 	def geo(self, lat=None, long=None, info=None):
 		return self.handler.geo(lat, long, info)
 
+	def seq(self):
+		return self.handler.seq()
+
 	def scaled_url(self, /, image:Union["File", str], width:T_opt_int, height:T_opt_int, *, type:str="fill", enlarge:bool=True, gravity:str="sm", quality:T_opt_int=None, rotate:int=0, blur:T_opt_float=None, sharpen:T_opt_float=None, format:T_opt_str=None, cache:bool=True) -> str:
 		"""
 		Return a new URL for a scaled version of an existing image. These images

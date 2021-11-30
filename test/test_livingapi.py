@@ -928,7 +928,7 @@ def test_view_defaultedfields_default(handler, config_apps):
 
 
 def test_changeapi_dirty(handler, config_apps):
-	source_print = """
+	source = """
 		<?whitespace strip?>
 		<?for r in app.records.values()?>
 			<?print r.f_date_of_birth.is_dirty()?>
@@ -953,7 +953,7 @@ def test_changeapi_dirty(handler, config_apps):
 			includeviews=True
 		),
 		identifier=f"test_changeapi_dirty",
-		source=source_print
+		source=source
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -962,7 +962,7 @@ def test_changeapi_dirty(handler, config_apps):
 
 
 def test_changeapi_has_errors(handler, config_apps):
-	source_print = """
+	source = """
 		<?whitespace strip?>
 		<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>
 		<?code r = app(firstname='01')?>
@@ -976,7 +976,7 @@ def test_changeapi_has_errors(handler, config_apps):
 			includeviews=True
 		),
 		identifier=f"test_changeapi_has_errors",
-		source=source_print
+		source=source
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -985,7 +985,7 @@ def test_changeapi_has_errors(handler, config_apps):
 
 
 def test_view_specific_lookups(handler, config_apps):
-	source_print = """
+	source = """
 		<?code m = app.c_sex.lookupdata.male?><?code f = app.c_sex.lookupdata.female?>
 		<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>
 		<?print app.active_view.lang?>,<?print m.label?>,<?print f.label?>|
@@ -1000,7 +1000,7 @@ def test_view_specific_lookups(handler, config_apps):
 			includeviews=True
 		),
 		identifier=f"test_view_specific_lookups",
-		source=source_print
+		source=source
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1008,7 +1008,7 @@ def test_view_specific_lookups(handler, config_apps):
 
 
 def test_app_with_wrong_fields(handler, config_apps):
-	source_print = """
+	source = """
 		<?whitespace strip?>
 		<?code r = app(gurk='hurz')?>
 		"""
@@ -1020,7 +1020,7 @@ def test_app_with_wrong_fields(handler, config_apps):
 			includeviews=True
 		),
 		identifier=f"test_app_with_wrong_fields",
-		source=source_print
+		source=source
 	)
 
 	# TODO: common exception handling mechanism
@@ -1029,7 +1029,7 @@ def test_app_with_wrong_fields(handler, config_apps):
 
 def test_record_save_with_sync(handler, config_apps):
 	if not isinstance(handler, PythonHTTP):
-		source_print = """
+		source = """
 			<?whitespace strip?>
 			<?code r = app(notes='notes')?>
 			<?code r.save(True, True)?>
@@ -1046,7 +1046,7 @@ def test_record_save_with_sync(handler, config_apps):
 				includeviews=True
 			),
 			identifier=f"test_record_save_with_sync",
-			source=source_print
+			source=source
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1055,17 +1055,18 @@ def test_record_save_with_sync(handler, config_apps):
 
 
 def test_globals_seq(handler, config_apps):
-	source_print = """
-		<?print globals.seq()?>
-		"""
+	if not isinstance(handler, PythonHTTP):
+		source_print = """
+			<?print globals.seq()?>
+			"""
 
-	vt = handler.make_viewtemplate(
-		identifier="test_globals_seq",
-		source=source_print
-	)
+		vt = handler.make_viewtemplate(
+			identifier="test_globals_seq",
+			source=source_print
+		)
 
-	handler.renders(person_app_id(), template=vt.identifier)
-	# no tests here
+		handler.renders(person_app_id(), template=vt.identifier)
+		# no tests here
 	
 
 tests = '''

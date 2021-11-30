@@ -176,6 +176,9 @@ class Handler:
 		else:
 			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
 
+	def seq(self):
+		raise NotImplementedError
+
 	def save_record(self, record):
 		raise NotImplementedError
 
@@ -285,6 +288,7 @@ class DBHandler(Handler):
 		self.proc_dataorder_delete = orasql.Procedure("DATASOURCE_PKG.DATAORDER_DELETE")
 		self.proc_vsqlsource_insert = orasql.Procedure("VSQL_PKG.VSQLSOURCE_INSERT")
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
+		self.func_seq = orasql.Function("LIVINGAPI_PKG.SEQ")
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
@@ -314,6 +318,11 @@ class DBHandler(Handler):
 
 	def rollback(self):
 		self.db.rollback()
+
+	def seq(self):
+		c = self.cursor()
+		(value, r) = self.func_seq(c)
+		return value
 
 	def save_app(self, app, recursive=True):
 		# FIXME: Save the app itself
