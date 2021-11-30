@@ -1056,18 +1056,62 @@ def test_record_save_with_sync(handler, config_apps):
 
 def test_globals_seq(handler, config_apps):
 	if not isinstance(handler, PythonHTTP):
-		source_print = """
+		source = """
 			<?print globals.seq()?>
 			"""
 
 		vt = handler.make_viewtemplate(
 			identifier="test_globals_seq",
-			source=source_print
+			source=source
 		)
 
 		handler.renders(person_app_id(), template=vt.identifier)
 		# no tests here
+
+
+def test_record_add_error(handler):
+	source = """
+		<?whitespace strip?>
+		<?code r = app()?>
+		<?print r.has_errors()?>
+		<?code r.add_error('my error text')?>
+		<?print r.has_errors()?>
+		<?code r.clear_errors()?>
+		<?print r.has_errors()?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_record_add_error",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "FalseTrueFalse"
+	assert output == expected
+
 	
+def test_field_add_error(handler):
+	source = """
+		<?whitespace strip?>
+		<?code r = app()?>
+		<?print r.f_firstname.has_errors()?>
+		<?code r.f_firstname.add_error('my error text')?>
+		<?print r.f_firstname.has_errors()?>
+		<?print r.has_errors()?>
+		<?code r.f_firstname.clear_errors()?>
+		<?print r.f_firstname.has_errors()?>
+		<?print r.has_errors()?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_field_add_error",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "FalseTrueTrueFalseFalse"
+	assert output == expected
+
 
 tests = '''
 test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption  done
@@ -1084,8 +1128,8 @@ Field-Methode is_dirty() und has_errors() testen.   done
 App-Konstruktur mit falschen Argumenten aufrufen.   Exception  
 Record.save()-Argument sync testen. (id, cname und cdate(not None)) done
 
-Globals.seq() testen.
-Record.add_error() und Field.add_error() testen.
+Globals.seq() testen.  done
+Record.add_error() und Field.add_error() testen. done
 Globals.flash_info() und Kollegen testen.
 Globals.log_info() und Kollegen testen.
 Record.c_*-Shortcut-Attribute testen.
