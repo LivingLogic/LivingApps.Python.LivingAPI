@@ -12,7 +12,7 @@
 See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 """
 
-import io, datetime, operator, string, json, pathlib, types
+import io, datetime, operator, string, json, pathlib, types, enum
 import urllib.parse as urlparse
 from collections import abc
 
@@ -64,7 +64,7 @@ def register(name):
 	return registration
 
 
-def format_class(cls):
+def format_class(cls) -> str:
 	"""
 	Format the name of the class object ``cls``.
 
@@ -81,7 +81,7 @@ def format_class(cls):
 		return cls.__qualname__
 
 
-def format_list(items):
+def format_list(items:List[str]) -> str:
 	"""
 	Format a list of strings for text output.
 
@@ -232,7 +232,7 @@ def error_foreign_view(view:"ll.la.View") -> str:
 def error_view_not_found(viewid:str) -> str:
 	return f"View with id {viewid!r} can't be found."
 
-def _resolve_type(t:Union[Type, Callable[[], Type]]):
+def _resolve_type(t:Union[Type, Callable[[], Type]]) -> Type:
 	if not isinstance(t, type):
 		t = t()
 	return t
@@ -587,7 +587,7 @@ class BoolAttr(Attr):
 	"""
 	Subclass of :class:`Attr` for boolean values.
 
-	Setting such an attribute also supports an integer as the value.
+	Setting such an attribute also supports :class:`int`\\s as values.
 	"""
 
 	def __init__(self, **kwargs):
@@ -613,9 +613,9 @@ class BoolAttr(Attr):
 
 class FloatAttr(Attr):
 	"""
-	Subclass of :class:`Attr` for float values.
+	Subclass of :class:`Attr` for :class:`float` values.
 
-	Setting such an attribute also supports an integer as the value.
+	Setting such an attribute also supports :class:`int`\\s as values.
 	"""
 
 	def __init__(self, **kwargs):
@@ -643,10 +643,10 @@ class EnumAttr(Attr):
 	"""
 	Subclass of :class:`Attr` for values that are :class:`~enum.Enum` instances.
 
-	Setting such an attribute also supports a string as the value.
+	Setting such an attribute also supports :class:`str`\\s as values.
 	"""
 
-	def __init__(self, type, **kwargs):
+	def __init__(self, type:Type[enum.Enum], **kwargs):
 		"""
 		Create an :class:`EnumAttr` data descriptor.
 
@@ -696,7 +696,7 @@ class IntEnumAttr(EnumAttr):
 	"""
 	Subclass of :class:`Attr` for values that are :class:`~enum.IntEnum` instances.
 
-	Setting such an attribute also supports an integer as the value.
+	Setting such an attribute also supports :class:`int`\\s as values.
 	"""
 
 	def _default_set(self, instance, value):
@@ -721,7 +721,7 @@ class VSQLAttr(Attr):
 	Data descriptor for an attribute containing a vSQL expression.
 	"""
 
-	def __init__(self, function, **kwargs):
+	def __init__(self, function:str, **kwargs):
 		"""
 		Create an :class:`VSQLAttr` data descriptor.
 
@@ -764,7 +764,7 @@ class AttrDictAttr(Attr):
 class CaseInsensitiveDictAttr(Attr):
 	"""
 	Subclass of :class:`Attr` for values that are dictionaries with
-	case-insensitive tring keys.
+	case-insensitive string keys.
 
 	Setting such an attribute convert a normal :class:`dict` into an
 	:class:`requests.structures.CaseInsensitiveDict` object.
@@ -807,7 +807,7 @@ class Base:
 	@classmethod
 	def attrs(cls) -> Iterable[Attr]:
 		"""
-		Returns an iterator over all :class:`Attr` descriptors for the class.
+		Returns an iterator over all :class:`Attr` descriptors for this class.
 		"""
 		attrs = {}
 		for checkcls in reversed(cls.__mro__):
@@ -817,16 +817,17 @@ class Base:
 		return attrs.values()
 
 	@classmethod
-	def ul4oncreate(cls, id=None) -> "cls":
+	def ul4oncreate(cls, id:T_opt_str=None) -> "Base":
 		"""
 		Alternative "constructor" used by the UL4ON machinery for creating new
 		objects.
 
-		The reason for this workaround is that
+		The reason for this workaround is that in this way the constructor does
+		not need to have ``id`` is its first positional argument.
 		"""
 		return cls(id=id)
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		v = [f"<{self.__class__.__module__}.{self.__class__.__qualname__}"]
 
 		for attr in self.attrs():
@@ -836,13 +837,13 @@ class Base:
 		v.append(f"at {id(self):#x}>")
 		return " ".join(v)
 
-	def ul4ondump(self, encoder):
+	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
 		for attr in self.attrs():
 			if attr.ul4onget is not None:
 				value = attr.ul4onget(self)
 				encoder.dump(value)
 
-	def ul4onload(self, decoder):
+	def ul4onload(self, decoder:ul4on.Decoder) -> None:
 		self.ul4onload_begin(decoder)
 		attrs = (attr for attr in self.attrs() if attr.ul4onset is not None)
 		dump = decoder.loadcontent()
@@ -861,17 +862,21 @@ class Base:
 			attr.ul4ondefault(self)
 		self.ul4onload_end(decoder)
 
-	def ul4onload_begin(self, decoder):
+	def ul4onload_begin(self, decoder:ul4on.Decoder) -> None:
 		"""
 		Called before the content of the object is loaded from an UL4ON dump.
+
+		The default implementation does nothing.
 		"""
 
-	def ul4onload_end(self, decoder):
+	def ul4onload_end(self, decoder:ul4on.Decoder) -> None:
 		"""
 		Called after the content of the object has been loaded from an UL4ON dump.
+
+		The default implementation does nothing.
 		"""
 
-	def ul4_getattr(self, name):
+	def ul4_getattr(self, name:str) -> Any:
 		attr = getattr(self.__class__, name, None)
 		if isinstance(attr, Attr):
 			return attr.ul4get(self)
@@ -883,7 +888,7 @@ class Base:
 				return getattr(self, name)
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
-	def ul4_setattr(self, name, value):
+	def ul4_setattr(self, name:str, value:Any) -> None:
 		attr = getattr(self.__class__, name, None)
 		if isinstance(attr, Attr):
 			return attr.ul4set(self, value)
@@ -906,7 +911,7 @@ class FlashMessage(Base):
 		When was the :class:`!FlashMessage` created?
 
 	.. attribute:: type
-		:type: Type
+		:type: MessageType
 
 		The type of the message.
 
@@ -925,7 +930,7 @@ class FlashMessage(Base):
 	ul4_attrs = {"timestamp", "type", "title", "message"}
 	ul4_type = ul4c.Type("la", "FlashMessage", "A flash message in a web page")
 
-	class Type(misc.Enum):
+	class MessageType(misc.Enum):
 		"""
 		The severity level of a :class:`FlashMessage`.
 
@@ -938,11 +943,11 @@ class FlashMessage(Base):
 		ERROR = "error"
 
 	timestamp = Attr(datetime.datetime, get=True, set=True, ul4onget=True, ul4onset=True)
-	type = EnumAttr(Type, get=True, set=True, ul4onget=True, ul4onset=True)
+	type = EnumAttr(MessageType, get=True, set=True, ul4onget=True, ul4onset=True)
 	title = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	message = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, timestamp=None, type=Type.INFO, title=None, message=None):
+	def __init__(self, timestamp=None, type=MessageType.INFO, title=None, message=None):
 		self.timestamp = timestamp
 		self.type = type
 		self.title = title
@@ -1035,17 +1040,17 @@ class File(Base):
 				self.height = img.size[1]
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
-	def _gethandler(self, handler):
+	def _gethandler(self, handler:T_opt_handler) -> "ll.la.handlers.Handler":
 		if handler is None:
 			if self.handler is None:
 				raise NoHandlerError()
 			handler = self.handler
 		return handler
 
-	def save(self, handler:T_opt_handler=None):
+	def save(self, handler:T_opt_handler=None) -> None:
 		self._gethandler(handler).save_file(self)
 
 	def content(self, handler:T_opt_handler=None) -> bytes:
@@ -1105,7 +1110,7 @@ class Geo(Base):
 		self.info = info
 
 	@classmethod
-	def ul4oncreate(cls, id=None):
+	def ul4oncreate(cls, id:T_opt_str=None) -> "Geo":
 		return cls()
 
 
@@ -1304,7 +1309,7 @@ class User(Base):
 		self.keyviews = attrdict()
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 	@classmethod
@@ -1580,7 +1585,7 @@ class Globals(Base):
 		self.view_id = None
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return "42"
 
 	def _datasources_ul4onset(self, value):
@@ -2053,7 +2058,7 @@ class App(Base):
 		return self.fullname
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 	def _records_ul4onset(self, value):
@@ -2447,7 +2452,7 @@ class Control(Base):
 		self._vsqlfield = None
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 	def _type_get(self):
@@ -3951,7 +3956,7 @@ class ViewControl(Base):
 		self.autoexpandable = False
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 	def _identifier_get(self):
@@ -4113,10 +4118,10 @@ class Record(Base):
 		self._deleted = False
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
-	def ul4onload_end(self, decoder):
+	def ul4onload_end(self, decoder:ul4on.Decoder) -> None:
 		self._new = False
 		self._deleted = False
 
@@ -4687,7 +4692,7 @@ class Attachment(Base):
 		self.active = active
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 
@@ -4962,10 +4967,10 @@ class Template(Base):
 		self._deleted = False
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
-	def template(self):
+	def template(self:T_opt_handler) -> "ll.la.handlers.Handler":
 		return ul4c.Template(self.source, name=self.identifier, signature=self.signature, whitespace=self.whitespace)
 
 	def _gethandler(self, handler):
@@ -5390,10 +5395,10 @@ class DataSource(Base):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
-	def add(self, *items):
+	def add(self, *items:T_opt_handler) -> "ll.la.handlers.Handler":
 		for item in items:
 			if isinstance(item, DataOrder):
 				item.parent = self
@@ -5483,7 +5488,7 @@ class DataSourceChildren(Base):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 	def add(self, *items):
@@ -5600,17 +5605,17 @@ class DataOrder(Base):
 		return s
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
-	def save(self, handler:T_opt_handler=None, recursive=True):
+	def save(self, handler:T_opt_handler=None, recursive:bool=True):
 		raise NotImplementedError("DataOrder objects can only be saved by their parent")
 
 
 @register("dataaction")
 class DataAction(Base):
 	"""
-	A :class:`DataAction` object contains the configuration of a data action.
+	A :class:`DataAction` object contains the -> None configuration of a data action.
 
 	A data action gets executed on a record in certain situation automatically
 	or on user demand.
@@ -5768,7 +5773,7 @@ class DataAction(Base):
 		self.add(*args)
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 	def add(self, *items):
@@ -5833,7 +5838,7 @@ class DataActionCommand(Base):
 		self.add(*args)
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 	def add(self, *items):
@@ -6099,10 +6104,10 @@ class DataActionDetail(Base):
 		self.formmode = None
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
-	def _code_get(self):
+	def _code_get(self:T_opt_handler) -> "ll.la.handlers.Handler":
 		if self.type is DataActionDetail.Type.SETNULL:
 			return f"(r.v_{self.control.identifier} = None)"
 		elif self.type is DataActionDetail.Type.SETNOW:
@@ -6226,7 +6231,7 @@ class LayoutControl(Base):
 		self.identifier = identifier
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 
@@ -6387,7 +6392,7 @@ class View(Base):
 		self.lang = lang
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 
@@ -6432,14 +6437,14 @@ class DataSourceData(Base):
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, identifier=None, app=None, apps=None):
+	def __init__(self, id:str=None, identifier:str=None, app:Optional["App"]=None, apps:Dict[str, "App"]=None):
 		self.id = id
 		self.identifier = identifier
 		self.app = app
 		self.apps = apps
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 
@@ -6500,7 +6505,7 @@ class LookupItem(Base):
 			return None
 		return active_view.controls.get(self.control.identifier, None)
 
-	def _get_viewlookupitem(self):
+	def _get_viewlookupitem(self) -> Optional["ViewLookupItem"]:
 		viewcontrol = self._get_viewcontrol()
 		if viewcontrol is None or viewcontrol.lookupdata is None:
 			return None
@@ -6509,32 +6514,32 @@ class LookupItem(Base):
 		except KeyError:
 			return None
 
-	def _label_get(self):
+	def _label_get(self) -> str:
 		viewlookupitem = self._get_viewlookupitem()
 		if viewlookupitem is None:
 			return self._label
 		return viewlookupitem.label
 
-	def _label_set(self, label):
+	def _label_set(self, label:T_opt_str) -> None:
 		self._label = label
 
-	def _label_ul4ondefault(self):
+	def _label_ul4ondefault(self) -> None:
 		self._label = None
 
-	def _visible_get(self):
+	def _visible_get(self) -> bool:
 		viewlookupitem = self._get_viewlookupitem()
 		if viewlookupitem is None:
 			return True
 		return viewlookupitem.visible
 
-	def _visible_repr(self):
+	def _visible_repr(self) -> T_opt_str:
 		if self.visible:
 			return None
 		else:
 			return "visible=False"
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 
@@ -6569,12 +6574,12 @@ class ViewLookupItem(Base):
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	visible = BoolAttr(get=True, set=True, repr="", ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, key=None, label=None, visible=None):
+	def __init__(self, id:str=None, key:str=None, label:str=None, visible:bool=None):
 		self.key = key
 		self.label = label
 		self.visible = visible
 
-	def _visible_repr(self):
+	def _visible_repr(self) -> T_opt_str:
 		if self.visible:
 			return None
 		else:
@@ -6636,7 +6641,7 @@ class Category(Base):
 	children = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, identifier=None, name=None, order=None, parent=None, children=None, apps=None):
+	def __init__(self, id:str=None, identifier:str=None, name:str=None, order:int=None, parent:Optional["Category"]=None, children:Optional[List["Category"]]=None, apps:Optional[Dict[str, App]]=None):
 		self.id = id
 		self.identifier = identifier
 		self.name = name
@@ -6646,7 +6651,7 @@ class Category(Base):
 		self.apps = apps
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 
@@ -6735,7 +6740,7 @@ class AppParameter(Base):
 		self.updatedby = None
 
 	@property
-	def ul4onid(self):
+	def ul4onid(self) -> str:
 		return self.id
 
 
@@ -6795,13 +6800,13 @@ class HTTPRequest(Base):
 	headers = CaseInsensitiveDictAttr(get=True, ul4get=True)
 	params = AttrDictAttr(get=True, ul4get=True)
 
-	def __init__(self, method="get"):
+	def __init__(self, method:str="get"):
 		self.method = method
 		self.headers = {}
 		self.parsms = {}
 		self._seqvalue = 0
 
-	def seq(self):
+	def seq(self) -> int:
 		result = self._seqvalue
 		self._seqvalue += 1
 		return result

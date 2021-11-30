@@ -54,9 +54,9 @@ from typing import *
 
 T_AST_Content = Union["AST", str]
 
-T_optstr = Optional[str]
-T_optint = Optional[int]
-T_optast = Optional["AST"]
+T_opt_str = Optional[str]
+T_opt_int = Optional[int]
+T_opt_ast = Optional["AST"]
 T_sortdirection = Union[None, Literal["asc", "desc"]]
 T_sortnulls = Union[None, Literal["first", "last"]]
 
@@ -77,23 +77,23 @@ scriptname = misc.sysinfo.short_script_name
 
 fields = dict(
 	vr_nodetype=str,
-	vr_value=T_optstr,
+	vr_value=T_opt_str,
 	vr_result=str,
-	vr_signature=T_optstr,
+	vr_signature=T_opt_str,
 	vr_arity=int,
-	vr_literal1=T_optstr,
-	vr_child2=T_optint,
-	vr_literal3=T_optstr,
-	vr_child4=T_optint,
-	vr_literal5=T_optstr,
-	vr_child6=T_optint,
-	vr_literal7=T_optstr,
-	vr_child8=T_optint,
-	vr_literal9=T_optstr,
-	vr_child10=T_optint,
-	vr_literal11=T_optstr,
-	vr_child12=T_optint,
-	vr_literal13=T_optstr,
+	vr_literal1=T_opt_str,
+	vr_child2=T_opt_int,
+	vr_literal3=T_opt_str,
+	vr_child4=T_opt_int,
+	vr_literal5=T_opt_str,
+	vr_child6=T_opt_int,
+	vr_literal7=T_opt_str,
+	vr_child8=T_opt_int,
+	vr_literal9=T_opt_str,
+	vr_child10=T_opt_int,
+	vr_literal11=T_opt_str,
+	vr_child12=T_opt_int,
+	vr_literal13=T_opt_str,
 	vr_cname=str,
 	vr_cdate=datetime.datetime,
 )
@@ -388,7 +388,7 @@ class Field(Repr):
 
 	As a table or view field it belongs to a :class:`Group` object.
 	"""
-	def __init__(self, identifier:T_optstr=None, datatype:DataType=DataType.NULL, fieldsql:T_optstr=None, joinsql:T_optstr=None, refgroup:Optional["Group"]=None):
+	def __init__(self, identifier:T_opt_str=None, datatype:DataType=DataType.NULL, fieldsql:T_opt_str=None, joinsql:T_opt_str=None, refgroup:Optional["Group"]=None):
 		self.identifier = identifier
 		self.datatype = datatype
 		self.fieldsql = fieldsql
@@ -451,7 +451,7 @@ class Group(Repr):
 	:class:`Field`.
 	"""
 
-	def __init__(self, tablesql:T_optstr=None, **fields:Union["Field", Tuple[DataType, str], Tuple[DataType, str, str, "Group"]]):
+	def __init__(self, tablesql:T_opt_str=None, **fields:Union["Field", Tuple[DataType, str], Tuple[DataType, str, str, "Group"]]):
 		self.tablesql = tablesql
 		self.fields = {}
 		for (fieldname, fielddata) in fields.items():
@@ -476,7 +476,7 @@ class Group(Repr):
 		else:
 			raise KeyError(key)
 
-	def add_field(self, identifier:str, datatype:DataType, fieldsql:str, joinsql:T_optstr=None, refgroup:Optional["Group"]=None) -> None:
+	def add_field(self, identifier:str, datatype:DataType, fieldsql:str, joinsql:T_opt_str=None, refgroup:Optional["Group"]=None) -> None:
 		field = Field(identifier, datatype, fieldsql, joinsql, refgroup)
 		self.fields[identifier] = field
 
@@ -493,7 +493,7 @@ class Query(Repr):
 	"""
 	A :class:`!Query` object can be used to build an SQL query using vSQL expressions.
 	"""
-	def __init__(self, comment:T_optstr=None, **vars:"Field"):
+	def __init__(self, comment:T_opt_str=None, **vars:"Field"):
 		"""
 		Create a new empty :class:`!Query` object.
 
@@ -515,10 +515,10 @@ class Query(Repr):
 		self._fields : Dict[str, "AST"] = {}
 		self._from : Dict[str, "AST"] = {}
 		self._where : Dict[str, "AST"] = {}
-		self._orderby : List[Tuple[str, "AST", T_optstr, T_optstr]] = []
+		self._orderby : List[Tuple[str, "AST", T_opt_str, T_opt_str]] = []
 		self._identifier_aliases : Dict[str, str] = {}
 
-	def _vsql_register(self, fieldref:"FieldRefAST") -> T_optstr:
+	def _vsql_register(self, fieldref:"FieldRefAST") -> T_opt_str:
 		if fieldref.error is not None:
 			return # Don't register broken expressions
 		if fieldref.parent is None:
@@ -1033,7 +1033,7 @@ class AST(Repr):
 		cls.rules[rule.key] = rule
 
 	@classmethod
-	def typeref(cls, s:str) -> T_optint:
+	def typeref(cls, s:str) -> T_opt_int:
 		if s.startswith("T") and s[1:].isdigit():
 			return int(s[1:])
 		return None
@@ -2432,7 +2432,7 @@ class SliceAST(AST):
 	nodetype = NodeType.TERNOP_SLICE
 	precedence = 16
 
-	def __init__(self, obj:AST, index1:T_optast, index2:T_optast, *content:T_AST_Content):
+	def __init__(self, obj:AST, index1:T_opt_ast, index2:T_opt_ast, *content:T_AST_Content):
 		super().__init__(*content)
 		self.obj = obj
 		self.index1 = index1
@@ -2441,7 +2441,7 @@ class SliceAST(AST):
 		self.validate()
 
 	@classmethod
-	def make(cls, obj:AST, index1:T_optast, index2:T_optast) -> "SliceAST":
+	def make(cls, obj:AST, index1:T_opt_ast, index2:T_opt_ast) -> "SliceAST":
 		if index1 is None:
 			index1 = NoneAST(None)
 		if index2 is None:
@@ -3582,14 +3582,14 @@ def oracle_sql_table() -> str:
 			sql.append(f"\t{fieldname} varchar2(200) not null{term}")
 		elif fieldtype is int:
 			sql.append(f"\t{fieldname} integer not null{term}")
-		elif fieldtype is T_optint:
+		elif fieldtype is T_opt_int:
 			sql.append(f"\t{fieldname} integer{term}")
 		elif fieldtype is datetime.datetime:
 			sql.append(f"\t{fieldname} date not null{term}")
 		elif fieldtype is str:
 			size = max(len(r[fieldname]) for r in recordfields if fieldname in r and r[fieldname])
 			sql.append(f"\t{fieldname} varchar2({size}) not null{term}")
-		elif fieldtype is T_optstr:
+		elif fieldtype is T_opt_str:
 			size = max(len(r[fieldname]) for r in recordfields if fieldname in r and r[fieldname])
 			sql.append(f"\t{fieldname} varchar2({size}){term}")
 		else:
