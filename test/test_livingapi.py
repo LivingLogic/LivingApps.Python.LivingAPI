@@ -1076,6 +1076,7 @@ def test_record_add_error(handler):
 		<?print r.has_errors()?>
 		<?code r.add_error('my error text')?>
 		<?print r.has_errors()?>
+		<?print r.errors?>
 		<?code r.clear_errors()?>
 		<?print r.has_errors()?>
 	"""
@@ -1086,7 +1087,7 @@ def test_record_add_error(handler):
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
-	expected = "FalseTrueFalse"
+	expected = "FalseTrue['my error text']False"
 	assert output == expected
 
 	
@@ -1098,6 +1099,7 @@ def test_field_add_error(handler):
 		<?code r.f_firstname.add_error('my error text')?>
 		<?print r.f_firstname.has_errors()?>
 		<?print r.has_errors()?>
+		<?print r.f_firstname.errors?>
 		<?code r.f_firstname.clear_errors()?>
 		<?print r.f_firstname.has_errors()?>
 		<?print r.has_errors()?>
@@ -1109,7 +1111,7 @@ def test_field_add_error(handler):
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
-	expected = "FalseTrueTrueFalseFalse"
+	expected = "FalseTrueTrue['my error text']FalseFalse"
 	assert output == expected
 
 
