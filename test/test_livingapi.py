@@ -1052,6 +1052,20 @@ def test_record_save_with_sync(handler, config_apps):
 		output = handler.renders(person_app_id(), template=vt.identifier)
 		expected = "TrueTrueTruenotes saved!"
 		assert output == expected
+
+
+def test_globals_seq(handler, config_apps):
+	source_print = """
+		<?print globals.seq()?>
+		"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_globals_seq",
+		source=source_print
+	)
+
+	handler.renders(person_app_id(), template=vt.identifier)
+	# no tests here
 	
 
 tests = '''

@@ -1515,6 +1515,7 @@ class Globals(Base):
 		"response",
 		"geo",
 		"scaled_url",
+		"seq",
 	}
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
