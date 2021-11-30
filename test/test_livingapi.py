@@ -1005,11 +1005,58 @@ def test_view_specific_lookups(handler, config_apps):
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expexted = "en,Male (en),Female (en)|de,Männlich (de),Weiblich (de)"
+
+
+def test_app_with_wrong_fields(handler, config_apps):
+	source_print = """
+		<?whitespace strip?>
+		<?code r = app(gurk='hurz')?>
+		"""
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=config_apps.apps.persons,
+			includeviews=True
+		),
+		identifier=f"test_app_with_wrong_fields",
+		source=source_print
+	)
+
+	# TODO: common exception handling mechanism
+	#output = handler.renders(person_app_id(), template=vt.identifier)
+
+
+def test_record_save_with_sync(handler, config_apps):
+	if not isinstance(handler, PythonHTTP):
+		source_print = """
+			<?whitespace strip?>
+			<?code r = app(notes='notes')?>
+			<?code r.save(True, True)?>
+			<?print r.id is not None?>
+			<?print r.createdat is not None?>
+			<?print r.createdby is not None?>
+			<?print r.v_notes?>
+			"""
+
+		vt = handler.make_viewtemplate(
+			la.DataSource(
+				identifier="persons",
+				app=config_apps.apps.persons,
+				includeviews=True
+			),
+			identifier=f"test_record_save_with_sync",
+			source=source_print
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = "TrueTrueTruenotes saved!"
+		assert output == expected
 	
 
 tests = '''
-test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption
-Neue: test_view_control_overwrite_lookup_label ???  view_specific_lookups
+test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption  done
+Neue: test_view_control_overwrite_lookup_label ???  view_specific_lookups  done
 
 
 Test für Shortcut-Attbut globals.d_*    done
@@ -1019,8 +1066,8 @@ App.fetchTemplates() implementieren.  spaeter
 Feld-Defaultwerte bei aktivem und inaktivem View. done
 
 Field-Methode is_dirty() und has_errors() testen.   done
-App-Konstruktur mit falschen Argumenten aufrufen.   Exception
-Record.save()-Argument sync testen. (id, cname und cdate(not None))
+App-Konstruktur mit falschen Argumenten aufrufen.   Exception  
+Record.save()-Argument sync testen. (id, cname und cdate(not None)) done
 
 Globals.seq() testen.
 Record.add_error() und Field.add_error() testen.

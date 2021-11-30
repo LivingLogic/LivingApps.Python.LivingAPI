@@ -4085,7 +4085,7 @@ class Record(Base):
 	values = AttrDictAttr(get="", set=True, ul4get="_values_get", ul4onget="", ul4onset="")
 	attachments = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
-	errors = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	errors = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
 	lookupdata = AttrDictAttr(ul4onget="", ul4onset="")
 
@@ -4352,8 +4352,8 @@ class Record(Base):
 	def executeaction(self, handler:T_opt_handler=None, identifier=None):
 		self._gethandler(handler)._executeaction(self, identifier)
 
-	def ul4save(self, force=False):
-		return self.save(force=force)
+	def ul4save(self, force=False, sync=False):
+		return self.save(force=force, sync=sync)
 
 	def ul4delete(self):
 		self.delete()
