@@ -4351,6 +4351,10 @@ class Record(Base):
 	def ul4_setattr(self, name, value):
 		if name.startswith("v_") and name[2:] in self.app.controls:
 			setattr(self, name, value)
+		elif name.startswith("c_"):
+			if self.children is None:
+				self.children = attrdict()
+			self.children[name[2:]] = value
 		else:
 			raise AttributeError(error_attribute_readonly(self, name))
 
