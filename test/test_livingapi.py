@@ -1183,6 +1183,75 @@ def test_flash_error(handler):
 	assert output == expected
 
 
+def test_log_debug(handler):
+	source = """
+		<?whitespace strip?>
+		<?code globals.log_debug('foo', 'bar', 42)?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_log_debug",
+		source=source
+	)
+
+	handler.renders(person_app_id(), template=vt.identifier)
+
+
+def test_log_info(handler):
+	source = """
+		<?whitespace strip?>
+		<?code globals.log_info('foo', 'bar', 42)?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_log_info",
+		source=source
+	)
+
+	handler.renders(person_app_id(), template=vt.identifier)
+
+
+def test_log_notice(handler):
+	source = """
+		<?whitespace strip?>
+		<?code globals.log_notice('foo', 'bar', 42)?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_log_notice",
+		source=source
+	)
+
+	handler.renders(person_app_id(), template=vt.identifier)
+
+
+def test_log_warning(handler):
+	source = """
+		<?whitespace strip?>
+		<?code globals.log_warning('foo', 'bar', 42)?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_log_warning",
+		source=source
+	)
+
+	handler.renders(person_app_id(), template=vt.identifier)
+
+
+def test_log_error(handler):
+	source = """
+		<?whitespace strip?>
+		<?code globals.log_error('foo', 'bar', 42)?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_log_error",
+		source=source
+	)
+
+	handler.renders(person_app_id(), template=vt.identifier)
+
 
 tests = '''
 test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption  done
@@ -1202,7 +1271,7 @@ Record.save()-Argument sync testen. (id, cname und cdate(not None)) done
 Globals.seq() testen.  done
 Record.add_error() und Field.add_error() testen. done
 Globals.flash_info() und Kollegen testen. done
-Globals.log_info() und Kollegen testen.
+Globals.log_info() und Kollegen testen. done
 Record.c_*-Shortcut-Attribute testen.
 Richtige Zuordnung Control <-> ViewControl testen (Java view_controls())
 Globals.dist() testen (Java geo_dist())
