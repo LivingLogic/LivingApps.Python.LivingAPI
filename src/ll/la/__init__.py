@@ -4117,7 +4117,7 @@ class Record(Base):
 	fields = AttrDictAttr(get="", ul4get="_fields_get")
 	values = AttrDictAttr(get="", set=True, ul4get="_values_get", ul4onget="", ul4onset="")
 	attachments = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset="")
 	errors = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
 	lookupdata = AttrDictAttr(ul4onget="", ul4onset="")
@@ -4355,6 +4355,8 @@ class Record(Base):
 			if self.children is None:
 				self.children = attrdict()
 			self.children[name[2:]] = value
+		elif name == "children":
+			self.children = value
 		else:
 			raise AttributeError(error_attribute_readonly(self, name))
 

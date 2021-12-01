@@ -1253,6 +1253,45 @@ def test_log_error(handler):
 	handler.renders(person_app_id(), template=vt.identifier)
 
 
+def test_assign_to_children_shortcut_attribute(handler):
+	source = """
+		<?whitespace strip?>
+		<?code r = app()?>
+		<?code r.c_foo = {'bar': 'baz'}?>
+		<?print r.c_foo?>
+		<?code r.children = {}?>
+		<?print r.children?>
+		<?code r.children.foo = {}?>
+		<?print r.children.foo?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_assign_to_children_shortcut_attribute",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "{'bar': 'baz'}{}{}"
+	assert output == expected
+
+
+def test_assign_to_children_shortcut_attribute_wrong_type(handler):
+	if isinstance(handler, JavaDB):
+		source = "<?code r = app()?><?code r.c_foo = 42?><?print r.c_foo?>"
+
+		vt = handler.make_viewtemplate(
+			identifier="test_assign_to_children_shortcut_attribute_wrong_type",
+			source=source
+		)
+
+		try:
+			handler.renders(person_app_id(), template=vt.identifier)
+		except RuntimeError: # which exception is ok?
+			pass
+		else:
+			assert "expected exception not raised" == ''
+
+
 tests = '''
 test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption  done
 Neue: test_view_control_overwrite_lookup_label ???  view_specific_lookups  done
@@ -1272,7 +1311,7 @@ Globals.seq() testen.  done
 Record.add_error() und Field.add_error() testen. done
 Globals.flash_info() und Kollegen testen. done
 Globals.log_info() und Kollegen testen. done
-Record.c_*-Shortcut-Attribute testen.
+Record.c_*-Shortcut-Attribute testen. done
 Richtige Zuordnung Control <-> ViewControl testen (Java view_controls())
 Globals.dist() testen (Java geo_dist())
 Geo-Attribute testen (Java geo_constructor()).
