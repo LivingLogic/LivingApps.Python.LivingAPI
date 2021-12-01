@@ -1292,6 +1292,47 @@ def test_assign_to_children_shortcut_attribute_wrong_type(handler):
 			assert "expected exception not raised" == ''
 
 
+def test_view_controls(handler, config_apps):
+	source_print = """
+		<?code papp = globals.d_persons.app?>
+		<?code pview = first(app.views.values())?>
+		<?code any_controls = False?>
+		<?for (c, vc) in zip(app.controls.values(), pview.controls.values())?>
+		<?if c is not vc.control?>
+		Bad control: <?print repr(c)?><?print repr(vc)?>"
+		<?end if?>
+		<?if c.identifier != vc.identifier?>
+		Bad control identifier: <?print repr(c)?><?print repr(vc)?>
+		<?end if?>
+		<?if c.type != vc.type?>
+		Bad control type: <?print repr(c)?><?print repr(vc)?>
+		<?end if?>
+		<?if c.subtype != vc.subtype?>
+		Bad control subtype: <?print repr(c)?><?print repr(vc)?>
+		<?end if?>
+		<?code any_controls = True?>
+		<?end for?>
+		<?print any_controls?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=config_apps.apps.persons,
+			includeviews=True
+		),
+		identifier="test_view_controls",
+		source=f"""
+			<?whitespace strip?>
+			{source_print}
+		"""
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "True"
+	assert output == expected
+
+
 tests = '''
 test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption  done
 Neue: test_view_control_overwrite_lookup_label ???  view_specific_lookups  done
@@ -1312,7 +1353,7 @@ Record.add_error() und Field.add_error() testen. done
 Globals.flash_info() und Kollegen testen. done
 Globals.log_info() und Kollegen testen. done
 Record.c_*-Shortcut-Attribute testen. done
-Richtige Zuordnung Control <-> ViewControl testen (Java view_controls())
+Richtige Zuordnung Control <-> ViewControl testen (Java view_controls()) done
 Globals.dist() testen (Java geo_dist())
 Geo-Attribute testen (Java geo_constructor()).
 isinstance()-Tests (Java isinstance_la())
