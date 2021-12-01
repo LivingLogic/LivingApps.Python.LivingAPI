@@ -937,13 +937,13 @@ class FlashMessage(Base):
 		WARNING = "warning"
 		ERROR = "error"
 
-	timestamp = Attr(datetime.datetime, get=True, set=True, ul4onget=True, ul4onset=True)
-	type = EnumAttr(Type, get=True, set=True, ul4onget=True, ul4onset=True)
-	title = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
-	message = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
+	timestamp = Attr(datetime.datetime, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	type = EnumAttr(Type, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	title = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	message = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, timestamp=None, type=Type.INFO, title=None, message=None):
-		self.timestamp = timestamp
+	def __init__(self, type=Type.INFO, title=None, message=None):
+		self.timestamp = datetime.datetime.now()
 		self.type = type
 		self.title = title
 		self.message = message
@@ -1516,6 +1516,10 @@ class Globals(Base):
 		"geo",
 		"scaled_url",
 		"seq",
+		"flash_info",
+		"flash_notice",
+		"flash_warning",
+		"flash_error",
 	}
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
@@ -1545,7 +1549,7 @@ class Globals(Base):
 	user = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	maxdbactions = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	maxtemplateruntime = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	flashes = Attr(get=True, set=True, default_factory=list, ul4get=True, ul4onget=True, ul4onset=True)
+	_flashes = Attr(default_factory=list, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	datasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	hostname = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1567,7 +1571,7 @@ class Globals(Base):
 		self.user = None
 		self.maxdbactions = None
 		self.maxtemplateruntime = None
-		self.flashes = []
+		self.__dict__["_flashes"] = []
 		self.lang = None
 		self.handler = None
 		self.request = None
@@ -1591,11 +1595,31 @@ class Globals(Base):
 		if value is not None:
 			self.record = value
 
-	def geo(self, lat=None, long=None, info=None):
+	def geo(self, lat:T_opt_float=None, long:T_opt_float=None, info:T_opt_str=None) -> Geo:
 		return self.handler.geo(lat, long, info)
 
-	def seq(self):
+	def seq(self) -> int:
 		return self.handler.seq()
+
+	def _add_flash(self, type, title, message):
+		self.__dict__["_flashes"].append(FlashMessage(type=type, title=title, message=message))
+
+	def flash_info(self, title:str, message:T_opt_str) -> None:
+		self._add_flash(FlashMessage.Type.INFO, title, message)
+
+	def flash_notice(self, title:str, message:T_opt_str) -> None:
+		self._add_flash(FlashMessage.Type.NOTICE, title, message)
+
+	def flash_warning(self, title:str, message:T_opt_str) -> None:
+		self._add_flash(FlashMessage.Type.WARNING, title, message)
+
+	def flash_error(self, title:str, message:T_opt_str) -> None:
+		self._add_flash(FlashMessage.Type.ERROR, title, message)
+
+	def flashes(self) -> List[FlashMessage]:
+		flashes = self.__dict__["_flashes"]
+		self.__dict__["_flashes"] = []
+		return flashes
 
 	def scaled_url(self, /, image:Union["File", str], width:T_opt_int, height:T_opt_int, *, type:str="fill", enlarge:bool=True, gravity:str="sm", quality:T_opt_int=None, rotate:int=0, blur:T_opt_float=None, sharpen:T_opt_float=None, format:T_opt_str=None, cache:bool=True) -> str:
 		"""

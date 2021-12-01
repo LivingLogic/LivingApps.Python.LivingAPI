@@ -1115,6 +1115,75 @@ def test_field_add_error(handler):
 	assert output == expected
 
 
+def test_flash_info(handler):
+	source = """
+		<?whitespace strip?>
+		<?code globals.flash_info('Title', 'Message')?>
+		<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_flash_info",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "info,Title,Message"
+	assert output == expected
+
+
+def test_flash_notice(handler):
+	source = """
+		<?whitespace strip?>
+		<?code globals.flash_notice('Title', 'Message')?>
+		<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_flash_notice",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "notice,Title,Message"
+	assert output == expected
+
+
+def test_flash_warning(handler):
+	source = """
+		<?whitespace strip?>
+		<?code globals.flash_warning('Title', 'Message')?>
+		<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_flash_warning",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "warning,Title,Message"
+	assert output == expected
+
+
+def test_flash_error(handler):
+	source = """
+		<?whitespace strip?>
+		<?code globals.flash_error('Title', 'Message')?>
+		<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_flash_error",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "error,Title,Message"
+	assert output == expected
+
+
+
 tests = '''
 test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption  done
 Neue: test_view_control_overwrite_lookup_label ???  view_specific_lookups  done
@@ -1132,7 +1201,7 @@ Record.save()-Argument sync testen. (id, cname und cdate(not None)) done
 
 Globals.seq() testen.  done
 Record.add_error() und Field.add_error() testen. done
-Globals.flash_info() und Kollegen testen.
+Globals.flash_info() und Kollegen testen. done
 Globals.log_info() und Kollegen testen.
 Record.c_*-Shortcut-Attribute testen.
 Richtige Zuordnung Control <-> ViewControl testen (Java view_controls())
