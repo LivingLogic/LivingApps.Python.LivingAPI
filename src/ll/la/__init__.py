@@ -2038,6 +2038,7 @@ class App(Base):
 		"insert",
 		"favorite",
 		"active_view",
+		"datasource",
 		"internaltemplates",
 		"viewtemplates",
 		"dataactions",
@@ -2073,6 +2074,7 @@ class App(Base):
 	superid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	favorite = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	active_view = Attr(lambda: View, str, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	datasource = Attr(lambda: DataSourceData, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2107,6 +2109,7 @@ class App(Base):
 		self._templates = None
 		self.favorite = False
 		self.active_view = None
+		self.datasource = None
 		self.internaltemplates = None
 		self.viewtemplates = None
 		self.dataactions = None
@@ -2332,6 +2335,15 @@ class App(Base):
 							result = vsqlexpr
 						else:
 							result = vsql.OrAST.make(result, vsqlexpr)
+		return result
+
+	def vsqlsortexpr(self, record, maxdepth, controls=None):
+		result = []
+		if maxdepth:
+			usecontrols = controls if controls is not None else self.controls
+			for control in usecontrols.values():
+				if controls is None or control.priority:
+					result.extend(control.vsqlsortexpr(record, maxdepth-1))
 		return result
 
 
@@ -2620,6 +2632,9 @@ class Control(Base):
 	def vsqlsearchexpr(self, record, maxdepth):
 		return None # The default is that this field cannot be searched
 
+	def vsqlsortexpr(self, record, maxdepth):
+		return [] # The default doesn't add any sort expressions
+
 
 class StringControl(Control):
 	"""
@@ -2661,6 +2676,11 @@ class StringControl(Control):
 			Globals.vsqlsearchexpr(),
 			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower"),
 		)
+
+	def vsqlsortexpr(self, record, maxdepth):
+		return [
+			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower")
+		]
 
 	def _get_user_placeholder(self, user, placeholder):
 		if placeholder is None:
@@ -2893,6 +2913,11 @@ class IntControl(Control):
 			vsql.FuncAST.make("str", vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
 		)
 
+	def vsqlsortexpr(self, record, maxdepth):
+		return [
+			vsql.FieldRefAST.make(record, f"v_{self.identifier}")
+		]
+
 
 @register("numbercontrol")
 class NumberControl(Control):
@@ -2922,6 +2947,11 @@ class NumberControl(Control):
 			Globals.vsqlsearchexpr(),
 			vsql.FuncAST.make("str", vsql.FieldRefAST.make(record, f"v_{self.identifier}")),
 		)
+
+	def vsqlsortexpr(self, record, maxdepth):
+		return [
+			vsql.FieldRefAST.make(record, f"v_{self.identifier}")
+		]
 
 
 @register("datecontrol")
@@ -3206,6 +3236,11 @@ class BoolControl(Control):
 			)
 		)
 
+	def vsqlsortexpr(self, record, maxdepth):
+		return [
+			vsql.FieldRefAST.make(record, f"v_{self.identifier}")
+		]
+
 
 class LookupControl(Control):
 	"""
@@ -3299,6 +3334,11 @@ class LookupControl(Control):
 				"lower",
 			)
 		)
+
+	def vsqlsortexpr(self, record, maxdepth):
+		return [
+			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower")
+		]
 
 
 @register("lookupselectcontrol")
@@ -3459,6 +3499,12 @@ class AppLookupControl(Control):
 
 	def vsqlsearchexpr(self, record, maxdepth):
 		return self.lookup_app.vsqlsearchexpr(
+			vsql.FieldRefAST.make(record, f"v_{self.identifier}"),
+			maxdepth,
+		)
+
+	def vsqlsortexpr(self, record, maxdepth):
+		return self.lookup_app.vsqlsortexpr(
 			vsql.FieldRefAST.make(record, f"v_{self.identifier}"),
 			maxdepth,
 		)
@@ -3745,6 +3791,11 @@ class FileControl(Control):
 			vsql.MethAST.make(field, "lower"),
 		)
 
+	def vsqlsortexpr(self, record, maxdepth):
+		return [
+			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower")
+		]
+
 
 @register("filesignaturecontrol")
 class FileSignatureControl(FileControl):
@@ -3810,6 +3861,17 @@ class GeoControl(Control):
 				"lower",
 			)
 		)
+
+	def vsqlsortexpr(self, record, maxdepth):
+		return [
+			vsql.MethAST.make(
+				vsql.AttrAST.make(
+					vsql.FieldRefAST.make(record, f"v_{self.identifier}"),
+					"info"
+				),
+				"lower",
+			)
+		]
 
 
 @register("viewcontrol")
