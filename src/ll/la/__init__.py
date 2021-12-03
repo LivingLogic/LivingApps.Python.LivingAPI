@@ -12,7 +12,7 @@
 See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 """
 
-import io, datetime, operator, string, json, pathlib, types, enum
+import io, datetime, operator, string, json, pathlib, types, enum, math
 import urllib.parse as urlparse
 from collections import abc
 
@@ -1525,6 +1525,7 @@ class Globals(Base):
 		"flash_notice",
 		"flash_warning",
 		"flash_error",
+		"dist",
 	}
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
@@ -1625,6 +1626,40 @@ class Globals(Base):
 		flashes = self.__dict__["_flashes"]
 		self.__dict__["_flashes"] = []
 		return flashes
+
+	def dist(self, geo1:Geo, geo2:Geo) -> float:
+		lat1 = math.radians(geo1.lat)
+		lng1 = math.radians(geo1.long)
+		lat2 = math.radians(geo2.lat)
+		lng2 = math.radians(geo2.long)
+		radius = 6378.137; # Equatorial radius of earth in km
+		flat = 1/298.257223563; # Earth flattening
+
+		f = (lat1 + lat2)/2
+		g = (lat1 - lat2)/2
+		l = (lng1 - lng2)/2
+
+		def sqsin(x):
+			x = math.sin(x)
+			return x * x
+		
+		def sqcos(x):
+			x = math.cos(x)
+			return x * x
+		
+		s = sqsin(g) * sqcos(l) + sqcos(f) * sqsin(l)
+		c = sqcos(g) * sqcos(l) + sqsin(f) * sqsin(l)
+
+		w = math.atan(math.sqrt(s/c))
+
+		dist = 2 * w * radius
+
+		if w != 0.0:
+			t = math.sqrt(s * c)/w
+			h1 = (3*t-1)/(2*c)
+			h2 = (3*t+1)/(2*s)
+			dist *= (1 + flat * h1 * sqsin(f) * sqcos(g) - flat * h2 * sqcos(f) * sqsin(g))
+		return dist
 
 	def scaled_url(self, /, image:Union["File", str], width:T_opt_int, height:T_opt_int, *, type:str="fill", enlarge:bool=True, gravity:str="sm", quality:T_opt_int=None, rotate:int=0, blur:T_opt_float=None, sharpen:T_opt_float=None, format:T_opt_str=None, cache:bool=True) -> str:
 		"""

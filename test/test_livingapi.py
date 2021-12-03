@@ -1333,6 +1333,25 @@ def test_view_controls(handler, config_apps):
 	assert output == expected
 
 
+def test_geo_dist(handler):
+	source = """
+		<?whitespace strip?>
+		<?code geo1 = globals.geo(49.955267, 11.591212)?>
+		<?code geo2 = globals.geo(48.84672, 2.34631)?>
+		<?code dist = globals.dist(geo1, geo2)?>
+		<?print 680 < dist and dist < 690?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_geo_dist",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "True"
+	assert output == expected
+
+
 tests = '''
 test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption  done
 Neue: test_view_control_overwrite_lookup_label ???  view_specific_lookups  done
