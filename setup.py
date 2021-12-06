@@ -71,6 +71,7 @@ args = dict(
 		"requests >= 2.21.0",
 		"geocoder >= 1.30.1",
 		"Pillow >= 6.1.0",
+		"validators >= 0.18.2",
 	],
 	zip_safe=False,
 )

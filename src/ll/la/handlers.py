@@ -135,21 +135,37 @@ class Handler:
 		file.handler = self
 		return file
 
-	def _geofrominfo(self, info):
+	def _geofrominfo(self, info:str) -> la.Geo:
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder``
-		for provider in (geocoder.google, geocoder.osm):
-			result = provider(info, language="de")
-			if not result.error and result.lat and result.lng and result.address:
-				return la.Geo(result.lat, result.lng, result.address)
+		provider = geocoder.osm
+		result = provider(info, language="de")
+		if not result.error and result.lat and result.lng and result.address:
+			return la.Geo(result.lat, result.lng, result.address)
 		return None
 
-	def _geofromlatlong(self, lat, long):
+	def _geofromlatlong(self, lat:float, long:float) -> la.Geo:
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder``
-		for provider in (geocoder.google, geocoder.osm):
-			result = provider([lat, long], method="reverse", language="de")
-			if not result.error and result.lat and result.lng and result.address:
-				return la.Geo(result.lat, result.lng, result.address)
+		provider = geocoder.osm
+		result = provider([lat, long], method="reverse", language="de")
+		if not result.error and result.lat and result.lng and result.address:
+			return la.Geo(result.lat, result.lng, result.address)
 		return None
+
+	def _geofromstring(self, s:str) -> la.Geo:
+		parts = s.split(",", 2)
+		if len(parts) < 2:
+			return self._geofrominfo(s)
+		else:
+			try:
+				lat = float(parts[0])
+				long = float(parts[1])
+			except ValueError:
+				return self._geofrominfo(s)
+			else:
+				if len(parts) == 2:
+					return self._geofromlatlong(lat, long)
+				else:
+					return la.Geo(lat, long, parts[2].strip())
 
 	def geo(self, lat=None, long=None, info=None):
 		"""
