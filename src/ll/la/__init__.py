@@ -2871,12 +2871,12 @@ class StringControl(Control):
 		vc = self._get_viewcontrol()
 		if vc is not None:
 			return vc.minlength
-		return 0
+		return None
 
 	def _maxlength_get(self):
 		vc = self._get_viewcontrol()
 		if vc is not None:
-			return vc.maxlength
+			return min(4000, vc.maxlength or 4000)
 		return 4000
 
 	def _placeholder_get(self):
