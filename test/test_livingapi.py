@@ -8,6 +8,8 @@ To run the tests, :mod:`pytest` is required. For rerunning flaky tests the
 package ``pytest-rerunfailures`` is used.
 """
 
+import textwrap
+
 from conftest import *
 
 
@@ -729,7 +731,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 	)
 
 	output = handler.renders(person_app_id(), template=vt_no_view.identifier)
-	expected = "lang=None;label='Firstname';placeholder=None;required=False;minlength=0;maxlength=4000;labelpos='left'"
+	expected = "lang=None;label='Firstname';placeholder=None;required=False;minlength=None;maxlength=4000;labelpos='left'"
 	assert output == expected
 
 	vt_view_en = handler.make_viewtemplate(
@@ -982,6 +984,195 @@ def test_changeapi_has_errors(handler, config_apps):
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = "True"
 	assert output == expected
+
+
+def check_field(handler, config_apps, identifier, field, value, expected):
+	source = textwrap.dedent(f"""
+		<?whitespace strip?>
+		<?for lang in ["en", "fr", "it", "de"]?>
+			<?code app.active_view = first(v for v in app.views.values() if v.lang == lang)?>
+			<?if app.active_view is None?>
+				<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>
+			<?end if?>
+			<?code globals.lang = lang?>
+			<?code r = app()?>
+			<?code r.v_{field} = {value}?>
+			<?print lang?>=
+			<?print repr(r.v_{field})?>:
+			<?print ':'.join(r.f_{field}.errors)?>
+			<?print "\\n"?>
+		<?end for?>
+	""")
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=config_apps.apps.persons,
+			includeviews=True,
+		),
+		identifier=identifier,
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+
+	expected = "".join(line.strip() + "\n" for line in expected.splitlines() if line.strip())
+
+	assert output == expected
+
+
+def test_changeapi_fieldvalue_bool_string(handler, config_apps):
+	type = "<java.lang.String>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "str"
+
+	expected = f"""
+		en=None:"Nobel prize (en)" doesn't support the type {type}.
+		fr=None:«Nobel prize (en)» ne prend pas en charge le type {type}.
+		it=None:"Nobel prize (en)" non supporta il tipo {type}.
+		de=None:"Nobelpreis (de)" unterstützt den Typ {type} nicht.
+	"""
+
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_bool_string",
+		"nobel_prize",
+		"'Gurk'",
+		expected,
+	)
+
+
+def test_changeapi_fieldvalue_bool_none(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_bool_none",
+		"nobel_prize",
+		"None",
+		f"""
+			en=None:
+			fr=None:
+			it=None:
+			de=None:
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_bool_true(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_bool_true",
+		"nobel_prize",
+		"True",
+		f"""
+			en=True:
+			fr=True:
+			it=True:
+			de=True:
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_str_required(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_str_required",
+		"firstname",
+		"None",
+		f"""
+			en=None:"Firstname (en)" is required.
+			fr=None:«Firstname (en)» est obligatoire.
+			it=None:È necessario "Firstname (en)".
+			de=None:"Vorname (de)" wird benötigt.
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_str_limited_tooshort(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_str_limited_tooshort",
+		"firstname",
+		"'?'",
+		f"""
+			en='?':"Firstname (en)" is too short. You must use at least 3 characters.
+			fr='?':«Firstname (en)» est trop court. Vous devez utiliser au moins 3 caractères.
+			it='?':"Firstname (en)" è troppo breve. È necessario utilizzare almeno 3 caratteri.
+			de='?':"Vorname (de)" ist zu kurz. Sie müssen mindestens 3 Zeichen verwenden.
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_str_limited_toolong(handler, config_apps):
+	result = "?" * 31
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_str_limited_toolong",
+		"firstname",
+		"'?' * 31",
+		f"""
+			en='{result}':"Firstname (en)" is too long. You may use up to 30 characters.
+			fr='{result}':«Firstname (en)» est trop long. Vous pouvez utiliser un maximum de 30 caractères.
+			it='{result}':"Firstname (en)" è troppo lungo. È possibile utilizzare un massimo di 30 caratteri.
+			de='{result}':"Vorname (de)" ist zu lang. Sie dürfen höchstens 30 Zeichen verwenden.
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_str_ok(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_str_ok",
+		"firstname",
+		"'Gurk'",
+		f"""
+			en='Gurk':
+			fr='Gurk':
+			it='Gurk':
+			de='Gurk':
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_str_unlimited_toolong(handler, config_apps):
+	result = "?"*4001
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_str_unlimited_toolong",
+		"lastname",
+		"'?'*4001",
+		f"""
+			en='{result}':"Lastname (en)" is too long. You may use up to 4000 characters.
+			fr='{result}':«Lastname (en)» est trop long. Vous pouvez utiliser un maximum de 4000 caractères.
+			it='{result}':"Lastname (en)" è troppo lungo. È possibile utilizzare un massimo di 4000 caratteri.
+			de='{result}':"Nachname (de)" ist zu lang. Sie dürfen höchstens 4000 Zeichen verwenden.
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_geo_color(handler, config_apps):
+	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
+
+	expected = f"""
+		en=None:"Grave (en)" doesn't support the type {type}.
+		fr=None:«Grave (en)» ne prend pas en charge le type {type}.
+		it=None:"Grave (en)" non supporta il tipo {type}.
+		de=None:"Grab (de)" unterstützt den Typ {type} nicht.
+	"""
+
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_geo_color",
+		"grave",
+		"#000",
+		expected,
+	)
 
 
 def test_view_specific_lookups(handler, config_apps):
