@@ -163,6 +163,10 @@ def error_required(field:"Field", value:Any) -> str:
 	lang = field.control.app.globals.lang
 	if lang == "de":
 		return f'"{field.control.label}" wird benötigt.'
+	elif lang == "fr":
+		return f'«{field.control.label}» est obligatoire.'
+	elif lang == "it":
+		return f'È necessario "{field.control.label}".'
 	else:
 		return f'"{field.control.label}" is required.'
 
@@ -187,6 +191,10 @@ def error_wrong_type(field:"Field", value:Any) -> str:
 	lang = field.control.app.globals.lang
 	if lang == "de":
 		return f'"{field.control.label}" unterstützt den Typ {misc.format_class(value)} nicht.'
+	elif lang == "fr":
+		return f'«{field.control.label}» ne prend pas en charge le type {misc.format_class(value)}.'
+	elif lang == "it":
+		return f'"{field.control.label}" non supporta il tipo {misc.format_class(value)}.'
 	else:
 		return f'"{field.control.label}" doesn\'t support the type {misc.format_class(value)}.'
 
@@ -198,6 +206,10 @@ def error_string_tooshort(field:"Field", minlength:int, value:Any) -> str:
 	lang = field.control.app.globals.lang
 	if lang == "de":
 		return f'"{field.control.label}" ist zu kurz. Sie müssen mindestens {minlength} Zeichen verwenden.'
+	elif lang == "fr":
+		return f'«{field.control.label}» est trop court. Vous devez utiliser au moins {minlength} caractères.'
+	elif lang == "it":
+		return f'"{field.control.label}" è troppo breve. È necessario utilizzare almeno {minlength} caratteri.'
 	else:
 		return f'"{field.control.label}" is too short. You must use at least {minlength} characters.'
 
@@ -209,6 +221,10 @@ def error_string_toolong(field:"Field", maxlength:int, value:Any) -> str:
 	lang = field.control.app.globals.lang
 	if lang == "de":
 		return f'"{field.control.label}" ist zu lang. Sie dürfen höchstens {maxlength} Zeichen verwenden.'
+	elif lang == "fr":
+		return f'«{field.control.label}» est trop long. Vous pouvez utiliser un maximum de {maxlength} caractères.'
+	elif lang == "it":
+		return f'"{field.control.label}" è troppo lungo. È possibile utilizzare un massimo di {maxlength} caratteri.'
 	else:
 		return f'"{field.control.label}" is too long. You may use up to {maxlength} characters.'
 
