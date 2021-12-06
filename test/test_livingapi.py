@@ -1355,6 +1355,32 @@ def test_geo_dist(handler):
 	assert output == expected
 
 
+def test_isinstance_la(handler):
+	"""
+	TODO: implement me
+	"""
+	pass      
+
+
+def test_signature(handler):
+	source = """
+		<?whitespace strip?>
+		<?code r = app()?>
+		<?code r.v_signature_en2 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII"?>
+		<?print r.v_signature_en2.mimetype == "image/png"?>
+		<?print r.v_signature_en2.size == 68?>
+		<?print r.v_signature_en2.width == 1?>
+		<?print r.v_signature_en2.height == 1?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_signature",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "TrueTrueTrueTrue"
+	assert output == expected
 
 
 tests = '''

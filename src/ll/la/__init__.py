@@ -12,7 +12,7 @@
 See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 """
 
-import io, re, unicodedata, datetime, operator, string, json, pathlib, types, enum, math
+import io, re, unicodedata, datetime, operator, string, json, pathlib, types, enum, math, base64
 import urllib.parse as urlparse
 from collections import abc
 
@@ -4060,9 +4060,9 @@ class FileSignatureControl(FileControl):
 					field.add_error(error_file_invaliddataurl(field, value))
 					value = None
 				else:
-					base64str = value[pos_comma+1:]
+					base64str = value[pos_comma+1:] + "=="
 					try:
-						bytes = base64.decodebytes(base64str.encode("ascii"))
+						bytes = base64.b64decode(base64str)
 					except Exception:
 						field.add_error(error_file_invaliddataurl(field, value))
 						value = None
@@ -4082,7 +4082,7 @@ class FileSignatureControl(FileControl):
 								createdat=datetime.datetime.now(),
 								content=bytes,
 							)
-							self.app.globals.handler.file_save(value)
+							self.handler = self.app.globals.handler
 		field._value = value
 
 
