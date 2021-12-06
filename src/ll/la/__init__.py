@@ -1004,11 +1004,12 @@ class Base:
 			return attr.ul4get(self)
 		elif isinstance(attr, property):
 			return attr.fget(self)
-		else:
-			ul4_attrs = getattr(self, 'ul4_attrs', None)
-			if ul4_attrs is not None and name in ul4_attrs:
-				return getattr(self, name)
+		elif self.ul4_hasattr(name):
+			return getattr(self, name)
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
+
+	def ul4_hasattr(self, name):
+		return name in self.ul4_attrs
 
 	def ul4_setattr(self, name:str, value:Any) -> None:
 		attr = getattr(self.__class__, name, None)
@@ -1165,6 +1166,13 @@ class File(Base):
 	def ul4onid(self) -> str:
 		return self.id
 
+	def ul4_getattr(self, name):
+		# For these method call the version of the method instead, that doesn't
+		# support the ``handler`` parameter.
+		if name == "save":
+			return getattr(self, "ul4" + name)
+		return super().ul4_getattr(name)
+
 	def _gethandler(self, handler:T_opt_handler) -> "ll.la.handlers.Handler":
 		if handler is None:
 			if self.handler is None:
@@ -1174,6 +1182,9 @@ class File(Base):
 
 	def save(self, handler:T_opt_handler=None) -> None:
 		self._gethandler(handler).save_file(self)
+
+	def ul4save(self) -> None:
+		self.save()
 
 	def content(self, handler:T_opt_handler=None) -> bytes:
 		"""
@@ -2316,14 +2327,6 @@ class App(Base):
 			return True
 		else:
 			return False
-
-	def ul4_getattr(self, name):
-		attr = getattr(self.__class__, name, None)
-		if isinstance(attr, Attr):
-			return attr.ul4get(self)
-		elif self.ul4_hasattr(name):
-			return getattr(self, name)
-		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def _gethandler(self, handler):
 		if handler is None:
@@ -4707,17 +4710,11 @@ class Record(Base):
 		return False
 
 	def ul4_getattr(self, name):
-		attr = getattr(self.__class__, name, None)
-		if isinstance(attr, Attr):
-			return attr.ul4get(self)
-		elif self.ul4_hasattr(name):
-			# For these method call the version of the method instead, that doesn't
-			# support the ``handler`` parameter.
-			if name in {"save", "delete", "executeaction"}:
-				return getattr(self, "ul4" + name)
-			else:
-				return getattr(self, name)
-		raise AttributeError(error_attribute_doesnt_exist(self, name))
+		# For these method call the version of the method instead, that doesn't
+		# support the ``handler`` parameter.
+		if name in {"save", "delete", "executeaction"}:
+			return getattr(self, "ul4" + name)
+		return super().ul4_getattr(name)
 
 	def ul4_setattr(self, name, value):
 		if name.startswith("v_") and name[2:] in self.app.controls:
