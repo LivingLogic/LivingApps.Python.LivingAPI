@@ -1338,7 +1338,10 @@ def test_geo_dist(handler):
 		<?whitespace strip?>
 		<?code geo1 = globals.geo(49.955267, 11.591212)?>
 		<?code geo2 = globals.geo(48.84672, 2.34631)?>
+		<?code geo3 = globals.geo("Pantheon, Paris")?>
 		<?code dist = globals.dist(geo1, geo2)?>
+		<?print 680 < dist and dist < 690?>
+		<?code dist = globals.dist(geo1, geo3)?>
 		<?print 680 < dist and dist < 690?>
 	"""
 
@@ -1348,8 +1351,10 @@ def test_geo_dist(handler):
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
-	expected = "True"
+	expected = "TrueTrue"
 	assert output == expected
+
+
 
 
 tests = '''
@@ -1373,8 +1378,10 @@ Globals.flash_info() und Kollegen testen. done
 Globals.log_info() und Kollegen testen. done
 Record.c_*-Shortcut-Attribute testen. done
 Richtige Zuordnung Control <-> ViewControl testen (Java view_controls()) done
-Globals.dist() testen (Java geo_dist())
-Geo-Attribute testen (Java geo_constructor()).
+Globals.dist() testen (Java geo_dist())  done
+Geo-Attribute testen (Java geo_constructor()). not
 isinstance()-Tests (Java isinstance_la())
 FileSignature-Feldwerte testen (Java signature)
+App.datasource
+Field.has_custom_lookupdata()
 '''
