@@ -3233,25 +3233,28 @@ class DateControl(Control):
 				try:
 					value = datetime.date.fromisoformat(value)
 				except ValueError:
-					field.add_error(error_wrong_value(value))
-			elif charcount == 19 or charcount == 26:
-				try:
-					value = datetime.datetime.fromisoformat(value)
-				except ValueError:
-					field.add_error(error_wrong_value(value))
+					field.add_error(error_date_format(field, value))
 					# We keep the string value, as a <form> input might want to display it.
 				else:
 					value = self._convert(value)
-			elif charcount == 25 or charcount == 32 and _is_timezone(value[-6:]):
+			elif charcount in {16, 19, 26}:
+				try:
+					value = datetime.datetime.fromisoformat(value)
+				except ValueError:
+					field.add_error(error_date_format(field, value))
+					# We keep the string value, as a <form> input might want to display it.
+				else:
+					value = self._convert(value)
+			elif charcount in {22, 25, 32} and _is_timezone(value[-6:]):
 				try:
 					value = datetime.datetime.fromisoformat(value[:-6])
 				except ValueError:
-					field.add_error(error_wrong_value(value))
+					field.add_error(error_date_format(field, value))
 					# We keep the string value, as a <form> input might want to display it.
 				else:
 					value = self._convert(value)
 			else:
-				field.add_error(error_wrong_value(value))
+				field.add_error(error_date_format(field, value))
 		else:
 			field.add_error(error_wrong_type(field, value))
 			value = None
