@@ -3902,22 +3902,21 @@ class MultipleAppLookupControl(AppLookupControl):
 			self._set_value(field, [value])
 		elif isinstance(value, list):
 			field._value = []
-			dat_ids = [v for v in value if isinstance(v, str)]
+			dat_ids = [v for v in value if isinstance(v, str) and v and v != self.none_key]
 			if dat_ids:
 				fetched = self.app.globals.handler.records_sync_data(dat_ids)
 			else:
-				fetched = []
+				fetched = {}
 			for v in value:
 				if v is None or v == "" or v == self.none_key:
 					continue
 				if isinstance(v, str):
-					if value and value != self.none_key:
-						record = fetched.get(v, None)
-						if record is None:
-							field.add_error(error_applookuprecord_unknown(v))
-							v = None
-						else:
-							v = record
+					record = fetched.get(v, None)
+					if record is None:
+						field.add_error(error_applookuprecord_unknown(v))
+						v = None
+					else:
+						v = record
 				if isinstance(v, Record):
 					if self.lookup_app is not None and v.app is not self.lookup_app:
 						field.add_error(error_applookuprecord_foreign(v))
