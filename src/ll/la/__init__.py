@@ -239,6 +239,22 @@ def error_wrong_value(value:Any) -> str:
 	return f"Value {value!r} is not supported."
 
 
+def error_date_format(field:"Field", value:Any) -> str:
+	"""
+	Return an error message for a string value of a date field that has the wrong
+	format.
+	"""
+	lang = field.control.app.globals.lang
+	if lang == "de":
+		return f'"{field.control.label}" unterstützt dieses Datumsformat nicht.'
+	elif lang == "fr":
+		return f'«{field.control.label}» doit comporter une date valide.'
+	elif lang == "it":
+		return f'"{field.control.label}" deve essere una data.'
+	else:
+		return f'"{field.control.label}" doesn\'t support this date format.'
+
+
 def error_lookupitem_unknown(value:str) -> str:
 	r"""
 	Return an error message for an unknown identifier for :class:`LookupItem`\s.
