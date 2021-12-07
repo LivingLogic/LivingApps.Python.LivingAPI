@@ -683,10 +683,9 @@ class DBHandler(Handler):
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
 		dump = self._loaddump(dump)
-		return dump
+		return dump.record
 
 	def records_sync_data(self, dat_ids, force=False):
-		found = {}
 		if force:
 			missing = set(dat_ids)
 		else:
@@ -701,13 +700,12 @@ class DBHandler(Handler):
 		c.execute(
 			"select livingapi_pkg.records_sync_ful4on(c_user=>:ide_id, p_dat_ids=>:dat_ids) from dual",
 			ide_id=self.ide_id,
-			dat_ids=self.varchars(dat_ids),
+			dat_ids=self.varchars(missing),
 		)
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
 		dump = self._loaddump(dump)
-		found.update(dump)
-		return found
+		return dump.records
 
 	def _data(self, requestid=None, vt_id=None, et_id=None, vw_id=None, tpl_id=None, dat_id=None, dat_ids=None, ctl_identifier=None, searchtext=None, reqparams=None, mode=None, sync=False, exportmeta=False, funcname="data_ful4on"):
 		paramslist = []
