@@ -3683,7 +3683,7 @@ class AppLookupControl(Control):
 			if value is None:
 				return (None, error_applookuprecord_unknown(value))
 		if isinstance(value, Record):
-			if self.lookup_app is not None and value.app != self.lookup_app:
+			if self.lookup_app is not None and value.app is not self.lookup_app:
 				return (None, error_applookuprecord_foreign(value))
 		else:
 			return (None, error_wrong_type(field, value))
