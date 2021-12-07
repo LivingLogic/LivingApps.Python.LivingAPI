@@ -8,7 +8,7 @@ To run the tests, :mod:`pytest` is required. For rerunning flaky tests the
 package ``pytest-rerunfailures`` is used.
 """
 
-import textwrap
+import textwrap, re
 
 from conftest import *
 
@@ -986,7 +986,7 @@ def test_changeapi_has_errors(handler, config_apps):
 	assert output == expected
 
 
-def check_field(handler, config_apps, identifier, field, value, expected):
+def check_field(handler, config_apps, identifier, field, value, expected, isre=False):
 	source = textwrap.dedent(f"""
 		<?whitespace strip?>
 		<?for lang in ["en", "fr", "it", "de"]?>
@@ -1020,7 +1020,10 @@ def check_field(handler, config_apps, identifier, field, value, expected):
 
 	expected = "".join(line.strip() + "\n" for line in expected.splitlines() if line.strip())
 
-	assert output == expected
+	if isre:
+		assert re.match(expected, output)
+	else:
+		assert output == expected
 
 
 def test_changeapi_fieldvalue_bool_string(handler, config_apps):
@@ -1395,11 +1398,12 @@ def test_changeapi_fieldvalue_lookup_foreign(handler, config_apps):
 		"sex",
 		"app.c_country_of_birth.lookupdata.usa",
 		f"""
-			en=None:The option <com.livinglogic.livingapps.livingapi.LookupItem key='usa' label='USA'> in "Sex (en)" doesn't belong to this lookup.
-			fr=None:L'option <com.livinglogic.livingapps.livingapi.LookupItem key='usa' label='USA'> dans «Sex (en)» n'appartient pas à cette sélection.
-			it=None:L'opzione <com.livinglogic.livingapps.livingapi.LookupItem key='usa' label='USA'> in "Sex (en)" non appartiene a questa selezione.
-			de=None:Die Option <com.livinglogic.livingapps.livingapi.LookupItem key='usa' label='USA'> in "Geschlecht (de)" gehört nicht zu dieser Auswahl.
-		"""
+			en=None:The option <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> in "Sex \\(en\\)" doesn't belong to this lookup.
+			fr=None:L'option <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> dans «Sex \\(en\\)» n'appartient pas à cette sélection.
+			it=None:L'opzione <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> in "Sex \\(en\\)" non appartiene a questa selezione.
+			de=None:Die Option <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> in "Geschlecht \\(de\\)" gehört nicht zu dieser Auswahl.
+		""",
+		isre=True,
 	)
 
 
@@ -1778,7 +1782,7 @@ def test_isinstance_la(handler):
 	"""
 	TODO: implement me
 	"""
-	pass      
+	pass
 
 
 def test_signature(handler):
