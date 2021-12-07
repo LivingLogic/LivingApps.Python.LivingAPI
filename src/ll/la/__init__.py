@@ -4648,14 +4648,15 @@ class Record(Base):
 			v.append("...")
 		else:
 			seen.add(self)
-			v.append(f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r} state={self.state.name}")
+			v.append(f"<{self.__class__.__module__}.{self.__class__.__qualname__} id={self.id!r}")
 			if self.has_errors():
 				v.append(" has_errors()=True")
-			for (identifier, value) in self.values.items():
-				if self.app.controls[identifier].priority:
+			for field in self.fields.values():
+				if field.control.priority and not field.is_empty():
 					v.append(f" v_{identifier}=")
 					self._repr_value(v, seen, value)
 			seen.remove(self)
+			v.append(f" state={self.state.name}")
 			v.append(f" at {id(self):#x}>")
 
 	def __repr__(self):
