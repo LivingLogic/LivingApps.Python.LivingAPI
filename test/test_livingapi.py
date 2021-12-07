@@ -998,8 +998,10 @@ def check_field(handler, config_apps, identifier, field, value, expected):
 			<?code r = app()?>
 			<?code r.v_{field} = {value}?>
 			<?print lang?>=
-			<?print repr(r.v_{field})?>:
-			<?print ':'.join(r.f_{field}.errors)?>
+			<?print repr(r.v_{field})?>
+			<?for e in r.f_{field}.errors?>
+				:<?print e?>
+			<?end for?>
 			<?print "\\n"?>
 		<?end for?>
 	""")
@@ -1049,10 +1051,10 @@ def test_changeapi_fieldvalue_bool_none(handler, config_apps):
 		"nobel_prize",
 		"None",
 		f"""
-			en=None:
-			fr=None:
-			it=None:
-			de=None:
+			en=None
+			fr=None
+			it=None
+			de=None
 		""",
 	)
 
@@ -1065,10 +1067,10 @@ def test_changeapi_fieldvalue_bool_true(handler, config_apps):
 		"nobel_prize",
 		"True",
 		f"""
-			en=True:
-			fr=True:
-			it=True:
-			de=True:
+			en=True
+			fr=True
+			it=True
+			de=True
 		""",
 	)
 
@@ -1130,10 +1132,10 @@ def test_changeapi_fieldvalue_str_ok(handler, config_apps):
 		"firstname",
 		"'Gurk'",
 		f"""
-			en='Gurk':
-			fr='Gurk':
-			it='Gurk':
-			de='Gurk':
+			en='Gurk'
+			fr='Gurk'
+			it='Gurk'
+			de='Gurk'
 		""",
 	)
 
