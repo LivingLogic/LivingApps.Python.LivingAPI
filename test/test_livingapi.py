@@ -1436,7 +1436,6 @@ def test_changeapi_fieldvalue_multipleapplookup_color(handler, config_apps):
 
 def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_fields):
 	type_color = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
-	type_none = "null" if isinstance(handler, (JavaDB, GatewayHTTP)) else "None"
 
 	find_physics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Physics')";
 
@@ -1469,6 +1468,202 @@ def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_
 			f'''Der referenzierte Datensatz in "Tätigkeitsfeld \\(de\\)" gehört zur falscher App.''',
 		],
 		isre=True
+	)
+
+
+def test_changeapi_fieldvalue_multipleapplookup_record_ok(handler, config_fields):
+	find_physics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Physics')";
+
+	record = "<.*.Record id='.*' v_name='Physics' v_parent=<.*.Record id='.*' v_name='Science' state=SAVED.*> state=SAVED.*>"
+
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_multipleapplookup_record_ok",
+		"field_of_activity",
+		f"[{find_physics}]",
+		en=[f"\\[{record}\\]"],
+		fr=[f"\\[{record}\\]"],
+		it=[f"\\[{record}\\]"],
+		de=[f"\\[{record}\\]"],
+		isre=True,
+	)
+
+
+def test_changeapi_fieldvalue_multipleapplookup_emptylist_ok(handler, config_fields):
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_multipleapplookup_emptylist_ok",
+		"field_of_activity",
+		f"[None, '', r.f_field_of_activity.control.none_key]",
+		en=["[]"],
+		fr=["[]"],
+		it=["[]"],
+		de=["[]"],
+	)
+
+
+def test_changeapi_fieldvalue_multipleapplookup_none_ok(handler, config_fields):
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_multipleapplookup_none_ok",
+		"field_of_activity",
+		f"None",
+		en=["[]"],
+		fr=["[]"],
+		it=["[]"],
+		de=["[]"],
+	)
+
+
+def test_changeapi_fieldvalue_multipleapplookup_multiple_records(handler, config_fields):
+	find_physics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Physics')";
+	find_mathematics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Mathematics')";
+
+	record_physics = "<.*.Record id='.*' v_name='Physics' v_parent=<.*.Record id='.*' v_name='Science' state=SAVED.*> state=SAVED.*>"
+	record_mathematics = "<.*.Record id='.*' v_name='Mathematics' v_parent=<.*.Record id='.*' v_name='Science' state=SAVED.*> state=SAVED.*>"
+
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_multipleapplookup_multiple_records",
+		"field_of_activity",
+		f"[{find_physics}, {find_mathematics}]",
+		en=[f"\\[{record_physics}, {record_mathematics}]"],
+		fr=[f"\\[{record_physics}, {record_mathematics}]"],
+		it=[f"\\[{record_physics}, {record_mathematics}]"],
+		de=[f"\\[{record_physics}, {record_mathematics}]"],
+		isre=True,
+	)
+
+
+def test_changeapi_fieldvalue_email_format(handler, config_fields):
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_email_format",
+		"email2",
+		f"'foo'",
+		en=["'foo'", '''"Email (en)" must be a valid email address.'''],
+		fr=["'foo'", '''«Email (en)» doit comporter une adresse e-mail valide.'''],
+		it=["'foo'", '''"Email (en)" deve essere un indirizzo email valido.'''],
+		de=["'foo'", '''"E-Mail (de)" muss eine gültige E-Mail-Adresse sein.'''],
+	)
+
+
+def test_changeapi_fieldvalue_email_ok(handler, config_fields):
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_email_ok",
+		"email2",
+		f"'livingapps@example.org'",
+		en=["'livingapps@example.org'"],
+		fr=["'livingapps@example.org'"],
+		it=["'livingapps@example.org'"],
+		de=["'livingapps@example.org'"],
+	)
+
+
+def test_changeapi_fieldvalue_phone_format(handler, config_fields):
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_phone_format",
+		"phone",
+		f"'foo'",
+		en=["'foo'", '''"Phone (en)" must be a valid phone number.'''],
+		fr=["'foo'", '''«Phone (en)» doit comporter un numéro de téléphone valide.'''],
+		it=["'foo'", '''"Phone (en)" deve essere un numero di telefono valido.'''],
+		de=["'foo'", '''"Telefon (de)" muss eine gültige Telefonnummer sein.'''],
+	)
+
+
+def test_changeapi_fieldvalue_phone_ok(handler, config_fields):
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_phone_ok",
+		"phone",
+		f"'+49 (0) 9876/54321'",
+		en=["'+49 (0) 9876/54321'"],
+		fr=["'+49 (0) 9876/54321'"],
+		it=["'+49 (0) 9876/54321'"],
+		de=["'+49 (0) 9876/54321'"],
+	)
+
+
+def test_changeapi_fieldvalue_url_format(handler, config_fields):
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_url_format",
+		"url",
+		f"'foo://bar'",
+		en=["'foo://bar'", '''""URL (en)" must be a valid URL in the form "http://www.xyz.com".'''],
+		fr=["'foo://bar'", '''"«URL (en)» doit être au format «http://www.xyz.com».'''],
+		it=["'foo://bar'", '''""URL (en)" deve essere formato "http://www.xyz.com".'''],
+		de=["'foo://bar'", '''""URL (de)" muss eine gültige URL im Format "http://www.xyz.de" sein.'''],
+	)
+
+
+def test_changeapi_fieldvalue_url_ok(handler, config_fields):
+	url = "https://www.example.org:80/foo/bar/baz.html?x=y&z=w#frag"
+
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_url_ok",
+		"url",
+		f"'{url}'",
+		en=[f"'{url}'"],
+		fr=[f"'{url}'"],
+		it=[f"'{url}'"],
+		de=[f"'{url}'"],
+	)
+
+
+def test_changeapi_fieldvalue_bool_required_none(handler, config_fields):
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_bool_required_none",
+		"consent",
+		"None",
+		en=["None", '''""Consent (en)" is required.'''],
+		fr=["None", '''"«Consent (en)» est obligatoire.'''],
+		it=["None", '''"È necessario "Consent (en)".'''],
+		de=["None", '''""Zustimmung (de)" wird benötigt.'''],
+	)
+
+
+def test_changeapi_fieldvalue_bool_required_false(handler, config_fields):
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_bool_required_false",
+		"consent",
+		"False",
+		en=["False", '''""Consent (en)" only accepts "Yes".'''],
+		fr=["False", '''"«Consent (en)» n'accepte que «oui».'''],
+		it=["False", '''""Consent (en)" accetta solo "sì".'''],
+		de=["False", '''""Zustimmung (de)" akzeptiert nur "Ja".'''],
+	)
+
+
+def test_changeapi_fieldvalue_bool_required_true(handler, config_fields):
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_bool_required_true",
+		"consent",
+		"True",
+		en=["True"],
+		fr=["True"],
+		it=["True"],
+		de=["True"],
 	)
 
 
