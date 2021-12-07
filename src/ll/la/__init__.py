@@ -4653,8 +4653,8 @@ class Record(Base):
 				v.append(" has_errors()=True")
 			for field in self.fields.values():
 				if field.control.priority and not field.is_empty():
-					v.append(f" v_{identifier}=")
-					self._repr_value(v, seen, value)
+					v.append(f" v_{field.control.identifier}=")
+					self._repr_value(v, seen, field.value)
 			seen.remove(self)
 			v.append(f" state={self.state.name}")
 			v.append(f" at {id(self):#x}>")
