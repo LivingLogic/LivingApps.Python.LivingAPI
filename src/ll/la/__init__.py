@@ -289,6 +289,21 @@ def error_email_format(field:"Field", value:str) -> str:
 		return f'"{field.label}" must be a valid email address.'
 
 
+def error_email_badchar(field:"Field", pos:int, value:str) -> str:
+	"""
+	Return an error message for a bad character in an email address.
+	"""
+	lang = field.control.app.globals.lang
+	char = value[pos]
+	charname = unicodedata.name(char, "unassigned character")
+	char = ord(char)
+	char = f"U+{char:08X}" if char > 0xfff else f"U+{char:04X}"
+	if lang == "de":
+		return f'"{field.label}" muss eine gültige E-Mail-Adresse sein, enthält aber das Zeichen {char} ({charname}) an Position {pos+1}.'
+	else:
+		return f'"{field.label}" must be a valid email address, but contains the character {char} ({charname}) at position {pos+1}.'
+
+
 def error_tel_format(field:"Field", value:str) -> str:
 	"""
 	Return an error message for malformed tel address.
@@ -309,21 +324,6 @@ def error_url_format(field:"Field", value:str) -> str:
 		return f'"{field.label}" muss eine URL sein.'
 	else:
 		return f'"{field.label}" must be a valid URL.'
-
-
-def error_email_badchar(field:"Field", pos:int, value:str) -> str:
-	"""
-	Return an error message for a bad character in an email address.
-	"""
-	lang = field.control.app.globals.lang
-	char = value[pos]
-	charname = unicodedata.name(char, "unassigned character")
-	char = ord(char)
-	char = f"U+{char:08X}" if char > 0xfff else f"U+{char:04X}"
-	if lang == "de":
-		return f'"{field.label}" muss eine gültige E-Mail-Adresse sein, enthält aber das Zeichen {char} ({charname}) an Position {pos+1}.'
-	else:
-		return f'"{field.label}" must be a valid email address, but contains the character {char} ({charname}) at position {pos+1}.'
 
 
 def error_file_invaliddataurl(field:"Field", value:str) -> str:
