@@ -1574,6 +1574,49 @@ def test_signature(handler):
 	assert output == expected
 
 
+def test_app_datasource(handler, config_apps):
+	source = """
+		<?whitespace strip?>
+		<?print app.datasource.app is app?>
+		<?print app.c_field_of_activity.lookup_app.datasource is None?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		la.DataSource(
+			identifier="persons",
+			app=config_apps.apps.persons,
+			includeviews=True
+		),
+		identifier="test_app_datasource",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "TrueTrue"
+	assert output == expected
+
+
+def test_has_custom_lookupdata(handler):
+	source = """
+		<?whitespace strip?>
+		<?code r = app()?>
+		<?print r.f_field_of_activity.has_custom_lookupdata()?>
+		<?code r.f_field_of_activity.lookupdata = r.f_field_of_activity.lookupdata?>
+		<?print r.f_field_of_activity.has_custom_lookupdata()?>
+	"""
+
+	vt = handler.make_viewtemplate(
+		identifier="test_has_custom_lookupdata",
+		source=source
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "FalseTrue"
+	assert output == expected
+
+
+
+
 tests = '''
 test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption  done
 Neue: test_view_control_overwrite_lookup_label ???  view_specific_lookups  done

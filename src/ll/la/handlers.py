@@ -699,7 +699,7 @@ class DBHandler(Handler):
 					found[dat_id] = record
 		c = self.cursor()
 		c.execute(
-			"select livingapi_pkg.records_sync_ful4on(:ide_id, :dat_ids) from dual",
+			"select livingapi_pkg.records_sync_ful4on(c_user=>:ide_id, p_dat_ids=>:dat_ids) from dual",
 			ide_id=self.ide_id,
 			dat_ids=self.varchars(dat_ids),
 		)

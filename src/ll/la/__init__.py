@@ -4906,7 +4906,7 @@ class Field(Base):
 		Should the input for this field be visible or invisible in the input form?
 	"""
 
-	ul4_attrs = {"control", "record", "label", "lookupdata", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "clear_errors", "enabled", "writable", "visible"}
+	ul4_attrs = {"control", "record", "label", "lookupdata", "value", "is_empty", "is_dirty", "errors", "has_errors", "has_custom_lookupdata", "add_error", "clear_errors", "enabled", "writable", "visible"}
 	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
 
 	def __init__(self, control, record, value):
@@ -5015,6 +5015,9 @@ class Field(Base):
 
 	def has_errors(self):
 		return bool(self.errors)
+
+	def has_custom_lookupdata(self):
+		return self._lookupdata is not None
 
 	def add_error(self, *errors):
 		self.errors.extend(errors)
