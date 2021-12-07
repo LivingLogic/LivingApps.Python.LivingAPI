@@ -8,7 +8,7 @@ To run the tests, :mod:`pytest` is required. For rerunning flaky tests the
 package ``pytest-rerunfailures`` is used.
 """
 
-import textwrap, re
+import textwrap, re, json
 
 from conftest import *
 
@@ -986,10 +986,15 @@ def test_changeapi_has_errors(handler, config_apps):
 	assert output == expected
 
 
-def check_field(handler, config_apps, identifier, field, value, expected, isre=False):
+def check_field(handler, config_apps, identifier, field, value, isre=False, **expected):
 	source = textwrap.dedent(f"""
 		<?whitespace strip?>
-		<?for lang in ["en", "fr", "it", "de"]?>
+		{{
+		<?for (f, lang) in isfirst(["en", "fr", "it", "de"])?>
+			<?if not f?>
+				,
+			<?end if?>
+			<?print asjson(lang)?>:
 			<?code app.active_view = first(v for v in app.views.values() if v.lang == lang)?>
 			<?if app.active_view is None?>
 				<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>
@@ -997,13 +1002,14 @@ def check_field(handler, config_apps, identifier, field, value, expected, isre=F
 			<?code globals.lang = lang?>
 			<?code r = app()?>
 			<?code r.v_{field} = {value}?>
-			<?print lang?>=
-			<?print repr(r.v_{field})?>
-			<?for e in r.f_{field}.errors?>
-				:<?print e?>
-			<?end for?>
-			<?print "\\n"?>
+			[
+				<?print asjson(repr(r.v_{field}))?>
+				<?for e in r.f_{field}.errors?>
+					,<?print asjson(e)?>
+				<?end for?>
+			]
 		<?end for?>
+		}}
 	""")
 
 	vt = handler.make_viewtemplate(
@@ -1012,16 +1018,25 @@ def check_field(handler, config_apps, identifier, field, value, expected, isre=F
 			app=config_apps.apps.persons,
 			includeviews=True,
 		),
+		la.DataSource(
+			identifier="fields",
+			app=config_apps.apps.fields,
+			includeviews=True,
+		),
 		identifier=identifier,
 		source=source
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
-
-	expected = "".join(line.strip() + "\n" for line in expected.splitlines() if line.strip())
+	output = json.loads(output)
 
 	if isre:
-		assert re.match(expected, output)
+		assert output.keys() == expected.keys()
+		for lang in output:
+			output_lang = output[lang]
+			expected_lang = expected[lang]
+			for (o, e) in zip(output_lang, expected_lang):
+				assert re.match(e, o)
 	else:
 		assert output == expected
 
@@ -1029,20 +1044,16 @@ def check_field(handler, config_apps, identifier, field, value, expected, isre=F
 def test_changeapi_fieldvalue_bool_string(handler, config_apps):
 	type = "<java.lang.String>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "str"
 
-	expected = f"""
-		en=None:"Nobel prize (en)" doesn't support the type {type}.
-		fr=None:«Nobel prize (en)» ne prend pas en charge le type {type}.
-		it=None:"Nobel prize (en)" non supporta il tipo {type}.
-		de=None:"Nobelpreis (de)" unterstützt den Typ {type} nicht.
-	"""
-
 	check_field(
 		handler,
 		config_apps,
 		"test_changeapi_fieldvalue_bool_string",
 		"nobel_prize",
 		"'Gurk'",
-		expected,
+		en=["None", f'''"Nobel prize (en)" doesn't support the type {type}.'''],
+		fr=["None", f'''«Nobel prize (en)» ne prend pas en charge le type {type}.'''],
+		it=["None", f'''"Nobel prize (en)" non supporta il tipo {type}.'''],
+		de=["None", f'''"Nobelpreis (de)" unterstützt den Typ {type} nicht.'''],
 	)
 
 
@@ -1053,12 +1064,10 @@ def test_changeapi_fieldvalue_bool_none(handler, config_apps):
 		"test_changeapi_fieldvalue_bool_none",
 		"nobel_prize",
 		"None",
-		f"""
-			en=None
-			fr=None
-			it=None
-			de=None
-		""",
+		en=["None"],
+		fr=["None"],
+		it=["None"],
+		de=["None"],
 	)
 
 
@@ -1069,12 +1078,10 @@ def test_changeapi_fieldvalue_bool_true(handler, config_apps):
 		"test_changeapi_fieldvalue_bool_true",
 		"nobel_prize",
 		"True",
-		f"""
-			en=True
-			fr=True
-			it=True
-			de=True
-		""",
+		en=["True"],
+		fr=["True"],
+		it=["True"],
+		de=["True"],
 	)
 
 
@@ -1085,12 +1092,10 @@ def test_changeapi_fieldvalue_str_required(handler, config_apps):
 		"test_changeapi_fieldvalue_str_required",
 		"firstname",
 		"None",
-		f"""
-			en=None:"Firstname (en)" is required.
-			fr=None:«Firstname (en)» est obligatoire.
-			it=None:È necessario "Firstname (en)".
-			de=None:"Vorname (de)" wird benötigt.
-		""",
+		en=["None", '''"Firstname (en)" is required.'''],
+		fr=["None", '''«Firstname (en)» est obligatoire.'''],
+		it=["None", '''È necessario "Firstname (en)".'''],
+		de=["None", '''"Vorname (de)" wird benötigt.'''],
 	)
 
 
@@ -1101,12 +1106,10 @@ def test_changeapi_fieldvalue_str_limited_tooshort(handler, config_apps):
 		"test_changeapi_fieldvalue_str_limited_tooshort",
 		"firstname",
 		"'?'",
-		f"""
-			en='?':"Firstname (en)" is too short. You must use at least 3 characters.
-			fr='?':«Firstname (en)» est trop court. Vous devez utiliser au moins 3 caractères.
-			it='?':"Firstname (en)" è troppo breve. È necessario utilizzare almeno 3 caratteri.
-			de='?':"Vorname (de)" ist zu kurz. Sie müssen mindestens 3 Zeichen verwenden.
-		""",
+		en=["'?'", '''"Firstname (en)" is too short. You must use at least 3 characters.'''],
+		fr=["'?'", '''«Firstname (en)» est trop court. Vous devez utiliser au moins 3 caractères.'''],
+		it=["'?'", '''"Firstname (en)" è troppo breve. È necessario utilizzare almeno 3 caratteri.'''],
+		de=["'?'", '''"Vorname (de)" ist zu kurz. Sie müssen mindestens 3 Zeichen verwenden.'''],
 	)
 
 
@@ -1118,12 +1121,10 @@ def test_changeapi_fieldvalue_str_limited_toolong(handler, config_apps):
 		"test_changeapi_fieldvalue_str_limited_toolong",
 		"firstname",
 		"'?' * 31",
-		f"""
-			en='{result}':"Firstname (en)" is too long. You may use up to 30 characters.
-			fr='{result}':«Firstname (en)» est trop long. Vous pouvez utiliser un maximum de 30 caractères.
-			it='{result}':"Firstname (en)" è troppo lungo. È possibile utilizzare un massimo di 30 caratteri.
-			de='{result}':"Vorname (de)" ist zu lang. Sie dürfen höchstens 30 Zeichen verwenden.
-		""",
+		en=[f"'{result}'", '''"Firstname (en)" is too long. You may use up to 30 characters.'''],
+		fr=[f"'{result}'", '''«Firstname (en)» est trop long. Vous pouvez utiliser un maximum de 30 caractères.'''],
+		it=[f"'{result}'", '''"Firstname (en)" è troppo lungo. È possibile utilizzare un massimo di 30 caratteri.'''],
+		de=[f"'{result}'", '''"Vorname (de)" ist zu lang. Sie dürfen höchstens 30 Zeichen verwenden.'''],
 	)
 
 
@@ -1134,12 +1135,10 @@ def test_changeapi_fieldvalue_str_ok(handler, config_apps):
 		"test_changeapi_fieldvalue_str_ok",
 		"firstname",
 		"'Gurk'",
-		f"""
-			en='Gurk'
-			fr='Gurk'
-			it='Gurk'
-			de='Gurk'
-		""",
+		en=["'Gurk'"],
+		fr=["'Gurk'"],
+		it=["'Gurk'"],
+		de=["'Gurk'"],
 	)
 
 
@@ -1151,12 +1150,10 @@ def test_changeapi_fieldvalue_str_unlimited_toolong(handler, config_apps):
 		"test_changeapi_fieldvalue_str_unlimited_toolong",
 		"lastname",
 		"'?'*4001",
-		f"""
-			en='{result}':"Lastname (en)" is too long. You may use up to 4000 characters.
-			fr='{result}':«Lastname (en)» est trop long. Vous pouvez utiliser un maximum de 4000 caractères.
-			it='{result}':"Lastname (en)" è troppo lungo. È possibile utilizzare un massimo di 4000 caratteri.
-			de='{result}':"Nachname (de)" ist zu lang. Sie dürfen höchstens 4000 Zeichen verwenden.
-		""",
+		en=[f"'{result}'", '''"Lastname (en)" is too long. You may use up to 4000 characters.'''],
+		fr=[f"'{result}'", '''«Lastname (en)» est trop long. Vous pouvez utiliser un maximum de 4000 caractères.'''],
+		it=[f"'{result}'", '''"Lastname (en)" è troppo lungo. È possibile utilizzare un massimo di 4000 caratteri.'''],
+		de=[f"'{result}'", '''"Nachname (de)" ist zu lang. Sie dürfen höchstens 4000 Zeichen verwenden.'''],
 	)
 
 
@@ -1169,12 +1166,10 @@ def test_changeapi_fieldvalue_geo_color(handler, config_apps):
 		"test_changeapi_fieldvalue_geo_color",
 		"grave",
 		"#000",
-		f"""
-			en=None:"Grave (en)" doesn't support the type {type}.
-			fr=None:«Grave (en)» ne prend pas en charge le type {type}.
-			it=None:"Grave (en)" non supporta il tipo {type}.
-			de=None:"Grab (de)" unterstützt den Typ {type} nicht.
-		"""
+		en=["None", f'''"Grave (en)" doesn't support the type {type}.'''],
+		fr=["None", f'''«Grave (en)» ne prend pas en charge le type {type}.'''],
+		it=["None", f'''"Grave (en)" non supporta il tipo {type}.'''],
+		de=["None", f'''"Grab (de)" unterstützt den Typ {type} nicht.'''],
 	)
 
 
@@ -1185,12 +1180,10 @@ def test_changeapi_fieldvalue_geo_none(handler, config_apps):
 		"test_changeapi_fieldvalue_geo_none",
 		"grave",
 		"None",
-		expected = f"""
-			en=None
-			fr=None
-			it=None
-			de=None
-		"""
+		en=["None"],
+		fr=["None"],
+		it=["None"],
+		de=["None"],
 	)
 
 
@@ -1203,12 +1196,10 @@ def test_changeapi_fieldvalue_date_color(handler, config_apps):
 		"test_changeapi_fieldvalue_date_color",
 		"date_of_birth",
 		"#000",
-		f"""
-			en=None:"Date of birth (en)" doesn't support the type {type}.
-			fr=None:«Date of birth (en)» ne prend pas en charge le type {type}.
-			it=None:"Date of birth (en)" non supporta il tipo {type}.
-			de=None:"Geburtstag (de)" unterstützt den Typ {type} nicht.
-		"""
+		en=["None", f'''"Date of birth (en)" doesn't support the type {type}.'''],
+		fr=["None", f'''«Date of birth (en)» ne prend pas en charge le type {type}.'''],
+		it=["None", f'''"Date of birth (en)" non supporta il tipo {type}.'''],
+		de=["None", f'''"Geburtstag (de)" unterstützt den Typ {type} nicht.'''],
 	)
 
 
@@ -1219,12 +1210,10 @@ def test_changeapi_fieldvalue_date_str_wrongformat(handler, config_apps):
 		"test_changeapi_fieldvalue_date_str_wrongformat",
 		"date_of_birth",
 		"'Gurk'",
-		f"""
-			en='Gurk':"Date of birth (en)" doesn't support this date format.
-			fr='Gurk':«Date of birth (en)» doit comporter une date valide.
-			it='Gurk':"Date of birth (en)" deve essere una data.
-			de='Gurk':"Geburtstag (de)" unterstützt dieses Datumsformat nicht.
-		"""
+		en=["'Gurk'", '''"Date of birth (en)" doesn't support this date format.'''],
+		fr=["'Gurk'", '''«Date of birth (en)» doit comporter une date valide.'''],
+		it=["'Gurk'", '''"Date of birth (en)" deve essere una data.'''],
+		de=["'Gurk'", '''"Geburtstag (de)" unterstützt dieses Datumsformat nicht.'''],
 	)
 
 
@@ -1235,12 +1224,10 @@ def test_changeapi_fieldvalue_date_str_ok_datestring(handler, config_apps):
 		"test_changeapi_fieldvalue_date_str_ok_datestring",
 		"date_of_birth",
 		"'2000-02-29'",
-		f"""
-			en=@(2000-02-29)
-			fr=@(2000-02-29)
-			it=@(2000-02-29)
-			de=@(2000-02-29)
-		"""
+		en=["@(2000-02-29)"],
+		fr=["@(2000-02-29)"],
+		it=["@(2000-02-29)"],
+		de=["@(2000-02-29)"],
 	)
 
 
@@ -1251,12 +1238,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes(handler, config
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes",
 		"date_of_birth",
 		"'2000-02-29T12:34'",
-		f"""
-			en=@(2000-02-29)
-			fr=@(2000-02-29)
-			it=@(2000-02-29)
-			de=@(2000-02-29)
-		"""
+		en=["@(2000-02-29)"],
+		fr=["@(2000-02-29)"],
+		it=["@(2000-02-29)"],
+		de=["@(2000-02-29)"],
 	)
 
 
@@ -1267,12 +1252,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds(handler, config
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds",
 		"date_of_birth",
 		"'2000-02-29T12:34:56'",
-		f"""
-			en=@(2000-02-29)
-			fr=@(2000-02-29)
-			it=@(2000-02-29)
-			de=@(2000-02-29)
-		"""
+		en=["@(2000-02-29)"],
+		fr=["@(2000-02-29)"],
+		it=["@(2000-02-29)"],
+		de=["@(2000-02-29)"],
 	)
 
 
@@ -1283,12 +1266,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds(handler, c
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds",
 		"date_of_birth",
 		"'2000-02-29T12:34:56.987654'",
-		f"""
-			en=@(2000-02-29)
-			fr=@(2000-02-29)
-			it=@(2000-02-29)
-			de=@(2000-02-29)
-		"""
+		en=["@(2000-02-29)"],
+		fr=["@(2000-02-29)"],
+		it=["@(2000-02-29)"],
+		de=["@(2000-02-29)"],
 	)
 
 
@@ -1299,12 +1280,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz(handler
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz",
 		"date_of_birth",
 		"'2000-02-29T12:34+01:00'",
-		f"""
-			en=@(2000-02-29)
-			fr=@(2000-02-29)
-			it=@(2000-02-29)
-			de=@(2000-02-29)
-		"""
+		en=["@(2000-02-29)"],
+		fr=["@(2000-02-29)"],
+		it=["@(2000-02-29)"],
+		de=["@(2000-02-29)"],
 	)
 
 
@@ -1315,12 +1294,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz(handler
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz",
 		"date_of_birth",
 		"'2000-02-29T12:34:56+01:00'",
-		f"""
-			en=@(2000-02-29)
-			fr=@(2000-02-29)
-			it=@(2000-02-29)
-			de=@(2000-02-29)
-		"""
+		en=["@(2000-02-29)"],
+		fr=["@(2000-02-29)"],
+		it=["@(2000-02-29)"],
+		de=["@(2000-02-29)"],
 	)
 
 
@@ -1331,12 +1308,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz(ha
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz",
 		"date_of_birth",
 		"'2000-02-29T12:34:56.987654+01:00'",
-		f"""
-			en=@(2000-02-29)
-			fr=@(2000-02-29)
-			it=@(2000-02-29)
-			de=@(2000-02-29)
-		"""
+		en=["@(2000-02-29)"],
+		fr=["@(2000-02-29)"],
+		it=["@(2000-02-29)"],
+		de=["@(2000-02-29)"],
 	)
 
 
@@ -1347,12 +1322,10 @@ def test_changeapi_fieldvalue_date_none(handler, config_apps):
 		"test_changeapi_fieldvalue_date_none",
 		"date_of_birth",
 		"None",
-		f"""
-			en=None:"Date of birth (en)" is required.
-			fr=None:«Date of birth (en)» est obligatoire.
-			it=None:È necessario "Date of birth (en)".
-			de=None:"Geburtstag (de)" wird benötigt.
-		"""
+		en=["None", '''"Date of birth (en)" is required.'''],
+		fr=["None", '''«Date of birth (en)» est obligatoire.'''],
+		it=["None", '''È necessario "Date of birth (en)".'''],
+		de=["None", '''"Geburtstag (de)" wird benötigt.'''],
 	)
 
 
@@ -1365,12 +1338,10 @@ def test_changeapi_fieldvalue_lookup_color(handler, config_apps):
 		"test_changeapi_fieldvalue_lookup_color",
 		"sex",
 		"#000",
-		f"""
-			en=None:"Sex (en)" doesn't support the type {type}.
-			fr=None:«Sex (en)» ne prend pas en charge le type {type}.
-			it=None:"Sex (en)" non supporta il tipo {type}.
-			de=None:"Geschlecht (de)" unterstützt den Typ {type} nicht.
-		"""
+		en=["None", f'''"Sex (en)" doesn't support the type {type}.'''],
+		fr=["None", f'''«Sex (en)» ne prend pas en charge le type {type}.'''],
+		it=["None", f'''"Sex (en)" non supporta il tipo {type}.'''],
+		de=["None", f'''"Geschlecht (de)" unterstützt den Typ {type} nicht.'''],
 	)
 
 
@@ -1381,12 +1352,10 @@ def test_changeapi_fieldvalue_lookup_unknown(handler, config_apps):
 		"test_changeapi_fieldvalue_lookup_unknown",
 		"sex",
 		"'nix'",
-		f"""
-			en=None:The option 'nix' for "Sex (en)" is unknown.
-			fr=None:L'option 'nix' pour «Sex (en)» est inconnue.
-			it=None:L'opzione 'nix' per "Sex (en)" è sconosciuta.
-			de=None:Die Option 'nix' für "Geschlecht (de)" ist unbekannt.
-		"""
+		en=["None", '''The option 'nix' for "Sex (en)" is unknown.'''],
+		fr=["None", '''L'option 'nix' pour «Sex (en)» est inconnue.'''],
+		it=["None", '''L'opzione 'nix' per "Sex (en)" è sconosciuta.'''],
+		de=["None", '''Die Option 'nix' für "Geschlecht (de)" ist unbekannt.'''],
 	)
 
 
@@ -1397,13 +1366,109 @@ def test_changeapi_fieldvalue_lookup_foreign(handler, config_apps):
 		"test_changeapi_fieldvalue_lookup_foreign",
 		"sex",
 		"app.c_country_of_birth.lookupdata.usa",
-		f"""
-			en=None:The option <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> in "Sex \\(en\\)" doesn't belong to this lookup.
-			fr=None:L'option <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> dans «Sex \\(en\\)» n'appartient pas à cette sélection.
-			it=None:L'opzione <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> in "Sex \\(en\\)" non appartiene a questa selezione.
-			de=None:Die Option <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> in "Geschlecht \\(de\\)" gehört nicht zu dieser Auswahl.
-		""",
+		en=["None", '''The option <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> in "Sex \\(en\\)" doesn't belong to this lookup.'''],
+		fr=["None", '''L'option <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> dans «Sex \\(en\\)» n'appartient pas à cette sélection.'''],
+		it=["None", '''L'opzione <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> in "Sex \\(en\\)" non appartiene a questa selezione.'''],
+		de=["None", '''Die Option <.*.LookupItem id='.*.usa' key='usa' label='USA'.*> in "Geschlecht \\(de\\)" gehört nicht zu dieser Auswahl.'''],
 		isre=True,
+	)
+
+
+def test_changeapi_fieldvalue_lookup_str(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_lookup_str",
+		"sex",
+		"'male'",
+		en=[".*.LookupItem id='.*.male' key='male' label='Male \\(en\\)'.*>"],
+		fr=[".*.LookupItem id='.*.male' key='male' label='Male \\(en\\)'.*>"],
+		it=[".*.LookupItem id='.*.male' key='male' label='Male \\(en\\)'.*>"],
+		de=[".*.LookupItem id='.*.male' key='male' label='Männlich \\(de\\)'.*>"],
+		isre=True,
+	)
+
+
+def test_changeapi_fieldvalue_lookup_lookupitem(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_lookup_lookupitem",
+		"sex",
+		"app.c_sex.lookupdata.male",
+		en=["<.*.LookupItem id='.*.male' key='male' label='Male \\(en\\)'.*>"],
+		fr=["<.*.LookupItem id='.*.male' key='male' label='Male \\(en\\)'.*>"],
+		it=["<.*.LookupItem id='.*.male' key='male' label='Male \\(en\\)'.*>"],
+		de=["<.*.LookupItem id='.*.male' key='male' label='Männlich \\(de\\)'.*>"],
+		isre=True,
+	)
+
+
+def test_changeapi_fieldvalue_lookup_none(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_lookup_none",
+		"sex",
+		"None",
+		en=["None"],
+		fr=["None"],
+		it=["None"],
+		de=["None"],
+	)
+
+
+def test_changeapi_fieldvalue_multipleapplookup_color(handler, config_apps):
+	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
+
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_multipleapplookup_color",
+		"field_of_activity",
+		"#000",
+		en=["[]", f'''"Field of activity (en)" doesn't support the type {type}.'''],
+		fr=["[]", f'''«Field of activity (en)» ne prend pas en charge le type {type}.'''],
+		it=["[]", f'''"Field of activity (en)" non supporta il tipo {type}.'''],
+		de=["[]", f'''"Tätigkeitsfeld (de)" unterstützt den Typ {type} nicht.'''],
+	)
+
+
+def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_fields):
+	type_color = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
+	type_none = "null" if isinstance(handler, (JavaDB, GatewayHTTP)) else "None"
+
+	find_physics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Physics')";
+
+	record = "<.*.Record id='.*' v_name='Physics' v_parent=<.*.Record id='.*' v_name='Science' state=SAVED.*> state=SAVED.*>"
+
+	check_field(
+		handler,
+		config_fields,
+		"test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok",
+		"field_of_activity",
+		f"[#000, None, '', r.f_field_of_activity.control.none_key, r, {find_physics}]",
+		en=[
+			f"\\[{record}\\]",
+			f'''"Field of activity \\(en\\)" doesn't support the type {type_color}.''',
+			f'''The referenced record in "Field of activity \\(en\\)" is from the wrong app.''',
+		],
+		fr=[
+			f"\\[{record}\\]",
+			f'''«Field of activity \\(en\\)» ne prend pas en charge le type {type_color}.''',
+			f'''L'enregistrement référencé dans «Field of activity \\(en\\)» appartient à la mauvaise application.''',
+		],
+		it=[
+			f"\\[{record}\\]",
+			f'''"Field of activity \\(en\\)" non supporta il tipo {type_color}.''',
+			f'''Il record di riferimento in "Field of activity \\(en\\)" appartiene all'app sbagliata.''',
+		],
+		de=[
+			f"\\[{record}\\]",
+			f'''"Tätigkeitsfeld \\(de\\)" unterstützt den Typ {type_color} nicht.''',
+			f'''Der referenzierte Datensatz in "Tätigkeitsfeld \\(de\\)" gehört zur falscher App.''',
+		],
+		isre=True
 	)
 
 
