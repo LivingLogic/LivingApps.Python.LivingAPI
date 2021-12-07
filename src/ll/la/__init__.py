@@ -3463,21 +3463,22 @@ class LookupControl(Control):
 
 		Label to display for a "Nothing selected" option (from the active view,
 		else ``None``).
-
 	"""
 
 	_type = "lookup"
 
-	ul4_attrs = Control.ul4_attrs.union({"lookupdata"})
+	ul4_attrs = Control.ul4_attrs.union({"lookupdata", "none_key", "none_label", "autoexpandable"})
 	ul4_type = ul4c.Type("la", "LookupControl", "A LivingApps lookup field")
 
 	lookupdata = AttrDictAttr(get=True, set=True, required=True, ul4get=True, ul4onget=True, ul4onset=True)
 	none_key = Attr(str, get="", ul4get="_none_key_get")
 	none_label = Attr(str, get="", ul4get="_none_label_get")
+	autoexpandable = BoolAttr(get="", ul4get="_autoexpandable_get")
 
-	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, lookupdata=None):
+	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, lookupdata=None, autoexpandable=False):
 		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order)
 		self.lookupdata = lookupdata
+		self.autoexpandable = autoexpandable
 
 	def _default_get(self):
 		vc = self._get_viewcontrol()
@@ -3496,6 +3497,12 @@ class LookupControl(Control):
 		if vc is not None:
 			return vc.lookup_none_label
 		return None
+
+	def _autoexpandable_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.autoexpandable
+		return False
 
 	def _find_lookupitem(self, field, value) -> Tuple[Union[None, "LookupItem", str], T_opt_str]:
 		if isinstance(value, str):
