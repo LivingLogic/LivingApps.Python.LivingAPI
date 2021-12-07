@@ -3335,39 +3335,6 @@ class DatetimeSecondControl(DateControl):
 				return datetime.datetime.now().replace(microsecond=0)
 		return None
 
-	def _set_value(self, field, value):
-		if isinstance(value, datetime.datetime):
-			value = value.replace(microsecond=0)
-		elif isinstance(value, datetime.date):
-			value = datetime.datetime.combine(value, datetime.time())
-		elif isinstance(value, str):
-			charcount = len(value)
-			if charcount == 10:
-				try:
-					value = datetime.datetime.fromisoformat(value)
-				except ValueError:
-					field.add_error(error_wrong_value(value))
-			elif charcount == 19 or charcount == 26:
-				try:
-					value = datetime.datetime.fromisoformat(value)
-				except ValueError:
-					field.add_error(error_wrong_value(value))
-				else:
-					value = value.replace(microsecond=0)
-			elif charcount == 25 or charcount == 32 and _is_timezone(value[-6:]):
-				try:
-					value = datetime.datetime.fromisoformat(value[:-6])
-				except ValueError:
-					field.add_error(error_wrong_value(value))
-				else:
-					value = value.replace(microsecond=0)
-			else:
-				field.add_error(error_wrong_value(value))
-		elif value is not None:
-			field.add_error(error_wrong_type(field, value))
-			value = None
-		field._value = value
-
 	def _asjson(self, handler, field):
 		value = field._value
 		if isinstance(value, datetime.datetime):
