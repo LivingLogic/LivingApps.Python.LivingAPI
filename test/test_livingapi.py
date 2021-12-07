@@ -1160,20 +1160,246 @@ def test_changeapi_fieldvalue_str_unlimited_toolong(handler, config_apps):
 def test_changeapi_fieldvalue_geo_color(handler, config_apps):
 	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
-	expected = f"""
-		en=None:"Grave (en)" doesn't support the type {type}.
-		fr=None:«Grave (en)» ne prend pas en charge le type {type}.
-		it=None:"Grave (en)" non supporta il tipo {type}.
-		de=None:"Grab (de)" unterstützt den Typ {type} nicht.
-	"""
-
 	check_field(
 		handler,
 		config_apps,
 		"test_changeapi_fieldvalue_geo_color",
 		"grave",
 		"#000",
-		expected,
+		f"""
+			en=None:"Grave (en)" doesn't support the type {type}.
+			fr=None:«Grave (en)» ne prend pas en charge le type {type}.
+			it=None:"Grave (en)" non supporta il tipo {type}.
+			de=None:"Grab (de)" unterstützt den Typ {type} nicht.
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_geo_none(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_geo_none",
+		"grave",
+		"None",
+		expected = f"""
+			en=None
+			fr=None
+			it=None
+			de=None
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_date_color(handler, config_apps):
+	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
+
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_color",
+		"date_of_birth",
+		"#000",
+		f"""
+			en=None:"Date of birth (en)" doesn't support the type {type}.
+			fr=None:«Date of birth (en)» ne prend pas en charge le type {type}.
+			it=None:"Date of birth (en)" non supporta il tipo {type}.
+			de=None:"Geburtstag (de)" unterstützt den Typ {type} nicht.
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_date_str_wrongformat(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_wrongformat",
+		"date_of_birth",
+		"'Gurk'",
+		f"""
+			en='Gurk':"Date of birth (en)" doesn't support this date format.
+			fr='Gurk':«Date of birth (en)» doit comporter une date valide.
+			it='Gurk':"Date of birth (en)" deve essere una data.
+			de='Gurk':"Geburtstag (de)" unterstützt dieses Datumsformat nicht.
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_date_str_ok_datestring(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_ok_datestring",
+		"date_of_birth",
+		"'2000-02-29'",
+		f"""
+			en=@(2000-02-29)
+			fr=@(2000-02-29)
+			it=@(2000-02-29)
+			de=@(2000-02-29)
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes",
+		"date_of_birth",
+		"'2000-02-29T12:34'",
+		f"""
+			en=@(2000-02-29)
+			fr=@(2000-02-29)
+			it=@(2000-02-29)
+			de=@(2000-02-29)
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds",
+		"date_of_birth",
+		"'2000-02-29T12:34:56'",
+		f"""
+			en=@(2000-02-29)
+			fr=@(2000-02-29)
+			it=@(2000-02-29)
+			de=@(2000-02-29)
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds",
+		"date_of_birth",
+		"'2000-02-29T12:34:56.987654'",
+		f"""
+			en=@(2000-02-29)
+			fr=@(2000-02-29)
+			it=@(2000-02-29)
+			de=@(2000-02-29)
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz",
+		"date_of_birth",
+		"'2000-02-29T12:34+01:00'",
+		f"""
+			en=@(2000-02-29)
+			fr=@(2000-02-29)
+			it=@(2000-02-29)
+			de=@(2000-02-29)
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz",
+		"date_of_birth",
+		"'2000-02-29T12:34:56+01:00'",
+		f"""
+			en=@(2000-02-29)
+			fr=@(2000-02-29)
+			it=@(2000-02-29)
+			de=@(2000-02-29)
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz",
+		"date_of_birth",
+		"'2000-02-29T12:34:56.987654+01:00'",
+		f"""
+			en=@(2000-02-29)
+			fr=@(2000-02-29)
+			it=@(2000-02-29)
+			de=@(2000-02-29)
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_date_none(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_none",
+		"date_of_birth",
+		"None",
+		f"""
+			en=None:"Date of birth (en)" is required.
+			fr=None:«Date of birth (en)» est obligatoire.
+			it=None:È necessario "Date of birth (en)".
+			de=None:"Geburtstag (de)" wird benötigt.
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_lookup_color(handler, config_apps):
+	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
+
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_lookup_color",
+		"sex",
+		"#000",
+		f"""
+			en=None:"Sex (en)" doesn't support the type {type}.
+			fr=None:«Sex (en)» ne prend pas en charge le type {type}.
+			it=None:"Sex (en)" non supporta il tipo {type}.
+			de=None:"Geschlecht (de)" unterstützt den Typ {type} nicht.
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_lookup_unknown(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_lookup_unknown",
+		"sex",
+		"'nix'",
+		f"""
+			en=None:The option 'nix' for "Sex (en)" is unknown.
+			fr=None:L'option 'nix' pour «Sex (en)» est inconnue.
+			it=None:L'opzione 'nix' per "Sex (en)" è sconosciuta.
+			de=None:Die Option 'nix' für "Geschlecht (de)" ist unbekannt.
+		"""
+	)
+
+
+def test_changeapi_fieldvalue_lookup_foreign(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_lookup_foreign",
+		"sex",
+		"app.c_country_of_birth.lookupdata.usa",
+		f"""
+			en=None:The option <com.livinglogic.livingapps.livingapi.LookupItem key='usa' label='USA'> in "Sex (en)" doesn't belong to this lookup.
+			fr=None:L'option <com.livinglogic.livingapps.livingapi.LookupItem key='usa' label='USA'> dans «Sex (en)» n'appartient pas à cette sélection.
+			it=None:L'opzione <com.livinglogic.livingapps.livingapi.LookupItem key='usa' label='USA'> in "Sex (en)" non appartiene a questa selezione.
+			de=None:Die Option <com.livinglogic.livingapps.livingapi.LookupItem key='usa' label='USA'> in "Geschlecht (de)" gehört nicht zu dieser Auswahl.
+		"""
 	)
 
 
