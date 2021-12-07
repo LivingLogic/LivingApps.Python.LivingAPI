@@ -255,23 +255,39 @@ def error_date_format(field:"Field", value:Any) -> str:
 		return f'"{field.control.label}" doesn\'t support this date format.'
 
 
-def error_lookupitem_unknown(value:str) -> str:
+def error_lookupitem_unknown(field:"Field", value:str) -> str:
 	r"""
 	Return an error message for an unknown identifier for :class:`LookupItem`\s.
 
 	Used when setting the field of a lookup control to an unknown identifier.
 	"""
-	return f"Lookup item {value!r} is unknown."
+	lang = field.control.app.globals.lang
+	if lang == "de":
+		return f'Die Option {value!r} für "{field.control.label}" ist unbekannt.'
+	elif lang == "fr":
+		return f'L\'option {value!r} pour «{field.control.label}» est inconnue.'
+	elif lang == "it":
+		return f'L\'opzione {value!r} per "{field.control.label}" è sconosciuta.'
+	else:
+		return f'The option {value!r} for "{field.control.label}" is unknown.'
 
 
-def error_lookupitem_foreign(value:"ll.la.LookupItem") -> str:
+def error_lookupitem_foreign(field:"Field", value:"ll.la.LookupItem") -> str:
 	"""
 	Return an error message for a foreign :class:`LookupItem`.
 
 	Used when setting the field of a lookup control to a :`class`LookupItem` that
 	belongs to another :class:`LookupControl`.
 	"""
-	return f"Wrong lookup item {value!r}."
+	lang = field.control.app.globals.lang
+	if lang == "de":
+		return f'Die Option {value!r} in "{field.control.label}" gehört nicht zu dieser Auswahl.'
+	elif lang == "fr":
+		return f'L\'option {value!r} dans «{field.control.label}» n\'appartient pas à cette sélection.'
+	elif lang == "it":
+		return f'L\'opzione {value!r} in "{field.control.label}" non appartiene a questa selezione.'
+	else:
+		return f'The option {value!r} in "{field.control.label}" doesn\'t belong to this lookup.'
 
 
 def error_applookuprecord_unknown(value:str) -> str:
@@ -3807,10 +3823,10 @@ class MultipleLookupControl(LookupControl):
 					if v in self.lookupdata:
 						field._value.append(self.lookupdata[v])
 					else:
-						field.add_error(error_lookupitem_unknown(v))
+						field.add_error(error_lookupitem_unknown(field, v))
 				elif isinstance(v, LookupItem):
 					if v.key not in self.lookupdata or self.lookupdata[v.key] is not v:
-						field.add_error(error_lookupitem_foreign(v))
+						field.add_error(error_lookupitem_foreign(field, v))
 					else:
 						field._value.append(v)
 			if not field._value and self.required:
@@ -4952,11 +4968,11 @@ class Field(Base):
 			for v in lookupdata:
 				if isinstance(v, str):
 					if v not in control.lookupdata:
-						raise ValueError(error_lookupitem_unknown(v))
+						raise ValueError(error_lookupitem_unknown(field, v))
 					items.append(control.lookupdata[v])
 				elif isinstance(v, LookupItem):
 					if control.lookupdata.get(v.key, None) is not v:
-						raise ValueError(error_lookupitem_foreign(v))
+						raise ValueError(error_lookupitem_foreign(field, v))
 					items.append(v)
 				elif v is not None:
 					raise ValueError(error_wrong_type(field, v))
