@@ -300,14 +300,22 @@ def error_applookuprecord_unknown(value:str) -> str:
 	return f"Record with id {value!r} unknown."
 
 
-def error_applookuprecord_foreign(value:"ll.la.Record") -> str:
+def error_applookuprecord_foreign(field:"Field", value:"ll.la.Record") -> str:
 	"""
 	Return an error message for a foreign :class:`Record`.
 
 	Used when setting the field of an applookup control to a :class:`Record`
 	object that belongs to the wrong app.
 	"""
-	return f"Record with id {value.id!r} is from wrong app."
+	lang = field.control.app.globals.lang
+	if lang == "de":
+		return f'Der referenzierte Datensatz in "{field.control.label}" gehört zur falscher App.'
+	elif lang == "fr":
+		return f'L\'enregistrement référencé dans «{field.control.label}» appartient à la mauvaise application.'
+	elif lang == "it":
+		return f'Il record di riferimento in "{field.control.label}" appartiene all\'app sbagliata.'
+	else:
+		return f'The referenced record in "{field.control.label}" is from the wrong app.'
 
 
 def error_email_format(field:"Field", value:str) -> str:
@@ -3684,7 +3692,7 @@ class AppLookupControl(Control):
 				return (None, error_applookuprecord_unknown(value))
 		if isinstance(value, Record):
 			if self.lookup_app is not None and value.app is not self.lookup_app:
-				return (None, error_applookuprecord_foreign(value))
+				return (None, error_applookuprecord_foreign(field, value))
 		else:
 			return (None, error_wrong_type(field, value))
 		return (value, None)
@@ -3919,7 +3927,7 @@ class MultipleAppLookupControl(AppLookupControl):
 						v = record
 				if isinstance(v, Record):
 					if self.lookup_app is not None and v.app is not self.lookup_app:
-						field.add_error(error_applookuprecord_foreign(v))
+						field.add_error(error_applookuprecord_foreign(field, v))
 					else:
 						field._value.append(v)
 				elif v is not None:
@@ -4968,14 +4976,14 @@ class Field(Base):
 			for v in lookupdata:
 				if isinstance(v, str):
 					if v not in control.lookupdata:
-						raise ValueError(error_lookupitem_unknown(field, v))
+						raise ValueError(error_lookupitem_unknown(self, v))
 					items.append(control.lookupdata[v])
 				elif isinstance(v, LookupItem):
 					if control.lookupdata.get(v.key, None) is not v:
-						raise ValueError(error_lookupitem_foreign(field, v))
+						raise ValueError(error_lookupitem_foreign(self, v))
 					items.append(v)
 				elif v is not None:
-					raise ValueError(error_wrong_type(field, v))
+					raise ValueError(error_wrong_type(self, v))
 			self._lookupdata = attrdict({r.key : r for r in items})
 		elif isinstance(control, AppLookupControl):
 			self._lookupdata = lookupdata
@@ -4995,11 +5003,11 @@ class Field(Base):
 					v = record
 				if isinstance(v, Record):
 					if v.app is not control.lookup_app:
-						raise ValueError(error_applookuprecord_foreign(v))
+						raise ValueError(error_applookuprecord_foreign(self, v))
 					else:
 						records.append(v)
 				elif v is not None:
-					raise ValueError(error_wrong_type(field, v))
+					raise ValueError(error_wrong_type(self, v))
 			self._lookupdata = {r.id : r for r in records}
 		# Ignore assignment for any other control type
 
