@@ -1,5 +1,5 @@
-HEAD (2021-01-??)
------------------
+0.14.0 (2021-12-08)
+-------------------
 
 *	Renamed ``AppLookupControl.lookupapp`` to ``lookup_app`` and
 	``AppLookupControl.lookupcontrols`` to ``lookup_controls``.
