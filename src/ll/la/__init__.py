@@ -162,13 +162,13 @@ def error_required(field:"Field", value:Any) -> str:
 	"""
 	lang = field.control.app.globals.lang
 	if lang == "de":
-		return f'"{field.control.label}" wird benötigt.'
+		return f'"{field.label}" wird benötigt.'
 	elif lang == "fr":
-		return f'«{field.control.label}» est obligatoire.'
+		return f'«{field.label}» est obligatoire.'
 	elif lang == "it":
-		return f'È necessario "{field.control.label}".'
+		return f'È necessario "{field.label}".'
 	else:
-		return f'"{field.control.label}" is required.'
+		return f'"{field.label}" is required.'
 
 
 def error_truerequired(field:"Field", value:Any) -> str:
@@ -177,9 +177,13 @@ def error_truerequired(field:"Field", value:Any) -> str:
 	"""
 	lang = field.control.app.globals.lang
 	if lang == "de":
-		return f'"{field.control.label}" akzeptiert nur "Ja".'
+		return f'"{field.label}" akzeptiert nur "Ja".'
+	elif lang == "fr":
+		return f'«{field.label}» n\'accepte que «oui».'
+	elif lang == "it":
+		return f'"{field.label}" accetta solo "sì".'
 	else:
-		return f'"{field.control.label}" only accepts "Yes".'
+		return f'"{field.label}" only accepts "Yes".'
 
 
 def error_wrong_type(field:"Field", value:Any) -> str:
@@ -190,13 +194,13 @@ def error_wrong_type(field:"Field", value:Any) -> str:
 	"""
 	lang = field.control.app.globals.lang
 	if lang == "de":
-		return f'"{field.control.label}" unterstützt den Typ {misc.format_class(value)} nicht.'
+		return f'"{field.label}" unterstützt den Typ {misc.format_class(value)} nicht.'
 	elif lang == "fr":
-		return f'«{field.control.label}» ne prend pas en charge le type {misc.format_class(value)}.'
+		return f'«{field.label}» ne prend pas en charge le type {misc.format_class(value)}.'
 	elif lang == "it":
-		return f'"{field.control.label}" non supporta il tipo {misc.format_class(value)}.'
+		return f'"{field.label}" non supporta il tipo {misc.format_class(value)}.'
 	else:
-		return f'"{field.control.label}" doesn\'t support the type {misc.format_class(value)}.'
+		return f'"{field.label}" doesn\'t support the type {misc.format_class(value)}.'
 
 
 def error_string_tooshort(field:"Field", minlength:int, value:Any) -> str:
@@ -205,13 +209,13 @@ def error_string_tooshort(field:"Field", minlength:int, value:Any) -> str:
 	"""
 	lang = field.control.app.globals.lang
 	if lang == "de":
-		return f'"{field.control.label}" ist zu kurz. Sie müssen mindestens {minlength} Zeichen verwenden.'
+		return f'"{field.label}" ist zu kurz. Sie müssen mindestens {minlength} Zeichen verwenden.'
 	elif lang == "fr":
-		return f'«{field.control.label}» est trop court. Vous devez utiliser au moins {minlength} caractères.'
+		return f'«{field.label}» est trop court. Vous devez utiliser au moins {minlength} caractères.'
 	elif lang == "it":
-		return f'"{field.control.label}" è troppo breve. È necessario utilizzare almeno {minlength} caratteri.'
+		return f'"{field.label}" è troppo breve. È necessario utilizzare almeno {minlength} caratteri.'
 	else:
-		return f'"{field.control.label}" is too short. You must use at least {minlength} characters.'
+		return f'"{field.label}" is too short. You must use at least {minlength} characters.'
 
 
 def error_string_toolong(field:"Field", maxlength:int, value:Any) -> str:
@@ -220,13 +224,13 @@ def error_string_toolong(field:"Field", maxlength:int, value:Any) -> str:
 	"""
 	lang = field.control.app.globals.lang
 	if lang == "de":
-		return f'"{field.control.label}" ist zu lang. Sie dürfen höchstens {maxlength} Zeichen verwenden.'
+		return f'"{field.label}" ist zu lang. Sie dürfen höchstens {maxlength} Zeichen verwenden.'
 	elif lang == "fr":
-		return f'«{field.control.label}» est trop long. Vous pouvez utiliser un maximum de {maxlength} caractères.'
+		return f'«{field.label}» est trop long. Vous pouvez utiliser un maximum de {maxlength} caractères.'
 	elif lang == "it":
-		return f'"{field.control.label}" è troppo lungo. È possibile utilizzare un massimo di {maxlength} caratteri.'
+		return f'"{field.label}" è troppo lungo. È possibile utilizzare un massimo di {maxlength} caratteri.'
 	else:
-		return f'"{field.control.label}" is too long. You may use up to {maxlength} characters.'
+		return f'"{field.label}" is too long. You may use up to {maxlength} characters.'
 
 
 def error_wrong_value(value:Any) -> str:
@@ -246,13 +250,13 @@ def error_date_format(field:"Field", value:Any) -> str:
 	"""
 	lang = field.control.app.globals.lang
 	if lang == "de":
-		return f'"{field.control.label}" unterstützt dieses Datumsformat nicht.'
+		return f'"{field.label}" unterstützt dieses Datumsformat nicht.'
 	elif lang == "fr":
-		return f'«{field.control.label}» doit comporter une date valide.'
+		return f'«{field.label}» doit comporter une date valide.'
 	elif lang == "it":
-		return f'"{field.control.label}" deve essere una data.'
+		return f'"{field.label}" deve essere una data.'
 	else:
-		return f'"{field.control.label}" doesn\'t support this date format.'
+		return f'"{field.label}" doesn\'t support this date format.'
 
 
 def error_lookupitem_unknown(field:"Field", value:str) -> str:
@@ -263,13 +267,13 @@ def error_lookupitem_unknown(field:"Field", value:str) -> str:
 	"""
 	lang = field.control.app.globals.lang
 	if lang == "de":
-		return f'Die Option {value!r} für "{field.control.label}" ist unbekannt.'
+		return f'Die Option {value!r} für "{field.label}" ist unbekannt.'
 	elif lang == "fr":
-		return f'L\'option {value!r} pour «{field.control.label}» est inconnue.'
+		return f'L\'option {value!r} pour «{field.label}» est inconnue.'
 	elif lang == "it":
-		return f'L\'opzione {value!r} per "{field.control.label}" è sconosciuta.'
+		return f'L\'opzione {value!r} per "{field.label}" è sconosciuta.'
 	else:
-		return f'The option {value!r} for "{field.control.label}" is unknown.'
+		return f'The option {value!r} for "{field.label}" is unknown.'
 
 
 def error_lookupitem_foreign(field:"Field", value:"ll.la.LookupItem") -> str:
@@ -281,13 +285,13 @@ def error_lookupitem_foreign(field:"Field", value:"ll.la.LookupItem") -> str:
 	"""
 	lang = field.control.app.globals.lang
 	if lang == "de":
-		return f'Die Option {value!r} in "{field.control.label}" gehört nicht zu dieser Auswahl.'
+		return f'Die Option {value!r} in "{field.label}" gehört nicht zu dieser Auswahl.'
 	elif lang == "fr":
-		return f'L\'option {value!r} dans «{field.control.label}» n\'appartient pas à cette sélection.'
+		return f'L\'option {value!r} dans «{field.label}» n\'appartient pas à cette sélection.'
 	elif lang == "it":
-		return f'L\'opzione {value!r} in "{field.control.label}" non appartiene a questa selezione.'
+		return f'L\'opzione {value!r} in "{field.label}" non appartiene a questa selezione.'
 	else:
-		return f'The option {value!r} in "{field.control.label}" doesn\'t belong to this lookup.'
+		return f'The option {value!r} in "{field.label}" doesn\'t belong to this lookup.'
 
 
 def error_applookuprecord_unknown(value:str) -> str:
@@ -309,13 +313,13 @@ def error_applookuprecord_foreign(field:"Field", value:"ll.la.Record") -> str:
 	"""
 	lang = field.control.app.globals.lang
 	if lang == "de":
-		return f'Der referenzierte Datensatz in "{field.control.label}" gehört zur falscher App.'
+		return f'Der referenzierte Datensatz in "{field.label}" gehört zur falscher App.'
 	elif lang == "fr":
-		return f'L\'enregistrement référencé dans «{field.control.label}» appartient à la mauvaise application.'
+		return f'L\'enregistrement référencé dans «{field.label}» appartient à la mauvaise application.'
 	elif lang == "it":
-		return f'Il record di riferimento in "{field.control.label}" appartiene all\'app sbagliata.'
+		return f'Il record di riferimento in "{field.label}" appartiene all\'app sbagliata.'
 	else:
-		return f'The referenced record in "{field.control.label}" is from the wrong app.'
+		return f'The referenced record in "{field.label}" is from the wrong app.'
 
 
 def error_email_format(field:"Field", value:str) -> str:
@@ -325,6 +329,10 @@ def error_email_format(field:"Field", value:str) -> str:
 	lang = field.control.app.globals.lang
 	if lang == "de":
 		return f'"{field.label}" muss eine gültige E-Mail-Adresse sein.'
+	elif lang == "fr":
+		return f'«{field.label}» doit comporter une adresse e-mail valide.'
+	elif lang == "it":
+		return f'"{field.label}" deve essere un indirizzo email valido.'
 	else:
 		return f'"{field.label}" must be a valid email address.'
 
@@ -346,11 +354,15 @@ def error_email_badchar(field:"Field", pos:int, value:str) -> str:
 
 def error_tel_format(field:"Field", value:str) -> str:
 	"""
-	Return an error message for malformed tel address.
+	Return an error message for malformed phone number.
 	"""
 	lang = field.control.app.globals.lang
 	if lang == "de":
 		return f'"{field.label}" muss eine gültige Telefonnummer sein.'
+	elif lang == "fr":
+		return f'«{field.label}» doit comporter un numéro de téléphone valide.'
+	elif lang == "it":
+		return f'"{field.label}" deve essere un numero di telefono valido.'
 	else:
 		return f'"{field.label}" must be a valid phone number.'
 
@@ -360,6 +372,15 @@ def error_url_format(field:"Field", value:str) -> str:
 	Return an error message for malformed URL.
 	"""
 	lang = field.control.app.globals.lang
+	if lang == "de":
+			return f'"{field.label}" muss eine gültige URL im Format "http://www.xyz.de" sein.'
+	elif lang == "fr":
+			return f'«{field.label}» doit être au format «http://www.xyz.com».'
+	elif lang == "it":
+			return f'"{field.label}" deve essere formato "http://www.xyz.com".'
+	else:
+			return f'"{field.label}" must be a valid URL in the form "http://www.xyz.com".'
+
 	if lang == "de":
 		return f'"{field.label}" muss eine URL sein.'
 	else:
