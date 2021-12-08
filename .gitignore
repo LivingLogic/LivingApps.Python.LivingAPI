@@ -2,7 +2,7 @@ __pycache__
 .mypy_cache
 .pytest_cache
 .vscode
-.env
+.env*
 build
 dist
 src/*.egg-info
