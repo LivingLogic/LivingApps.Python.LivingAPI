@@ -1602,10 +1602,10 @@ def test_changeapi_fieldvalue_url_format(handler, config_fields):
 		"test_changeapi_fieldvalue_url_format",
 		"url",
 		f"'foo://bar'",
-		en=["'foo://bar'", '''""URL (en)" must be a valid URL in the form "http://www.xyz.com".'''],
-		fr=["'foo://bar'", '''"«URL (en)» doit être au format «http://www.xyz.com».'''],
-		it=["'foo://bar'", '''""URL (en)" deve essere formato "http://www.xyz.com".'''],
-		de=["'foo://bar'", '''""URL (de)" muss eine gültige URL im Format "http://www.xyz.de" sein.'''],
+		en=["'foo://bar'", '''"URL (en)" must be a valid URL in the form "http://www.xyz.com".'''],
+		fr=["'foo://bar'", '''«URL (en)» doit être au format «http://www.xyz.com».'''],
+		it=["'foo://bar'", '''"URL (en)" deve essere formato "http://www.xyz.com".'''],
+		de=["'foo://bar'", '''"URL (de)" muss eine gültige URL im Format "http://www.xyz.de" sein.'''],
 	)
 
 
@@ -1632,10 +1632,10 @@ def test_changeapi_fieldvalue_bool_required_none(handler, config_fields):
 		"test_changeapi_fieldvalue_bool_required_none",
 		"consent",
 		"None",
-		en=["None", '''""Consent (en)" is required.'''],
-		fr=["None", '''"«Consent (en)» est obligatoire.'''],
-		it=["None", '''"È necessario "Consent (en)".'''],
-		de=["None", '''""Zustimmung (de)" wird benötigt.'''],
+		en=["None", '''"Consent (en)" is required.'''],
+		fr=["None", '''«Consent (en)» est obligatoire.'''],
+		it=["None", '''È necessario "Consent (en)".'''],
+		de=["None", '''"Zustimmung (de)" wird benötigt.'''],
 	)
 
 
@@ -1646,10 +1646,10 @@ def test_changeapi_fieldvalue_bool_required_false(handler, config_fields):
 		"test_changeapi_fieldvalue_bool_required_false",
 		"consent",
 		"False",
-		en=["False", '''""Consent (en)" only accepts "Yes".'''],
-		fr=["False", '''"«Consent (en)» n'accepte que «oui».'''],
-		it=["False", '''""Consent (en)" accetta solo "sì".'''],
-		de=["False", '''""Zustimmung (de)" akzeptiert nur "Ja".'''],
+		en=["False", '''"Consent (en)" only accepts "Yes".'''],
+		fr=["False", '''«Consent (en)» n'accepte que «oui».'''],
+		it=["False", '''"Consent (en)" accetta solo "sì".'''],
+		de=["False", '''"Zustimmung (de)" akzeptiert nur "Ja".'''],
 	)
 
 
