@@ -262,10 +262,10 @@ class DBHandler(Handler):
 		``uploaddir`` must be an ``ssh`` URL specifying the upload directory
 		on the web server. If no uploads will be made, it can also be :const:`None`.
 
-		Use the user account to use specify either ``ide_account`` which must
-		be the account name (i.e. the email address) of the user or
-		``ide_id`` which must be the users database id. If neither is given
-		only public view templates canbe fetched.
+		To use a user account either specify ``ide_account`` which must be the
+		account name (i.e. the email address) of the user or ``ide_id`` which
+		must be the users database id. If neither is given only public view
+		templates can be fetched.
 		"""
 
 		super().__init__()
