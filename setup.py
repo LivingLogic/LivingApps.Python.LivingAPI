@@ -54,23 +54,24 @@ description = description.expandtabs(2)
 
 args = dict(
 	name="ll-la",
-	version="0.13.0",
+	version="0.14.0",
 	description="Python API for LivingApps",
 	long_description=description,
 	author="Walter Doerwald",
 	author_email="walter@livinglogic.de",
 	url="http://github.com/LivingLogic/LivingApps.Python.LivingAPI",
 	license="MIT",
-	python_requires=">=3.6",
+	python_requires=">=3.8",
 	classifiers=sorted({c for c in CLASSIFIERS.strip().splitlines() if c.strip() and not c.strip().startswith("#")}),
 	keywords=", ".join(sorted({k.strip() for k in KEYWORDS.strip().splitlines() if k.strip() and not k.strip().startswith("#")})),
 	package_dir={"": "src"},
 	packages=["ll.la"],
 	install_requires=[
-		"ll-xist >= 5.56",
+		"ll-xist >= 5.68.1",
 		"requests >= 2.21.0",
 		"geocoder >= 1.30.1",
 		"Pillow >= 6.1.0",
+		"validators >= 0.18.2",
 	],
 	zip_safe=False,
 )

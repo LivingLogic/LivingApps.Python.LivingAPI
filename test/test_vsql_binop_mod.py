@@ -14,7 +14,7 @@ from conftest import *
 ###
 
 def test_bool_bool1(config_persons):
-	check_vsql(config_persons, "app.p_int_none.value % True is None")
+	check_vsql(config_persons, "app.p_bool_none.value % True is None")
 
 def test_bool_bool2(config_persons):
 	check_vsql(config_persons, "app.p_bool_false.value % True == 0")

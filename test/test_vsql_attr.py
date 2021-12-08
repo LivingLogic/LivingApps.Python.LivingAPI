@@ -84,3 +84,15 @@ def test_color_b(config_persons):
 
 def test_color_a(config_persons):
 	check_vsql(config_persons, "app.p_color_value.value.a == 0xcc")
+
+def test_geo_lat(config_persons):
+	check_vsql(config_persons, "geo(49.95, 11.59, 'Here').lat == 49.95")
+
+def test_geo_long(config_persons):
+	check_vsql(config_persons, "geo(49.95, 11.59, 'Here').long == 11.59")
+
+def test_geo_info_with_info(config_persons):
+	check_vsql(config_persons, "geo(49.95, 11.59, 'Here').info == 'Here'")
+
+def test_geo_info_without_info(config_persons):
+	check_vsql(config_persons, "geo(49.95, 11.59).info is None")

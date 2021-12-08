@@ -11,9 +11,6 @@ from ll import la
 ### Data and helper functions
 ###
 
-person_app_id = "5bffc841c26a4b5902b2278c"
-fields_app_id = "5bffc44c5be111d74ed79972"
-
 
 class attrdict(dict):
 	def __getattr__(self, key):
@@ -53,6 +50,14 @@ def passwd():
 	return os.environ["LA_LIVINGAPI_TEST_PASSWD"]
 
 
+def person_app_id():
+	return os.environ["LA_LIVINGAPI_TEST_PERSONAPP"]
+
+
+def fields_app_id():
+	return os.environ["LA_LIVINGAPI_TEST_FIELDAPP"]
+
+
 def check_vsql(config_persons, code, result=None):
 	c = config_persons
 
@@ -80,7 +85,7 @@ def check_vsql(config_persons, code, result=None):
 	)
 
 	output = handler.renders(
-		person_app_id,
+		person_app_id(),
 		template=vt.identifier,
 	)
 
@@ -96,17 +101,25 @@ def check_vsql(config_persons, code, result=None):
 
 class Handler:
 	def __init__(self):
-		self.dbhandler = la.DBHandler(connect(), uploaddir(), user())
+		self.dbhandler = la.DBHandler(connectstring=connect(), uploaddir=uploaddir(), ide_account=user())
 
 	def make_viewtemplate(self, *args, **kwargs):
-		viewtemplate = la.ViewTemplate(*args, **kwargs)
+		viewtemplate = la.ViewTemplate(*args, **{**{"mimetype": "text/plain"}, **kwargs})
 		app = la.App()
-		app.id = person_app_id
+		app.id = person_app_id()
 		app.addtemplate(viewtemplate)
 		app.save(self.dbhandler)
 		self.dbhandler.commit()
 		return viewtemplate
 
+	def make_internaltemplate(self, *args, **kwargs):
+		internaltemplate = la.InternalTemplate(*args, **kwargs)
+		app = la.App()
+		app.id = person_app_id()
+		app.addtemplate(internaltemplate)
+		app.save(self.dbhandler)
+		self.dbhandler.commit()
+		return internaltemplate
 
 class LocalTemplateHandler(Handler):
 	def __init__(self):
@@ -188,10 +201,16 @@ class JavaDB(LocalTemplateHandler):
 			templateidentifier=templateidentifier,
 			params=params,
 		)
+		print(repr(data))
 		dump = ul4on.dumps(data).encode("utf-8")
-		result = subprocess.run("java com.livinglogic.livingapi.Tester", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+		print(repr(dump))
+		result = subprocess.run("java com.livinglogic.livingapps.livingapi.Tester", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 		# Check if we have an exception
-		self._find_exception(result.stderr.decode("utf-8", "passbytes"))
+		stderr = result.stderr.decode("utf-8", "passbytes")
+		self._find_exception(stderr)
+		if stderr:
+			# No exception found, but we still have error output, so complain anyway
+			raise ValueError(stderr)
 		return result.stdout.decode("utf-8", "passbytes")
 
 	def _find_exception(self, output):
@@ -229,7 +248,7 @@ params = [
 	"python_db",
 	pytest.param("python_http", marks=pytest.mark.flaky(reruns=3, reruns_delay=2)),
 	pytest.param("java_db", marks=pytest.mark.java),
-	pytest.param("gateway_http", marks=pytest.mark.flaky(reruns=3, reruns_delay=2)),
+	pytest.param("gateway_http", marks=pytest.mark.flaky(reruns=0, reruns_delay=2)),
 ]
 
 
@@ -256,12 +275,12 @@ def config_apps():
 	A test fixture that gives us a dictionary with a :class:`la.DBHandler` and
 	the two :class:`la.App` objects.
 	"""
-	handler = la.DBHandler(connect(), uploaddir(), user())
+	handler = la.DBHandler(connectstring=connect(), uploaddir=uploaddir(), ide_account=user())
 
-	apps = handler.meta_data(person_app_id, fields_app_id)
+	vars = handler.meta_data(person_app_id(), fields_app_id())
 
-	persons_app = apps[person_app_id]
-	fields_app = apps[fields_app_id]
+	persons_app = vars["apps"][person_app_id()]
+	fields_app = vars["apps"][fields_app_id()]
 
 	return attrdict(
 		handler=handler,
@@ -302,7 +321,7 @@ def config_norecords(config_apps):
 
 	c.handler.commit()
 
-	vars = c.handler.viewtemplate_data(person_app_id, template=identifier)
+	vars = c.handler.viewtemplate_data(person_app_id(), template=identifier)
 
 	persons_app = vars.datasources.persons.app
 	fields_app = vars.datasources.fields.app

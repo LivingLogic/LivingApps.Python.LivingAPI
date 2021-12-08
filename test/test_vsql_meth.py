@@ -96,3 +96,9 @@ def test_color_lum1(config_persons):
 
 def test_color_lum2(config_persons):
 	check_vsql(config_persons, "#fff.lum() == 1.0")
+
+def test_date_week(config_persons):
+	check_vsql(config_persons, "@(2000-02-29).week() == 9")
+
+def test_datetime_week(config_persons):
+	check_vsql(config_persons, "@(2000-02-29T12:34:56).week() == 9")

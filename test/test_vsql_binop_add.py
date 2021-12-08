@@ -13,6 +13,12 @@ from conftest import *
 ### Tests
 ###
 
+d1 = "@(2000-02-29)"
+d2 = "@(2000-03-01)"
+
+dt1 = "@(2000-02-29T12:34:56)"
+dt2 = "@(2000-03-01T12:34:56)"
+
 def test_bool_bool1(config_persons):
 	check_vsql(config_persons, "app.p_bool_none.value + True is None")
 
@@ -99,3 +105,69 @@ def test_datetimedelta_datetimedelta(config_persons):
 
 def test_monthdelta_monthdelta(config_persons):
 	check_vsql(config_persons, "app.p_monthdelta_value.value + months(9) == months(12)")
+
+def test_nulllist_nulllist1(config_persons):
+	check_vsql(config_persons, "[] + [] == []")
+
+def test_nulllist_nulllist2(config_persons):
+	check_vsql(config_persons, "[None, None] + [None] == [None, None, None]")
+
+def test_nulllist_intlist1(config_persons):
+	check_vsql(config_persons, "[] + [1, None, 2] == [1, None, 2]")
+
+def test_nulllist_intlist2(config_persons):
+	check_vsql(config_persons, "[None, None] + [1, None, 2] == [None, None, 1, None, 2]")
+
+def test_nulllist_numberlist1(config_persons):
+	check_vsql(config_persons, "[] + [1.1, None, 2.2] == [1.1, None, 2.2]")
+
+def test_nulllist_numberlist2(config_persons):
+	check_vsql(config_persons, "[None, None] + [1.1, None, 2.2] == [None, None, 1.1, None, 2.2]")
+
+def test_nulllist_strlist1(config_persons):
+	check_vsql(config_persons, "[] + ['gurk', None, 'hurz'] == ['gurk', None, 'hurz']")
+
+def test_nulllist_strlist2(config_persons):
+	check_vsql(config_persons, "[None, None] + ['gurk', None, 'hurz'] == [None, None, 'gurk', None, 'hurz']")
+
+def test_nulllist_datelist1(config_persons):
+	check_vsql(config_persons, f"[] + [{d1}, None, {d2}] == [{d1}, None, {d2}]")
+
+def test_nulllist_datelist2(config_persons):
+	check_vsql(config_persons, f"[None, None] + [{d1}, None, {d2}] == [None, None, {d1}, None, {d2}]")
+
+def test_nulllist_datetimelist1(config_persons):
+	check_vsql(config_persons, f"[] + [{dt1}, None, {dt2}] == [{dt1}, None, {dt2}]")
+
+def test_nulllist_datetimelist2(config_persons):
+	check_vsql(config_persons, f"[None, None] + [{dt1}, None, {dt2}] == [None, None, {dt1}, None, {dt2}]")
+
+def test_intlist_nulllist1(config_persons):
+	check_vsql(config_persons, "[1, None, 2] + [] == [1, None, 2]")
+
+def test_intlist_nulllist2(config_persons):
+	check_vsql(config_persons, "[1, None, 2] + [None, None] == [1, None, 2, None, None]")
+
+def test_numberlist_nulllist1(config_persons):
+	check_vsql(config_persons, "[1.1, None, 2.2] + [] == [1.1, None, 2.2]")
+
+def test_numberlist_nulllist2(config_persons):
+	check_vsql(config_persons, "[1.1, None, 2.2] + [None, None] == [1.1, None, 2.2, None, None]")
+
+def test_strlist_nulllist1(config_persons):
+	check_vsql(config_persons, "['gurk', None, 'hurz'] + [] == ['gurk', None, 'hurz']")
+
+def test_strlist_nulllist2(config_persons):
+	check_vsql(config_persons, "['gurk', None, 'hurz'] + [None, None] == ['gurk', None, 'hurz', None, None]")
+
+def test_datelist_nulllist1(config_persons):
+	check_vsql(config_persons, f"[{d1}, None, {d2}] + [] == [{d1}, None, {d2}]")
+
+def test_datelist_nulllist2(config_persons):
+	check_vsql(config_persons, f"[{d1}, None, {d2}] + [None, None] == [{d1}, None, {d2}, None, None]")
+
+def test_datetimelist_nulllist1(config_persons):
+	check_vsql(config_persons, f"[{dt1}, None, {dt2}] + [] == [{dt1}, None, {dt2}]")
+
+def test_datetimelist_nulllist2(config_persons):
+	check_vsql(config_persons, f"[{dt1}, None, {dt2}] + [None, None] == [{dt1}, None, {dt2}, None, None]")

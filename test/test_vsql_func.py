@@ -6,6 +6,8 @@ The test are done via the Python DB interface.
 To run the tests, :mod:`pytest` is required.
 """
 
+import math
+
 from conftest import *
 
 
@@ -30,6 +32,9 @@ def test_bool_false(config_persons):
 
 def test_bool_true(config_persons):
 	check_vsql(config_persons, "bool(True)")
+
+def test_bool_int_none(config_persons):
+	check_vsql(config_persons, "not bool(app.p_int_none.value)")
 
 def test_bool_int_false(config_persons):
 	check_vsql(config_persons, "not bool(0)")
@@ -127,6 +132,9 @@ def test_int_str_ok(config_persons):
 def test_int_str_bad(config_persons):
 	check_vsql(config_persons, "int('42.5') is None")
 
+def test_int_str_very_bad(config_persons):
+	check_vsql(config_persons, "int('verybad') is None")
+
 def test_float(config_persons):
 	check_vsql(config_persons, "float() == 0.0")
 
@@ -141,6 +149,12 @@ def test_float_int(config_persons):
 
 def test_float_number(config_persons):
 	check_vsql(config_persons, "float(42.5) == 42.5")
+
+def test_float_str(config_persons):
+	check_vsql(config_persons, "float('42.5') == 42.5")
+
+def test_float_str_bad(config_persons):
+	check_vsql(config_persons, "float('bad') is None")
 
 def test_str(config_persons):
 	check_vsql(config_persons, "str() is None")
@@ -190,6 +204,9 @@ def test_str_datetimedelta_5(config_persons):
 def test_str_datetimedelta_6(config_persons):
 	check_vsql(config_persons, "str(days(42) + hours(17) + minutes(23)) == '42 days, 17:23:00'")
 
+def test_str_datetimedelta_7(config_persons):
+	check_vsql(config_persons, "str(-days(1) - hours(12) - minutes(34) - seconds(56)) == '-2 days, 11:25:04'")
+
 def test_str_monthdelta_1(config_persons):
 	check_vsql(config_persons, "str(monthdelta(0)) == '0 months'")
 
@@ -210,6 +227,12 @@ def test_str_color_3(config_persons):
 
 def test_str_color_4(config_persons):
 	check_vsql(config_persons, "str(#12345678) == 'rgba(18, 52, 86, 0.471)'")
+
+def test_str_geo_without_info(config_persons):
+	check_vsql(config_persons, "str(geo(49.95, 11.59)) == '<geo lat=49.95 long=11.59 info=None>'")
+
+def test_str_geo_with_info(config_persons):
+	check_vsql(config_persons, "str(geo(49.95, 11.59, 'Here')) == '<geo lat=49.95 long=11.59 info=\\'Here\\'>'")
 
 def test_str_intlist(config_persons):
 	check_vsql(config_persons, "str([1, 2, 3, None]) == '[1, 2, 3, None]'")
@@ -311,6 +334,12 @@ def test_repr_color_3(config_persons):
 def test_repr_color_4(config_persons):
 	check_vsql(config_persons, "repr(#12345678) == '#12345678'")
 
+def test_repr_geo_without_info(config_persons):
+	check_vsql(config_persons, "repr(geo(49.95, 11.59)) == '<geo lat=49.95 long=11.59 info=None>'")
+
+def test_repr_geo_with_info(config_persons):
+	check_vsql(config_persons, "repr(geo(49.95, 11.59, 'Here')) == '<geo lat=49.95 long=11.59 info=\\'Here\\'>'")
+
 def test_repr_intlist(config_persons):
 	check_vsql(config_persons, "repr([1, 2, 3, None]) == '[1, 2, 3, None]'")
 
@@ -362,6 +391,18 @@ def test_datetime_int5(config_persons):
 def test_datetime_int6(config_persons):
 	check_vsql(config_persons, "datetime(2000, 2, 29, 12, 34, 56) == @(2000-02-29T12:34:56)")
 
+def test_datetime_date(config_persons):
+	check_vsql(config_persons, "datetime(@(2000-02-29)) == @(2000-02-29T00:00:00)")
+
+def test_datetime_date_int1(config_persons):
+	check_vsql(config_persons, "datetime(@(2000-02-29), 12) == @(2000-02-29T12:00:00)")
+
+def test_datetime_date_int2(config_persons):
+	check_vsql(config_persons, "datetime(@(2000-02-29), 12, 34) == @(2000-02-29T12:34:00)")
+
+def test_datetime_date_int3(config_persons):
+	check_vsql(config_persons, "datetime(@(2000-02-29), 12, 34, 56) == @(2000-02-29T12:34:56)")
+
 def test_len_str1(config_persons):
 	check_vsql(config_persons, "len('') == 0")
 
@@ -381,10 +422,10 @@ def test_len_strlist(config_persons):
 	check_vsql(config_persons, "len(['foo', 'bar', 'baz']) == 3")
 
 def test_len_datelist(config_persons):
-	check_vsql(config_persons, "len([@(2000-02-29)]) == 1")
+	check_vsql(config_persons, "len([@(2000-02-29), @(2000-02-29), @(2000-03-01)]) == 3")
 
 def test_len_datetimelist(config_persons):
-	check_vsql(config_persons, "len([@(2000-02-29T12:34:56)]) == 1")
+	check_vsql(config_persons, "len([@(2000-02-29T12:34:56), @(2000-02-29T12:34:56), @(2000-03-01T12:34:56)]) == 3")
 
 def test_len_intset(config_persons):
 	check_vsql(config_persons, "len({1, 1, 2, 2, 3, 3, None, None}) == 4")
@@ -520,3 +561,72 @@ def test_set_dateset(config_persons):
 
 def test_set_datetimeset(config_persons):
 	check_vsql(config_persons, "set({@(2000-02-29T12:34:56), None}) == {@(2000-02-29T12:34:56), None}")
+
+def test_dist(config_persons):
+	check_vsql(config_persons, "abs(dist(geo(49.95, 11.59, 'Here'), geo(12.34, 56.67, 'There')) - 5845.77551787602) < 1e-5")
+
+def test_abs(config_persons):
+	check_vsql(config_persons, "abs(-42) == 42")
+
+def test_cos_bool(config_persons):
+	check_vsql(config_persons, "cos(False) == 1")
+
+def test_cos_int(config_persons):
+	check_vsql(config_persons, "cos(0) == 1")
+
+def test_cos_number1(config_persons):
+	check_vsql(config_persons, "cos(0.0) == 1")
+
+def test_cos_number2(config_persons):
+	check_vsql(config_persons, f"abs(cos({math.pi} / 2)) < 1e-10")
+
+def test_cos_number3(config_persons):
+	check_vsql(config_persons, f"abs(cos({math.pi}) + 1) < 1e-10")
+
+def test_sin_bool(config_persons):
+	check_vsql(config_persons, "sin(False) == 0")
+
+def test_sin_int(config_persons):
+	check_vsql(config_persons, "sin(0) == 0")
+
+def test_sin_number1(config_persons):
+	check_vsql(config_persons, "sin(0.0) == 0")
+
+def test_sin_number2(config_persons):
+	check_vsql(config_persons, f"abs(sin({math.pi} / 2) - 1) < 1e-10")
+
+def test_sin_number3(config_persons):
+	check_vsql(config_persons, f"abs(sin({math.pi})) < 1e-10")
+
+def test_tan_bool(config_persons):
+	check_vsql(config_persons, "tan(False) == 0")
+
+def test_tan_int(config_persons):
+	check_vsql(config_persons, "tan(0) == 0")
+
+def test_tan_number1(config_persons):
+	check_vsql(config_persons, "tan(0.0) == 0")
+
+def test_tan_number2(config_persons):
+	check_vsql(config_persons, f"abs(tan(0.25 * {math.pi}) - 1) < 1e-10")
+
+def test_tan_number3(config_persons):
+	check_vsql(config_persons, f"abs(tan(0.75 * {math.pi}) + 1) < 1e-10")
+
+def test_sqrt_bool1(config_persons):
+	check_vsql(config_persons, "sqrt(False) == 0.0")
+
+def test_sqrt_bool2(config_persons):
+	check_vsql(config_persons, "sqrt(True) == 1.0")
+
+def test_sqrt_int1(config_persons):
+	check_vsql(config_persons, "sqrt(16) == 4.0")
+
+def test_sqrt_int2(config_persons):
+	check_vsql(config_persons, "sqrt(-16) is None")
+
+def test_sqrt_number1(config_persons):
+	check_vsql(config_persons, "sqrt(16.0) == 4.0")
+
+def test_sqrt_number2(config_persons):
+	check_vsql(config_persons, "sqrt(-16.0) is None")

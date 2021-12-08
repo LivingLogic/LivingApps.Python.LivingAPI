@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # cython: language_level=3, always_allow_keywords=True
 
-## Copyright 2016-2020 by LivingLogic AG, Bayreuth/Germany
+## Copyright 2016-2021 by LivingLogic AG, Bayreuth/Germany
 ##
 ## All Rights Reserved
 
@@ -77,6 +77,11 @@ class Handler:
 
 	def __init__(self):
 		self.globals = None
+		registry = {
+			"de.livinglogic.livingapi.file": self._loadfile,
+			"de.livinglogic.livingapi.globals": self._loadglobals,
+		}
+		self.ul4on_decoder = ul4on.Decoder(registry)
 
 	def get(self, *path, **params):
 		warnings.warn("The method get() is deprecated, please use viewtemplate_data() instead.")
@@ -130,21 +135,37 @@ class Handler:
 		file.handler = self
 		return file
 
-	def _geofrominfo(self, info):
+	def _geofrominfo(self, info:str) -> la.Geo:
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder``
-		for provider in (geocoder.google, geocoder.osm):
-			result = provider(info, language="de")
-			if not result.error and result.lat and result.lng and result.address:
-				return la.Geo(result.lat, result.lng, result.address)
+		provider = geocoder.osm
+		result = provider(info, language="de")
+		if not result.error and result.lat and result.lng and result.address:
+			return la.Geo(result.lat, result.lng, result.address)
 		return None
 
-	def _geofromlatlong(self, lat, long):
+	def _geofromlatlong(self, lat:float, long:float) -> la.Geo:
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder``
-		for provider in (geocoder.google, geocoder.osm):
-			result = provider([lat, long], method="reverse", language="de")
-			if not result.error and result.lat and result.lng and result.address:
-				return la.Geo(result.lat, result.lng, result.address)
+		provider = geocoder.osm
+		result = provider([lat, long], method="reverse", language="de")
+		if not result.error and result.lat and result.lng and result.address:
+			return la.Geo(result.lat, result.lng, result.address)
 		return None
+
+	def _geofromstring(self, s:str) -> la.Geo:
+		parts = s.split(",", 2)
+		if len(parts) < 2:
+			return self._geofrominfo(s)
+		else:
+			try:
+				lat = float(parts[0])
+				long = float(parts[1])
+			except ValueError:
+				return self._geofrominfo(s)
+			else:
+				if len(parts) == 2:
+					return self._geofromlatlong(lat, long)
+				else:
+					return la.Geo(lat, long, parts[2].strip())
 
 	def geo(self, lat=None, long=None, info=None):
 		"""
@@ -170,6 +191,9 @@ class Handler:
 			return self._geofromlatlong(lat, long)
 		else:
 			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
+
+	def seq(self):
+		raise NotImplementedError
 
 	def save_record(self, record):
 		raise NotImplementedError
@@ -207,37 +231,60 @@ class Handler:
 	def fetch_templates(self, app):
 		return {}
 
-	def _loadfile(self):
-		file = la.File()
+	def _loadfile(self, id):
+		file = la.File(id=id)
 		file.handler = self
 		return file
 
-	def _loadglobals(self):
+	def _loadglobals(self, id):
 		globals = la.Globals()
 		globals.handler = self
 		return globals
 
 	def _loaddump(self, dump):
-		registry = {
-			"de.livinglogic.livingapi.file": self._loadfile,
-			"de.livinglogic.livingapi.globals": self._loadglobals,
-		}
-		dump = ul4on.loads(dump, registry)
-		dump = la.attrdict(dump)
-		if "datasources" in dump:
-			dump.datasources = la.attrdict(dump.datasources)
+		dump = self.ul4on_decoder.loads(dump)
+		if isinstance(dump, dict):
+			dump = la.attrdict(dump)
+			if "datasources" in dump:
+				dump.datasources = la.attrdict(dump.datasources)
+		self.ul4on_decoder.reset()
 		return dump
 
 
 class DBHandler(Handler):
-	def __init__(self, connection, uploaddirectory, account=None, ide_id=None):
+	def __init__(self, *, connection=None, connectstring=None, uploaddir=None, ide_account=None, ide_id=None):
+		"""
+		Create a new :class:`DBHandler`.
+
+		For the database connection pass either ``connection`` with an
+		:mod:`~ll.orasql` connection or ``connectstring`` with a connecstring.
+
+		``uploaddir`` must be an ``ssh`` URL specifying the upload directory
+		on the web server. If no uploads will be made, it can also be :const:`None`.
+
+		Use the user account to use specify either ``ide_account`` which must
+		be the account name (i.e. the email address) of the user or
+		``ide_id`` which must be the users database id. If neither is given
+		only public view templates canbe fetched.
+		"""
+
 		super().__init__()
-		if orasql is None:
-			raise ImportError("ll.orasql required")
-		if isinstance(connection, str):
-			connection = orasql.connect(connection, readlobs=True)
-		self.db = connection
-		self.uploaddirectory = url.URL(uploaddirectory)
+
+		if connection is not None:
+			if connectstring is not None:
+				raise ValueError("Specify connectstring or connection, but not both")
+			self.db = connection
+		elif connectstring is not None:
+			if orasql is None:
+				raise ImportError("ll.orasql required")
+			self.db = orasql.connect(connectstring, readlobs=True)
+		else:
+			raise ValueError("Parameter connectstring or connection is required")
+
+		if uploaddir is not None:
+			uploaddir = url.URL(uploaddir)
+		self.uploaddir = uploaddir
+
 		self.varchars = self.db.gettype("LL.VARCHARS")
 		self.urlcontext = None
 
@@ -257,33 +304,41 @@ class DBHandler(Handler):
 		self.proc_dataorder_delete = orasql.Procedure("DATASOURCE_PKG.DATAORDER_DELETE")
 		self.proc_vsqlsource_insert = orasql.Procedure("VSQL_PKG.VSQLSOURCE_INSERT")
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
+		self.func_seq = orasql.Function("LIVINGAPI_PKG.SEQ")
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
 
-		if account is not None:
-			if ide_id is not None:
-				raise TypeError("Specify either account or ide_id, but not both")
+		if ide_id is not None:
+			if ide_account is not None:
+				raise ValueError("Specify ide_id or ide_account, but not both")
+			self.ide_id = ide_id
+		elif ide_account is not None:
 			c = self.cursor()
-			c.execute("select ide_id from identity where ide_account = :account", account=account)
+			c.execute("select ide_id from identity where ide_account = :ide_account", ide_account=ide_account)
 			r = c.fetchone()
 			if r is None:
-				raise ValueError(f"no user {account!r}")
+				raise ValueError(f"no user {ide_account!r}")
 			self.ide_id = r.ide_id
 		else:
-			self.ide_id = ide_id
+			self.ide_id = None
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
 
 	def cursor(self):
-		return self.db.cursor()
+		return self.db.cursor(readlobs=True)
 
 	def commit(self):
 		self.db.commit()
 
 	def rollback(self):
 		self.db.rollback()
+
+	def seq(self):
+		c = self.cursor()
+		(value, r) = self.func_seq(c)
+		return value
 
 	def save_app(self, app, recursive=True):
 		# FIXME: Save the app itself
@@ -311,7 +366,7 @@ class DBHandler(Handler):
 			)
 			if self.urlcontext is None:
 				self.urlcontext = url.Context()
-			with (self.uploaddirectory/r.p_upl_name).open("wb", context=self.urlcontext) as f:
+			with (self.uploaddir/r.p_upl_name).open("wb", context=self.urlcontext) as f:
 				f.write(file._content)
 			file.internalid = r.p_upl_id
 
@@ -326,11 +381,82 @@ class DBHandler(Handler):
 		if r is None:
 			raise ValueError(f"no such file {file.url!r}")
 		with url.Context():
-			u = self.uploaddirectory/r.upl_name
+			u = self.uploaddir/r.upl_name
 			return u.openread().read()
 
-	def save_vsql(self, cursor, source, function, datatype=None, **queryargs):
-		return vsql.compile_and_save(self, cursor, source, datatype, function, **queryargs)
+	def _save_vsql_ast(self, vsqlexpr, required_datatype=None, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
+		"""
+		Save the vSQL expression :obj:`vsqlexpr`.
+
+		``cursor``, ``vs_id_super``, ``vs_order``, ``vss_id`` and ``pos`` are used
+		internally for recursive calls and should not be passed by the user.
+		"""
+		if cursor is None:
+			cursor = self.cursor()
+		source = vsqlexpr.source()
+		sourcelen = len(source)
+		if pos is None:
+			pos = 0
+		finalpos = pos + sourcelen
+
+		datatype = vsqlexpr.datatype
+		error = vsqlexpr.error
+		if vss_id is None:
+			# Validate target datatype (if the tree is valid so far)
+			if datatype is not None:
+				error = vsql.DataType.compatible_to(datatype, required_datatype)
+				if error is not None:
+					datatype = None
+
+			r = self.proc_vsqlsource_insert(
+				cursor,
+				c_user=self.ide_id,
+				p_vss_source=source,
+			)
+			vss_id = r.p_vss_id
+		r = self.proc_vsql_insert(
+			cursor,
+			c_user=self.ide_id,
+			p_vs_id_super=vs_id_super,
+			p_vs_order=vs_order,
+			p_vs_nodetype=vsqlexpr.nodetype.value,
+			p_vs_value=vsqlexpr.nodevalue,
+			p_vs_datatype=datatype.value if datatype is not None else None,
+			p_vs_erroridentifier=error.value if error is not None else None,
+			p_vss_id=vss_id,
+			p_vs_start=pos,
+			p_vs_stop=finalpos,
+		)
+		vs_id = r.p_vs_id
+		# FieldRefAST has children in the implementation, but in the database it has not
+		if not isinstance(vsqlexpr, vsql.FieldRefAST):
+			order = 10
+			for child in vsqlexpr.content:
+				if isinstance(child, str):
+					pos += len(child)
+				else:
+					(_, pos) = self._save_vsql_ast(child, None, cursor, vs_id, order, vss_id, pos)
+					order += 10
+		return (vs_id, finalpos)
+
+	def save_vsql_ast(self, vsqlexpr, datatype=None, cursor=None):
+		return self._save_vsql_ast(vsqlexpr, datatype, cursor)[0]
+
+	def save_vsql_source(self, cursor, source, function, datatype=None, **queryargs):
+		if not source:
+			return None
+
+		if cursor is None:
+			cursor = self.cursor()
+
+		args = ", ".join(f"{a}=>:{a}" for a in queryargs)
+		query = f"select {function}({args}) from dual"
+		cursor.execute(query, **queryargs)
+		dump = cursor.fetchone()[0]
+		dump = dump.decode("utf-8")
+		vars = ul4on.loads(dump)
+		vsqlexpr = vsql.AST.fromsource(source, **vars)
+		return self.save_vsql_ast(vsqlexpr, datatype, cursor)
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
 		template = ul4c.Template(internaltemplate.source, name=internaltemplate.identifier)
@@ -391,7 +517,7 @@ class DBHandler(Handler):
 		cursor = self.cursor()
 
 		# Compile and save the app filter
-		vs_id_appfilter = self.save_vsql(
+		vs_id_appfilter = self.save_vsql_source(
 			cursor,
 			datasource.appfilter,
 			la.DataSource.appfilter.function,
@@ -400,7 +526,7 @@ class DBHandler(Handler):
 		)
 
 		# Compile and save the record filter
-		vs_id_recordfilter = self.save_vsql(
+		vs_id_recordfilter = self.save_vsql_source(
 			cursor,
 			datasource.recordfilter,
 			la.DataSource.recordfilter.function,
@@ -466,7 +592,7 @@ class DBHandler(Handler):
 		ctl_id = cursor.fetchone()[0]
 
 		# Compile and save the record filter
-		vs_id_filter = self.save_vsql(
+		vs_id_filter = self.save_vsql_source(
 			cursor,
 			datasourcechildren.filter,
 			la.DataSourceChildren.filter.function,
@@ -508,7 +634,7 @@ class DBHandler(Handler):
 				(do_id, do_order) = (None, last_order + 10)
 			if dataorder is not None:
 				# Compile and save the order expression
-				vs_id_expression = self.save_vsql(
+				vs_id_expression = self.save_vsql_source(
 					cursor,
 					dataorder.expression,
 					function,
@@ -532,14 +658,111 @@ class DBHandler(Handler):
 
 	def meta_data(self, *appids):
 		cursor = self.cursor()
-
 		tpl_uuids = self.varchars(appids)
 		cursor.execute(
-			"select livingapi_pkg.metadata_ful4on(:ide_id, :tpl_uuids) from dual",
+			"select livingapi_pkg.metadata_ful4on(c_user=>:ide_id, p_tpl_uuids=>:tpl_uuids) from dual",
 			ide_id=self.ide_id,
 			tpl_uuids=tpl_uuids,
 		)
 		r = cursor.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
+	def record_sync_data(self, dat_id, force=False):
+		if not force:
+			result = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
+			if result is not None:
+				return result
+		c = self.cursor()
+		c.execute(
+			"select livingapi_pkg.record_sync_ful4on(c_user=>:ide_id, p_dat_id=>:dat_id) from dual",
+			ide_id=self.ide_id,
+			dat_id=dat_id,
+		)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump.record
+
+	def records_sync_data(self, dat_ids, force=False):
+		if force:
+			missing = set(dat_ids)
+		else:
+			missing = set()
+			for dat_id in dat_ids:
+				record = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
+				if record is None:
+					missing.add(dat_id)
+				else:
+					found[dat_id] = record
+		c = self.cursor()
+		c.execute(
+			"select livingapi_pkg.records_sync_ful4on(c_user=>:ide_id, p_dat_ids=>:dat_ids) from dual",
+			ide_id=self.ide_id,
+			dat_ids=self.varchars(missing),
+		)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump.records
+
+	def _data(self, requestid=None, vt_id=None, et_id=None, vw_id=None, tpl_id=None, dat_id=None, dat_ids=None, ctl_identifier=None, searchtext=None, reqparams=None, mode=None, sync=False, exportmeta=False, funcname="data_ful4on"):
+		paramslist = []
+		if reqparams:
+			for (key, value) in reqparams.items():
+				if value is not None:
+					if isinstance(value, str):
+						paramslist.append(key)
+						paramslist.append(value)
+					elif isinstance(value, list):
+						for subvalue in value:
+							paramslist.append(key)
+							paramslist.append(subvalue)
+		paramslist = self.varchars(paramslist)
+
+		c = self.cursor()
+
+		c.execute(
+			"""
+				select
+					livingapi_pkg.data_ful4on(
+						c_user => :c_user,
+						p_requestid => :p_requestid,
+						p_vt_id => :p_vt_id,
+						p_et_id => :p_et_id,
+						p_vw_id => :p_vw_id,
+						p_tpl_id => :p_tpl_id,
+						p_dat_id => :p_dat_id,
+						p_dat_ids => :p_dat_ids,
+						p_ctl_identifier => :p_ctl_identifier,
+						p_searchtext => :p_searchtext,
+						p_reqparams => :p_reqparams,
+						p_mode => :p_mode,
+						p_sync => :p_sync,
+						p_exportmeta => :p_exportmeta,
+						p_funcname => :p_funcname
+					)
+				from dual
+			""",
+			c_user=self.ide_id,
+			p_requestid=requestid,
+			p_vt_id=vt_id,
+			p_et_id=et_id,
+			p_vw_id=vw_id,
+			p_tpl_id=tpl_id,
+			p_dat_id=dat_id,
+			p_dat_ids=self.varchars(dat_ids or []),
+			p_ctl_identifier=ctl_identifier,
+			p_searchtext=searchtext,
+			p_reqparams=paramslist,
+			p_mode=mode,
+			p_sync=int(sync),
+			p_exportmeta=int(exportmeta),
+			p_funcname=funcname,
+		)
+
+		r = c.fetchone()
 		dump = r[0].decode("utf-8")
 		dump = self._loaddump(dump)
 		return dump
@@ -578,28 +801,8 @@ class DBHandler(Handler):
 			else:
 				raise ValueError(f"no template named {template!r} for app {appid!r}")
 		vt_id = r.vt_id
-		reqparams = []
-		for (key, value) in params.items():
-			if value is not None:
-				if isinstance(value, str):
-					reqparams.append(key)
-					reqparams.append(value)
-				elif isinstance(value, list):
-					for subvalue in value:
-						reqparams.append(key)
-						reqparams.append(subvalue)
-		reqparams = self.varchars(reqparams)
-		c.execute(
-			"select livingapi_pkg.viewtemplatedata_ful4on(:ide_id, :vt_id, :dat_id, :reqparams) from dual",
-			ide_id=self.ide_id,
-			vt_id=vt_id,
-			dat_id=datid,
-			reqparams=reqparams,
-		)
-		r = c.fetchone()
-		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump
+
+		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
 
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
@@ -615,8 +818,11 @@ class DBHandler(Handler):
 		args = {
 			"c_user": self.ide_id,
 		}
-		if real and record.id is None:
-			args["p_tpl_uuid"] = app.id
+		if real:
+			if record.id is None:
+				args["p_tpl_uuid"] = app.id
+			mode = record.app.globals.mode
+			args["p_mode"] = mode.value if mode is not None else None
 		if record.id is not None:
 			args[f"p_{pk}"] = record.id
 		for field in record.fields.values():
@@ -674,17 +880,21 @@ class DBHandler(Handler):
 
 	def delete_record(self, record):
 		app = record.app
+		args = {
+			"c_user": self.ide_id,
+			"p_dat_id": record.id,
+		}
 		if app.basetable in {"data_select", "data"}:
 			proc = self.proc_data_delete
+			mode = record.app.globals.mode
+			args["p_mode"] = mode.value if mode is not None else None
 		else:
 			proc = self._getproc(app.deleteprocedure)
 
+			mode = record.app.globals.mode
+
 		c = self.cursor()
-		r = proc(
-			c,
-			c_user=self.ide_id,
-			p_dat_id=record.id,
-		)
+		r = proc(c, **args)
 		record._deleted = True
 
 		if r.p_errormessage:
@@ -818,6 +1028,11 @@ class HTTPHandler(Handler):
 		r.raise_for_status()
 		return r.content
 
+	def records_sync_data(self, dat_ids, force=False):
+		if not dat_ids:
+			return {}
+		raise NotImplementedError("Can't sync records via {self!r}")
+
 	def viewtemplate_data(self, *path, **params):
 		if not 1 <= len(path) <= 2:
 			raise ValueError(f"need one or two path components, got {len(path)}")
@@ -920,6 +1135,12 @@ class HTTPHandler(Handler):
 			**kwargs,
 		)
 		r.raise_for_status()
+
+	def record_sync_data(self, dat_id, force=False):
+		result = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
+		if result is not None and not force:
+			return result
+		raise NotImplementedError
 
 
 class FileHandler(Handler):

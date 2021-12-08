@@ -1,0 +1,185 @@
+<aside>
+	<div class="breadcrumbs">
+		{% block breadcrumbs %}
+			<a href="{{ pathto(master_doc) }}">{{ _('Docs') }}</a> <span class="sep"><i class="{{theme_font_awesome_style}} fa-angle-right"></i></span> 
+				{% for doc in parents %}
+					<a href="{{ doc.link|e }}">{{ doc.title }}</a> <span class="sep"><i class="{{theme_font_awesome_style}} fa-angle-right"></i></span> 
+				{% endfor %}
+			<span class="here">{{ title }}</span>
+		{% endblock %}
+	</div>
+
+	{% if ((theme_prev_next_buttons_location == 'bottom' or theme_prev_next_buttons_location == 'both') and (next or prev)) or theme_pdf or (show_source and source_url_prefix) or (show_source and has_source and sourcename) %}
+		<div class="rst-buttons" role="navigation" aria-label="aside navigation">
+			{% if prev %}
+				<a href="{{ prev.link|e }}" accesskey="p" rel="prev" class="iconpanel prev">
+					<span class="icon">
+						<i class="{{theme_font_awesome_style}} fa-fw fa-chevron-left"></i>
+					</span>
+					<span class="text">
+						<span class="label">{{ _('Previous') }}</span>
+						<span class="title">{{ prev.title }}</span>
+					</span>
+				</a>
+			{% endif %}
+			{% if next %}
+				<a href="{{ next.link|e }}" accesskey="n" rel="next" class="iconpanel next">
+					<span class="icon">
+						<i class="{{theme_font_awesome_style}} fa-fw fa-chevron-right"></i>
+					</span>
+					<span class="text">
+						<span class="label">{{ _('Next') }}</span>
+						<span class="title">{{ next.title }}</span>
+					</span>
+				</a>
+			{% endif %}
+			{%- if theme_pdf %}
+				<a class="iconpanel" rel="alternate" type="application/pdf" href="{{ pathto(theme_pdf, 1) }}">
+					<span class="icon">
+						<i class="{{theme_font_awesome_style}} fa-fw fa-file-pdf"></i>
+					</span>
+					<span class="text">
+						<span class="label">
+							{{ theme_pdf_header }}
+						</span>
+						<span class="title">
+							{{ theme_pdf_text }}
+						</span>
+					</span>
+				</a>
+			{%- endif %}
+			{%- if show_source and source_url_prefix %}
+			  <a href="{{ source_url_prefix }}{{ pagename }}{{ suffix }}" class="iconpanel">
+					<span class="icon">
+						<i class="{{theme_font_awesome_style}} fa-fw fa-code"></i>
+					</span>
+					<span class="text">
+						<span class="label">{{ _('Page source') }}</span>
+						<span class="title">{{ _('Source code of this page') }}</span>
+					</span>
+				</a>
+			{%- elif show_source and has_source and sourcename %}
+				<a href="{{ pathto('_sources/' + sourcename, true)|e }}" rel="nofollow" class="iconpanel">
+					<span class="icon">
+						<i class="{{theme_font_awesome_style}} fa-fw fa-code"></i>
+					</span>
+					<span class="text">
+						<span class="label">{{ _('Page source') }}</span>
+						<span class="title">{{ _('Source code of this page') }}</span>
+					</span>
+				</a>
+			{%- endif %}
+		</div>
+	{% endif %}
+
+	<div class="wy-breadcrumbs-aside">
+		{% if hasdoc(pagename) %}
+			{% if display_github %}
+			{% if check_meta and 'github_url' in meta %}
+			 <!-- User defined GitHub URL -->
+			 <a href="{{ meta['github_url'] }}" class="{{theme_font_awesome_style}} fa-github"> {{ _('Edit on GitHub') }}</a>
+			{% else %}
+			 <a href="https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/{{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}{{ pagename }}{{ suffix }}" class="fa fa-github"> {{ _('Edit on GitHub') }}</a>
+			{% endif %}
+		{% elif display_bitbucket %}
+		  {% if check_meta and 'bitbucket_url' in meta %}
+			 <!-- User defined Bitbucket URL -->
+			 <a href="{{ meta['bitbucket_url'] }}" class="{{theme_font_awesome_style}} fa-bitbucket"> {{ _('Edit on Bitbucket') }}</a>
+		  {% else %}
+			 <a href="https://bitbucket.org/{{ bitbucket_user }}/{{ bitbucket_repo }}/src/{{ bitbucket_version}}{{ conf_py_path }}{{ pagename }}{{ suffix }}?mode={{ theme_vcs_pageview_mode|default("view") }}" class="fa fa-bitbucket"> {{ _('Edit on Bitbucket') }}</a>
+		  {% endif %}
+		{% elif display_gitlab %}
+		  {% if check_meta and 'gitlab_url' in meta %}
+			 <!-- User defined GitLab URL -->
+			 <a href="{{ meta['gitlab_url'] }}" class="{{theme_font_awesome_style}} fa-gitlab"> {{ _('Edit on GitLab') }}</a>
+		  {% else %}
+			 <a href="https://{{ gitlab_host|default("gitlab.com") }}/{{ gitlab_user }}/{{ gitlab_repo }}/{{ theme_vcs_pageview_mode|default("blob") }}/{{ gitlab_version }}{{ conf_py_path }}{{ pagename }}{{ suffix }}" class="fa fa-gitlab"> {{ _('Edit on GitLab') }}</a>
+		  {% endif %}
+		{% endif %}
+	 {% endif %}
+	</div>
+
+	{%- if show_copyright %}
+		<div role="contentinfo" class="iconpanel copyright">
+			<span class="icon">
+				<i class="{{theme_font_awesome_style}} fa-fw fa-copyright"></i>
+			</span>
+			<span class="text">
+				<span class="label">
+					{%- if hasdoc('copyright') %}
+						{% trans path=pathto('copyright'), copyright=copyright|e %}<a href="{{ path }}">Copyright</a>{% endtrans %}
+					{%- else %}
+						{% trans %}Copyright{% endtrans %}
+					{%- endif %}
+				</span>
+				<span class="title">{{ copyright|e }}</span>
+			</span>
+		</div>
+	{%- endif %}
+
+	{%- if build_id and build_url %}
+		<div role="contentinfo" class="iconpanel build">
+			<span class="icon">
+				<i class="{{theme_font_awesome_style}} fa-fw fa-code-branch"></i>
+			</span>
+			<span class="text">
+				{% trans build_url=build_url, build_id=build_id %}
+					<span class="label">
+						Build
+					</span>
+					<span class="title">
+						<a href="{{ build_url }}">{{ build_id }}</a>.
+					</span>
+				{% endtrans %}
+			</span>
+		</div>
+	{%- elif commit %}
+		<div role="contentinfo" class="iconpanel commit">
+			<span class="icon">
+				<i class="{{theme_font_awesome_style}} fa-fw fa-code-commit"></i>
+			</span>
+			<span class="text">
+				<span class="label">
+					{{ _('Revision') }}
+				</span>
+				{% trans commit=commit %}
+					<span class="title">
+						{{ commit }}
+					</span>
+				{% endtrans %}
+			</span>
+		</div>
+	{%- elif last_updated %}
+		<div role="contentinfo" class="iconpanel lastupdated">
+			<span class="icon">
+				<i class="{{theme_font_awesome_style}} fa-fw fa-calendar"></i>
+			</span>
+			<span class="text">
+				<span class="label">
+					{{ _('Last updated on') }}
+				</span>
+				<span class="title">
+					{{ last_updated|e }}
+				</span>
+			</span>
+		</div>
+	{%- endif %}
+
+	{%- if show_sphinx -%}
+		<div role="contentinfo" class="iconpanel">
+			<span class="icon">
+				<i class="{{theme_font_awesome_style}} fa-fw fa-cog"></i>
+			</span>
+			<span class="text">
+				<span class="label">
+					{% trans %}Built{% endtrans %}
+				</span>
+				<span class="title">
+					{% trans %}with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>{% endtrans %}
+				</span>
+			</span>
+		</div>
+	{%- endif %}
+
+	{%- block extraaside %} {% endblock %}
+</aside>
