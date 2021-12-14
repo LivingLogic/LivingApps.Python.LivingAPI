@@ -4581,11 +4581,10 @@ class Record(Base):
 		for control in self.app.controls.values():
 			identifier = control.identifier
 			value = None
-			if values is not None:
-				if use_defaults and identifier not in values:
-					value = control.default
-				else:
-					value = values.get(identifier, None)
+			if values is not None and identifier in values:
+				value = values[identifier]
+			elif use_defaults:
+				value = control.default
 			field = Field(control, self, value)
 			fields[identifier] = field
 		self.__dict__["fields"] = fields
