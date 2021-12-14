@@ -1609,12 +1609,16 @@ class KeyView(Base):
 	key = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	user = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, identifier=None, name=None, key=None, user=None):
-		self.id = None
+	def __init__(self, id=None, identifier=None, name=None, key=None, user=None):
+		self.id = id
 		self.identifier = identifier
 		self.name = name
 		self.key = key
 		self.user = user
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
 
 
 @register("globals")
