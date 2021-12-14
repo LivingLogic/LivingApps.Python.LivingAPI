@@ -3134,7 +3134,7 @@ class IntControl(Control):
 	ul4_type = ul4c.Type("la", "IntControl", "A LivingApps integer field (type 'int')")
 
 	def _set_value(self, field, value):
-		if value is not None or value == "":
+		if value is None or value == "":
 			if self.required:
 				field.add_error(error_required(field, value))
 			value = None
@@ -3180,12 +3180,13 @@ class NumberControl(Control):
 	ul4_type = ul4c.Type("la", "NumberControl", "A LivingApps number field (type 'number')")
 
 	def _set_value(self, field, value):
-		if value is not None or value == "":
+		if value is None or value == "":
 			if self.required:
 				field.add_error(error_required(field, value))
 			value = None
 		elif isinstance(value, (int, float)):
-			value = float(value) # This converts :class:`bool`\s etc.
+			# This converts :class:`bool`\s and :class:`int`\s.
+			value = float(value)
 		elif isinstance(value, str):
 			count_dots = value.count(".")
 			count_commas = value.count(",")
