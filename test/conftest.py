@@ -168,8 +168,9 @@ class GatewayHTTP(Handler):
 		self.testhandler = la.HTTPHandler(url(), user(), passwd())
 
 	def renders(self, *path, **params):
+		self.testhandler._login()
 		gatewayurl = url() + "gateway/apps/" + "/".join(path)
-		kwargs = dict(params=params)
+		kwargs = dict(params={f"{k}[]" if isinstance(v, list) else k: v for (k, v) in params.items()})
 		self.testhandler._add_auth_token(kwargs)
 		response = self.testhandler.session.get(gatewayurl, **kwargs)
 		result = response.text

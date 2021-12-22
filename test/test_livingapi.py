@@ -2107,33 +2107,17 @@ def test_has_custom_lookupdata(handler):
 	assert output == expected
 
 
+def test_parameter_array(handler):
+	source = """
+		<?whitespace strip?>
+		<?print globals.request.params["gurk"]?>
+	"""
 
+	vt = handler.make_viewtemplate(
+		identifier="test_parameter_array",
+		source=source
+	)
 
-tests = '''
-test_view_control_overwrite_lookup -> test_view_control_overwrite_lookup_noneoption  done
-Neue: test_view_control_overwrite_lookup_label ???  view_specific_lookups  done
-
-
-Test für Shortcut-Attbut globals.d_*    done
-Test für Template-Shortcutattribute globals.t_* und app.t_*. done
-App.fetchTemplates() implementieren.  spaeter
-
-Feld-Defaultwerte bei aktivem und inaktivem View. done
-
-Field-Methode is_dirty() und has_errors() testen.   done
-App-Konstruktur mit falschen Argumenten aufrufen.   Exception  
-Record.save()-Argument sync testen. (id, cname und cdate(not None)) done
-
-Globals.seq() testen.  done
-Record.add_error() und Field.add_error() testen. done
-Globals.flash_info() und Kollegen testen. done
-Globals.log_info() und Kollegen testen. done
-Record.c_*-Shortcut-Attribute testen. done
-Richtige Zuordnung Control <-> ViewControl testen (Java view_controls()) done
-Globals.dist() testen (Java geo_dist())  done
-Geo-Attribute testen (Java geo_constructor()). not
-isinstance()-Tests (Java isinstance_la())
-FileSignature-Feldwerte testen (Java signature)
-App.datasource
-Field.has_custom_lookupdata()
-'''
+	output = handler.renders(person_app_id(), template=vt.identifier, gurk=["hurz"])
+	expected = "['hurz']"
+	assert output == expected
