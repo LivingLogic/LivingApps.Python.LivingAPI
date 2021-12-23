@@ -1609,12 +1609,16 @@ class KeyView(Base):
 	key = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	user = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, identifier=None, name=None, key=None, user=None):
-		self.id = None
+	def __init__(self, id=None, identifier=None, name=None, key=None, user=None):
+		self.id = id
 		self.identifier = identifier
 		self.name = name
 		self.key = key
 		self.user = user
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
 
 
 @register("globals")
@@ -3134,7 +3138,7 @@ class IntControl(Control):
 	ul4_type = ul4c.Type("la", "IntControl", "A LivingApps integer field (type 'int')")
 
 	def _set_value(self, field, value):
-		if value is not None or value == "":
+		if value is None or value == "":
 			if self.required:
 				field.add_error(error_required(field, value))
 			value = None
@@ -3180,12 +3184,13 @@ class NumberControl(Control):
 	ul4_type = ul4c.Type("la", "NumberControl", "A LivingApps number field (type 'number')")
 
 	def _set_value(self, field, value):
-		if value is not None or value == "":
+		if value is None or value == "":
 			if self.required:
 				field.add_error(error_required(field, value))
 			value = None
 		elif isinstance(value, (int, float)):
-			value = float(value) # This converts :class:`bool`\s etc.
+			# This converts :class:`bool`\s and :class:`int`\s.
+			value = float(value)
 		elif isinstance(value, str):
 			count_dots = value.count(".")
 			count_commas = value.count(",")
@@ -4581,11 +4586,10 @@ class Record(Base):
 		for control in self.app.controls.values():
 			identifier = control.identifier
 			value = None
-			if values is not None:
-				if use_defaults and identifier not in values:
-					value = control.default
-				else:
-					value = values.get(identifier, None)
+			if values is not None and identifier in values:
+				value = values[identifier]
+			elif use_defaults:
+				value = control.default
 			field = Field(control, self, value)
 			fields[identifier] = field
 		self.__dict__["fields"] = fields
@@ -7258,7 +7262,7 @@ class HTTPRequest(Base):
 	def __init__(self, method:str="get"):
 		self.method = method
 		self.headers = {}
-		self.parsms = {}
+		self.params = {}
 		self._seqvalue = 0
 
 	def seq(self) -> int:

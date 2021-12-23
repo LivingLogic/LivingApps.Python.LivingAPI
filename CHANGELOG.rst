@@ -1,3 +1,16 @@
+0.14.2 (2021-12-14)
+-------------------
+
+*	Make :class:`KeyView` objects persistent.
+
+
+0.14.1 (2021-12-14)
+-------------------
+
+*	Fixed setting a value for ``Fields``\s of ``IntControl`` and
+	``NumberControl`` objects.
+
+
 0.14.0 (2021-12-08)
 -------------------
 
