@@ -145,6 +145,9 @@ class PythonDB(LocalTemplateHandler):
 	def renders(self, *path, **params):
 		template = self.make_ul4template(**params)
 		vars = self.dbhandler.viewtemplate_data(*path, **params)
+		globals = vars["globals"]
+		globals.request = la.HTTPRequest()
+		globals.request.params = params
 		result = template.renders(**vars)
 		self.dbhandler.commit()
 		return result
