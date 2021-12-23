@@ -161,6 +161,9 @@ class PythonHTTP(LocalTemplateHandler):
 	def renders(self, *path, **params):
 		template = self.make_ul4template(**params)
 		vars = self.testhandler.viewtemplate_data(*path, **params)
+		globals = vars["globals"]
+		globals.request = la.HTTPRequest()
+		globals.request.params.update(**params)
 		result = template.renders(**vars)
 		return result
 
