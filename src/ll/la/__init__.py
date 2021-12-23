@@ -7262,7 +7262,7 @@ class HTTPRequest(Base):
 	def __init__(self, method:str="get"):
 		self.method = method
 		self.headers = {}
-		self.parsms = {}
+		self.params = {}
 		self._seqvalue = 0
 
 	def seq(self) -> int:
