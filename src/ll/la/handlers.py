@@ -916,7 +916,7 @@ class DBHandler(Handler):
 		try:
 			return self.custom_procs[procname]
 		except KeyError:
-			proc = self.db.getobject(procname)
+			proc = self.db.object_named(procname)
 			if not isinstance(proc, orasql.Procedure):
 				raise ValueError(f"no procedure {procname}")
 			self.custom_procs[procname] = proc
