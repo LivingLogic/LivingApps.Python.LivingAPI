@@ -1,3 +1,10 @@
+0.14.3 (2022-01-10)
+-------------------
+
+*	Use :meth:`object_named` in :class:`DBHandler._getproc` instead of the
+	deprecated (and broken) :meth:`getobject`.
+
+
 0.14.2 (2021-12-14)
 -------------------
 
