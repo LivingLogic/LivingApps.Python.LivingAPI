@@ -211,14 +211,23 @@ class JavaDB(LocalTemplateHandler):
 		print(repr(data))
 		dump = ul4on.dumps(data).encode("utf-8")
 		print(repr(dump))
-		result = subprocess.run("java com.livinglogic.livingapps.livingapi.Tester", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+		currentdir = pathlib.Path.cwd()
+		try:
+			os.chdir(pathlib.Path.home() / "checkouts/LivingApps.Java.LivingAPI")
+			result = subprocess.run("gradle -q --console=plain -I quietLogger.init.gradle.kts execute", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+		finally:
+			os.chdir(currentdir)
+		print(result.returncode)
 		# Check if we have an exception
 		stderr = result.stderr.decode("utf-8", "passbytes")
+		print(repr(stderr))
 		self._find_exception(stderr)
 		if stderr:
 			# No exception found, but we still have error output, so complain anyway
 			raise ValueError(stderr)
-		return result.stdout.decode("utf-8", "passbytes")
+		stdout = result.stdout.decode("utf-8", "passbytes")
+		print(repr(stdout))
+		return stdout
 
 	def _find_exception(self, output):
 		lines = output.splitlines()
