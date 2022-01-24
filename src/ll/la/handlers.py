@@ -90,6 +90,12 @@ class Handler:
 	def viewtemplate_data(self, *path, **params):
 		raise NotImplementedError
 
+	def app_params_incremental_data(self, id):
+		return None
+
+	def record_attachments_data(self, id):
+		return None
+
 	def meta_data(self, *appids):
 		raise NotImplementedError
 
@@ -247,7 +253,6 @@ class Handler:
 			dump = la.attrdict(dump)
 			if "datasources" in dump:
 				dump.datasources = la.attrdict(dump.datasources)
-		self.ul4on_decoder.reset()
 		return dump
 
 
@@ -803,6 +808,22 @@ class DBHandler(Handler):
 		vt_id = r.vt_id
 
 		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
+
+	def app_params_incremental_data(self, id):
+		c = self.cursor()
+		c.execute("select livingapi_pkg.app_params_inc_ful4on(:appid) from dual", appid=id)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
+	def record_attachments_incremental_data(self, id):
+		c = self.cursor()
+		c.execute("select livingapi_pkg.record_attachments_inc_ful4on(:datid) from dual", datid=id)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
 
 	def save_record(self, record, recursive=True):
 		record.clear_errors()

@@ -2121,3 +2121,30 @@ def test_parameter_array(handler):
 	output = handler.renders(person_app_id(), template=vt.identifier, gurk=["hurz"])
 	expected = "['hurz']"
 	assert output == expected
+
+
+def test_load_attachments_on_demand(handler, config_apps):
+	if isinstance(handler, (PythonDB, JavaDB, GatewayHTTP)):
+		c = config_apps
+
+		source = """
+			<?whitespace strip?>
+			<?code r1 = app()?>
+			<?print repr(r1.attachments)?>
+			<?code r2 = first(app.records.values())?>
+			<?print repr(r2.attachments)?>
+		"""
+
+		vt = handler.make_viewtemplate(
+			la.DataSource(
+				identifier="persons",
+				app=c.apps.persons,
+				includerecords=la.DataSource.IncludeRecords.RECORDS,
+			),
+			identifier="test_load_attachments_on_demand",
+			source=source
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = "None{}"
+		assert output == expected

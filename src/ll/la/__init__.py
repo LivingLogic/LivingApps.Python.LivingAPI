@@ -2273,7 +2273,7 @@ class App(Base):
 	recordcount = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	installation = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	categories = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
-	params = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	params = AttrDictAttr(get="", set="", ul4get="_params_get", ul4onget="_params_ul4onget", ul4onset="_params_set")
 	views = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	datamanagement_identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	basetable = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2312,7 +2312,7 @@ class App(Base):
 		self.recordcount = recordcount
 		self.installation = installation
 		self.categories = categories
-		self.params = params
+		self._params = params
 		self.views = views
 		self.datamanagement_identifier = datamanagement_identifier
 		self.basetable = None
@@ -2415,6 +2415,23 @@ class App(Base):
 				raise NoHandlerError()
 			handler = self.globals.handler
 		return handler
+
+	def _params_get(self):
+		params = self._params
+		if params is None:
+			handler = self.globals.handler
+			if handler is not None:
+				params = handler.app_params_incremental_data(self.id)
+				if params is not None:
+					params = attrdict(params)
+					self._params = params
+		return params
+
+	def _params_set(self, value):
+		self._params = value
+
+	def _params_ul4onget(self):
+		return self._params
 
 	def save(self, handler:T_opt_handler=None, recursive=True):
 		self._gethandler(handler).save_app(self, recursive=recursive)
@@ -4548,7 +4565,7 @@ class Record(Base):
 	updatecount = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fields = AttrDictAttr(get="", ul4get="_fields_get")
 	values = AttrDictAttr(get="", set=True, ul4get="_values_get", ul4onget="", ul4onset="")
-	attachments = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset="")
 	errors = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
@@ -4623,6 +4640,23 @@ class Record(Base):
 		# Set the following attributes via ``__dict__``, as they are "read only".
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
+
+	def _attachments_get(self):
+		attachments = self._attachments
+		if attachments is None and self.id is not None:
+			handler = self.app.globals.handler
+			if handler is not None:
+				attachments = handler.record_attachments_incremental_data(self.id)
+				if attachments is not None:
+					attachments = attrdict(attachments)
+					self._attachments = attachments
+		return attachments
+
+	def _attachments_set(self, value):
+		self._attachments = value
+
+	def _attachments_ul4onget(self):
+		return self._attachments
 
 	def _fielderrors_ul4onget(self):
 		if self._sparsefielderrors is not None:
@@ -5193,7 +5227,7 @@ class ImageAttachment(Attachment):
 
 	type = "imageattachment"
 
-	original = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	original = Attr(File, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	thumb = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	small = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	medium = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -5216,7 +5250,7 @@ class SimpleAttachment(Attachment):
 	ul4_attrs = Attachment.ul4_attrs.union({"value"})
 	ul4_type = ul4c.Type("la", "SimpleAttachment", "A simple attachment of a record")
 
-	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, record=None, label=None, active=None, value=None):
 		super().__init__(id=id, record=record, label=label, active=active)
@@ -5240,7 +5274,7 @@ class FileAttachment(SimpleAttachment):
 
 	type = "fileattachment"
 
-	value = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(File, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("urlattachment")
@@ -5260,7 +5294,7 @@ class URLAttachment(SimpleAttachment):
 
 	type = "urlattachment"
 
-	value = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(str, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("noteattachment")
@@ -5280,7 +5314,7 @@ class NoteAttachment(SimpleAttachment):
 
 	type = "noteattachment"
 
-	value = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(str, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("jsonattachment")
@@ -5299,7 +5333,7 @@ class JSONAttachment(SimpleAttachment):
 
 	type = "jsonattachment"
 
-	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	value = Attr(repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 
 	def _value_ul4onset(self, value):
 		if value is not None:
