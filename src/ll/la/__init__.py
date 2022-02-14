@@ -1211,7 +1211,6 @@ class File(Base):
 	ul4_type = ul4c.Type("la", "File", "An uploaded file")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	url = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	filename = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	mimetype = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	width = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1220,9 +1219,8 @@ class File(Base):
 	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	size = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None, size=None, internalid=None, createdat=None, content=None):
+	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, internalid=None, createdat=None, content=None):
 		self.id = id
-		self.url = url
 		self.filename = filename
 		self.mimetype = mimetype
 		self.width = width
@@ -1242,6 +1240,10 @@ class File(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	@property
+	def url(self) -> str:
+		return f"/gateway/files/{self.id}"
 
 	def ul4_getattr(self, name):
 		# For these method call the version of the method instead, that doesn't
@@ -2288,7 +2290,7 @@ class App(Base):
 	superid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	favorite = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	active_view = Attr(lambda: View, str, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	datasource = Attr(lambda: DataSourceData, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	datasource = Attr(lambda: DataSource, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -5537,10 +5539,10 @@ class InternalTemplate(Template):
 		self._gethandler(handler).delete_internaltemplate(self)
 
 
-@register("viewtemplate")
-class ViewTemplate(Template):
+@register("viewtemplateconfig")
+class ViewTemplateConfig(Template):
 	"""
-	A :class:`!ViewTemplate` provides a webpage.
+	A :class:`!ViewTemplateConfig` provides a webpage.
 
 	Relevant instance attributes are:
 
@@ -5565,7 +5567,7 @@ class ViewTemplate(Template):
 		Configured data sources
 	"""
 
-	ul4_type = ul4c.Type("la", "ViewTemplate", "A view template")
+	ul4_type = ul4c.Type("la", "ViewTemplateConfig", "A view template")
 
 	class Type(misc.Enum):
 		"""
@@ -5655,10 +5657,10 @@ class ViewTemplate(Template):
 		self._gethandler(handler).delete_viewtemplate(self)
 
 
-@register("datasource")
-class DataSource(Base):
+@register("datasourceconfig")
+class DataSourceConfig(Base):
 	"""
-	A :class:`DataSource` contains the configuration to provide information about
+	A :class:`DataSourceConfig` contains the configuration to provide information about
 	one (or more) apps and their records to a :class:`ViewTemplate` or other
 	templates.
 
@@ -5762,7 +5764,7 @@ class DataSource(Base):
 	"""
 
 	ul4_attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includeparams", "includeviews", "includecategories", "orders", "children"}
-	ul4_type = ul4c.Type("la", "DataSource", "A data source for a view, email or form template")
+	ul4_type = ul4c.Type("la", "DataSourceConfig", "A data source for a view, email or form template")
 
 	class IncludeControls(misc.IntEnum):
 		"""
@@ -5842,7 +5844,7 @@ class DataSource(Base):
 		APPS = 3
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	parent = Attr(ViewTemplate, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(ViewTemplateConfig, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	includecloned = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
@@ -5935,7 +5937,7 @@ class DataSourceChildren(Base):
 		:type: str
 
 		A unique identifier for this object (unique among the other
-		:class:`DataSourceChildren` objects of the :class:`DataSource`).
+		:class:`DataSourceChildren` objects of the :class:`DataSourceConfig`).
 
 	.. attribute:: control
 		:type: Control
@@ -6017,9 +6019,10 @@ class DataOrder(Base):
 		Unique database id
 
 	.. attribute:: parent
-		:type: DataSource
+		:type: Union[DataSourceConfig, DataSourceChildren]
 
-		The :class:`DataSource` or :class:`DataSourceChildren` this object belongs to
+		The :class:`DataSourceConfig` or :class:`DataSourceChildren` this object
+		belongs to
 
 	.. attribute:: expression
 		:type: str
@@ -6069,7 +6072,7 @@ class DataOrder(Base):
 		LAST = "last"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	parent = Attr(DataSource, DataSourceChildren, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(DataSourceConfig, DataSourceChildren, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	expression = VSQLAttr("?", get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	direction = EnumAttr(Direction, get=True, set=True, required=True, default=Direction.ASC, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	nulls = EnumAttr(Nulls, get=True, set=True, required=True, default=Nulls.LAST, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -6889,13 +6892,13 @@ class View(Base):
 		return self.id
 
 
-@register("datasourcedata")
-class DataSourceData(Base):
+@register("datasource")
+class DataSource(Base):
 	"""
-	A :class:`!DataSourceData` object provides information about one (or more)
+	A :class:`!DataSource` object provides information about one (or more)
 	apps and their records to a :class:`ViewTemplate` or other templates.
 
-	This information is configured by :class:`DataSource` objects.
+	This information is configured by :class:`DataSourceConfig` objects.
 
 	Relevant instance attribytes are:
 
@@ -6923,7 +6926,7 @@ class DataSourceData(Base):
 	"""
 
 	ul4_attrs = {"id", "identifier", "app", "apps"}
-	ul4_type = ul4c.Type("la", "DataSourceData", "The data resulting from a data source configuration")
+	ul4_type = ul4c.Type("la", "DataSource", "The data resulting from a data source configuration")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
