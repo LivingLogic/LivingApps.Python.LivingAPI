@@ -74,7 +74,7 @@ def check_vsql(config_persons, code, result=None):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			recordfilter=code,
 			identifier="persons",
 			app=c.apps.persons,
@@ -104,7 +104,7 @@ class Handler:
 		self.dbhandler = la.DBHandler(connectstring=connect(), uploaddir=uploaddir(), ide_account=user())
 
 	def make_viewtemplate(self, *args, **kwargs):
-		viewtemplate = la.ViewTemplate(*args, **{**{"mimetype": "text/plain"}, **kwargs})
+		viewtemplate = la.ViewTemplateConfig(*args, **{**{"mimetype": "text/plain"}, **kwargs})
 		app = la.App()
 		app.id = person_app_id()
 		app.addtemplate(viewtemplate)
@@ -317,12 +317,12 @@ def config_norecords(config_apps):
 	identifier = "makerecords"
 
 	c.apps.persons.addtemplate(
-		la.ViewTemplate(
-			la.DataSource(
+		la.ViewTemplateConfig(
+			la.DataSourceConfig(
 				identifier="persons",
 				app=c.apps.persons,
 			),
-			la.DataSource(
+			la.DataSourceConfig(
 				la.DataSourceChildren(
 					control=c.apps.fields.c_parent,
 					identifier="children",

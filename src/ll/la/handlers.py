@@ -243,7 +243,7 @@ class Handler:
 	def delete_internaltemplate(self, internaltemplate):
 		raise NotImplementedError
 
-	def save_datasource(self, datasource, recursive=True):
+	def save_datasourceconfig(self, datasource, recursive=True):
 		raise NotImplementedError
 
 	def save_datasourcechildren(self, datasourcechildren, recursive=True):
@@ -512,14 +512,14 @@ class DBHandler(Handler):
 			p_utv_whitespace=template.whitespace,
 			p_utv_doc=template.doc,
 			p_utv_source=template.source,
-			p_vt_defaultlist=int(viewtemplate.type is la.ViewTemplate.Type.LISTDEFAULT) if viewtemplate.type in {la.ViewTemplate.Type.LIST, la.ViewTemplate.Type.LISTDEFAULT} else None,
-			p_vt_resultpage=int(viewtemplate.type is la.ViewTemplate.Type.DETAILRESULT) if viewtemplate.type is {la.ViewTemplate.Type.DETAIL, la.ViewTemplate.Type.DETAILRESULT} else None,
+			p_vt_defaultlist=int(viewtemplate.type is la.ViewTemplateConfig.Type.LISTDEFAULT) if viewtemplate.type in {la.ViewTemplateConfig.Type.LIST, la.ViewTemplateConfig.Type.LISTDEFAULT} else None,
+			p_vt_resultpage=int(viewtemplate.type is la.ViewTemplateConfig.Type.DETAILRESULT) if viewtemplate.type is {la.ViewTemplateConfig.Type.DETAIL, la.ViewTemplateConfig.Type.DETAILRESULT} else None,
 			p_vt_permission_level=viewtemplate.permission.value
 		)
 		viewtemplate.id = r.p_vt_id
 		if recursive:
 			for datasource in viewtemplate.datasources.values():
-				self.save_datasource(datasource, recursive=recursive)
+				self.save_datasourceconfig(datasource, recursive=recursive)
 
 	def delete_viewtemplate(self, viewtemplate):
 		cursor = self.cursor()
@@ -539,14 +539,14 @@ class DBHandler(Handler):
 		)
 		internaltemplate._deleted = True
 
-	def save_datasource(self, datasource, recursive=True):
+	def save_datasourceconfig(self, datasource, recursive=True):
 		cursor = self.cursor()
 
 		# Compile and save the app filter
 		vs_id_appfilter = self.save_vsql_source(
 			cursor,
 			datasource.appfilter,
-			la.DataSource.appfilter.function,
+			la.DataSourceConfig.appfilter.function,
 			p_vt_id=datasource.parent.id,
 			p_tpl_uuid_a=None,
 		)
@@ -555,7 +555,7 @@ class DBHandler(Handler):
 		vs_id_recordfilter = self.save_vsql_source(
 			cursor,
 			datasource.recordfilter,
-			la.DataSource.recordfilter.function,
+			la.DataSourceConfig.recordfilter.function,
 			p_vt_id=datasource.parent.id,
 			p_tpl_uuid_r=datasource.app.id if datasource.app is not None else None,
 		)

@@ -2516,7 +2516,7 @@ class App(Base):
 					self.internaltemplates = attrdict()
 				template.app = self
 				self.internaltemplates[template.identifier] = template
-			elif isinstance(template, ViewTemplate):
+			elif isinstance(template, ViewTemplateConfig):
 				if self.viewtemplates is None:
 					self.viewtemplates = attrdict()
 				template.app = self
@@ -5682,7 +5682,7 @@ class ViewTemplateConfig(Template):
 		self.permission = permission
 		self.datasources = attrdict()
 		for arg in args:
-			if isinstance(arg, DataSource):
+			if isinstance(arg, DataSourceConfig):
 				self.adddatasource(arg)
 			else:
 				raise TypeError(f"don't know what to do with positional argument {arg!r}")
@@ -5958,7 +5958,7 @@ class DataSourceConfig(Base):
 		return self.parent._gethandler(handler)
 
 	def save(self, handler:T_opt_handler=None, recursive=True):
-		self._gethandler(handler).save_datasource(self)
+		self._gethandler(handler).save_datasourceconfig(self)
 
 
 @register("datasourcechildren")
