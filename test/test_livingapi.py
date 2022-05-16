@@ -407,14 +407,15 @@ def test_attributes_unsaved_record(handler):
 
 
 def test_no_appparams(handler):
-	source = "<?print repr(app.params)?>"
+	# If the app doesn't have views, the LivingAPI will fetch them incrementally.
+	source = "<?print app.params is not None?>"
 
 	vt = handler.make_viewtemplate(
 		identifier="livingapi_no_appparams",
 		source=source,
 	)
 
-	assert "None" == handler.renders(person_app_id(), template=vt.identifier)
+	assert "True" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_appparam_bool(handler, config_apps):
