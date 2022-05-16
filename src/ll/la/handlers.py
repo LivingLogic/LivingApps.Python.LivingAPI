@@ -83,6 +83,21 @@ class Handler:
 		}
 		self.ul4on_decoder = ul4on.Decoder(registry)
 
+	def close(self, failed=False):
+		"""
+		Close the handler and release all resources.
+
+		If ``failed`` is true, the reason for the call is that an exception
+		has been raised.
+		"""
+		pass
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, exc_type, exc_value, traceback):
+		self.close(exc_type is not None)
+
 	def get(self, *path, **params):
 		warnings.warn("The method get() is deprecated, please use viewtemplate_data() instead.")
 		return self.viewtemplate_data(*path, **params)
@@ -330,6 +345,12 @@ class DBHandler(Handler):
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
+
+	def close(self, failed=False):
+		if failed:
+			self.rollback()
+		else:
+			self.commit()
 
 	def cursor(self):
 		return self.db.cursor(readlobs=True)
@@ -812,6 +833,14 @@ class DBHandler(Handler):
 	def app_params_incremental_data(self, id):
 		c = self.cursor()
 		c.execute("select livingapi_pkg.app_params_inc_ful4on(:appid) from dual", appid=id)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
+	def app_views_incremental_data(self, id):
+		c = self.cursor()
+		c.execute("select livingapi_pkg.app_views_inc_ful4on(:appid) from dual", appid=id)
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
 		dump = self._loaddump(dump)
