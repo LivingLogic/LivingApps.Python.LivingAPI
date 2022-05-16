@@ -4481,13 +4481,13 @@ class ViewControl(Base):
 		return self.id
 
 	def _identifier_get(self):
-		return self.control.identifier
+		return self.control.identifier if self.control is not None else "?"
 
 	def _type_get(self):
-		return self.control.type
+		return self.control.type if self.control is not None else "?"
 
 	def _subtype_get(self):
-		return self.control.subtype
+		return self.control.subtype if self.control is not None else "?"
 
 	def _mode_ul4onget(self):
 		return self.mode is Control.Mode.DISPLAY
