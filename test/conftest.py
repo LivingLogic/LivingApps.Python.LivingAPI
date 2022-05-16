@@ -189,7 +189,14 @@ class JavaDB(LocalTemplateHandler):
 		(dbuserpassword, self.connectdescriptor) = connect().split("@", 1)
 		(self.dbuser, self.dbpassword) = dbuserpassword.split("/")
 
+	def _indent(self, text):
+		return textwrap.indent(text, "\t\t")
+
 	def renders(self, *path, **params):
+		url = "/".join(path)
+		if params:
+			url += "?" + "&".join(f"{k}={v}" for (k, v) in params.items())
+		print(f"Running {url}")
 		template = self.make_ul4template(**params)
 		if "template" in params:
 			templateidentifier = params["template"]
@@ -208,25 +215,26 @@ class JavaDB(LocalTemplateHandler):
 			templateidentifier=templateidentifier,
 			params=params,
 		)
-		print(repr(data))
-		dump = ul4on.dumps(data).encode("utf-8")
-		print(repr(dump))
+		dump = ul4on.dumps(data)
+		print(f"\tInput data as UL4ON dump is:\n{self._indent(dump)}")
+		dump = dump.encode("utf-8")
 		currentdir = pathlib.Path.cwd()
 		try:
 			os.chdir(pathlib.Path.home() / "checkouts/LivingApps.Java.LivingAPI")
-			result = subprocess.run("gradle -q --console=plain -I quietLogger.init.gradle.kts execute", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+			result = subprocess.run("gradle -q --console=plain execute", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 		finally:
 			os.chdir(currentdir)
-		print(result.returncode)
+		print(f"\tReturn code is {result.returncode}")
 		# Check if we have an exception
 		stderr = result.stderr.decode("utf-8", "passbytes")
-		print(repr(stderr))
-		self._find_exception(stderr)
-		if stderr:
-			# No exception found, but we still have error output, so complain anyway
-			raise ValueError(stderr)
+		print(f"\tOutput on stderr is:\n{self._indent(stderr)}")
+		if result.returncode != 0:
+			self._find_exception(stderr)
+			if stderr:
+				# No exception found, but we still have error output, so complain anyway
+				raise ValueError(stderr)
 		stdout = result.stdout.decode("utf-8", "passbytes")
-		print(repr(stdout))
+		print(f"\tOutput on stdout is:\n{self._indent(stdout)}")
 		return stdout
 
 	def _find_exception(self, output):
@@ -252,7 +260,6 @@ class JavaDB(LocalTemplateHandler):
 			if exc is None:
 				exc = newexc
 		if exc is not None:
-			print(output, file=sys.stderr)
 			raise exc
 
 
