@@ -2760,7 +2760,7 @@ class Control(Base):
 	type = Attr(str, get="", ul4get="_type_get")
 	subtype = Attr(str, get="", ul4get="_subtype_get")
 	fulltype = Attr(str, get="", ul4get="_fulltype_get")
-	field = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	fieldname = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	label = Attr(str, get="", set=True, ul4get="_label_get", ul4onget=True, ul4onset=True)
 	priority = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2779,11 +2779,11 @@ class Control(Base):
 	labelpos = EnumAttr(LabelPos, get="", ul4get="")
 	in_active_view = BoolAttr(get="", ul4get="_in_active_view_get")
 
-	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None):
+	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None):
 		self.id = id
 		self.app = None
 		self.identifier = identifier
-		self.field = field
+		self.fieldname = fieldname
 		self.label = label
 		self.priority = priority
 		self.order = order
@@ -3590,8 +3590,8 @@ class LookupControl(Control):
 	none_label = Attr(str, get="", ul4get="_none_label_get")
 	autoexpandable = BoolAttr(get="", ul4get="_autoexpandable_get")
 
-	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, lookupdata=None, autoexpandable=False):
-		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order)
+	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None, lookupdata=None, autoexpandable=False):
+		super().__init__(id=id, identifier=identifier, fieldname=fieldname, label=label, priority=priority, order=order)
 		self.lookupdata = lookupdata
 		self.autoexpandable = autoexpandable
 
@@ -3768,8 +3768,8 @@ class AppLookupControl(Control):
 	none_key = Attr(str, get="", ul4get="_none_key_get")
 	none_label = Attr(str, get="", ul4get="_none_label_get")
 
-	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None):
-		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order)
+	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None):
+		super().__init__(id=id, identifier=identifier, fieldname=fieldname, label=label, priority=priority, order=order)
 		self.lookup_app = lookup_app
 		self.lookup_controls = lookup_controls
 		self.local_master_control = local_master_control
