@@ -145,16 +145,14 @@ class LocalTemplateHandler(Handler):
 
 class PythonDB(LocalTemplateHandler):
 	def renders(self, *path, **params):
-		template = self.make_ul4template(**params)
-		self.dbhandler.reset()
-		self.dbhandler.commit()
-		vars = self.dbhandler.viewtemplate_data(*path, **params)
-		globals = vars["globals"]
-		globals.request = la.HTTPRequest()
-		globals.request.params.update(**params)
-		result = template.renders(**vars)
-		self.dbhandler.reset()
-		self.dbhandler.commit()
+		with self.dbhandler:
+			template = self.make_ul4template(**params)
+		with self.dbhandler:
+			vars = self.dbhandler.viewtemplate_data(*path, **params)
+			globals = vars["globals"]
+			globals.request = la.HTTPRequest()
+			globals.request.params.update(**params)
+			result = template.renders(**vars)
 		return result
 
 
@@ -164,12 +162,14 @@ class PythonHTTP(LocalTemplateHandler):
 		self.testhandler = la.HTTPHandler(url(), user(), passwd())
 
 	def renders(self, *path, **params):
-		template = self.make_ul4template(**params)
-		vars = self.testhandler.viewtemplate_data(*path, **params)
-		globals = vars["globals"]
-		globals.request = la.HTTPRequest()
-		globals.request.params.update(**params)
-		result = template.renders(**vars)
+		with self.dbhandler:
+			template = self.make_ul4template(**params)
+		with self.dbhandler:
+			vars = self.testhandler.viewtemplate_data(*path, **params)
+			globals = vars["globals"]
+			globals.request = la.HTTPRequest()
+			globals.request.params.update(**params)
+			result = template.renders(**vars)
 		return result
 
 
@@ -182,9 +182,10 @@ class GatewayHTTP(Handler):
 		self.testhandler._login()
 		gatewayurl = url() + "gateway/apps/" + "/".join(path)
 		kwargs = dict(params={f"{k}[]" if isinstance(v, list) else k: v for (k, v) in params.items()})
-		self.testhandler._add_auth_token(kwargs)
-		response = self.testhandler.session.get(gatewayurl, **kwargs)
-		result = response.text
+		with self.testhandler:
+			self.testhandler._add_auth_token(kwargs)
+			response = self.testhandler.session.get(gatewayurl, **kwargs)
+			result = response.text
 		return result
 
 
@@ -202,7 +203,8 @@ class JavaDB(LocalTemplateHandler):
 		if params:
 			url += "?" + "&".join(f"{k}={v}" for (k, v) in params.items())
 		print(f"Running {url}")
-		template = self.make_ul4template(**params)
+		with self.dbhandler:
+			template = self.make_ul4template(**params)
 		if "template" in params:
 			templateidentifier = params["template"]
 			del params["template"]
