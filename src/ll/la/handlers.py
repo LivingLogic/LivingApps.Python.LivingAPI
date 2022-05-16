@@ -83,20 +83,23 @@ class Handler:
 		}
 		self.ul4on_decoder = ul4on.Decoder(registry)
 
-	def close(self, failed=False):
+	def reset(self):
 		"""
-		Close the handler and release all resources.
+		Reset the handler to the initial state.
 
-		If ``failed`` is true, the reason for the call is that an exception
-		has been raised.
+		This reset the UL4ON decoder.
 		"""
-		pass
+		self.ul4on_decoder.reset()
 
 	def __enter__(self):
 		return self
 
 	def __exit__(self, exc_type, exc_value, traceback):
-		self.close(exc_type is not None)
+		self.reset()
+		if exc_type is not None:
+			self.rollback()
+		else:
+			self.commit()
 
 	def get(self, *path, **params):
 		warnings.warn("The method get() is deprecated, please use viewtemplate_data() instead.")
@@ -324,6 +327,7 @@ class DBHandler(Handler):
 		self.proc_dataorder_delete = orasql.Procedure("DATASOURCE_PKG.DATAORDER_DELETE")
 		self.proc_vsqlsource_insert = orasql.Procedure("VSQL_PKG.VSQLSOURCE_INSERT")
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
+		self.proc_clear_all = orasql.Procedure("LIVINGAPI_PKG.CLEAR_ALL")
 		self.func_seq = orasql.Function("LIVINGAPI_PKG.SEQ")
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
@@ -346,11 +350,9 @@ class DBHandler(Handler):
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
 
-	def close(self, failed=False):
-		if failed:
-			self.rollback()
-		else:
-			self.commit()
+	def reset(self):
+		super().reset()
+		self.proc_clear_all(self.cursor())
 
 	def cursor(self):
 		return self.db.cursor(readlobs=True)
@@ -877,9 +879,9 @@ class DBHandler(Handler):
 			args[f"p_{pk}"] = record.id
 		for field in record.fields.values():
 			if record.id is None or field._dirty:
-				args[f"p_{field.control.field}"] = field._asdbarg(self)
+				args[f"p_{field.control.fieldname}"] = field._asdbarg(self)
 				if record.id is not None:
-					args[f"p_{field.control.field}_changed"] = 1
+					args[f"p_{field.control.fieldname}_changed"] = 1
 		c = self.cursor()
 		try:
 			result = proc(c, **args)

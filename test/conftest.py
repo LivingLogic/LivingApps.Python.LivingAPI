@@ -109,6 +109,7 @@ class Handler:
 		app.id = person_app_id()
 		app.addtemplate(viewtemplate)
 		app.save(self.dbhandler)
+		self.dbhandler.reset()
 		self.dbhandler.commit()
 		return viewtemplate
 
@@ -118,6 +119,7 @@ class Handler:
 		app.id = person_app_id()
 		app.addtemplate(internaltemplate)
 		app.save(self.dbhandler)
+		self.dbhandler.reset()
 		self.dbhandler.commit()
 		return internaltemplate
 
@@ -144,11 +146,14 @@ class LocalTemplateHandler(Handler):
 class PythonDB(LocalTemplateHandler):
 	def renders(self, *path, **params):
 		template = self.make_ul4template(**params)
+		self.dbhandler.reset()
+		self.dbhandler.commit()
 		vars = self.dbhandler.viewtemplate_data(*path, **params)
 		globals = vars["globals"]
 		globals.request = la.HTTPRequest()
 		globals.request.params.update(**params)
 		result = template.renders(**vars)
+		self.dbhandler.reset()
 		self.dbhandler.commit()
 		return result
 
@@ -342,6 +347,7 @@ def config_norecords(config_apps):
 	)
 	c.apps.persons.viewtemplates.makerecords.save(c.handler)
 
+	c.handler.reset()
 	c.handler.commit()
 
 	vars = c.handler.viewtemplate_data(person_app_id(), template=identifier)
@@ -363,6 +369,7 @@ def config_norecords(config_apps):
 		if r.v_parent is None:
 			removeaa(r)
 
+	c.handler.reset()
 	c.handler.commit()
 
 	# Replace both :class:`la.App` objects with ones that have records.
@@ -401,6 +408,7 @@ def config_fields(config_norecords):
 	c.areas.industry = aa(name="Industry")
 	c.areas.sport = aa(name="Sport")
 
+	c.handler.reset()
 	c.handler.commit()
 
 	return c
@@ -567,6 +575,7 @@ def config_persons(config_fields):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg/220px-2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg"),
 	)
 
+	c.handler.reset()
 	c.handler.commit()
 
 	return c

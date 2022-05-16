@@ -68,7 +68,7 @@ def test_global_mode(handler, config_persons):
 	vt_list = handler.make_viewtemplate(
 		identifier="livingapi_global_mode_list",
 		source=source,
-		type=la.ViewTemplate.Type.LIST,
+		type=la.ViewTemplateConfig.Type.LIST,
 	)
 
 	output = handler.renders(person_app_id(), template=vt_list.identifier)
@@ -77,7 +77,7 @@ def test_global_mode(handler, config_persons):
 	vt_detail = handler.make_viewtemplate(
 		identifier="livingapi_global_mode_detail",
 		source=source,
-		type=la.ViewTemplate.Type.DETAIL,
+		type=la.ViewTemplateConfig.Type.DETAIL,
 	)
 
 	output = handler.renders(person_app_id(), config_persons.persons.ae.id, template=vt_detail.identifier)
@@ -86,7 +86,7 @@ def test_global_mode(handler, config_persons):
 	vt_support = handler.make_viewtemplate(
 		identifier="livingapi_global_mode_support",
 		source=source,
-		type=la.ViewTemplate.Type.SUPPORT,
+		type=la.ViewTemplateConfig.Type.SUPPORT,
 	)
 
 	output = handler.renders(person_app_id(), template=vt_support.identifier)
@@ -101,11 +101,11 @@ def test_global_datasources(handler, config_apps):
 
 	# Check that the logged in user is the user we've used to log in
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 		),
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="fieldsofactivity",
 			app=c.apps.fields,
 		),
@@ -147,12 +147,12 @@ def test_datasources(handler, config_apps):
 	c = config_apps
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeviews=True,
 		),
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="fieldsofactivity",
 			app=c.apps.fields,
 		),
@@ -192,11 +192,11 @@ def test_output_all_records(handler, config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 		),
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="fieldsofactivity",
 			app=c.apps.fields,
 		),
@@ -271,7 +271,7 @@ def test_sort_default_order_is_newest_first(handler, config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includecontrols=0,
@@ -300,7 +300,7 @@ def test_record_shortcutattributes(handler, config_persons):
 	"""
 
 	handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 		),
@@ -355,7 +355,7 @@ def test_insert_record(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 		),
@@ -431,7 +431,7 @@ def test_appparam_bool(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -456,7 +456,7 @@ def test_appparam_int(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -481,7 +481,7 @@ def tcest_livingapi_appparam_number(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -506,7 +506,7 @@ def test_appparam_str(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -532,7 +532,7 @@ def test_appparam_color(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -558,7 +558,7 @@ def test_appparam_datedelta(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -583,7 +583,7 @@ def test_appparam_datetimedelta(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -608,7 +608,7 @@ def test_appparam_monthdelta(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -633,7 +633,7 @@ def test_appparam_upload(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -659,7 +659,7 @@ def test_appparam_app(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -688,7 +688,7 @@ def test_appparam_otherattributes(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
@@ -718,7 +718,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 		return f"<?code app.active_view = first(v for v in app.views.values() if v.lang == {lang!r})?>"
 
 	vt_no_view = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includerecords=la.DataSource.IncludeRecords.RECORDS,
@@ -735,7 +735,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 	assert output == expected
 
 	vt_view_en = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeviews=True,
@@ -755,7 +755,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 	assert output == expected
 
 	vt_view_de = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeviews=True,
@@ -790,7 +790,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 		return f"<?code app.active_view = first(v for v in app.views.values() if v.lang == {lang!r})?>"
 
 	vt_no_view = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includerecords=la.DataSource.IncludeRecords.RECORDS,
@@ -807,7 +807,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 	assert output == expected
 
 	vt_view_en = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeviews=True,
@@ -827,7 +827,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 	assert output == expected
 
 	vt_view_de = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includeviews=True,
@@ -853,7 +853,7 @@ def test_globals_d_shortcuts(handler, config_apps):
 	source_print = "<?print globals.d_persons.app.c_firstname.identifier?>"
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includerecords=la.DataSource.IncludeRecords.RECORDS,
@@ -913,7 +913,7 @@ def test_view_defaultedfields_default(handler, config_apps):
 			<?print ':'.join(r.f_country_of_birth.errors)?>"""
 
 		vt = handler.make_viewtemplate(
-			la.DataSource(
+			la.DataSourceConfig(
 				identifier="persons",
 				app=config_apps.apps.persons,
 				includeviews=True
@@ -949,7 +949,7 @@ def test_changeapi_dirty(handler, config_apps):
 		"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=config_apps.apps.persons,
 			includeviews=True
@@ -972,7 +972,7 @@ def test_changeapi_has_errors(handler, config_apps):
 		"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=config_apps.apps.persons,
 			includeviews=True
@@ -1013,12 +1013,12 @@ def check_field(handler, config_apps, identifier, field, value, isre=False, **ex
 	""")
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=config_apps.apps.persons,
 			includeviews=True,
 		),
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="fields",
 			app=config_apps.apps.fields,
 			includeviews=True,
@@ -1677,7 +1677,7 @@ def test_view_specific_lookups(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=config_apps.apps.persons,
 			includeviews=True
@@ -1697,7 +1697,7 @@ def test_app_with_wrong_fields(handler, config_apps):
 		"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=config_apps.apps.persons,
 			includeviews=True
@@ -1723,7 +1723,7 @@ def test_record_save_with_sync(handler, config_apps):
 			"""
 
 		vt = handler.make_viewtemplate(
-			la.DataSource(
+			la.DataSourceConfig(
 				identifier="persons",
 				app=config_apps.apps.persons,
 				includeviews=True
@@ -1999,7 +1999,7 @@ def test_view_controls(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=config_apps.apps.persons,
 			includeviews=True
@@ -2074,7 +2074,7 @@ def test_app_datasource(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=config_apps.apps.persons,
 			includeviews=True
@@ -2136,7 +2136,7 @@ def test_load_attachments_on_demand(handler, config_apps):
 		"""
 
 		vt = handler.make_viewtemplate(
-			la.DataSource(
+			la.DataSourceConfig(
 				identifier="persons",
 				app=c.apps.persons,
 				includerecords=la.DataSource.IncludeRecords.RECORDS,
