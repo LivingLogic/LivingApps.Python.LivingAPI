@@ -6958,7 +6958,7 @@ class View(Base):
 	layout_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	login_required = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	result_false = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	result_page = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	use_geo = EnumAttr(UseGeo, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None, lang=None, login_required=False, result_page=False, use_geo="no"):
