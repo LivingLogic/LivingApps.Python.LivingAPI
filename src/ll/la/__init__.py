@@ -5707,10 +5707,10 @@ class ViewTemplateConfig(Template):
 class DataSourceConfig(Base):
 	"""
 	A :class:`DataSourceConfig` contains the configuration to provide information about
-	one (or more) apps and their records to a :class:`ViewTemplate` or other
+	one (or more) apps and their records to a :class:`ViewTemplateConfig` or other
 	templates.
 
-	The resulting information will be a :class:`DataSourceData` object.
+	The resulting information will be a :class:`DataSource` object.
 
 	Relevant instance attributes are:
 
