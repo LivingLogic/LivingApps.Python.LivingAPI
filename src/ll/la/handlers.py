@@ -91,6 +91,12 @@ class Handler:
 		"""
 		self.ul4on_decoder.reset()
 
+	def commit(self):
+		pass
+
+	def rollback(self):
+		pass
+
 	def __enter__(self):
 		return self
 
