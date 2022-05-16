@@ -5720,7 +5720,7 @@ class DataSourceConfig(Base):
 		Unique database id.
 
 	.. attribute:: parent
-		:type: ViewTemplate
+		:type: ViewTemplateConfig
 
 		The view template this datasource belongs to.
 
