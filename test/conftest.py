@@ -153,7 +153,7 @@ class PythonDB(LocalTemplateHandler):
 			# Make sure that we render the template with the same handler and db state
 			# as we hab when we fetched the UL4ON, as rendering the template might
 			# load data incrementally
-			result = template.renders(**vars)
+			result = template.renders_with_globals([], vars, dict(globals=globals, la=la.module))
 		return result
 
 
@@ -174,7 +174,7 @@ class PythonHTTP(LocalTemplateHandler):
 		globals = vars["globals"]
 		globals.request = la.HTTPRequest()
 		globals.request.params.update(**params)
-		result = template.renders(**vars)
+		result = template.renders_with_globals([], vars, dict(globals=globals, la=la.module))
 		return result
 
 
