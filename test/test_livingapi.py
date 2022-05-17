@@ -47,7 +47,7 @@ def test_global_hostname(handler):
 
 	# Check that ``globals.hostname`` is the host we're talking to.
 	vt = handler.make_viewtemplate(
-		identifier="livingapi_global_hostname",
+		identifier="test_livingapi_global_hostname",
 		source="""
 			<?whitespace strip?>
 			<?print repr(globals.hostname)?>
@@ -66,7 +66,7 @@ def test_global_mode(handler, config_persons):
 	source = "<?print globals.mode?>"
 
 	vt_list = handler.make_viewtemplate(
-		identifier="livingapi_global_mode_list",
+		identifier="test_livingapi_global_mode_list",
 		source=source,
 		type=la.ViewTemplateConfig.Type.LIST,
 	)
@@ -75,7 +75,7 @@ def test_global_mode(handler, config_persons):
 	assert output == "view/list"
 
 	vt_detail = handler.make_viewtemplate(
-		identifier="livingapi_global_mode_detail",
+		identifier="test_livingapi_global_mode_detail",
 		source=source,
 		type=la.ViewTemplateConfig.Type.DETAIL,
 	)
@@ -84,7 +84,7 @@ def test_global_mode(handler, config_persons):
 	assert output == "view/detail"
 
 	vt_support = handler.make_viewtemplate(
-		identifier="livingapi_global_mode_support",
+		identifier="test_livingapi_global_mode_support",
 		source=source,
 		type=la.ViewTemplateConfig.Type.SUPPORT,
 	)
@@ -109,7 +109,7 @@ def test_global_datasources(handler, config_apps):
 			identifier="fieldsofactivity",
 			app=c.apps.fields,
 		),
-		identifier="livingapi_global_datasources",
+		identifier="test_livingapi_global_datasources",
 		source="""
 			<?whitespace strip?>
 			<?print len(globals.datasources)?>
@@ -133,7 +133,7 @@ def test_app_attributes(handler):
 	Check that ``app`` is the correct one.
 	"""
 	vt = handler.make_viewtemplate(
-		identifier="livingapi_app_attributes",
+		identifier="test_livingapi_app_attributes",
 		source="<?print app.id?>;<?print app.name?>",
 	)
 	assert f"{person_app_id()};LA-Demo: Persons (ORI)" == handler.renders(person_app_id(), template=vt.identifier)
@@ -156,7 +156,7 @@ def test_datasources(handler, config_apps):
 			identifier="fieldsofactivity",
 			app=c.apps.fields,
 		),
-		identifier="livingapi_datasources",
+		identifier="test_livingapi_datasources",
 		source="<?print ';'.join(sorted(datasources))?>",
 	)
 	assert "fieldsofactivity;persons" == handler.renders(person_app_id(), template=vt.identifier)
@@ -200,7 +200,7 @@ def test_output_all_records(handler, config_persons):
 			identifier="fieldsofactivity",
 			app=c.apps.fields,
 		),
-		identifier="livingapi_output_all_records",
+		identifier="test_livingapi_output_all_records",
 		source=source,
 	)
 	handler.renders(person_app_id(), template=vt.identifier)
@@ -224,7 +224,7 @@ def test_output_all_controls(handler):
 	"""
 
 	handler.make_viewtemplate(
-		identifier="livingapi_output_all_controls",
+		identifier="test_livingapi_output_all_controls",
 		source=source,
 	)
 
@@ -242,7 +242,7 @@ def test_detail(handler, config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		identifier="livingapi_detail",
+		identifier="test_livingapi_detail",
 		source=source,
 	)
 
@@ -276,17 +276,14 @@ def test_sort_default_order_is_newest_first(handler, config_persons):
 			app=c.apps.persons,
 			includecontrols=0,
 		),
-		identifier="livingapi_sort_default_order_is_newest_first",
+		identifier="test_livingapi_sort_default_order_is_newest_first",
 		source=source,
 	)
 
 	assert not handler.renders(person_app_id(), template=vt.identifier)
 
 
-def test_record_shortcutattributes(handler, config_persons):
-	"""
-	Find. "Albert Einstein" and output one of his fields in multiple ways
-	"""
+def test_record_shortcuts(handler, config_persons):
 	c = config_persons
 
 	source = """
@@ -304,27 +301,32 @@ def test_record_shortcutattributes(handler, config_persons):
 			identifier="persons",
 			app=c.apps.persons,
 		),
-		identifier="livingapi_record_shortcutattributes",
+		identifier="test_record_shortcuts",
 		source=source,
 	)
 	assert "'Albert';'Albert';'Albert';'Albert'" == handler.renders(person_app_id(), template="livingapi_record_shortcutattributes")
 
 
-def test_app_shortcutattributes(handler):
-	"""
-	Access a control and output its fields with in two ways.
-	"""
+def test_app_shortcuts(handler):
+	source = "<?print app.t_test_app_shortcuts_internal.name?>"
+
+	handler.make_internaltemplate(identifier="test_app_shortcuts_internal", source=source)
+
 	source = """
 		<?whitespace strip?>
 		<?print repr(app.controls.firstname.identifier)?>;
-		<?print repr(app.c_firstname.identifier)?>
+		<?print repr(app.c_firstname.identifier)?>;
+		<?print repr(app.params.bool_true.value)?>;
+		<?print repr(app.p_bool_true.value)?>;
+		<?print repr(app.pv_bool_true)?>;
+		<?render app.t_test_app_shortcuts_internal(app=app)?>
 	"""
 
 	vt = handler.make_viewtemplate(
-		identifier="livingapi_app_shortcutattributes",
+		identifier="test_app_shortcuts",
 		source=source,
 	)
-	assert "'firstname';'firstname'" == handler.renders(person_app_id(), template=vt.identifier)
+	assert "'firstname';'firstname';True;True;True;test_app_shortcuts_internal" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_insert_record(handler, config_apps):
@@ -341,7 +343,7 @@ def test_insert_record(handler, config_apps):
 	"""
 
 	vt = handler.make_viewtemplate(
-		identifier="livingapi_insert_record",
+		identifier="test_livingapi_insert_record",
 		source=source,
 	)
 	(output, id) = handler.renders(person_app_id(), template=vt.identifier).split(";")
@@ -359,7 +361,7 @@ def test_insert_record(handler, config_apps):
 			identifier="persons",
 			app=c.apps.persons,
 		),
-		identifier="livingapi_insert_record_check_result",
+		identifier="test_livingapi_insert_record_check_result",
 		source=source,
 	)
 	assert "'Isaac' 'Newton'" == handler.renders(person_app_id(), template=vt.identifier)
@@ -377,7 +379,7 @@ def test_attributes_unsaved_record(handler):
 	"""
 
 	vt = handler.make_viewtemplate(
-		identifier="livingapi_attributes_unsaved_record_create",
+		identifier="test_livingapi_attributes_unsaved_record_create",
 		source=source,
 	)
 	assert f"True True True;False False {user()}" == handler.renders(person_app_id(), template=vt.identifier)
@@ -399,7 +401,7 @@ def test_attributes_unsaved_record(handler):
 	"""
 
 	vt = handler.make_viewtemplate(
-		identifier="livingapi_attributes_unsaved_record_update",
+		identifier="test_livingapi_attributes_unsaved_record_update",
 		source=source,
 	)
 
@@ -411,7 +413,7 @@ def test_load_appparameters_on_demand(handler):
 	source = "<?print app.params is not None?>"
 
 	vt = handler.make_viewtemplate(
-		identifier="load_appparameters_on_demand",
+		identifier="test_load_appparameters_on_demand",
 		source=source,
 	)
 
@@ -437,7 +439,7 @@ def test_appparam_bool(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_bool",
+		identifier="test_livingapi_appparam_bool",
 		source=source,
 	)
 
@@ -462,7 +464,7 @@ def test_appparam_int(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_int",
+		identifier="test_livingapi_appparam_int",
 		source=source,
 	)
 
@@ -487,7 +489,7 @@ def tcest_livingapi_appparam_number(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_number",
+		identifier="test_livingapi_appparam_number",
 		source=source,
 	)
 
@@ -512,7 +514,7 @@ def test_appparam_str(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_str",
+		identifier="test_livingapi_appparam_str",
 		source=source,
 	)
 
@@ -538,7 +540,7 @@ def test_appparam_color(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_color",
+		identifier="test_livingapi_appparam_color",
 		source=source,
 	)
 
@@ -564,7 +566,7 @@ def test_appparam_datedelta(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_datedelta",
+		identifier="test_livingapi_appparam_datedelta",
 		source=source,
 	)
 
@@ -589,7 +591,7 @@ def test_appparam_datetimedelta(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_datetimedelta",
+		identifier="test_livingapi_appparam_datetimedelta",
 		source=source,
 	)
 
@@ -614,7 +616,7 @@ def test_appparam_monthdelta(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_monthdelta",
+		identifier="test_livingapi_appparam_monthdelta",
 		source=source,
 	)
 
@@ -639,7 +641,7 @@ def test_appparam_upload(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_upload",
+		identifier="test_livingapi_appparam_upload",
 		source=source,
 	)
 
@@ -665,7 +667,7 @@ def test_appparam_app(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_app",
+		identifier="test_livingapi_appparam_app",
 		source=source,
 	)
 
@@ -694,7 +696,7 @@ def test_appparam_otherattributes(handler, config_apps):
 			app=c.apps.persons,
 			includeparams=True,
 		),
-		identifier="livingapi_appparam_otherattributes",
+		identifier="test_livingapi_appparam_otherattributes",
 		source=source,
 	)
 
