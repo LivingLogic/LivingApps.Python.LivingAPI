@@ -2373,10 +2373,6 @@ class App(Base):
 		if value is not None:
 			self.records = value
 
-	def _params_ul4onset(self, value):
-		if value is not None:
-			self.params = value
-
 	def _active_view_set(self, value):
 		if isinstance(value, View):
 			if value.app is not self:
@@ -2466,6 +2462,10 @@ class App(Base):
 
 	def _params_ul4onget(self):
 		return self._params
+
+	def _params_ul4onset(self, value):
+		if value is not None:
+			self.params = value
 
 	def _views_get(self):
 		views = self._views
