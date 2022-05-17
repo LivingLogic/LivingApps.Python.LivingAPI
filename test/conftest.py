@@ -147,10 +147,13 @@ class PythonDB(LocalTemplateHandler):
 			template = self.make_ul4template(**params)
 		with self.dbhandler:
 			vars = self.dbhandler.viewtemplate_data(*path, **params)
-		globals = vars["globals"]
-		globals.request = la.HTTPRequest()
-		globals.request.params.update(**params)
-		result = template.renders(**vars)
+			globals = vars["globals"]
+			globals.request = la.HTTPRequest()
+			globals.request.params.update(**params)
+			# Make sure that we render the template with the same handler and db state
+			# as we hab when we fetched the UL4ON, as rendering the template might
+			# load data incrementally
+			result = template.renders(**vars)
 		return result
 
 
@@ -164,6 +167,10 @@ class PythonHTTP(LocalTemplateHandler):
 			template = self.make_ul4template(**params)
 		with self.dbhandler:
 			vars = self.testhandler.viewtemplate_data(*path, **params)
+		# We don't have to call the folowoing code inside the ``with`` block
+		# since the data was fetch by the ``HTTPHandler`` which doesn't support
+		# loading date incrementally anyway. But this means that test might fail
+		# for these dynamic attributes (or have to be skipped)
 		globals = vars["globals"]
 		globals.request = la.HTTPRequest()
 		globals.request.params.update(**params)
