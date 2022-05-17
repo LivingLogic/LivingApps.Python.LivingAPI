@@ -1799,7 +1799,7 @@ def test_flash_warning(handler):
 		identifier="test_flash_warning",
 		source="""
 			<?whitespace strip?>
-			<?code globals.flash_notice('Title', 'Message')?>
+			<?code globals.flash_warning('Title', 'Message')?>
 			<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
 		"""
 	)
