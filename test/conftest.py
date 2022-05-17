@@ -108,9 +108,8 @@ class Handler:
 		app = la.App()
 		app.id = person_app_id()
 		app.addtemplate(viewtemplate)
-		app.save(self.dbhandler)
-		self.dbhandler.reset()
-		self.dbhandler.commit()
+		with self.dbhandler:
+			app.save(self.dbhandler)
 		return viewtemplate
 
 	def make_internaltemplate(self, *args, **kwargs):
@@ -118,9 +117,8 @@ class Handler:
 		app = la.App()
 		app.id = person_app_id()
 		app.addtemplate(internaltemplate)
-		app.save(self.dbhandler)
-		self.dbhandler.reset()
-		self.dbhandler.commit()
+		with self.dbhandler:
+			app.save(self.dbhandler)
 		return internaltemplate
 
 class LocalTemplateHandler(Handler):
