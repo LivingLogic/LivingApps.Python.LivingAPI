@@ -2078,9 +2078,9 @@ class Globals(Base):
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
-		elif name.startswith("p_") and self.app.params:
+		elif name.startswith("p_") and name[2:] in self.app.params:
 			return True
-		elif name.startswith("pv_") and self.app.params:
+		elif name.startswith("pv_") and name[3:] in self.app.params:
 			return True
 		else:
 			return False
