@@ -171,26 +171,6 @@ def test_output_all_records(handler, config_persons):
 
 	c = config_persons
 
-	source = """
-		<?for ds in datasources.values()?>
-			Datasource/ID: <?print ds.identifier?>
-			<?if ds.app is not None and ds.app.records is not None?>
-				Datasource/App: <?print ds.app?>
-				<?for r in ds.app.records.values()?>
-					Record/ID: <?print r.id?>
-					Record/Created at: <?print r.createdat?>
-					Record/Created by: <?print r.createdby?>
-					Record/Updated at: <?print r.updatedat?>
-					Record/Updated by: <?print r.updatedby?>
-					Record/Update count: <?print r.updatecount?>
-					<?for f in r.fields.values()?>
-						Record/<?print f.control.identifier?>: <?print repr(f.value)?>
-					<?end for?>
-				<?end for?>
-			<?end if?>
-		<?end for?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -201,7 +181,25 @@ def test_output_all_records(handler, config_persons):
 			app=c.apps.fields,
 		),
 		identifier="test_livingapi_output_all_records",
-		source=source,
+		source="""
+			<?for ds in datasources.values()?>
+				Datasource/ID: <?print ds.identifier?>
+				<?if ds.app is not None and ds.app.records is not None?>
+					Datasource/App: <?print ds.app?>
+					<?for r in ds.app.records.values()?>
+						Record/ID: <?print r.id?>
+						Record/Created at: <?print r.createdat?>
+						Record/Created by: <?print r.createdby?>
+						Record/Updated at: <?print r.updatedat?>
+						Record/Updated by: <?print r.updatedby?>
+						Record/Update count: <?print r.updatecount?>
+						<?for f in r.fields.values()?>
+							Record/<?print f.control.identifier?>: <?print repr(f.value)?>
+						<?end for?>
+					<?end for?>
+				<?end if?>
+			<?end for?>
+		"""
 	)
 	handler.renders(person_app_id(), template=vt.identifier)
 
@@ -213,22 +211,20 @@ def test_output_all_controls(handler):
 	This checks that we don't get any exceptions.
 	"""
 
-	source = """
-		<?for ds in datasources.values()?>
-			<?if ds.app is not None and ds.app.controls is not None?>
-				<?for c in ds.app.controls.values()?>
-					<?print repr(c)?>
-				<?end for?>
-			<?end if?>
-		<?end for?>
-	"""
-
-	handler.make_viewtemplate(
+	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_output_all_controls",
-		source=source,
+		source="""
+			<?for ds in datasources.values()?>
+				<?if ds.app is not None and ds.app.controls is not None?>
+					<?for c in ds.app.controls.values()?>
+						<?print repr(c)?>
+					<?end for?>
+				<?end if?>
+			<?end for?>
+		"""
 	)
 
-	handler.renders(person_app_id(), template="livingapi_output_all_controls")
+	handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_detail(handler, config_persons):
@@ -236,14 +232,12 @@ def test_detail(handler, config_persons):
 	Simply test that detail templates work.
 	"""
 
-	source = """
-		<?whitespace strip?>
-		<?print record.id?> <?print record.v_firstname?> <?print record.v_lastname?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_detail",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print record.id?> <?print record.v_firstname?> <?print record.v_lastname?>
+		"""
 	)
 
 	assert f"{config_persons.persons.ae.id} Albert Einstein" == handler.renders(
@@ -260,16 +254,6 @@ def test_sort_default_order_is_newest_first(handler, config_persons):
 
 	c = config_persons
 
-	source = """
-		<?whitespace strip?>
-		<?code lastcreatedat = None?>
-		<?for p in datasources.persons.app.records.values()?>
-			<?if lastcreatedat is not None and lastcreatedat > p.createdat?>
-				Bad: <?print lastcreatedat?> > <?print p.createdat?>
-			<?end if?>
-		<?end for?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -277,7 +261,15 @@ def test_sort_default_order_is_newest_first(handler, config_persons):
 			includecontrols=0,
 		),
 		identifier="test_livingapi_sort_default_order_is_newest_first",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?code lastcreatedat = None?>
+			<?for p in datasources.persons.app.records.values()?>
+				<?if lastcreatedat is not None and lastcreatedat > p.createdat?>
+					Bad: <?print lastcreatedat?> > <?print p.createdat?>
+				<?end if?>
+			<?end for?>
+		""",
 	)
 
 	assert not handler.renders(person_app_id(), template=vt.identifier)
@@ -286,45 +278,42 @@ def test_sort_default_order_is_newest_first(handler, config_persons):
 def test_record_shortcuts(handler, config_persons):
 	c = config_persons
 
-	source = """
-		<?whitespace strip?>
-		<?code papp = datasources.persons.app?>
-		<?code ae = first(r for r in papp.records.values() if r.v_lastname == "Einstein")?>
-		<?print repr(ae.fields.firstname.value)?>;
-		<?print repr(ae.f_firstname.value)?>;
-		<?print repr(ae.values.firstname)?>;
-		<?print repr(ae.v_firstname)?>
-	"""
-
 	handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 		),
 		identifier="test_record_shortcuts",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?code papp = datasources.persons.app?>
+			<?code ae = first(r for r in papp.records.values() if r.v_lastname == "Einstein")?>
+			<?print repr(ae.fields.firstname.value)?>;
+			<?print repr(ae.f_firstname.value)?>;
+			<?print repr(ae.values.firstname)?>;
+			<?print repr(ae.v_firstname)?>
+		""",
 	)
 	assert "'Albert';'Albert';'Albert';'Albert'" == handler.renders(person_app_id(), template="livingapi_record_shortcutattributes")
 
 
 def test_app_shortcuts(handler):
-	source = "<?print app.t_test_app_shortcuts_internal.name?>"
-
-	handler.make_internaltemplate(identifier="test_app_shortcuts_internal", source=source)
-
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.controls.firstname.identifier)?>;
-		<?print repr(app.c_firstname.identifier)?>;
-		<?print repr(app.params.bool_true.value)?>;
-		<?print repr(app.p_bool_true.value)?>;
-		<?print repr(app.pv_bool_true)?>;
-		<?render app.t_test_app_shortcuts_internal(app=app)?>
-	"""
+	handler.make_internaltemplate(
+		identifier="test_app_shortcuts_internal",
+		source="<?print app.t_test_app_shortcuts_internal.name?>",
+	)
 
 	vt = handler.make_viewtemplate(
 		identifier="test_app_shortcuts",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.controls.firstname.identifier)?>;
+			<?print repr(app.c_firstname.identifier)?>;
+			<?print repr(app.params.bool_true.value)?>;
+			<?print repr(app.p_bool_true.value)?>;
+			<?print repr(app.pv_bool_true)?>;
+			<?render app.t_test_app_shortcuts_internal(app=app)?>
+		"""
 	)
 	assert "'firstname';'firstname';True;True;True;test_app_shortcuts_internal" == handler.renders(person_app_id(), template=vt.identifier)
 
@@ -335,26 +324,18 @@ def test_insert_record(handler, config_apps):
 	"""
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?code r = app.insert(firstname="Isaac", lastname="Newton")?>
-		<?print repr(r.v_firstname)?> <?print repr(r.v_lastname)?>;
-		<?print r.id?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_insert_record",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?code r = app.insert(firstname="Isaac", lastname="Newton")?>
+			<?print repr(r.v_firstname)?> <?print repr(r.v_lastname)?>;
+			<?print r.id?>
+		"""
 	)
 	(output, id) = handler.renders(person_app_id(), template=vt.identifier).split(";")
 
 	assert "'Isaac' 'Newton'" == output
-
-	source = f"""
-		<?whitespace strip?>
-		<?code r = app.records['{id}']?>
-		<?print repr(r.v_firstname)?> <?print repr(r.v_lastname)?>
-	"""
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -362,7 +343,11 @@ def test_insert_record(handler, config_apps):
 			app=c.apps.persons,
 		),
 		identifier="test_livingapi_insert_record_check_result",
-		source=source,
+		source=f"""
+			<?whitespace strip?>
+			<?code r = app.records['{id}']?>
+			<?print repr(r.v_firstname)?> <?print repr(r.v_lastname)?>
+		"""
 	)
 	assert "'Isaac' 'Newton'" == handler.renders(person_app_id(), template=vt.identifier)
 
@@ -370,68 +355,72 @@ def test_insert_record(handler, config_apps):
 def test_attributes_unsaved_record(handler):
 	# Check that ``id``, ``createdat`` and ``createdby`` will be set when the
 	# new record is saved
-	source = """
-		<?whitespace strip?>
-		<?code r = app(firstname="Isaac", lastname="Newton")?>
-		<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby is None?>
-		<?code r.save()?>;
-		<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby.email?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_attributes_unsaved_record_create",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?code r = app(firstname="Isaac", lastname="Newton")?>
+			<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby is None?>
+			<?code r.save()?>;
+			<?print r.id is None?> <?print r.createdat is None?> <?print r.createdby.email?>
+		"""
 	)
 	assert f"True True True;False False {user()}" == handler.renders(person_app_id(), template=vt.identifier)
 
 	# Check that ``updatedat`` and ``updatedby`` will be set when the
 	# record is saved (this even happens when the record hasn't been changed
 	# however in this case no value fields will be changed)
-	source = """
-		<?whitespace strip?>
-		<?code r = app(firstname="Isaac", lastname="Newton")?>
-		<?print r.updatedat is None?> <?print r.updatedby is None?>
-		<?code r.save()?>;
-		<?print r.updatedat is None?> <?print r.updatedby is None?>
-		<?code r.save()?>;
-		<?print r.updatedat is None?> <?print r.updatedby.email?>
-		<?code r.v_date_of_birth = @(1642-12-25)?>
-		<?code r.save()?>;
-		<?print r.updatedat is None?> <?print r.updatedby.email?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_attributes_unsaved_record_update",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?code r = app(firstname="Isaac", lastname="Newton")?>
+			<?print r.updatedat is None?> <?print r.updatedby is None?>
+			<?code r.save()?>;
+			<?print r.updatedat is None?> <?print r.updatedby is None?>
+			<?code r.save()?>;
+			<?print r.updatedat is None?> <?print r.updatedby.email?>
+			<?code r.v_date_of_birth = @(1642-12-25)?>
+			<?code r.save()?>;
+			<?print r.updatedat is None?> <?print r.updatedby.email?>
+		"""
 	)
 
 	assert f"True True;True True;False {user()};False {user()}" == handler.renders(person_app_id(), template=vt.identifier)
 
 
-def test_load_appparameters_on_demand(handler):
+def test_app_views_on_demand(handler):
 	# If the app doesn't have views, the LivingAPI will fetch them incrementally.
-	source = "<?print app.params is not None?>"
+	if not isinstance(handler, PythonHTTP):
+		vt = handler.make_viewtemplate(
+			identifier="test_app_views_on_demand",
+			source="""
+				<?whitespace strip?>
+				<?print isdict(app.views)?>
+			""",
+		)
 
-	vt = handler.make_viewtemplate(
-		identifier="test_load_appparameters_on_demand",
-		source=source,
-	)
+		assert "True" == handler.renders(person_app_id(), template=vt.identifier)
 
-	assert "True" == handler.renders(person_app_id(), template=vt.identifier)
+
+def test_app_parameters_on_demand(handler):
+	# If the app doesn't have parameters, the LivingAPI will fetch them incrementally.
+	if not isinstance(handler, PythonHTTP):
+		vt = handler.make_viewtemplate(
+			identifier="test_app_parameters_on_demand",
+			source="""
+				<?whitespace strip?>
+				<?print app.params is not None?>;
+				<?print app.p_bool_true.value?>;
+				<?print app.pv_bool_true?>
+			""",
+		)
+
+		assert "True;True;True" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_appparam_bool(handler, config_apps):
 	c = config_apps
-
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.params.bool_none.value)?>
-		;<?print app.params.bool_none.description?>
-		;<?print repr(app.params.bool_false.value)?>
-		;<?print app.params.bool_false.description?>
-		;<?print repr(app.params.bool_true.value)?>
-		;<?print app.params.bool_true.description?>
-	"""
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -440,7 +429,15 @@ def test_appparam_bool(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_bool",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.params.bool_none.value)?>
+			;<?print app.params.bool_none.description?>
+			;<?print repr(app.params.bool_false.value)?>
+			;<?print app.params.bool_false.description?>
+			;<?print repr(app.params.bool_true.value)?>
+			;<?print app.params.bool_true.description?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -450,14 +447,6 @@ def test_appparam_bool(handler, config_apps):
 def test_appparam_int(handler, config_apps):
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.params.int_none.value)?>
-		;<?print app.params.int_none.description?>
-		;<?print repr(app.params.int_value.value)?>
-		;<?print app.params.int_value.description?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -465,7 +454,13 @@ def test_appparam_int(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_int",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.params.int_none.value)?>
+			;<?print app.params.int_none.description?>
+			;<?print repr(app.params.int_value.value)?>
+			;<?print app.params.int_value.description?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -475,14 +470,6 @@ def test_appparam_int(handler, config_apps):
 def tcest_livingapi_appparam_number(handler, config_apps):
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.params.number_none.value)?>
-		;<?print app.params.number_none.description?>
-		;<?print repr(app.params.number_value.value)?>
-		;<?print app.params.number_value.description?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -490,7 +477,13 @@ def tcest_livingapi_appparam_number(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_number",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.params.number_none.value)?>
+			;<?print app.params.number_none.description?>
+			;<?print repr(app.params.number_value.value)?>
+			;<?print app.params.number_value.description?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -500,14 +493,6 @@ def tcest_livingapi_appparam_number(handler, config_apps):
 def test_appparam_str(handler, config_apps):
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.params.str_none.value)?>
-		;<?print app.params.str_none.description?>
-		;<?print repr(app.params.str_value.value)?>
-		;<?print app.params.str_value.description?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -515,7 +500,13 @@ def test_appparam_str(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_str",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.params.str_none.value)?>
+			;<?print app.params.str_none.description?>
+			;<?print repr(app.params.str_value.value)?>
+			;<?print app.params.str_value.description?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -526,14 +517,6 @@ def test_appparam_str(handler, config_apps):
 def test_appparam_color(handler, config_apps):
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.params.color_none.value)?>
-		;<?print app.params.color_none.description?>
-		;<?print repr(app.params.color_value.value)?>
-		;<?print app.params.color_value.description?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -541,7 +524,13 @@ def test_appparam_color(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_color",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.params.str_none.value)?>
+			;<?print app.params.str_none.description?>
+			;<?print repr(app.params.str_value.value)?>
+			;<?print app.params.str_value.description?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -552,14 +541,6 @@ def test_appparam_color(handler, config_apps):
 def test_appparam_datedelta(handler, config_apps):
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.params.datedelta_none.value)?>
-		;<?print app.params.datedelta_none.description?>
-		;<?print repr(app.params.datedelta_value.value)?>
-		;<?print app.params.datedelta_value.description?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -567,7 +548,13 @@ def test_appparam_datedelta(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_datedelta",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.params.datedelta_none.value)?>
+			;<?print app.params.datedelta_none.description?>
+			;<?print repr(app.params.datedelta_value.value)?>
+			;<?print app.params.datedelta_value.description?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -577,14 +564,6 @@ def test_appparam_datedelta(handler, config_apps):
 def test_appparam_datetimedelta(handler, config_apps):
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.params.datetimedelta_none.value)?>
-		;<?print app.params.datetimedelta_none.description?>
-		;<?print repr(app.params.datetimedelta_value.value)?>
-		;<?print app.params.datetimedelta_value.description?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -592,7 +571,13 @@ def test_appparam_datetimedelta(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_datetimedelta",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.params.datetimedelta_none.value)?>
+			;<?print app.params.datetimedelta_none.description?>
+			;<?print repr(app.params.datetimedelta_value.value)?>
+			;<?print app.params.datetimedelta_value.description?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -602,14 +587,6 @@ def test_appparam_datetimedelta(handler, config_apps):
 def test_appparam_monthdelta(handler, config_apps):
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.params.monthdelta_none.value)?>
-		;<?print app.params.monthdelta_none.description?>
-		;<?print repr(app.params.monthdelta_value.value)?>
-		;<?print app.params.monthdelta_value.description?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -617,7 +594,13 @@ def test_appparam_monthdelta(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_monthdelta",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.params.monthdelta_none.value)?>
+			;<?print app.params.monthdelta_none.description?>
+			;<?print repr(app.params.monthdelta_value.value)?>
+			;<?print app.params.monthdelta_value.description?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -627,14 +610,6 @@ def test_appparam_monthdelta(handler, config_apps):
 def test_appparam_upload(handler, config_apps):
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.params.upload_none.value)?>
-		;<?print app.params.upload_none.description?>
-		;<?print repr(app.params.upload_value.value.mimetype)?>
-		;<?print app.params.upload_value.description?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -642,7 +617,13 @@ def test_appparam_upload(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_upload",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.params.upload_none.value)?>
+			;<?print app.params.upload_none.description?>
+			;<?print repr(app.params.upload_value.value.mimetype)?>
+			;<?print app.params.upload_value.description?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -653,14 +634,6 @@ def test_appparam_upload(handler, config_apps):
 def test_appparam_app(handler, config_apps):
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?print repr(app.params.app_none.value)?>
-		;<?print app.params.app_none.description?>
-		;<?print repr(app.params.app_value.value.id)?>
-		;<?print app.params.app_value.description?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -668,7 +641,13 @@ def test_appparam_app(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_app",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print repr(app.params.app_none.value)?>
+			;<?print app.params.app_none.description?>
+			;<?print repr(app.params.app_value.value.id)?>
+			;<?print app.params.app_value.description?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -679,17 +658,6 @@ def test_appparam_app(handler, config_apps):
 def test_appparam_otherattributes(handler, config_apps):
 	c = config_apps
 
-	source = """
-		<?whitespace strip?>
-		<?note Use shortcut attribute in all expressions?>
-		<?print app.p_str_value.identifier?>
-		;<?print app.p_str_value.description?>
-		;<?print isdatetime(app.p_str_value.createdat)?>
-		;<?print isdefined(app.p_str_value.createdby)?>
-		;<?print isdefined(app.p_str_value.updatedat)?>
-		;<?print isdefined(app.p_str_value.updatedby)?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -697,7 +665,16 @@ def test_appparam_otherattributes(handler, config_apps):
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_otherattributes",
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?note Use shortcut attribute in all expressions?>
+			<?print app.p_str_value.identifier?>
+			;<?print app.p_str_value.description?>
+			;<?print isdatetime(app.p_str_value.createdat)?>
+			;<?print isdefined(app.p_str_value.createdby)?>
+			;<?print isdefined(app.p_str_value.updatedat)?>
+			;<?print isdefined(app.p_str_value.updatedby)?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -850,46 +827,46 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 	assert output == expected
 
 
-def test_globals_d_shortcuts(handler, config_apps):
+def test_globals_shortcuts(handler, config_apps):
 	c = config_apps
-
-	source_print = "<?print globals.d_persons.app.c_firstname.identifier?>"
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+			includeparams=True, # Do this so that ``PythonHTTP`` works too.
 		),
-		identifier="test_globals_d_shortcuts",
-		source=f"""
-		<?whitespace strip?>
-		{source_print}
+		identifier="test_globals_shortcuts",
+		source="""
+			<?whitespace strip?>
+			<?print repr(globals.datasources.persons.app.controls.firstname.identifier)?>;
+			<?print repr(globals.d_persons.app.c_firstname.identifier)?>;
+			<?print repr(globals.app.params.bool_true.value)?>;
+			<?print repr(globals.p_bool_true.value)?>;
+			<?print repr(globals.pv_bool_true)?>
 		""",
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
-	expected = "firstname"
-	assert output == expected
+	assert output == "'firstname';'firstname';True;True;True"
 
 
-def test_globals_t_shortcuts(handler, config_apps):
-	# TODO: implement App::fetchTemplates in the java living api and remove the second isinstance condition
-	if not isinstance(handler, PythonHTTP) and not isinstance(handler, JavaDB):
-		source_print = "<?print globals.t_test_globals_t_shortcuts_internal.name?>;<?print app.t_test_globals_t_shortcuts_internal.name?>"
-
-		handler.make_internaltemplate(identifier="test_globals_t_shortcuts_internal", source="")
+def test_globals_template_shortcuts(handler, config_apps):
+	if not isinstance(handler, PythonHTTP):
+		handler.make_internaltemplate(identifier="test_globals_template_shortcuts_internal", source="")
 
 		vt = handler.make_viewtemplate(
-			identifier="test_globals_t_shortcuts",
-			source=f"""
-			<?whitespace strip?>
-			{source_print}
+			identifier="test_globals_template_shortcuts",
+			source="""
+				<?whitespace strip?>
+				<?print globals.t_test_globals_template_shortcuts_internal.name?>;
+				<?print app.t_test_globals_template_shortcuts_internal.name?>"
 			""",
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
-		expected = "test_globals_t_shortcuts_internal;test_globals_t_shortcuts_internal"
+		expected = "test_globals_template_shortcuts_internal;test_globals_template_shortcuts_internal"
 		assert output == expected
 
 
@@ -933,23 +910,6 @@ def test_view_defaultedfields_default(handler, config_apps):
 
 
 def test_changeapi_dirty(handler, config_apps):
-	source = """
-		<?whitespace strip?>
-		<?for r in app.records.values()?>
-			<?print r.f_date_of_birth.is_dirty()?>
-			<?print r.is_dirty()?>
-			<?code r.v_date_of_birth = r.v_date_of_birth?>
-			<?print r.f_date_of_birth.is_dirty()?>
-			<?print r.is_dirty()?>
-			<?code r.v_date_of_birth = (r.v_date_of_birth or today()) + timedelta(1)?>
-			<?print r.f_date_of_birth.is_dirty()?>
-			<?print r.is_dirty()?>
-			<?code r.v_date_of_birth += timedelta(1)?>
-			<?print r.f_date_of_birth.is_dirty()?>
-			<?print r.is_dirty()?>
-			<?break?>
-		<?end for?>
-		"""
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -958,7 +918,23 @@ def test_changeapi_dirty(handler, config_apps):
 			includeviews=True
 		),
 		identifier=f"test_changeapi_dirty",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?for r in app.records.values()?>
+				<?print r.f_date_of_birth.is_dirty()?>
+				<?print r.is_dirty()?>
+				<?code r.v_date_of_birth = r.v_date_of_birth?>
+				<?print r.f_date_of_birth.is_dirty()?>
+				<?print r.is_dirty()?>
+				<?code r.v_date_of_birth = (r.v_date_of_birth or today()) + timedelta(1)?>
+				<?print r.f_date_of_birth.is_dirty()?>
+				<?print r.is_dirty()?>
+				<?code r.v_date_of_birth += timedelta(1)?>
+				<?print r.f_date_of_birth.is_dirty()?>
+				<?print r.is_dirty()?>
+				<?break?>
+			<?end for?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -967,13 +943,6 @@ def test_changeapi_dirty(handler, config_apps):
 
 
 def test_changeapi_has_errors(handler, config_apps):
-	source = """
-		<?whitespace strip?>
-		<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>
-		<?code r = app(firstname='01')?>
-		<?print r.f_firstname.has_errors()?>
-		"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -981,7 +950,12 @@ def test_changeapi_has_errors(handler, config_apps):
 			includeviews=True
 		),
 		identifier=f"test_changeapi_has_errors",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>
+			<?code r = app(firstname='01')?>
+			<?print r.f_firstname.has_errors()?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1671,14 +1645,6 @@ def test_changeapi_fieldvalue_bool_required_true(handler, config_fields):
 
 
 def test_view_specific_lookups(handler, config_apps):
-	source = """
-		<?code m = app.c_sex.lookupdata.male?><?code f = app.c_sex.lookupdata.female?>
-		<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>
-		<?print app.active_view.lang?>,<?print m.label?>,<?print f.label?>|
-		<?code app.active_view = first(v for v in app.views.values() if v.lang == 'de')?>
-		<?print app.active_view.lang?>,<?print m.label?>,<?print f.label?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -1686,7 +1652,13 @@ def test_view_specific_lookups(handler, config_apps):
 			includeviews=True
 		),
 		identifier=f"test_view_specific_lookups",
-		source=source
+		source="""
+			<?code m = app.c_sex.lookupdata.male?><?code f = app.c_sex.lookupdata.female?>
+			<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>
+			<?print app.active_view.lang?>,<?print m.label?>,<?print f.label?>|
+			<?code app.active_view = first(v for v in app.views.values() if v.lang == 'de')?>
+			<?print app.active_view.lang?>,<?print m.label?>,<?print f.label?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1694,10 +1666,6 @@ def test_view_specific_lookups(handler, config_apps):
 
 
 def test_app_with_wrong_fields(handler, config_apps):
-	source = """
-		<?whitespace strip?>
-		<?code r = app(gurk='hurz')?>
-		"""
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -1706,7 +1674,10 @@ def test_app_with_wrong_fields(handler, config_apps):
 			includeviews=True
 		),
 		identifier=f"test_app_with_wrong_fields",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code r = app(gurk='hurz')?>
+		"""
 	)
 
 	# TODO: common exception handling mechanism
@@ -1715,16 +1686,6 @@ def test_app_with_wrong_fields(handler, config_apps):
 
 def test_record_save_with_sync(handler, config_apps):
 	if not isinstance(handler, PythonHTTP):
-		source = """
-			<?whitespace strip?>
-			<?code r = app(notes='notes')?>
-			<?code r.save(True, True)?>
-			<?print r.id is not None?>
-			<?print r.createdat is not None?>
-			<?print r.createdby is not None?>
-			<?print r.v_notes?>
-			"""
-
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
@@ -1732,7 +1693,15 @@ def test_record_save_with_sync(handler, config_apps):
 				includeviews=True
 			),
 			identifier=f"test_record_save_with_sync",
-			source=source
+			source="""
+				<?whitespace strip?>
+				<?code r = app(notes='notes')?>
+				<?code r.save(True, True)?>
+				<?print r.id is not None?>
+				<?print r.createdat is not None?>
+				<?print r.createdby is not None?>
+				<?print r.v_notes?>
+			"""
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1742,13 +1711,11 @@ def test_record_save_with_sync(handler, config_apps):
 
 def test_globals_seq(handler, config_apps):
 	if not isinstance(handler, PythonHTTP):
-		source = """
-			<?print globals.seq()?>
-			"""
-
 		vt = handler.make_viewtemplate(
 			identifier="test_globals_seq",
-			source=source
+			source="""
+				<?print globals.seq()?>
+			"""
 		)
 
 		handler.renders(person_app_id(), template=vt.identifier)
@@ -1756,20 +1723,18 @@ def test_globals_seq(handler, config_apps):
 
 
 def test_record_add_error(handler):
-	source = """
-		<?whitespace strip?>
-		<?code r = app()?>
-		<?print r.has_errors()?>
-		<?code r.add_error('my error text')?>
-		<?print r.has_errors()?>
-		<?print r.errors?>
-		<?code r.clear_errors()?>
-		<?print r.has_errors()?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_record_add_error",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code r = app()?>
+			<?print r.has_errors()?>
+			<?code r.add_error('my error text')?>
+			<?print r.has_errors()?>
+			<?print r.errors?>
+			<?code r.clear_errors()?>
+			<?print r.has_errors()?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1778,22 +1743,20 @@ def test_record_add_error(handler):
 
 	
 def test_field_add_error(handler):
-	source = """
-		<?whitespace strip?>
-		<?code r = app()?>
-		<?print r.f_firstname.has_errors()?>
-		<?code r.f_firstname.add_error('my error text')?>
-		<?print r.f_firstname.has_errors()?>
-		<?print r.has_errors()?>
-		<?print r.f_firstname.errors?>
-		<?code r.f_firstname.clear_errors()?>
-		<?print r.f_firstname.has_errors()?>
-		<?print r.has_errors()?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_field_add_error",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code r = app()?>
+			<?print r.f_firstname.has_errors()?>
+			<?code r.f_firstname.add_error('my error text')?>
+			<?print r.f_firstname.has_errors()?>
+			<?print r.has_errors()?>
+			<?print r.f_firstname.errors?>
+			<?code r.f_firstname.clear_errors()?>
+			<?print r.f_firstname.has_errors()?>
+			<?print r.has_errors()?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1802,15 +1765,13 @@ def test_field_add_error(handler):
 
 
 def test_flash_info(handler):
-	source = """
-		<?whitespace strip?>
-		<?code globals.flash_info('Title', 'Message')?>
-		<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_flash_info",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code globals.flash_info('Title', 'Message')?>
+			<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1819,15 +1780,13 @@ def test_flash_info(handler):
 
 
 def test_flash_notice(handler):
-	source = """
-		<?whitespace strip?>
-		<?code globals.flash_notice('Title', 'Message')?>
-		<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_flash_notice",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code globals.flash_notice('Title', 'Message')?>
+			<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1836,15 +1795,13 @@ def test_flash_notice(handler):
 
 
 def test_flash_warning(handler):
-	source = """
-		<?whitespace strip?>
-		<?code globals.flash_warning('Title', 'Message')?>
-		<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_flash_warning",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code globals.flash_notice('Title', 'Message')?>
+			<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1853,15 +1810,13 @@ def test_flash_warning(handler):
 
 
 def test_flash_error(handler):
-	source = """
-		<?whitespace strip?>
-		<?code globals.flash_error('Title', 'Message')?>
-		<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_flash_error",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code globals.flash_error('Title', 'Message')?>
+			<?for f in globals.flashes()?><?print f.type?>,<?print f.title?>,<?print f.message?><?end for?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1870,90 +1825,78 @@ def test_flash_error(handler):
 
 
 def test_log_debug(handler):
-	source = """
-		<?whitespace strip?>
-		<?code globals.log_debug('foo', 'bar', 42)?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_log_debug",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code globals.log_debug('foo', 'bar', 42)?>
+		"""
 	)
 
 	handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_log_info(handler):
-	source = """
-		<?whitespace strip?>
-		<?code globals.log_info('foo', 'bar', 42)?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_log_info",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code globals.log_info('foo', 'bar', 42)?>
+		"""
 	)
 
 	handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_log_notice(handler):
-	source = """
-		<?whitespace strip?>
-		<?code globals.log_notice('foo', 'bar', 42)?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_log_notice",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code globals.log_notice('foo', 'bar', 42)?>
+		"""
 	)
 
 	handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_log_warning(handler):
-	source = """
-		<?whitespace strip?>
-		<?code globals.log_warning('foo', 'bar', 42)?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_log_warning",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code globals.log_warning('foo', 'bar', 42)?>
+		"""
 	)
 
 	handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_log_error(handler):
-	source = """
-		<?whitespace strip?>
-		<?code globals.log_error('foo', 'bar', 42)?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_log_error",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code globals.log_error('foo', 'bar', 42)?>
+		"""
 	)
 
 	handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_assign_to_children_shortcut_attribute(handler):
-	source = """
-		<?whitespace strip?>
-		<?code r = app()?>
-		<?code r.c_foo = {'bar': 'baz'}?>
-		<?print r.c_foo?>
-		<?code r.children = {}?>
-		<?print r.children?>
-		<?code r.children.foo = {}?>
-		<?print r.children.foo?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_assign_to_children_shortcut_attribute",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code r = app()?>
+			<?code r.c_foo = {'bar': 'baz'}?>
+			<?print r.c_foo?>
+			<?code r.children = {}?>
+			<?print r.children?>
+			<?code r.children.foo = {}?>
+			<?print r.children.foo?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -1963,11 +1906,15 @@ def test_assign_to_children_shortcut_attribute(handler):
 
 def test_assign_to_children_shortcut_attribute_wrong_type(handler):
 	if isinstance(handler, JavaDB):
-		source = "<?code r = app()?><?code r.c_foo = 42?><?print r.c_foo?>"
 
 		vt = handler.make_viewtemplate(
 			identifier="test_assign_to_children_shortcut_attribute_wrong_type",
-			source=source
+			source = """
+				<?whitepace strip?>
+				<?code r = app()?>
+				<?code r.c_foo = 42?>
+				<?print r.c_foo?>
+			"""
 		)
 
 		try:
@@ -1979,28 +1926,6 @@ def test_assign_to_children_shortcut_attribute_wrong_type(handler):
 
 
 def test_view_controls(handler, config_apps):
-	source_print = """
-		<?code papp = globals.d_persons.app?>
-		<?code pview = first(app.views.values())?>
-		<?code any_controls = False?>
-		<?for (c, vc) in zip(app.controls.values(), pview.controls.values())?>
-		<?if c is not vc.control?>
-		Bad control: <?print repr(c)?><?print repr(vc)?>"
-		<?end if?>
-		<?if c.identifier != vc.identifier?>
-		Bad control identifier: <?print repr(c)?><?print repr(vc)?>
-		<?end if?>
-		<?if c.type != vc.type?>
-		Bad control type: <?print repr(c)?><?print repr(vc)?>
-		<?end if?>
-		<?if c.subtype != vc.subtype?>
-		Bad control subtype: <?print repr(c)?><?print repr(vc)?>
-		<?end if?>
-		<?code any_controls = True?>
-		<?end for?>
-		<?print any_controls?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -2010,7 +1935,25 @@ def test_view_controls(handler, config_apps):
 		identifier="test_view_controls",
 		source=f"""
 			<?whitespace strip?>
-			{source_print}
+			<?code papp = globals.d_persons.app?>
+			<?code pview = first(app.views.values())?>
+			<?code any_controls = False?>
+			<?for (c, vc) in zip(app.controls.values(), pview.controls.values())?>
+			<?if c is not vc.control?>
+			Bad control: <?print repr(c)?><?print repr(vc)?>"
+			<?end if?>
+			<?if c.identifier != vc.identifier?>
+			Bad control identifier: <?print repr(c)?><?print repr(vc)?>
+			<?end if?>
+			<?if c.type != vc.type?>
+			Bad control type: <?print repr(c)?><?print repr(vc)?>
+			<?end if?>
+			<?if c.subtype != vc.subtype?>
+			Bad control subtype: <?print repr(c)?><?print repr(vc)?>
+			<?end if?>
+			<?code any_controls = True?>
+			<?end for?>
+			<?print any_controls?>
 		"""
 	)
 
@@ -2020,20 +1963,18 @@ def test_view_controls(handler, config_apps):
 
 
 def test_geo_dist(handler):
-	source = """
-		<?whitespace strip?>
-		<?code geo1 = globals.geo(49.955267, 11.591212)?>
-		<?code geo2 = globals.geo(48.84672, 2.34631)?>
-		<?code geo3 = globals.geo("Pantheon, Paris")?>
-		<?code dist = globals.dist(geo1, geo2)?>
-		<?print 680 < dist and dist < 690?>
-		<?code dist = globals.dist(geo1, geo3)?>
-		<?print 680 < dist and dist < 690?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_geo_dist",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code geo1 = globals.geo(49.955267, 11.591212)?>
+			<?code geo2 = globals.geo(48.84672, 2.34631)?>
+			<?code geo3 = globals.geo("Pantheon, Paris")?>
+			<?code dist = globals.dist(geo1, geo2)?>
+			<?print 680 < dist and dist < 690?>
+			<?code dist = globals.dist(geo1, geo3)?>
+			<?print 680 < dist and dist < 690?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -2042,26 +1983,32 @@ def test_geo_dist(handler):
 
 
 def test_isinstance_la(handler):
-	"""
-	TODO: implement me
-	"""
-	pass
+	vt = handler.make_viewtemplate(
+		identifier="test_isinstance_la",
+		source="""
+			<?whitespace strip?>
+			<?print isinstance(globals, la.Globals)?>
+			<?print isinstance(app, la.App)?>
+		"""
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = "TrueTrue"
+	assert output == expected
 
 
 def test_signature(handler):
-	source = """
-		<?whitespace strip?>
-		<?code r = app()?>
-		<?code r.v_signature_en2 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII"?>
-		<?print r.v_signature_en2.mimetype == "image/png"?>
-		<?print r.v_signature_en2.size == 68?>
-		<?print r.v_signature_en2.width == 1?>
-		<?print r.v_signature_en2.height == 1?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_signature",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code r = app()?>
+			<?code r.v_signature_en2 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII"?>
+			<?print r.v_signature_en2.mimetype == "image/png"?>
+			<?print r.v_signature_en2.size == 68?>
+			<?print r.v_signature_en2.width == 1?>
+			<?print r.v_signature_en2.height == 1?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -2070,12 +2017,6 @@ def test_signature(handler):
 
 
 def test_app_datasource(handler, config_apps):
-	source = """
-		<?whitespace strip?>
-		<?print app.datasource.app is app?>
-		<?print app.c_field_of_activity.lookup_app.datasource is None?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
@@ -2083,7 +2024,11 @@ def test_app_datasource(handler, config_apps):
 			includeviews=True
 		),
 		identifier="test_app_datasource",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?print app.datasource.app is app?>
+			<?print app.c_field_of_activity.lookup_app.datasource is None?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -2092,17 +2037,15 @@ def test_app_datasource(handler, config_apps):
 
 
 def test_has_custom_lookupdata(handler):
-	source = """
-		<?whitespace strip?>
-		<?code r = app()?>
-		<?print r.f_field_of_activity.has_custom_lookupdata()?>
-		<?code r.f_field_of_activity.lookupdata = r.f_field_of_activity.lookupdata?>
-		<?print r.f_field_of_activity.has_custom_lookupdata()?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_has_custom_lookupdata",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?code r = app()?>
+			<?print r.f_field_of_activity.has_custom_lookupdata()?>
+			<?code r.f_field_of_activity.lookupdata = r.f_field_of_activity.lookupdata?>
+			<?print r.f_field_of_activity.has_custom_lookupdata()?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
@@ -2111,14 +2054,12 @@ def test_has_custom_lookupdata(handler):
 
 
 def test_parameter_array(handler):
-	source = """
-		<?whitespace strip?>
-		<?print globals.request.params["gurk"]?>
-	"""
-
 	vt = handler.make_viewtemplate(
 		identifier="test_parameter_array",
-		source=source
+		source="""
+			<?whitespace strip?>
+			<?print globals.request.params["gurk"]?>
+		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier, gurk=["hurz"])
@@ -2126,17 +2067,9 @@ def test_parameter_array(handler):
 	assert output == expected
 
 
-def test_load_attachments_on_demand(handler, config_apps):
+def test_record_attachments_on_demand(handler, config_apps):
 	if isinstance(handler, (PythonDB, JavaDB, GatewayHTTP)):
 		c = config_apps
-
-		source = """
-			<?whitespace strip?>
-			<?code r1 = app()?>
-			<?print repr(r1.attachments)?>
-			<?code r2 = first(app.records.values())?>
-			<?print repr(r2.attachments)?>
-		"""
 
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
@@ -2144,8 +2077,14 @@ def test_load_attachments_on_demand(handler, config_apps):
 				app=c.apps.persons,
 				includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 			),
-			identifier="test_load_attachments_on_demand",
-			source=source
+			identifier="test_record_attachments_on_demand",
+			source="""
+				<?whitespace strip?>
+				<?code r1 = app()?>
+				<?print repr(r1.attachments)?>
+				<?code r2 = first(app.records.values())?>
+				<?print repr(r2.attachments)?>
+			"""
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
