@@ -2058,6 +2058,9 @@ class Globals(Base):
 				attrs.add(f"d_{identifier}")
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
+		for identifier in self.app.params:
+			attrs.add(f"p_{identifier}")
+			attrs.add(f"pv_{identifier}")
 		return attrs
 
 	def ul4_setattr(self, name, value):
@@ -2074,6 +2077,10 @@ class Globals(Base):
 		elif self.datasources and name.startswith("d_") and name[2:] in self.datasources:
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
+			return True
+		elif name.startswith("p_") and self.app.params:
+			return True
+		elif name.startswith("pv_") and self.app.params:
 			return True
 		else:
 			return False
@@ -2428,6 +2435,8 @@ class App(Base):
 		elif name.startswith("c_") and name[2:] in self.controls:
 			return True
 		elif name.startswith("p_") and self.params and name[2:] in self.params:
+			return True
+		elif name.startswith("pv_") and self.params and name[3:] in self.params:
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
