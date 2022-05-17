@@ -722,7 +722,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			includerecords=la.DataSource.IncludeRecords.RECORDS,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 		),
 		identifier="test_view_control_overwrite_string_noview",
 		source=f"""
@@ -740,8 +740,8 @@ def test_view_control_overwrite_string(handler, config_apps):
 			identifier="persons",
 			app=c.apps.persons,
 			includeviews=True,
-			includecontrols=la.DataSource.IncludeControls.ALL,
-			includerecords=la.DataSource.IncludeRecords.RECORDS,
+			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 		),
 		identifier="test_view_control_overwrite_string_view_en",
 		source=f"""
@@ -760,8 +760,8 @@ def test_view_control_overwrite_string(handler, config_apps):
 			identifier="persons",
 			app=c.apps.persons,
 			includeviews=True,
-			includecontrols=la.DataSource.IncludeControls.ALL,
-			includerecords=la.DataSource.IncludeRecords.RECORDS,
+			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 		),
 		identifier="test_view_control_overwrite_string_view_de",
 		source=f"""
@@ -794,7 +794,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			includerecords=la.DataSource.IncludeRecords.RECORDS,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 		),
 		identifier="test_view_control_overwrite_lookup_noview",
 		source=f"""
@@ -812,8 +812,8 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 			identifier="persons",
 			app=c.apps.persons,
 			includeviews=True,
-			includecontrols=la.DataSource.IncludeControls.ALL,
-			includerecords=la.DataSource.IncludeRecords.RECORDS,
+			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 		),
 		identifier="test_view_control_overwrite_lookup_view_en",
 		source=f"""
@@ -832,8 +832,8 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 			identifier="persons",
 			app=c.apps.persons,
 			includeviews=True,
-			includecontrols=la.DataSource.IncludeControls.ALL,
-			includerecords=la.DataSource.IncludeRecords.RECORDS,
+			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 		),
 		identifier="test_view_control_overwrite_lookup_view_de",
 		source=f"""
@@ -857,7 +857,7 @@ def test_globals_d_shortcuts(handler, config_apps):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			includerecords=la.DataSource.IncludeRecords.RECORDS,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 		),
 		identifier="test_globals_d_shortcuts",
 		source=f"""
@@ -2140,7 +2140,7 @@ def test_load_attachments_on_demand(handler, config_apps):
 			la.DataSourceConfig(
 				identifier="persons",
 				app=c.apps.persons,
-				includerecords=la.DataSource.IncludeRecords.RECORDS,
+				includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 			),
 			identifier="test_load_attachments_on_demand",
 			source=source
