@@ -2029,7 +2029,7 @@ class Globals(Base):
 
 	@property
 	def templates(self):
-		return self.app.templates
+		return self.app.templates if self.app else attrdict()
 
 	vsqlsearchfield = vsql.Field("search", vsql.DataType.STR, "livingapi_pkg.global_search")
 
@@ -2043,10 +2043,13 @@ class Globals(Base):
 				return self.datasources[name[2:]]
 			elif name.startswith("t_"):
 				return self.templates[name[2:]]
-			elif name.startswith(("p_", "pv_")):
-				return getattr(self.app, name)
-		except (KeyError, AttributeError):
-			raise AttributeError(error_attribute_doesnt_exist(self, name))
+			elif self.app and name.startswith("p_"):
+				return self.app.params[name[2:]]
+			elif self.app and name.startswith("pv_"):
+				return self.app.params[name[3:]].value
+		except KeyError:
+			pass
+		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def __dir__(self):
 		"""
@@ -2078,9 +2081,9 @@ class Globals(Base):
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
-		elif name.startswith("p_") and name[2:] in self.app.params:
+		elif self.app and name.startswith("p_") and name[2:] in self.app.params:
 			return True
-		elif name.startswith("pv_") and name[3:] in self.app.params:
+		elif self.app and name.startswith("pv_") and name[3:] in self.app.params:
 			return True
 		else:
 			return False
