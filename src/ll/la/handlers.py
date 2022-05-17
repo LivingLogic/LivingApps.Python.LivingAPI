@@ -1229,7 +1229,7 @@ class FileHandler(Handler):
 				self._loadcontrols(app)
 				self._loadinternaltemplates(app)
 				apps[app.id] = app
-		return apps
+		return attrdict(apps)
 
 	def _loadcontrols(self, app):
 		path = self.basepath/f"{app.name} ({app.id})/index.json"
