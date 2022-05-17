@@ -406,12 +406,12 @@ def test_attributes_unsaved_record(handler):
 	assert f"True True;True True;False {user()};False {user()}" == handler.renders(person_app_id(), template=vt.identifier)
 
 
-def test_no_appparams(handler):
+def test_load_appparameters_on_demand(handler):
 	# If the app doesn't have views, the LivingAPI will fetch them incrementally.
 	source = "<?print app.params is not None?>"
 
 	vt = handler.make_viewtemplate(
-		identifier="livingapi_no_appparams",
+		identifier="load_appparameters_on_demand",
 		source=source,
 	)
 
