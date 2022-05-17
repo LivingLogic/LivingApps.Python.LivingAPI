@@ -2417,10 +2417,9 @@ class App(Base):
 		if self.layout_controls:
 			for identifier in self.layout_controls:
 				attrs.add(f"c_{identifier}")
-		if self.params:
-			for identifier in self.params:
-				attrs.add(f"p_{identifier}")
-				attrs.add(f"pv_{identifier}")
+		for identifier in self.params:
+			attrs.add(f"p_{identifier}")
+			attrs.add(f"pv_{identifier}")
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
 		return attrs
@@ -2430,9 +2429,9 @@ class App(Base):
 			return True
 		elif name.startswith("c_") and name[2:] in self.controls:
 			return True
-		elif name.startswith("p_") and self.params and name[2:] in self.params:
+		elif name.startswith("p_") and name[2:] in self.params:
 			return True
-		elif name.startswith("pv_") and self.params and name[3:] in self.params:
+		elif name.startswith("pv_") and name[3:] in self.params:
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
