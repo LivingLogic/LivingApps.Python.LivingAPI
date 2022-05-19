@@ -932,17 +932,17 @@ class DBHandler(Handler):
 		else:
 			saved = True
 
-		if record.id is None:
-			record.id = result[f"p_{pk}"]
-			record.createdat = datetime.datetime.now()
-			record.createdby = app.globals.user
-			record.updatecount = 0
-		else:
-			record.updatedat = datetime.datetime.now()
-			record.updatedby = app.globals.user
-			record.updatecount += 1
-		for field in record.fields.values():
-			field._dirty = False
+			if record.id is None:
+				record.id = result[f"p_{pk}"]
+				record.createdat = datetime.datetime.now()
+				record.createdby = app.globals.user
+				record.updatecount = 0
+			else:
+				record.updatedat = datetime.datetime.now()
+				record.updatedby = app.globals.user
+				record.updatecount += 1
+			for field in record.fields.values():
+				field._dirty = False
 
 		return saved
 
