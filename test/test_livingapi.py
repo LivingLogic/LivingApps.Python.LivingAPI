@@ -860,7 +860,7 @@ def test_globals_template_shortcuts(handler, config_apps):
 			source="""
 				<?whitespace strip?>
 				<?print globals.t_test_globals_template_shortcuts_internal.name?>;
-				<?print app.t_test_globals_template_shortcuts_internal.name?>"
+				<?print app.t_test_globals_template_shortcuts_internal.name?>
 			""",
 		)
 
