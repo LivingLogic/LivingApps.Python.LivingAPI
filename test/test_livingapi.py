@@ -311,11 +311,10 @@ def test_app_shortcuts(handler):
 			<?print repr(app.c_firstname.identifier)?>;
 			<?print repr(app.params.bool_true.value)?>;
 			<?print repr(app.p_bool_true.value)?>;
-			<?print repr(app.pv_bool_true)?>;
-			<?render app.t_test_app_shortcuts_internal(app=app)?>
+			<?print repr(app.pv_bool_true)?>
 		"""
 	)
-	assert "'firstname';'firstname';True;True;True;test_app_shortcuts_internal" == handler.renders(person_app_id(), template=vt.identifier)
+	assert "'firstname';'firstname';True;True;True" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_insert_record(handler, config_apps):
@@ -2090,3 +2089,25 @@ def test_record_attachments_on_demand(handler, config_apps):
 		output = handler.renders(person_app_id(), template=vt.identifier)
 		expected = "None{}"
 		assert output == expected
+
+
+def test_app_templates_on_demand(handler, config_persons):
+	if not isinstance(handler, PythonHTTP):
+		c = config_persons
+
+		handler.make_internaltemplate(
+			identifier="test_app_template_on_demand",
+			source="<?print app.t_test_app_template_on_demand_internal.name?>",
+		)
+
+		vt = handler.make_viewtemplate(
+			identifier="test_app_templates_on_demand",
+			source="""
+				<?whitespace strip?>
+				<?render app.templates.test_app_shortcuts_internal(app=app)?>;
+				<?render app.t_test_app_shortcuts_internal(app=app)?>
+			"""
+		)
+		assert "test_app_shortcuts_internal;test_app_shortcuts_internal" == handler.renders(person_app_id(), template=vt.identifier)
+
+
