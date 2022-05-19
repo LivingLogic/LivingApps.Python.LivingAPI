@@ -11,7 +11,6 @@ from ll import la
 ### Data and helper functions
 ###
 
-
 class attrdict(dict):
 	def __getattr__(self, key):
 		try:
@@ -63,15 +62,10 @@ def check_vsql(config_persons, code, result=None):
 
 	# Use the name of the calling function (without "test_")
 	# as the name of the view template.
-	filename = pathlib.Path(sys._getframe(1).f_code.co_filename).with_suffix("").name[5:]
+	filename = pathlib.Path(sys._getframe(1).f_code.co_filename).with_suffix("").name
 	functionname = sys._getframe(1).f_code.co_name[5:]
 	identifier = f"{filename}_{functionname}"
 	handler = PythonDB()
-
-	source = f"""
-		<?whitespace strip?>
-		<?print len(datasources.persons.app.records)?>
-	"""
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -81,13 +75,13 @@ def check_vsql(config_persons, code, result=None):
 			includeparams=True,
 		),
 		identifier=identifier,
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print len(datasources.persons.app.records)?>
+		""",
 	)
 
-	output = handler.renders(
-		person_app_id(),
-		template=vt.identifier,
-	)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	if result is None:
 		assert "0" != output
@@ -120,6 +114,7 @@ class Handler:
 		with self.dbhandler:
 			app.save(self.dbhandler)
 		return internaltemplate
+
 
 class LocalTemplateHandler(Handler):
 	def __init__(self):
@@ -157,24 +152,26 @@ class PythonDB(LocalTemplateHandler):
 		return result
 
 
+
 class PythonHTTP(LocalTemplateHandler):
 	def __init__(self):
 		super().__init__()
 		self.testhandler = la.HTTPHandler(url(), user(), passwd())
 
 	def renders(self, *path, **params):
-		with self.dbhandler:
-			template = self.make_ul4template(**params)
-		with self.dbhandler:
+		template = self.make_ul4template(**params)
+		with self.testhandler:
 			vars = self.testhandler.viewtemplate_data(*path, **params)
-		# We don't have to call the folowoing code inside the ``with`` block
-		# since the data was fetch by the ``HTTPHandler`` which doesn't support
-		# loading date incrementally anyway. But this means that test might fail
-		# for these dynamic attributes (or have to be skipped)
-		globals = vars["globals"]
-		globals.request = la.HTTPRequest()
-		globals.request.params.update(**params)
-		result = template.renders_with_globals([], vars, dict(globals=globals, la=la.module))
+		# We don't have to call the following code inside the ``with`` block
+		# since the data was fetched by the ``HTTPHandler`` which doesn't support
+		# loading data incrementally anyway. But this means that test might fail
+		# for these dynamic attributes (or have to be skipped).
+		# But note that we *do* have to call it inside a separate ``with`` block
+		# se that the backref registry gets reset afterwards
+			globals = vars["globals"]
+			globals.request = la.HTTPRequest()
+			globals.request.params.update(**params)
+			result = template.renders_with_globals([], vars, dict(globals=globals, la=la.module))
 		return result
 
 
@@ -243,7 +240,8 @@ class JavaDB(LocalTemplateHandler):
 		if result.returncode != 0:
 			self._find_exception(stderr)
 			if stderr:
-				# No exception found, but we still have error output, so complain anyway
+				# No exception found, but we still have error output,
+				# so complain anyway with the original output
 				raise ValueError(stderr)
 		stdout = result.stdout.decode("utf-8", "passbytes")
 		print(f"\tOutput on stdout is:\n{self._indent(stdout)}")
