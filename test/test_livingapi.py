@@ -278,7 +278,7 @@ def test_sort_default_order_is_newest_first(handler, config_persons):
 def test_record_shortcuts(handler, config_persons):
 	c = config_persons
 
-	handler.make_viewtemplate(
+	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
@@ -294,7 +294,7 @@ def test_record_shortcuts(handler, config_persons):
 			<?print repr(ae.v_firstname)?>
 		""",
 	)
-	assert "'Albert';'Albert';'Albert';'Albert'" == handler.renders(person_app_id(), template="livingapi_record_shortcutattributes")
+	assert "'Albert';'Albert';'Albert';'Albert'" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_app_shortcuts(handler):
