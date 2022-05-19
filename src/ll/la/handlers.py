@@ -708,6 +708,11 @@ class DBHandler(Handler):
 			result = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
 			if result is not None:
 				return result
+		# Reset the backref registry, since we call ``livingapi_pkg.record_sync_ful4on()``
+		# which reset the db's backref registry too
+		# FIXME: Maybe we can upgrade this to use incremntal UL4ON dumps, but then
+		# we'd need the ability to force objects to be reloaded
+		self.reset()
 		c = self.cursor()
 		c.execute(
 			"select livingapi_pkg.record_sync_ful4on(c_user=>:ide_id, p_dat_id=>:dat_id) from dual",
@@ -730,6 +735,11 @@ class DBHandler(Handler):
 					missing.add(dat_id)
 				else:
 					found[dat_id] = record
+		# Reset the backref registry, since we call ``livingapi_pkg.records_sync_ful4on()``
+		# which reset the db's backref registry too
+		# FIXME: Maybe we can upgrade this to use incremntal UL4ON dumps, but then
+		# we'd need the ability to force objects to be reloaded
+		self.reset()
 		c = self.cursor()
 		c.execute(
 			"select livingapi_pkg.records_sync_ful4on(c_user=>:ide_id, p_dat_ids=>:dat_ids) from dual",
