@@ -266,7 +266,7 @@ class Handler:
 		file.handler = self
 		return file
 
-	def _loadglobals(self, id):
+	def _loadglobals(self, id=None):
 		globals = la.Globals()
 		globals.handler = self
 		return globals
