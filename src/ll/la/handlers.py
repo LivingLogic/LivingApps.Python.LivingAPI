@@ -818,7 +818,7 @@ class DBHandler(Handler):
 		if "template" in params:
 			template = params.pop("template")
 			c.execute(
-				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = : identifier",
+				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = :identifier",
 				tpl_id=tpl_id,
 				identifier=template,
 			)
