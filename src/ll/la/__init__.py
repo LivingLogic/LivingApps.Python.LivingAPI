@@ -1075,6 +1075,12 @@ class Base:
 		The default implementation does nothing.
 		"""
 
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		return {name for name in self.__dict__ if name.startswith("x_")}
+
 	def ul4_getattr(self, name:str) -> Any:
 		attr = getattr(self.__class__, name, None)
 		if isinstance(attr, Attr):
@@ -1086,7 +1092,7 @@ class Base:
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def ul4_hasattr(self, name):
-		return name in self.ul4_attrs
+		return name in self.ul4_attrs or name.startswith("x_")
 
 	def ul4_setattr(self, name:str, value:Any) -> None:
 		attr = getattr(self.__class__, name, None)
@@ -1094,6 +1100,8 @@ class Base:
 			return attr.ul4set(self, value)
 		elif isinstance(attr, property):
 			return attr.fset(self, value)
+		elif name.startswith("x_"):
+			return setattr(self, name, value)
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 
@@ -2061,18 +2069,17 @@ class Globals(Base):
 				attrs.add(f"d_{identifier}")
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
-		for identifier in self.app.params:
-			attrs.add(f"p_{identifier}")
-			attrs.add(f"pv_{identifier}")
+		if self.app:
+			for identifier in self.app.params:
+				attrs.add(f"p_{identifier}")
+				attrs.add(f"pv_{identifier}")
 		return attrs
 
 	def ul4_setattr(self, name, value):
 		if name == "lang":
 			self.lang = value
-		elif self.ul4_hasattr(name):
-			raise AttributeError(error_attribute_readonly(self, name))
 		else:
-			raise AttributeError(error_attribute_doesnt_exist(self, name))
+			super().ul4_setattr(name, value)
 
 	def ul4_hasattr(self, name):
 		if name in self.ul4_attrs:
@@ -2086,7 +2093,7 @@ class Globals(Base):
 		elif self.app and name.startswith("pv_") and name[3:] in self.app.params:
 			return True
 		else:
-			return False
+			return super().ul4_hasattr(name)
 
 
 @register("app")
@@ -2407,8 +2414,9 @@ class App(Base):
 			elif name.startswith("pv_") and self.params:
 				return self.params[name[3:]].value
 		except KeyError:
-			pass
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
+
 
 	def __dir__(self):
 		"""
@@ -2439,7 +2447,7 @@ class App(Base):
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
 		else:
-			return False
+			return super().ul4_hasattr(name)
 
 	def _gethandler(self, handler):
 		if handler is None:
@@ -3253,11 +3261,18 @@ class NumberControl(Control):
 	_type = "number"
 	_fulltype = _type
 
+	ul4_attrs = Control.ul4_attrs.union({"precision", "minimum", "maximum"})
 	ul4_type = ul4c.Type("la", "NumberControl", "A LivingApps number field (type 'number')")
 
-	precision = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	minimum = Attr(float, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	maximum = Attr(float, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	precision = Attr(int, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	minimum = FloatAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	maximum = FloatAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None):
+		super().__init__(id=id, identifier=identifier, fieldname=fieldname, label=label, priority=priority, order=order)
+		self.precision = None
+		self.minimum = None
+		self.maximum = None
 
 	def _set_value(self, field, value):
 		if value is None or value == "":
@@ -4827,8 +4842,8 @@ class Record(Base):
 				if isinstance(attr, Attr):
 					return attr.get(self)
 		except KeyError:
-			pass
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
 
 	def __setattr__(self, name, value):
 		try:
@@ -4842,14 +4857,19 @@ class Record(Base):
 			pass
 		else:
 			super().__setattr__(name, value)
-			return
-		raise AttributeError(error_attribute_readonly(self, name))
 
 	def __dir__(self):
 		"""
 		Make keys completeable in IPython.
 		"""
-		return set(super().__dir__()) | {f"f_{identifier}" for identifier in self.app.controls} | {f"v_{identifier}" for identifier in self.app.controls} | {f"c_{identifier}" for identifier in self.children}
+		attrs = set(super().__dir__())
+		for identifier in self.app.controls:
+			attrs.add(f"f_{identifier}")
+			attrs.add(f"v_{identifier}")
+		if self.children:
+			for identifier in self.children:
+				attrs.add(f"c_{identifier}")
+		return attrs
 
 	def ul4_hasattr(self, name):
 		if name in self.ul4_attrs:
@@ -4858,26 +4878,29 @@ class Record(Base):
 			return name[2:] in self.app.controls
 		elif name.startswith("c_"):
 			return name[2:] in self.children
-		return False
+		else:
+			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		# For these method call the version of the method instead, that doesn't
+		# For these methods call the version of the method instead, that doesn't
 		# support the ``handler`` parameter.
 		if name in {"save", "delete", "executeaction"}:
 			return getattr(self, "ul4" + name)
-		return super().ul4_getattr(name)
+		return getattr(self, name)
 
 	def ul4_setattr(self, name, value):
 		if name.startswith("v_") and name[2:] in self.app.controls:
 			setattr(self, name, value)
+			return
 		elif name.startswith("c_"):
 			if self.children is None:
 				self.children = attrdict()
 			self.children[name[2:]] = value
+			return
 		elif name == "children":
 			self.children = value
-		else:
-			raise AttributeError(error_attribute_readonly(self, name))
+			return
+		super().ul4_setattr(name, value)
 
 	def _gethandler(self, handler):
 		if handler is None:
@@ -6969,10 +6992,10 @@ class View(Base):
 	layout_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	login_required = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	result_page = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	result_page = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset="")
 	use_geo = EnumAttr(UseGeo, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None, lang=None, login_required=False, result_page=False, use_geo="no"):
+	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None, lang=None, login_required=False, result_page=True, use_geo="no"):
 		self.id = id
 		self.name = name
 		self.combined_type = None
@@ -6991,6 +7014,9 @@ class View(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def _result_page_ul4onset(self, value):
+		self.use_use = not value
 
 
 @register("datasource")
