@@ -1034,9 +1034,10 @@ def test_globals_template_shortcuts(handler, config_apps):
 
 
 def test_view_defaultedfields_default(handler, config_apps):
-	testoptions = {'withview': {
-			'activateview': "<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>",
-			'expected': f"""
+	testoptions = dict(
+		withview=dict(
+			activateview="<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>",
+			expected=f"""
 				'Walter'
 				'Dörwald'
 				@({datetime.date.today()})
@@ -1046,10 +1047,10 @@ def test_view_defaultedfields_default(handler, config_apps):
 				[]
 				[]
 			"""
-		},
-		'withoutview': {
-			'activateview': '',
-			'expected': """
+		),
+		withoutview=dict(
+			activateview='',
+			expected="""
 				None
 				None
 				None
@@ -1058,8 +1059,9 @@ def test_view_defaultedfields_default(handler, config_apps):
 				[]
 				[]
 			""",
-		}}
-	
+		),
+	)
+
 	for name, param in testoptions.items():
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
