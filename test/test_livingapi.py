@@ -1071,16 +1071,16 @@ def test_view_defaultedfields_default(handler, config_apps):
 			),
 			identifier=f"test_view_defaultedfields_default_{name}",
 			source=f"""
-			{param['activateview']}
-			<?code r = app()?>
-			<?print repr(r.v_firstname)?>
-			<?print repr(r.v_lastname)?>
-			<?print repr(r.v_date_of_birth)?>
-			<?print r.v_country_of_birth.key?>
-			<?print r.f_firstname.errors?>
-			<?print r.f_lastname.errors?>
-			<?print r.f_date_of_birth.errors?>
-			<?print r.f_country_of_birth.errors?>
+				{param['activateview']}
+				<?code r = app()?>
+				<?print repr(r.v_firstname)?>
+				<?print repr(r.v_lastname)?>
+				<?print repr(r.v_date_of_birth)?>
+				<?print r.v_country_of_birth.key?>
+				<?print r.f_firstname.errors?>
+				<?print r.f_lastname.errors?>
+				<?print r.f_date_of_birth.errors?>
+				<?print r.f_country_of_birth.errors?>
 			""",
 		)
 
