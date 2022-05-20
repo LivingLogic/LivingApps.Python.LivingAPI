@@ -53,13 +53,15 @@ def test_global_hostname(handler):
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_global_hostname",
 		source="""
-			<?whitespace strip?>
 			<?print repr(globals.hostname)?>
 		""",
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
-	assert repr(hostname()) == output
+	expected = [
+		repr(hostname())
+	]
+	assert lines(output) == lines(expected)
 
 
 def test_global_mode(handler, config_persons):
@@ -145,7 +147,7 @@ def test_app_attributes(handler):
 			<?print app.name?>
 		""",
 	)
-	output = handler.render_lines(person_app_id(), template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = f"""
 		{person_app_id()}
 		LA-Demo: Persons (ORI)
@@ -303,14 +305,13 @@ def test_detail(handler, config_persons):
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_detail",
 		source="""
-			<?whitespace strip?>
 			<?print record.id?>
 			<?print record.v_firstname?>
 			<?print record.v_lastname?>
 		"""
 	)
 
-	output = handler.render_lines(
+	output = handler.renders(
 		person_app_id(),
 		config_persons.persons.ae.id,
 		template=vt.identifier,
@@ -371,7 +372,7 @@ def test_record_extended_attributes(handler, config_apps):
 		""",
 	)
 
-	output = handler.render_lines(person_app_id(), template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = """
 		True
 		42
@@ -401,7 +402,7 @@ def test_record_shortcuts(handler, config_persons):
 			<?print repr(ae.v_firstname)?>
 		""",
 	)
-	output = handler.render_lines(person_app_id(), template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = """
 		'Albert'
 		'Albert'
@@ -421,14 +422,13 @@ def test_app_extended_attributes(handler, config_apps):
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_app_extended_attributes",
 		source="""
-			<?whitespace strip?>
 			<?code app.x_foo = 42?>
 			<?print "x_foo" in dir(app)?>
 			<?print app.x_foo?>
 		""",
 	)
 
-	output = handler.render_lines(person_app_id(), template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = """
 		True
 		42
@@ -459,7 +459,7 @@ def test_app_shortcuts(handler, config_persons):
 		"""
 	)
 
-	output = handler.render_lines(person_app_id(), template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = """
 		'firstname'
 		'firstname'
@@ -637,7 +637,7 @@ def test_app_parameters_on_demand(handler):
 			""",
 		)
 
-		output = handler.render_lines(person_app_id(), template=vt.identifier)
+		output = handler.renders(person_app_id(), template=vt.identifier)
 		expected = """
 			True
 			True
@@ -968,7 +968,6 @@ def test_globals_extended_attributes(handler, config_apps):
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_globals_extended_attributes",
 		source=f"""
-			<?whitespace strip?>
 			<?code globals.x_foo = 42?>
 			<?print "x_foo" in dir(globals)?>{newline}
 			<?print globals.x_foo?>{newline}
@@ -1003,7 +1002,7 @@ def test_globals_shortcuts(handler, config_apps):
 		""",
 	)
 
-	output = handler.render_lines(person_app_id(), template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = """
 		'firstname'
 		'firstname'
@@ -1037,25 +1036,31 @@ def test_globals_template_shortcuts(handler, config_apps):
 def test_view_defaultedfields_default(handler, config_apps):
 	testoptions = {'withview': {
 			'activateview': "<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>",
-			'expected': f"'Walter'|'Dörwald'|@({datetime.date.today()})|germany||||",
+			'expected': f"""
+				'Walter'
+				'Dörwald'
+				@({datetime.date.today()})
+				germany
+				[]
+				[]
+				[]
+				[]
+			"""
 		},
 		'withoutview': {
 			'activateview': '',
-			'expected': f"None|None|None|||||",
+			'expected': """
+				None
+				None
+				None
+				[]
+				[]
+				[]
+				[]
+			""",
 		}}
 	
 	for name, param in testoptions.items():
-		source_print = f"""{param['activateview']}
-			<?code r = app()?>
-			<?print repr(r.v_firstname)?>|
-			<?print repr(r.v_lastname)?>|
-			<?print repr(r.v_date_of_birth)?>|
-			<?print r.v_country_of_birth.key?>|
-			<?print ':'.join(r.f_firstname.errors)?>|
-			<?print ':'.join(r.f_lastname.errors)?>|
-			<?print ':'.join(r.f_date_of_birth.errors)?>|
-			<?print ':'.join(r.f_country_of_birth.errors)?>"""
-
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
@@ -1064,13 +1069,22 @@ def test_view_defaultedfields_default(handler, config_apps):
 			),
 			identifier=f"test_view_defaultedfields_default_{name}",
 			source=f"""
-			<?whitespace strip?>
-			{source_print}
+			{param['activateview']}
+			<?code r = app()?>
+			<?print repr(r.v_firstname)?>
+			<?print repr(r.v_lastname)?>
+			<?print repr(r.v_date_of_birth)?>
+			<?print r.v_country_of_birth.key?>
+			<?print r.f_firstname.errors?>
+			<?print r.f_lastname.errors?>
+			<?print r.f_date_of_birth.errors?>
+			<?print r.f_country_of_birth.errors?>
 			""",
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
-		assert output == param['expected']
+		expected = param['expected']
+		assert lines(output) == lines(expected)
 
 
 def test_numbercontrol_attributes(handler, config_apps):
@@ -1915,7 +1929,6 @@ def test_app_with_wrong_fields(handler, config_apps):
 		),
 		identifier=f"test_app_with_wrong_fields",
 		source="""
-			<?whitespace strip?>
 			<?code r = app(gurk='hurz')?>
 		"""
 	)
@@ -2175,7 +2188,7 @@ def test_assign_to_children_shortcut_attribute(handler):
 		"""
 	)
 
-	output = handler.render_lines(person_app_id(), template=vt.identifier)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = """
 		{'bar': 'baz'}
 		{}
