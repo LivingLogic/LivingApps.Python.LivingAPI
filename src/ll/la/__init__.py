@@ -3348,6 +3348,37 @@ class DateControl(Control):
 
 	format = Attr(str, get="", ul4get="_format_get")
 
+	_suffixes = [
+		"",
+		" %H:%M",
+		"T%H:%M",
+		" %H:%M:%S",
+		"T%H:%M:%S",
+		" %H:%M:%S.%f",
+		"T%H:%M:%S.%f",
+		" %H:%M%z",
+		"T%H:%M%z",
+		" %H:%M:%S%z",
+		"T%H:%M:%S%z",
+		" %H:%M:%S.%f%z",
+		"T%H:%M:%S.%f%z",
+		" %H:%M %z",
+		"T%H:%M %z",
+		" %H:%M:%S %z",
+		"T%H:%M:%S %z",
+		" %H:%M:%S.%f %z",
+		"T%H:%M:%S.%f %z",
+	]
+
+	formats = dict(
+		en=["%m/%d/%Y" + suffix for suffix in _suffixes],
+		de=["%d.%m.%Y" + suffix for suffix in _suffixes],
+		fr=["%d.%m.%Y" + suffix for suffix in _suffixes],
+		it=["%d.%m.%Y" + suffix for suffix in _suffixes],
+	)
+
+	del _suffixes
+
 	def _default_get(self):
 		vc = self._get_viewcontrol()
 		if vc is not None:
@@ -3361,6 +3392,20 @@ class DateControl(Control):
 			value = value.date()
 		return value
 
+	def _parse_value(self, value):
+		lang = self.app.globals.lang
+		if lang in self.formats:
+			for format in self.formats[lang]:
+				try:
+					return self._convert(datetime.datetime.strptime(value, format))
+				except ValueError:
+					pass
+		try:
+			return self._convert(datetime.datetime.fromisoformat(value))
+		except ValueError:
+			pass
+		return value
+
 	def _set_value(self, field, value):
 		if value is None or value == "":
 			if self.required:
@@ -3369,33 +3414,10 @@ class DateControl(Control):
 		elif isinstance(value, datetime.date):
 			value = self._convert(value)
 		elif isinstance(value, str):
-			charcount = len(value)
-			if charcount == 10:
-				try:
-					value = datetime.date.fromisoformat(value)
-				except ValueError:
-					field.add_error(error_date_format(field, value))
-					# We keep the string value, as a <form> input might want to display it.
-				else:
-					value = self._convert(value)
-			elif charcount in {16, 19, 26}:
-				try:
-					value = datetime.datetime.fromisoformat(value)
-				except ValueError:
-					field.add_error(error_date_format(field, value))
-					# We keep the string value, as a <form> input might want to display it.
-				else:
-					value = self._convert(value)
-			elif charcount in {22, 25, 32} and _is_timezone(value[-6:]):
-				try:
-					value = datetime.datetime.fromisoformat(value[:-6])
-				except ValueError:
-					field.add_error(error_date_format(field, value))
-					# We keep the string value, as a <form> input might want to display it.
-				else:
-					value = self._convert(value)
-			else:
+			value = self._parse_value(value)
+			if isinstance(value, str):
 				field.add_error(error_date_format(field, value))
+				# We keep the string value, as a <form> input might want to display it.
 		else:
 			field.add_error(error_wrong_type(field, value))
 			value = None

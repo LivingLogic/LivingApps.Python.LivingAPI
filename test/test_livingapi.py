@@ -1465,6 +1465,42 @@ def test_changeapi_fieldvalue_date_str_ok_datestring(handler, config_apps):
 	)
 
 
+def test_changeapi_fieldvalue_date_str_semiok_datestring_de(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datestring_de",
+		"date_of_birth",
+		"'29.02.2000'",
+		"""
+			en.value='29.02.2000'
+			en.errors0="Date of birth (en)" doesn't support this date format.
+			fr.value=@(2000-02-29)
+			it.value=@(2000-02-29)
+			de.value=@(2000-02-29)
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_date_str_semiok_datestring_en(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datestring_en",
+		"date_of_birth",
+		"'02/29/2000'",
+		"""
+			en.value=@(2000-02-29)
+			fr.value='02/29/2000'
+			fr.errors0=«Date of birth (en)» doit comporter une date valide.
+			it.value='02/29/2000'
+			it.errors0="Date of birth (en)" deve essere una data.
+			de.value='02/29/2000'
+			de.errors0="Geburtstag (de)" unterstützt dieses Datumsformat nicht.
+		""",
+	)
+
+
 def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes(handler, config_apps):
 	check_field(
 		handler,
@@ -1477,6 +1513,42 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes(handler, config
 			fr.value=@(2000-02-29)
 			it.value=@(2000-02-29)
 			de.value=@(2000-02-29)
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_de(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_de",
+		"date_of_birth",
+		"'29.02.2000 12:34'",
+		"""
+			en.value='29.02.2000 12:34'
+			en.errors0="Date of birth (en)" doesn't support this date format.
+			fr.value=@(2000-02-29)
+			it.value=@(2000-02-29)
+			de.value=@(2000-02-29)
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_en(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_en",
+		"date_of_birth",
+		"'02/29/2000 12:34'",
+		"""
+			en.value=@(2000-02-29)
+			fr.value='02/29/2000 12:34'
+			fr.errors0=«Date of birth (en)» doit comporter une date valide.
+			it.value='02/29/2000 12:34'
+			it.errors0="Date of birth (en)" deve essere una data.
+			de.value='02/29/2000 12:34'
+			de.errors0="Geburtstag (de)" unterstützt dieses Datumsformat nicht.
 		""",
 	)
 
@@ -1497,6 +1569,42 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds(handler, config
 	)
 
 
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_de(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_de",
+		"date_of_birth",
+		"'29.02.2000 12:34:56'",
+		"""
+			en.value='29.02.2000 12:34:56'
+			en.errors0="Date of birth (en)" doesn't support this date format.
+			fr.value=@(2000-02-29)
+			it.value=@(2000-02-29)
+			de.value=@(2000-02-29)
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_en(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_en",
+		"date_of_birth",
+		"'02/29/2000 12:34:56'",
+		"""
+			en.value=@(2000-02-29)
+			fr.value='02/29/2000 12:34:56'
+			fr.errors0=«Date of birth (en)» doit comporter une date valide.
+			it.value='02/29/2000 12:34:56'
+			it.errors0="Date of birth (en)" deve essere una data.
+			de.value='02/29/2000 12:34:56'
+			de.errors0="Geburtstag (de)" unterstützt dieses Datumsformat nicht.
+		""",
+	)
+
+
 def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds(handler, config_apps):
 	check_field(
 		handler,
@@ -1509,6 +1617,42 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds(handler, c
 			fr.value=@(2000-02-29)
 			it.value=@(2000-02-29)
 			de.value=@(2000-02-29)
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_de(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_de",
+		"date_of_birth",
+		"'29.02.2000 12:34:56.987654'",
+		"""
+			en.value='29.02.2000 12:34:56.987654'
+			en.errors0="Date of birth (en)" doesn't support this date format.
+			fr.value=@(2000-02-29)
+			it.value=@(2000-02-29)
+			de.value=@(2000-02-29)
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_en(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_en",
+		"date_of_birth",
+		"'02/29/2000 12:34:56.987654'",
+		"""
+			en.value=@(2000-02-29)
+			fr.value='02/29/2000 12:34:56.987654'
+			fr.errors0=«Date of birth (en)» doit comporter une date valide.
+			it.value='02/29/2000 12:34:56.987654'
+			it.errors0="Date of birth (en)" deve essere una data.
+			de.value='02/29/2000 12:34:56.987654'
+			de.errors0="Geburtstag (de)" unterstützt dieses Datumsformat nicht.
 		""",
 	)
 
@@ -1529,6 +1673,42 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz(handler
 	)
 
 
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_de(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_de",
+		"date_of_birth",
+		"'29.02.2000 12:34+01:00'",
+		"""
+			en.value='29.02.2000 12:34+01:00'
+			en.errors0="Date of birth (en)" doesn't support this date format.
+			fr.value=@(2000-02-29)
+			it.value=@(2000-02-29)
+			de.value=@(2000-02-29)
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_en(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_en",
+		"date_of_birth",
+		"'02/29/2000 12:34+01:00'",
+		"""
+			en.value=@(2000-02-29)
+			fr.value='02/29/2000 12:34+01:00'
+			fr.errors0=«Date of birth (en)» doit comporter une date valide.
+			it.value='02/29/2000 12:34+01:00'
+			it.errors0="Date of birth (en)" deve essere una data.
+			de.value='02/29/2000 12:34+01:00'
+			de.errors0="Geburtstag (de)" unterstützt dieses Datumsformat nicht.
+		""",
+	)
+
+
 def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz(handler, config_apps):
 	check_field(
 		handler,
@@ -1545,6 +1725,42 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz(handler
 	)
 
 
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_de(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_de",
+		"date_of_birth",
+		"'29.02.2000 12:34:56+01:00'",
+		"""
+			en.value='29.02.2000 12:34:56+01:00'
+			en.errors0="Date of birth (en)" doesn't support this date format.
+			fr.value=@(2000-02-29)
+			it.value=@(2000-02-29)
+			de.value=@(2000-02-29)
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_en(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_en",
+		"date_of_birth",
+		"'02/29/2000 12:34:56+01:00'",
+		"""
+			en.value=@(2000-02-29)
+			fr.value='02/29/2000 12:34:56+01:00'
+			fr.errors0=«Date of birth (en)» doit comporter une date valide.
+			it.value='02/29/2000 12:34:56+01:00'
+			it.errors0="Date of birth (en)" deve essere una data.
+			de.value='02/29/2000 12:34:56+01:00'
+			de.errors0="Geburtstag (de)" unterstützt dieses Datumsformat nicht.
+		""",
+	)
+
+
 def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz(handler, config_apps):
 	check_field(
 		handler,
@@ -1557,6 +1773,42 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz(ha
 			fr.value=@(2000-02-29)
 			it.value=@(2000-02-29)
 			de.value=@(2000-02-29)
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_de(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_de",
+		"date_of_birth",
+		"'29.02.2000 12:34:56.987654+01:00'",
+		"""
+			en.value='29.02.2000 12:34:56.987654+01:00'
+			en.errors0="Date of birth (en)" doesn't support this date format.
+			fr.value=@(2000-02-29)
+			it.value=@(2000-02-29)
+			de.value=@(2000-02-29)
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_en(handler, config_apps):
+	check_field(
+		handler,
+		config_apps,
+		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_en",
+		"date_of_birth",
+		"'02/29/2000 12:34:56.987654+01:00'",
+		"""
+			en.value=@(2000-02-29)
+			fr.value='02/29/2000 12:34:56.987654+01:00'
+			fr.errors0=«Date of birth (en)» doit comporter une date valide.
+			it.value='02/29/2000 12:34:56.987654+01:00'
+			it.errors0="Date of birth (en)" deve essere una data.
+			de.value='02/29/2000 12:34:56.987654+01:00'
+			de.errors0="Geburtstag (de)" unterstützt dieses Datumsformat nicht.
 		""",
 	)
 
