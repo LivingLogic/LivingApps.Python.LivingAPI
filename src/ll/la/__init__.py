@@ -2427,7 +2427,7 @@ class App(Base):
 			attrs.add(f"c_{identifier}")
 		if self.layout_controls:
 			for identifier in self.layout_controls:
-				attrs.add(f"c_{identifier}")
+				attrs.add(f"lc_{identifier}")
 		for identifier in self.params:
 			attrs.add(f"p_{identifier}")
 			attrs.add(f"pv_{identifier}")
@@ -2439,6 +2439,8 @@ class App(Base):
 		if name in self.ul4_attrs:
 			return True
 		elif name.startswith("c_") and name[2:] in self.controls:
+			return True
+		elif name.startswith("lc_") and self.layout_controls and name[3:] in self.layout_controls:
 			return True
 		elif name.startswith("p_") and name[2:] in self.params:
 			return True
@@ -7039,6 +7041,38 @@ class View(Base):
 
 	def _result_page_ul4onset(self, value):
 		self.use_use = not value
+
+	def __getattr__(self, name):
+		try:
+			if name.startswith("c_"):
+				return self.controls[name[2:]]
+			elif name.startswith("lc_"):
+				return self.layout_controls[name[3:]]
+		except KeyError:
+			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
+
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		for identifier in self.controls:
+			attrs.add(f"c_{identifier}")
+		for identifier in self.layout_controls:
+			attrs.add(f"lc_{identifier}")
+		return attrs
+
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
+			return True
+		elif name.startswith("c_") and name[2:] in self.controls:
+			return True
+		elif name.startswith("lc_") and name[3:] in self.layout_controls:
+			return True
+		else:
+			return super().ul4_hasattr(name)
 
 
 @register("datasource")
