@@ -2495,7 +2495,7 @@ class App(Base):
 
 	def _layout_controls_get(self):
 		if self.active_view is None:
-			return {}
+			return attrdict()
 		return self.active_view.layout_controls
 
 	def save(self, handler:T_opt_handler=None, recursive=True):
