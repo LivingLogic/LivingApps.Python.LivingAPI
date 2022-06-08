@@ -444,6 +444,8 @@ def test_app_shortcuts(handler, config_persons):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
+			includecontrols=la.DataSourceConfig.IncludeControls.ALL_LAYOUT,
+			includeviews=True,
 			includeparams=True,
 		),
 		identifier="test_livingapi_app_shortcuts",
@@ -453,6 +455,9 @@ def test_app_shortcuts(handler, config_persons):
 			<?print repr(app.params.bool_true.value)?>
 			<?print repr(app.p_bool_true.value)?>
 			<?print repr(app.pv_bool_true)?>
+			<?code app.active_view = first(app.views)?>
+			<?print repr(app.layout_controls.save.identifier)?>
+			<?print repr(app.lc_save.identifier)?>
 		"""
 	)
 
@@ -463,6 +468,8 @@ def test_app_shortcuts(handler, config_persons):
 		True
 		True
 		True
+		'save'
+		'save'
 	"""
 	assert lines(output) == lines(expected)
 

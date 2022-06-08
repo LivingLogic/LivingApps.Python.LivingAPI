@@ -2303,6 +2303,7 @@ class App(Base):
 	iconsmall = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	layout_controls = AttrDictAttr(get="", ul4get="_layout_controls_get")
 	records = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	recordcount = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	installation = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
