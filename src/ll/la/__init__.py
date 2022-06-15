@@ -5714,7 +5714,7 @@ class ViewTemplateConfig(Template):
 			This is similar to ``DETAIL``, but is used to replace the standard display
 			if a record is created or updated via the standard form.
 
-		``LISTDATAMANAGEMENT``
+		``DETAILDATAMANAGEMENT``
 			This is similar to ``DETAIL``, but a link to this view template will be
 			available for each record in the datamanagement.
 
