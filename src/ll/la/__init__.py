@@ -47,7 +47,7 @@ T_opt_str = Optional[str]
 
 NoneType = type(None)
 
-module = types.ModuleType("livingapps", "LivingAPI types")
+module = types.ModuleType("la", "LivingAPI types")
 module.ul4_attrs = {"__name__", "__doc__"}
 
 def register(name):
@@ -1075,6 +1075,12 @@ class Base:
 		The default implementation does nothing.
 		"""
 
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		return {name for name in self.__dict__ if name.startswith("x_")}
+
 	def ul4_getattr(self, name:str) -> Any:
 		attr = getattr(self.__class__, name, None)
 		if isinstance(attr, Attr):
@@ -1086,7 +1092,7 @@ class Base:
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def ul4_hasattr(self, name):
-		return name in self.ul4_attrs
+		return name in self.ul4_attrs or name.startswith("x_")
 
 	def ul4_setattr(self, name:str, value:Any) -> None:
 		attr = getattr(self.__class__, name, None)
@@ -1094,6 +1100,8 @@ class Base:
 			return attr.ul4set(self, value)
 		elif isinstance(attr, property):
 			return attr.fset(self, value)
+		elif name.startswith("x_"):
+			return setattr(self, name, value)
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 
@@ -1211,7 +1219,6 @@ class File(Base):
 	ul4_type = ul4c.Type("la", "File", "An uploaded file")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	url = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	filename = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	mimetype = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	width = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1219,15 +1226,23 @@ class File(Base):
 	internalid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	size = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	duration = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	geo = Attr(lambda: Geo, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	storagefilename = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	archive = Attr(lambda: File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	url = Attr(str, get=True, ul4get=True)
+	archive_url = Attr(str, get=True, ul4get=True)
 
-	def __init__(self, id=None, url=None, filename=None, mimetype=None, width=None, height=None, size=None, internalid=None, createdat=None, content=None):
+	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, storagefilename=None, archive=None, internalid=None, createdat=None, content=None):
 		self.id = id
-		self.url = url
 		self.filename = filename
 		self.mimetype = mimetype
 		self.width = width
 		self.height = height
 		self.size = size
+		self.duration = duration
+		self.geo = geo
+		self.storagefilename = storagefilename
 		self.internalid = internalid
 		self.createdat = createdat
 		self.handler = None
@@ -1242,6 +1257,17 @@ class File(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	@property
+	def url(self) -> str:
+		return f"/gateway/files/{self.id}"
+
+	@property
+	def archive_url(self) -> str:
+		if self.archive is None:
+			return self.url
+		else:
+			return f"{self.archive.url}/{self.storagefilename}"
 
 	def ul4_getattr(self, name):
 		# For these method call the version of the method instead, that doesn't
@@ -1280,6 +1306,7 @@ class File(Base):
 		width=(vsql.DataType.INT, "upl_width"),
 		height=(vsql.DataType.INT, "upl_height"),
 		size=(vsql.DataType.INT, "upl_size"),
+		duration=(vsql.DataType.INT, "upl_duration"),
 		createdat=(vsql.DataType.DATETIME, "upl_cdate"),
 	)
 
@@ -1686,11 +1713,6 @@ class Globals(Base):
 
 		The detail record.
 
-	.. attribute:: google_api_key
-		:type: Optional[str]
-
-		Google API key (e.g. for using the Google Maps API).
-
 	.. attribute:: mode
 		:type: Mode
 
@@ -1716,7 +1738,6 @@ class Globals(Base):
 		"version",
 		"hostname",
 		"platform",
-		"google_api_key",
 		"mode",
 		"app",
 		"record",
@@ -1751,11 +1772,15 @@ class Globals(Base):
 		FORM_NEW_INIT = "form/new/init"
 		FORM_NEW_SEARCH = "form/new/search"
 		FORM_NEW_LIVE = "form/new/live"
+		FORM_NEW_INPUT = "form/new/input"
+		FORM_NEW_GEO = "form/new/geo"
 		FORM_NEW_ERROR = "form/new/error"
 		FORM_NEW_SUCCESS = "form/new/success"
 		FORM_EDIT_INIT = "form/edit/init"
 		FORM_EDIT_SEARCH = "form/edit/search"
 		FORM_EDIT_LIVE = "form/edit/live"
+		FORM_EDIT_INPUT = "form/edit/input"
+		FORM_EDIT_GEO = "form/edit/geo"
 		FORM_EDIT_ERROR = "form/edit/error"
 		FORM_EDIT_SUCCESS = "form/edit/success"
 		VIEW_LIST = "view/list"
@@ -1769,13 +1794,11 @@ class Globals(Base):
 	user = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	maxdbactions = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	maxtemplateruntime = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	_flashes = Attr(default_factory=list, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	datasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	hostname = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
-	google_api_key = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	mode = EnumAttr(Mode, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	view_template_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	email_template_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
@@ -1797,7 +1820,6 @@ class Globals(Base):
 		self.request = None
 		self.response = None
 		self._templates = None
-		self.google_api_key = None
 		self.mode = mode
 		self.view_template_id = None
 		self.email_template_id = None
@@ -1916,6 +1938,9 @@ class Globals(Base):
 			__ https://docs.imgproxy.net/generating_the_url?id=enlarge
 
 		``gravity`` : :class:`str` or ``None``
+			Defines how images should be cropped when aspect ratios differ between
+			the original and the target sizes.
+
 			Allowed values are ``"no"``, ``"so"``, ``"ea"``, ``"we"``, ``"noea"``,
 			``"nowe"``, ``"soea"``, ``"sowe"``, ``"ce"`` and ``"sm"``. The default
 			is ``"sm"``. For more information see `the imgproxy documentation`__.
@@ -1947,8 +1972,10 @@ class Globals(Base):
 			__ https://docs.imgproxy.net/generating_the_url?id=sharpen
 
 		``format`` : :class:`str` or ``None``
-			Resulting image format. For more information see
-			`the imgproxy documentation`__.
+			Supported formats are ``"png"``, ``"jpg"``, ``"webp"``, ``"avif"``,
+			``"gif"``, ``"ico"``, ``"svg"``, ``"heic"``, ``"bmp"`` and ``"tiff"``
+			as well as ``None`` which results in the same format as the original
+			image. For more information see `the imgproxy documentation`__.
 
 			__ https://docs.imgproxy.net/generating_the_url?id=format
 
@@ -2010,7 +2037,7 @@ class Globals(Base):
 
 	@property
 	def templates(self):
-		return self.app.templates
+		return self.app.templates if self.app else attrdict()
 
 	vsqlsearchfield = vsql.Field("search", vsql.DataType.STR, "livingapi_pkg.global_search")
 
@@ -2019,16 +2046,17 @@ class Globals(Base):
 		return vsql.FieldRefAST.make_root(cls.vsqlsearchfield)
 
 	def __getattr__(self, name):
-		if self.datasources and name.startswith("d_"):
-			try:
+		try:
+			if self.datasources and name.startswith("d_"):
 				return self.datasources[name[2:]]
-			except KeyError:
-				pass
-		elif name.startswith("t_"):
-			try:
+			elif name.startswith("t_"):
 				return self.templates[name[2:]]
-			except KeyError:
-				pass
+			elif self.app and name.startswith("p_"):
+				return self.app.params[name[2:]]
+			elif self.app and name.startswith("pv_"):
+				return self.app.params[name[3:]].value
+		except KeyError:
+			pass
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def __dir__(self):
@@ -2041,15 +2069,17 @@ class Globals(Base):
 				attrs.add(f"d_{identifier}")
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
+		if self.app:
+			for identifier in self.app.params:
+				attrs.add(f"p_{identifier}")
+				attrs.add(f"pv_{identifier}")
 		return attrs
 
 	def ul4_setattr(self, name, value):
 		if name == "lang":
 			self.lang = value
-		elif self.ul4_hasattr(name):
-			raise AttributeError(error_attribute_readonly(self, name))
 		else:
-			raise AttributeError(error_attribute_doesnt_exist(self, name))
+			super().ul4_setattr(name, value)
 
 	def ul4_hasattr(self, name):
 		if name in self.ul4_attrs:
@@ -2058,8 +2088,12 @@ class Globals(Base):
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
+		elif self.app and name.startswith("p_") and name[2:] in self.app.params:
+			return True
+		elif self.app and name.startswith("pv_") and name[3:] in self.app.params:
+			return True
 		else:
-			return False
+			return super().ul4_hasattr(name)
 
 
 @register("app")
@@ -2269,12 +2303,13 @@ class App(Base):
 	iconsmall = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	layout_controls = AttrDictAttr(get="", ul4get="_layout_controls_get")
 	records = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	recordcount = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	installation = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	categories = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
-	params = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
-	views = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	params = AttrDictAttr(get="", set="", ul4get="_params_get", ul4onget="_params_ul4onget", ul4onset="_params_set")
+	views = Attr(get="", set="", ul4get="_views_get", ul4onget="_views_ul4onget", ul4onset="_views_set")
 	datamanagement_identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	basetable = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	primarykey = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2288,7 +2323,7 @@ class App(Base):
 	superid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	favorite = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	active_view = Attr(lambda: View, str, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	datasource = Attr(lambda: DataSourceData, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	datasource = Attr(lambda: DataSource, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2312,8 +2347,8 @@ class App(Base):
 		self.recordcount = recordcount
 		self.installation = installation
 		self.categories = categories
-		self.params = params
-		self.views = views
+		self._params = params
+		self._views = views
 		self.datamanagement_identifier = datamanagement_identifier
 		self.basetable = None
 		self.primarykey = None
@@ -2349,10 +2384,6 @@ class App(Base):
 		if value is not None:
 			self.records = value
 
-	def _params_ul4onset(self, value):
-		if value is not None:
-			self.params = value
-
 	def _active_view_set(self, value):
 		if isinstance(value, View):
 			if value.app is not self:
@@ -2377,11 +2408,16 @@ class App(Base):
 				return self.controls[name[2:]]
 			elif name.startswith("t_"):
 				return self.templates[name[2:]]
+			elif name.startswith("lc_") and self.layout_controls:
+				return self.layout_controls[name[3:]]
 			elif name.startswith("p_") and self.params:
 				return self.params[name[2:]]
+			elif name.startswith("pv_") and self.params:
+				return self.params[name[3:]].value
 		except KeyError:
-			pass
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
+
 
 	def __dir__(self):
 		"""
@@ -2390,9 +2426,12 @@ class App(Base):
 		attrs = set(super().__dir__())
 		for identifier in self.controls:
 			attrs.add(f"c_{identifier}")
-		if self.params:
-			for identifier in self.params:
-				attrs.add(f"p_{identifier}")
+		if self.layout_controls:
+			for identifier in self.layout_controls:
+				attrs.add(f"lc_{identifier}")
+		for identifier in self.params:
+			attrs.add(f"p_{identifier}")
+			attrs.add(f"pv_{identifier}")
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
 		return attrs
@@ -2402,12 +2441,16 @@ class App(Base):
 			return True
 		elif name.startswith("c_") and name[2:] in self.controls:
 			return True
-		elif name.startswith("p_") and self.params and name[2:] in self.params:
+		elif name.startswith("lc_") and self.layout_controls and name[3:] in self.layout_controls:
+			return True
+		elif name.startswith("p_") and name[2:] in self.params:
+			return True
+		elif name.startswith("pv_") and name[3:] in self.params:
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
 		else:
-			return False
+			return super().ul4_hasattr(name)
 
 	def _gethandler(self, handler):
 		if handler is None:
@@ -2415,6 +2458,46 @@ class App(Base):
 				raise NoHandlerError()
 			handler = self.globals.handler
 		return handler
+
+	def _params_get(self):
+		params = self._params
+		if params is None:
+			handler = self.globals.handler
+			if handler is not None:
+				params = handler.app_params_incremental_data(self.id)
+				if params is not None:
+					params = attrdict(params)
+					self._params = params
+		return params
+
+	def _params_set(self, value):
+		self._params = value
+
+	def _params_ul4onget(self):
+		return self._params
+
+	def _params_ul4onset(self, value):
+		if value is not None:
+			self.params = value
+
+	def _views_get(self):
+		views = self._views
+		if views is None:
+			handler = self.globals.handler
+			if handler is not None:
+				views = self._views = handler.app_views_incremental_data(self.id)
+		return views
+
+	def _views_set(self, value):
+		self._views = value
+
+	def _views_ul4onget(self):
+		return self._views
+
+	def _layout_controls_get(self):
+		if self.active_view is None:
+			return attrdict()
+		return self.active_view.layout_controls
 
 	def save(self, handler:T_opt_handler=None, recursive=True):
 		self._gethandler(handler).save_app(self, recursive=recursive)
@@ -2455,7 +2538,7 @@ class App(Base):
 					self.internaltemplates = attrdict()
 				template.app = self
 				self.internaltemplates[template.identifier] = template
-			elif isinstance(template, ViewTemplate):
+			elif isinstance(template, ViewTemplateConfig):
 				if self.viewtemplates is None:
 					self.viewtemplates = attrdict()
 				template.app = self
@@ -2699,7 +2782,7 @@ class Control(Base):
 	type = Attr(str, get="", ul4get="_type_get")
 	subtype = Attr(str, get="", ul4get="_subtype_get")
 	fulltype = Attr(str, get="", ul4get="_fulltype_get")
-	field = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	fieldname = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	label = Attr(str, get="", set=True, ul4get="_label_get", ul4onget=True, ul4onset=True)
 	priority = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2718,11 +2801,11 @@ class Control(Base):
 	labelpos = EnumAttr(LabelPos, get="", ul4get="")
 	in_active_view = BoolAttr(get="", ul4get="_in_active_view_get")
 
-	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None):
+	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None):
 		self.id = id
 		self.app = None
 		self.identifier = identifier
-		self.field = field
+		self.fieldname = fieldname
 		self.label = label
 		self.priority = priority
 		self.order = order
@@ -3181,7 +3264,18 @@ class NumberControl(Control):
 	_type = "number"
 	_fulltype = _type
 
+	ul4_attrs = Control.ul4_attrs.union({"precision", "minimum", "maximum"})
 	ul4_type = ul4c.Type("la", "NumberControl", "A LivingApps number field (type 'number')")
+
+	precision = Attr(int, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	minimum = FloatAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	maximum = FloatAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None):
+		super().__init__(id=id, identifier=identifier, fieldname=fieldname, label=label, priority=priority, order=order)
+		self.precision = None
+		self.minimum = None
+		self.maximum = None
 
 	def _set_value(self, field, value):
 		if value is None or value == "":
@@ -3257,6 +3351,37 @@ class DateControl(Control):
 
 	format = Attr(str, get="", ul4get="_format_get")
 
+	_suffixes = [
+		"",
+		" %H:%M",
+		"T%H:%M",
+		" %H:%M:%S",
+		"T%H:%M:%S",
+		" %H:%M:%S.%f",
+		"T%H:%M:%S.%f",
+		" %H:%M%z",
+		"T%H:%M%z",
+		" %H:%M:%S%z",
+		"T%H:%M:%S%z",
+		" %H:%M:%S.%f%z",
+		"T%H:%M:%S.%f%z",
+		" %H:%M %z",
+		"T%H:%M %z",
+		" %H:%M:%S %z",
+		"T%H:%M:%S %z",
+		" %H:%M:%S.%f %z",
+		"T%H:%M:%S.%f %z",
+	]
+
+	formats = dict(
+		en=["%m/%d/%Y" + suffix for suffix in _suffixes],
+		de=["%d.%m.%Y" + suffix for suffix in _suffixes],
+		fr=["%d.%m.%Y" + suffix for suffix in _suffixes],
+		it=["%d.%m.%Y" + suffix for suffix in _suffixes],
+	)
+
+	del _suffixes
+
 	def _default_get(self):
 		vc = self._get_viewcontrol()
 		if vc is not None:
@@ -3270,6 +3395,20 @@ class DateControl(Control):
 			value = value.date()
 		return value
 
+	def _parse_value(self, value):
+		lang = self.app.globals.lang
+		if lang in self.formats:
+			for format in self.formats[lang]:
+				try:
+					return self._convert(datetime.datetime.strptime(value, format))
+				except ValueError:
+					pass
+		try:
+			return self._convert(datetime.datetime.fromisoformat(value))
+		except ValueError:
+			pass
+		return value
+
 	def _set_value(self, field, value):
 		if value is None or value == "":
 			if self.required:
@@ -3278,33 +3417,10 @@ class DateControl(Control):
 		elif isinstance(value, datetime.date):
 			value = self._convert(value)
 		elif isinstance(value, str):
-			charcount = len(value)
-			if charcount == 10:
-				try:
-					value = datetime.date.fromisoformat(value)
-				except ValueError:
-					field.add_error(error_date_format(field, value))
-					# We keep the string value, as a <form> input might want to display it.
-				else:
-					value = self._convert(value)
-			elif charcount in {16, 19, 26}:
-				try:
-					value = datetime.datetime.fromisoformat(value)
-				except ValueError:
-					field.add_error(error_date_format(field, value))
-					# We keep the string value, as a <form> input might want to display it.
-				else:
-					value = self._convert(value)
-			elif charcount in {22, 25, 32} and _is_timezone(value[-6:]):
-				try:
-					value = datetime.datetime.fromisoformat(value[:-6])
-				except ValueError:
-					field.add_error(error_date_format(field, value))
-					# We keep the string value, as a <form> input might want to display it.
-				else:
-					value = self._convert(value)
-			else:
+			value = self._parse_value(value)
+			if isinstance(value, str):
 				field.add_error(error_date_format(field, value))
+				# We keep the string value, as a <form> input might want to display it.
 		else:
 			field.add_error(error_wrong_type(field, value))
 			value = None
@@ -3525,8 +3641,8 @@ class LookupControl(Control):
 	none_label = Attr(str, get="", ul4get="_none_label_get")
 	autoexpandable = BoolAttr(get="", ul4get="_autoexpandable_get")
 
-	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, lookupdata=None, autoexpandable=False):
-		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order)
+	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None, lookupdata=None, autoexpandable=False):
+		super().__init__(id=id, identifier=identifier, fieldname=fieldname, label=label, priority=priority, order=order)
 		self.lookupdata = lookupdata
 		self.autoexpandable = autoexpandable
 
@@ -3703,8 +3819,8 @@ class AppLookupControl(Control):
 	none_key = Attr(str, get="", ul4get="_none_key_get")
 	none_label = Attr(str, get="", ul4get="_none_label_get")
 
-	def __init__(self, id=None, identifier=None, field=None, label=None, priority=None, order=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None):
-		super().__init__(id=id, identifier=identifier, field=field, label=label, priority=priority, order=order)
+	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None):
+		super().__init__(id=id, identifier=identifier, fieldname=fieldname, label=label, priority=priority, order=order)
 		self.lookup_app = lookup_app
 		self.lookup_controls = lookup_controls
 		self.local_master_control = local_master_control
@@ -4416,13 +4532,13 @@ class ViewControl(Base):
 		return self.id
 
 	def _identifier_get(self):
-		return self.control.identifier
+		return self.control.identifier if self.control is not None else "?"
 
 	def _type_get(self):
-		return self.control.type
+		return self.control.type if self.control is not None else "?"
 
 	def _subtype_get(self):
-		return self.control.subtype
+		return self.control.subtype if self.control is not None else "?"
 
 	def _mode_ul4onget(self):
 		return self.mode is Control.Mode.DISPLAY
@@ -4548,7 +4664,7 @@ class Record(Base):
 	updatecount = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fields = AttrDictAttr(get="", ul4get="_fields_get")
 	values = AttrDictAttr(get="", set=True, ul4get="_values_get", ul4onget="", ul4onset="")
-	attachments = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset="")
 	errors = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
@@ -4623,6 +4739,23 @@ class Record(Base):
 		# Set the following attributes via ``__dict__``, as they are "read only".
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
+
+	def _attachments_get(self):
+		attachments = self._attachments
+		if attachments is None and self.id is not None:
+			handler = self.app.globals.handler
+			if handler is not None:
+				attachments = handler.record_attachments_incremental_data(self.id)
+				if attachments is not None:
+					attachments = attrdict(attachments)
+					self._attachments = attachments
+		return attachments
+
+	def _attachments_set(self, value):
+		self._attachments = value
+
+	def _attachments_ul4onget(self):
+		return self._attachments
 
 	def _fielderrors_ul4onget(self):
 		if self._sparsefielderrors is not None:
@@ -4734,8 +4867,8 @@ class Record(Base):
 				if isinstance(attr, Attr):
 					return attr.get(self)
 		except KeyError:
-			pass
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
 
 	def __setattr__(self, name, value):
 		try:
@@ -4749,14 +4882,19 @@ class Record(Base):
 			pass
 		else:
 			super().__setattr__(name, value)
-			return
-		raise AttributeError(error_attribute_readonly(self, name))
 
 	def __dir__(self):
 		"""
 		Make keys completeable in IPython.
 		"""
-		return set(super().__dir__()) | {f"f_{identifier}" for identifier in self.app.controls} | {f"v_{identifier}" for identifier in self.app.controls} | {f"c_{identifier}" for identifier in self.children}
+		attrs = set(super().__dir__())
+		for identifier in self.app.controls:
+			attrs.add(f"f_{identifier}")
+			attrs.add(f"v_{identifier}")
+		if self.children:
+			for identifier in self.children:
+				attrs.add(f"c_{identifier}")
+		return attrs
 
 	def ul4_hasattr(self, name):
 		if name in self.ul4_attrs:
@@ -4765,26 +4903,29 @@ class Record(Base):
 			return name[2:] in self.app.controls
 		elif name.startswith("c_"):
 			return name[2:] in self.children
-		return False
+		else:
+			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		# For these method call the version of the method instead, that doesn't
+		# For these methods call the version of the method instead, that doesn't
 		# support the ``handler`` parameter.
 		if name in {"save", "delete", "executeaction"}:
 			return getattr(self, "ul4" + name)
-		return super().ul4_getattr(name)
+		return getattr(self, name)
 
 	def ul4_setattr(self, name, value):
 		if name.startswith("v_") and name[2:] in self.app.controls:
 			setattr(self, name, value)
+			return
 		elif name.startswith("c_"):
 			if self.children is None:
 				self.children = attrdict()
 			self.children[name[2:]] = value
+			return
 		elif name == "children":
 			self.children = value
-		else:
-			raise AttributeError(error_attribute_readonly(self, name))
+			return
+		super().ul4_setattr(name, value)
 
 	def _gethandler(self, handler):
 		if handler is None:
@@ -5193,7 +5334,7 @@ class ImageAttachment(Attachment):
 
 	type = "imageattachment"
 
-	original = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	original = Attr(File, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	thumb = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	small = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	medium = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -5216,7 +5357,7 @@ class SimpleAttachment(Attachment):
 	ul4_attrs = Attachment.ul4_attrs.union({"value"})
 	ul4_type = ul4c.Type("la", "SimpleAttachment", "A simple attachment of a record")
 
-	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, record=None, label=None, active=None, value=None):
 		super().__init__(id=id, record=record, label=label, active=active)
@@ -5240,7 +5381,7 @@ class FileAttachment(SimpleAttachment):
 
 	type = "fileattachment"
 
-	value = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(File, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("urlattachment")
@@ -5260,7 +5401,7 @@ class URLAttachment(SimpleAttachment):
 
 	type = "urlattachment"
 
-	value = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(str, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("noteattachment")
@@ -5280,7 +5421,7 @@ class NoteAttachment(SimpleAttachment):
 
 	type = "noteattachment"
 
-	value = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(str, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("jsonattachment")
@@ -5299,7 +5440,7 @@ class JSONAttachment(SimpleAttachment):
 
 	type = "jsonattachment"
 
-	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	value = Attr(repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 
 	def _value_ul4onset(self, value):
 		if value is not None:
@@ -5503,10 +5644,10 @@ class InternalTemplate(Template):
 		self._gethandler(handler).delete_internaltemplate(self)
 
 
-@register("viewtemplate")
-class ViewTemplate(Template):
+@register("viewtemplateconfig")
+class ViewTemplateConfig(Template):
 	"""
-	A :class:`!ViewTemplate` provides a webpage.
+	A :class:`!ViewTemplateConfig` provides a webpage.
 
 	Relevant instance attributes are:
 
@@ -5531,7 +5672,7 @@ class ViewTemplate(Template):
 		Configured data sources
 	"""
 
-	ul4_type = ul4c.Type("la", "ViewTemplate", "A view template")
+	ul4_type = ul4c.Type("la", "ViewTemplateConfig", "A view template")
 
 	class Type(misc.Enum):
 		"""
@@ -5557,6 +5698,10 @@ class ViewTemplate(Template):
 
 				/gateway/apps/1234567890abcdef12345678
 
+		``LISTDATAMANAGEMENT``
+			This is similar to ``LIST``, but a link to this view template will be
+			available in the datamanagement.
+
 		``DETAIL``
 			The template is supposed to display the details of a single record. The
 			URL looks like this::
@@ -5569,6 +5714,10 @@ class ViewTemplate(Template):
 			This is similar to ``DETAIL``, but is used to replace the standard display
 			if a record is created or updated via the standard form.
 
+		``DETAILDATAMANAGEMENT``
+			This is similar to ``DETAIL``, but a link to this view template will be
+			available for each record in the datamanagement.
+
 		``SUPPORT``
 			The template is supposed to be independant of any record. This can be
 			used for delivering static CSS or similar stuff. The URL looks the same
@@ -5577,8 +5726,10 @@ class ViewTemplate(Template):
 
 		LIST = "list"
 		LISTDEFAULT = "listdefault"
+		LISTDATAMANAGEMENT = "listdatamanagement"
 		DETAIL = "detail"
 		DETAILRESULT = "detailresult"
+		DETAILDATAMANAGEMENT = "detaildatamanagement"
 		SUPPORT = "support"
 
 	class Permission(misc.IntEnum):
@@ -5600,7 +5751,7 @@ class ViewTemplate(Template):
 		self.permission = permission
 		self.datasources = attrdict()
 		for arg in args:
-			if isinstance(arg, DataSource):
+			if isinstance(arg, DataSourceConfig):
 				self.adddatasource(arg)
 			else:
 				raise TypeError(f"don't know what to do with positional argument {arg!r}")
@@ -5621,14 +5772,14 @@ class ViewTemplate(Template):
 		self._gethandler(handler).delete_viewtemplate(self)
 
 
-@register("datasource")
-class DataSource(Base):
+@register("datasourceconfig")
+class DataSourceConfig(Base):
 	"""
-	A :class:`DataSource` contains the configuration to provide information about
-	one (or more) apps and their records to a :class:`ViewTemplate` or other
+	A :class:`DataSourceConfig` contains the configuration to provide information about
+	one (or more) apps and their records to a :class:`ViewTemplateConfig` or other
 	templates.
 
-	The resulting information will be a :class:`DataSourceData` object.
+	The resulting information will be a :class:`DataSource` object.
 
 	Relevant instance attributes are:
 
@@ -5638,7 +5789,7 @@ class DataSource(Base):
 		Unique database id.
 
 	.. attribute:: parent
-		:type: ViewTemplate
+		:type: ViewTemplateConfig
 
 		The view template this datasource belongs to.
 
@@ -5728,7 +5879,7 @@ class DataSource(Base):
 	"""
 
 	ul4_attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includeparams", "includeviews", "includecategories", "orders", "children"}
-	ul4_type = ul4c.Type("la", "DataSource", "A data source for a view, email or form template")
+	ul4_type = ul4c.Type("la", "DataSourceConfig", "A data source for a view, email or form template")
 
 	class IncludeControls(misc.IntEnum):
 		"""
@@ -5808,7 +5959,7 @@ class DataSource(Base):
 		APPS = 3
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	parent = Attr(ViewTemplate, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(ViewTemplateConfig, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	includecloned = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
@@ -5876,7 +6027,7 @@ class DataSource(Base):
 		return self.parent._gethandler(handler)
 
 	def save(self, handler:T_opt_handler=None, recursive=True):
-		self._gethandler(handler).save_datasource(self)
+		self._gethandler(handler).save_datasourceconfig(self)
 
 
 @register("datasourcechildren")
@@ -5901,7 +6052,7 @@ class DataSourceChildren(Base):
 		:type: str
 
 		A unique identifier for this object (unique among the other
-		:class:`DataSourceChildren` objects of the :class:`DataSource`).
+		:class:`DataSourceChildren` objects of the :class:`DataSourceConfig`).
 
 	.. attribute:: control
 		:type: Control
@@ -5983,9 +6134,10 @@ class DataOrder(Base):
 		Unique database id
 
 	.. attribute:: parent
-		:type: DataSource
+		:type: Union[DataSourceConfig, DataSourceChildren]
 
-		The :class:`DataSource` or :class:`DataSourceChildren` this object belongs to
+		The :class:`DataSourceConfig` or :class:`DataSourceChildren` this object
+		belongs to
 
 	.. attribute:: expression
 		:type: str
@@ -6035,7 +6187,7 @@ class DataOrder(Base):
 		LAST = "last"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	parent = Attr(DataSource, DataSourceChildren, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(DataSourceConfig, DataSourceChildren, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	expression = VSQLAttr("?", get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	direction = EnumAttr(Direction, get=True, set=True, required=True, default=Direction.ASC, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	nulls = EnumAttr(Nulls, get=True, set=True, required=True, default=Nulls.LAST, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -6719,7 +6871,7 @@ class HTMLLayoutControl(LayoutControl):
 @register("imagelayoutcontrol")
 class ImageLayoutControl(LayoutControl):
 	"""
-	An :class:`!ImageLayoutControl` provides an image as decorarion for an input form.
+	An :class:`!ImageLayoutControl` provides an image as decoration for an input form.
 
 	Relevant instance attributes are:
 
@@ -6742,6 +6894,18 @@ class ImageLayoutControl(LayoutControl):
 
 	image_original = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	image_scaled = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+
+@register("buttonlayoutcontrol")
+class ButtonLayoutControl(LayoutControl):
+	"""
+	A :class:`!ButtonLayoutControl` describes a submit button in an input form.
+	"""
+
+	type = "button"
+	_subtype = None
+
+	ul4_type = ul4c.Type("la", "ButtonLayoutControl", "A submit button in an input form")
 
 
 @register("view")
@@ -6812,9 +6976,25 @@ class View(Base):
 		:type: str
 
 		Language of this view
+
+	.. attribute:: login_required
+		:type: bool
+
+		If true the user mut be logged in to be able to fill out the form.
+
+	.. attribute:: result_page
+		:type: bool
+
+		If true the content of the standard result page will be replaced with
+		the output of a view template.
+
+	.. attribute:: use_geo
+		:type: View.UseGeo
+
+		Should the input form use the geo location of the user?
 	"""
 
-	ul4_attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "lang", "controls", "layout_controls"}
+	ul4_attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "lang", "login_required", "result_page", "use_geo", "controls", "layout_controls"}
 	ul4_type = ul4c.Type("la", "View", "An input form for a LivingApps application")
 
 	class CombinedType(misc.Enum):
@@ -6824,6 +7004,15 @@ class View(Base):
 
 		TABS = "tabs"
 		WIZARD = "wizard"
+
+	class UseGeo(misc.Enum):
+		"""
+		Use geo location in the input form?
+		"""
+
+		NO = "no"
+		ONCE = "once"
+		WATCH = "watch"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -6837,8 +7026,11 @@ class View(Base):
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	layout_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	login_required = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	result_page = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset="")
+	use_geo = EnumAttr(UseGeo, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None, lang=None):
+	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None, lang=None, login_required=False, result_page=True, use_geo="no"):
 		self.id = id
 		self.name = name
 		self.combined_type = None
@@ -6849,19 +7041,58 @@ class View(Base):
 		self.start = start
 		self.end = end
 		self.lang = lang
+		self.login_required = login_required
+		self.result_page = result_page
+		self.use_geo = use_geo
+
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
 
+	def _result_page_ul4onset(self, value):
+		self.use_use = not value
 
-@register("datasourcedata")
-class DataSourceData(Base):
+	def __getattr__(self, name):
+		try:
+			if name.startswith("c_"):
+				return self.controls[name[2:]]
+			elif name.startswith("lc_"):
+				return self.layout_controls[name[3:]]
+		except KeyError:
+			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
+
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		for identifier in self.controls:
+			attrs.add(f"c_{identifier}")
+		for identifier in self.layout_controls:
+			attrs.add(f"lc_{identifier}")
+		return attrs
+
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
+			return True
+		elif name.startswith("c_") and name[2:] in self.controls:
+			return True
+		elif name.startswith("lc_") and name[3:] in self.layout_controls:
+			return True
+		else:
+			return super().ul4_hasattr(name)
+
+
+@register("datasource")
+class DataSource(Base):
 	"""
-	A :class:`!DataSourceData` object provides information about one (or more)
+	A :class:`!DataSource` object provides information about one (or more)
 	apps and their records to a :class:`ViewTemplate` or other templates.
 
-	This information is configured by :class:`DataSource` objects.
+	This information is configured by :class:`DataSourceConfig` objects.
 
 	Relevant instance attribytes are:
 
@@ -6889,7 +7120,7 @@ class DataSourceData(Base):
 	"""
 
 	ul4_attrs = {"id", "identifier", "app", "apps"}
-	ul4_type = ul4c.Type("la", "DataSourceData", "The data resulting from a data source configuration")
+	ul4_type = ul4c.Type("la", "DataSource", "The data resulting from a data source configuration")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)

@@ -11,7 +11,6 @@ from ll import la
 ### Data and helper functions
 ###
 
-
 class attrdict(dict):
 	def __getattr__(self, key):
 		try:
@@ -63,31 +62,26 @@ def check_vsql(config_persons, code, result=None):
 
 	# Use the name of the calling function (without "test_")
 	# as the name of the view template.
-	filename = pathlib.Path(sys._getframe(1).f_code.co_filename).with_suffix("").name[5:]
+	filename = pathlib.Path(sys._getframe(1).f_code.co_filename).with_suffix("").name
 	functionname = sys._getframe(1).f_code.co_name[5:]
 	identifier = f"{filename}_{functionname}"
 	handler = PythonDB()
 
-	source = f"""
-		<?whitespace strip?>
-		<?print len(datasources.persons.app.records)?>
-	"""
-
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			recordfilter=code,
 			identifier="persons",
 			app=c.apps.persons,
 			includeparams=True,
 		),
 		identifier=identifier,
-		source=source,
+		source="""
+			<?whitespace strip?>
+			<?print len(datasources.persons.app.records)?>
+		""",
 	)
 
-	output = handler.renders(
-		person_app_id(),
-		template=vt.identifier,
-	)
+	output = handler.renders(person_app_id(), template=vt.identifier)
 
 	if result is None:
 		assert "0" != output
@@ -104,12 +98,12 @@ class Handler:
 		self.dbhandler = la.DBHandler(connectstring=connect(), uploaddir=uploaddir(), ide_account=user())
 
 	def make_viewtemplate(self, *args, **kwargs):
-		viewtemplate = la.ViewTemplate(*args, **{**{"mimetype": "text/plain"}, **kwargs})
+		viewtemplate = la.ViewTemplateConfig(*args, **{**{"mimetype": "text/plain"}, **kwargs})
 		app = la.App()
 		app.id = person_app_id()
 		app.addtemplate(viewtemplate)
-		app.save(self.dbhandler)
-		self.dbhandler.commit()
+		with self.dbhandler:
+			app.save(self.dbhandler)
 		return viewtemplate
 
 	def make_internaltemplate(self, *args, **kwargs):
@@ -117,9 +111,10 @@ class Handler:
 		app = la.App()
 		app.id = person_app_id()
 		app.addtemplate(internaltemplate)
-		app.save(self.dbhandler)
-		self.dbhandler.commit()
+		with self.dbhandler:
+			app.save(self.dbhandler)
 		return internaltemplate
+
 
 class LocalTemplateHandler(Handler):
 	def __init__(self):
@@ -143,14 +138,19 @@ class LocalTemplateHandler(Handler):
 
 class PythonDB(LocalTemplateHandler):
 	def renders(self, *path, **params):
-		template = self.make_ul4template(**params)
-		vars = self.dbhandler.viewtemplate_data(*path, **params)
-		globals = vars["globals"]
-		globals.request = la.HTTPRequest()
-		globals.request.params.update(**params)
-		result = template.renders(**vars)
-		self.dbhandler.commit()
+		with self.dbhandler:
+			template = self.make_ul4template(**params)
+		with self.dbhandler:
+			vars = self.dbhandler.viewtemplate_data(*path, **params)
+			globals = vars["globals"]
+			globals.request = la.HTTPRequest()
+			globals.request.params.update(**params)
+			# Make sure that we render the template with the same handler and db state
+			# as we had when we fetched the UL4ON, as rendering the template might
+			# load data incrementally
+			result = template.renders_with_globals([], vars, dict(globals=globals, la=la.module))
 		return result
+
 
 
 class PythonHTTP(LocalTemplateHandler):
@@ -160,11 +160,18 @@ class PythonHTTP(LocalTemplateHandler):
 
 	def renders(self, *path, **params):
 		template = self.make_ul4template(**params)
-		vars = self.testhandler.viewtemplate_data(*path, **params)
-		globals = vars["globals"]
-		globals.request = la.HTTPRequest()
-		globals.request.params.update(**params)
-		result = template.renders(**vars)
+		with self.testhandler:
+			vars = self.testhandler.viewtemplate_data(*path, **params)
+		# We don't have to call the following code inside the ``with`` block
+		# since the data was fetched by the ``HTTPHandler`` which doesn't support
+		# loading data incrementally anyway. But this means that test might fail
+		# for these dynamic attributes (or have to be skipped).
+		# But note that we *do* have to call it inside a separate ``with`` block
+		# se that the backref registry gets reset afterwards
+			globals = vars["globals"]
+			globals.request = la.HTTPRequest()
+			globals.request.params.update(**params)
+			result = template.renders_with_globals([], vars, dict(globals=globals, la=la.module))
 		return result
 
 
@@ -177,9 +184,10 @@ class GatewayHTTP(Handler):
 		self.testhandler._login()
 		gatewayurl = url() + "gateway/apps/" + "/".join(path)
 		kwargs = dict(params={f"{k}[]" if isinstance(v, list) else k: v for (k, v) in params.items()})
-		self.testhandler._add_auth_token(kwargs)
-		response = self.testhandler.session.get(gatewayurl, **kwargs)
-		result = response.text
+		with self.testhandler:
+			self.testhandler._add_auth_token(kwargs)
+			response = self.testhandler.session.get(gatewayurl, **kwargs)
+			result = response.text
 		return result
 
 
@@ -189,8 +197,16 @@ class JavaDB(LocalTemplateHandler):
 		(dbuserpassword, self.connectdescriptor) = connect().split("@", 1)
 		(self.dbuser, self.dbpassword) = dbuserpassword.split("/")
 
+	def _indent(self, text):
+		return textwrap.indent(text, "\t\t")
+
 	def renders(self, *path, **params):
-		template = self.make_ul4template(**params)
+		url = "/".join(path)
+		if params:
+			url += "?" + "&".join(f"{k}={v}" for (k, v) in params.items())
+		print(f"Running {url}")
+		with self.dbhandler:
+			template = self.make_ul4template(**params)
 		if "template" in params:
 			templateidentifier = params["template"]
 			del params["template"]
@@ -208,17 +224,28 @@ class JavaDB(LocalTemplateHandler):
 			templateidentifier=templateidentifier,
 			params=params,
 		)
-		print(repr(data))
-		dump = ul4on.dumps(data).encode("utf-8")
-		print(repr(dump))
-		result = subprocess.run("java com.livinglogic.livingapps.livingapi.Tester", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+		dump = ul4on.dumps(data)
+		print(f"\tInput data as UL4ON dump is:\n{self._indent(dump)}")
+		dump = dump.encode("utf-8")
+		currentdir = pathlib.Path.cwd()
+		try:
+			os.chdir(pathlib.Path.home() / "checkouts/LivingApps.Java.LivingAPI")
+			result = subprocess.run("gradle -q --console=plain execute", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+		finally:
+			os.chdir(currentdir)
+		print(f"\tReturn code is {result.returncode}")
 		# Check if we have an exception
 		stderr = result.stderr.decode("utf-8", "passbytes")
-		self._find_exception(stderr)
-		if stderr:
-			# No exception found, but we still have error output, so complain anyway
-			raise ValueError(stderr)
-		return result.stdout.decode("utf-8", "passbytes")
+		print(f"\tOutput on stderr is:\n{self._indent(stderr)}")
+		if result.returncode != 0:
+			self._find_exception(stderr)
+			if stderr:
+				# No exception found, but we still have error output,
+				# so complain anyway with the original output
+				raise ValueError(stderr)
+		stdout = result.stdout.decode("utf-8", "passbytes")
+		print(f"\tOutput on stdout is:\n{self._indent(stdout)}")
+		return stdout
 
 	def _find_exception(self, output):
 		lines = output.splitlines()
@@ -243,7 +270,6 @@ class JavaDB(LocalTemplateHandler):
 			if exc is None:
 				exc = newexc
 		if exc is not None:
-			print(output, file=sys.stderr)
 			raise exc
 
 
@@ -308,12 +334,12 @@ def config_norecords(config_apps):
 	identifier = "makerecords"
 
 	c.apps.persons.addtemplate(
-		la.ViewTemplate(
-			la.DataSource(
+		la.ViewTemplateConfig(
+			la.DataSourceConfig(
 				identifier="persons",
 				app=c.apps.persons,
 			),
-			la.DataSource(
+			la.DataSourceConfig(
 				la.DataSourceChildren(
 					control=c.apps.fields.c_parent,
 					identifier="children",
@@ -326,6 +352,7 @@ def config_norecords(config_apps):
 	)
 	c.apps.persons.viewtemplates.makerecords.save(c.handler)
 
+	c.handler.reset()
 	c.handler.commit()
 
 	vars = c.handler.viewtemplate_data(person_app_id(), template=identifier)
@@ -347,6 +374,7 @@ def config_norecords(config_apps):
 		if r.v_parent is None:
 			removeaa(r)
 
+	c.handler.reset()
 	c.handler.commit()
 
 	# Replace both :class:`la.App` objects with ones that have records.
@@ -385,6 +413,7 @@ def config_fields(config_norecords):
 	c.areas.industry = aa(name="Industry")
 	c.areas.sport = aa(name="Sport")
 
+	c.handler.reset()
 	c.handler.commit()
 
 	return c
@@ -551,6 +580,7 @@ def config_persons(config_fields):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg/220px-2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg"),
 	)
 
+	c.handler.reset()
 	c.handler.commit()
 
 	return c

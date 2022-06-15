@@ -1,3 +1,48 @@
+0.15 (2022-06-15)
+-----------------
+
+*	Add support for custom attributes (whose name starts with ``x_``).
+
+*	Added ``File`` attributes: ``duration``, ``geo``, ``storagefilename``,
+	``archive`` and ``archive_url``.
+
+*	Added new values for ``Globals.mode``: ``form/new/input``, ``form/new/geo``,
+	``form/edit/input`` and ``form/edit/geo``.
+
+*	Added shortcut attributes to ``Globals``: ``p_*`` for app parameters,
+	``pv_*`` for app parameter values.
+
+*	Added shortcut attributes to ``App``: ``lc_*`` for layout controls,
+	and ``pv_*`` for app parameter values.
+
+*	Added shortcut attributes to ``Veiw``: ``c_*`` for controls and ``lc_*``
+	for layout controls.
+
+*	The following attributes are now fetched from the database incrementally,
+	if they haven't been part of the UL4ON dump: ``App.params``, ``App.views``
+	and ``Record.attachments``.
+
+*	Added attributes to ``NumberControl``: ``precision``, ``minimum`` and
+	``maximum``.
+
+*	When setting values of date fields, now the language specific format
+	(from ``globals.lang``) will be considered.
+
+*	Added new values to ``ViewTemplateConfig.Type``: ``LISTDATAMANAGEMENT`` and
+	``DETAILDATAMANAGEMENT``.
+
+*	Added ``ButtonLayoutControl``.
+
+*	Added ``View`` attributes: ``login_required``, ``result_page`` and
+	``use_geo``.
+
+*	Make ``DBHandler`` usable as a context manager (leaving the context manager
+	commits or rolls back the connection and reset the UL4ON decoder).
+
+*	Rename classes: ``ViewTemplate`` to ``ViewTemplateConfig``, ``DataSource``
+	to ``DataSourceConfig``, ``DataSourceData`` to ``DataSource``.
+
+
 0.14.3 (2022-01-10)
 -------------------
 

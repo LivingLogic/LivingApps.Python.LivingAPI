@@ -83,12 +83,42 @@ class Handler:
 		}
 		self.ul4on_decoder = ul4on.Decoder(registry)
 
+	def reset(self):
+		"""
+		Reset the handler to the initial state.
+
+		This reset the UL4ON decoder.
+		"""
+		self.ul4on_decoder.reset()
+
+	def commit(self):
+		pass
+
+	def rollback(self):
+		pass
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, exc_type, exc_value, traceback):
+		self.reset()
+		if exc_type is not None:
+			self.rollback()
+		else:
+			self.commit()
+
 	def get(self, *path, **params):
 		warnings.warn("The method get() is deprecated, please use viewtemplate_data() instead.")
 		return self.viewtemplate_data(*path, **params)
 
 	def viewtemplate_data(self, *path, **params):
 		raise NotImplementedError
+
+	def app_params_incremental_data(self, id):
+		return None
+
+	def record_attachments_data(self, id):
+		return None
 
 	def meta_data(self, *appids):
 		raise NotImplementedError
@@ -222,7 +252,7 @@ class Handler:
 	def delete_internaltemplate(self, internaltemplate):
 		raise NotImplementedError
 
-	def save_datasource(self, datasource, recursive=True):
+	def save_datasourceconfig(self, datasource, recursive=True):
 		raise NotImplementedError
 
 	def save_datasourcechildren(self, datasourcechildren, recursive=True):
@@ -236,7 +266,7 @@ class Handler:
 		file.handler = self
 		return file
 
-	def _loadglobals(self, id):
+	def _loadglobals(self, id=None):
 		globals = la.Globals()
 		globals.handler = self
 		return globals
@@ -247,7 +277,6 @@ class Handler:
 			dump = la.attrdict(dump)
 			if "datasources" in dump:
 				dump.datasources = la.attrdict(dump.datasources)
-		self.ul4on_decoder.reset()
 		return dump
 
 
@@ -304,6 +333,7 @@ class DBHandler(Handler):
 		self.proc_dataorder_delete = orasql.Procedure("DATASOURCE_PKG.DATAORDER_DELETE")
 		self.proc_vsqlsource_insert = orasql.Procedure("VSQL_PKG.VSQLSOURCE_INSERT")
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
+		self.proc_clear_all = orasql.Procedure("LIVINGAPI_PKG.CLEAR_ALL")
 		self.func_seq = orasql.Function("LIVINGAPI_PKG.SEQ")
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
@@ -325,6 +355,10 @@ class DBHandler(Handler):
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
+
+	def reset(self):
+		super().reset()
+		self.proc_clear_all(self.cursor())
 
 	def cursor(self):
 		return self.db.cursor(readlobs=True)
@@ -486,14 +520,12 @@ class DBHandler(Handler):
 			p_utv_whitespace=template.whitespace,
 			p_utv_doc=template.doc,
 			p_utv_source=template.source,
-			p_vt_defaultlist=int(viewtemplate.type is la.ViewTemplate.Type.LISTDEFAULT) if viewtemplate.type in {la.ViewTemplate.Type.LIST, la.ViewTemplate.Type.LISTDEFAULT} else None,
-			p_vt_resultpage=int(viewtemplate.type is la.ViewTemplate.Type.DETAILRESULT) if viewtemplate.type is {la.ViewTemplate.Type.DETAIL, la.ViewTemplate.Type.DETAILRESULT} else None,
 			p_vt_permission_level=viewtemplate.permission.value
 		)
 		viewtemplate.id = r.p_vt_id
 		if recursive:
 			for datasource in viewtemplate.datasources.values():
-				self.save_datasource(datasource, recursive=recursive)
+				self.save_datasourceconfig(datasource, recursive=recursive)
 
 	def delete_viewtemplate(self, viewtemplate):
 		cursor = self.cursor()
@@ -513,14 +545,14 @@ class DBHandler(Handler):
 		)
 		internaltemplate._deleted = True
 
-	def save_datasource(self, datasource, recursive=True):
+	def save_datasourceconfig(self, datasource, recursive=True):
 		cursor = self.cursor()
 
 		# Compile and save the app filter
 		vs_id_appfilter = self.save_vsql_source(
 			cursor,
 			datasource.appfilter,
-			la.DataSource.appfilter.function,
+			la.DataSourceConfig.appfilter.function,
 			p_vt_id=datasource.parent.id,
 			p_tpl_uuid_a=None,
 		)
@@ -529,7 +561,7 @@ class DBHandler(Handler):
 		vs_id_recordfilter = self.save_vsql_source(
 			cursor,
 			datasource.recordfilter,
-			la.DataSource.recordfilter.function,
+			la.DataSourceConfig.recordfilter.function,
 			p_vt_id=datasource.parent.id,
 			p_tpl_uuid_r=datasource.app.id if datasource.app is not None else None,
 		)
@@ -674,6 +706,11 @@ class DBHandler(Handler):
 			result = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
 			if result is not None:
 				return result
+		# Reset the backref registry, since we call ``livingapi_pkg.record_sync_ful4on()``
+		# which reset the db's backref registry too
+		# FIXME: Maybe we can upgrade this to use incremntal UL4ON dumps, but then
+		# we'd need the ability to force objects to be reloaded
+		self.reset()
 		c = self.cursor()
 		c.execute(
 			"select livingapi_pkg.record_sync_ful4on(c_user=>:ide_id, p_dat_id=>:dat_id) from dual",
@@ -696,6 +733,11 @@ class DBHandler(Handler):
 					missing.add(dat_id)
 				else:
 					found[dat_id] = record
+		# Reset the backref registry, since we call ``livingapi_pkg.records_sync_ful4on()``
+		# which reset the db's backref registry too
+		# FIXME: Maybe we can upgrade this to use incremntal UL4ON dumps, but then
+		# we'd need the ability to force objects to be reloaded
+		self.reset()
 		c = self.cursor()
 		c.execute(
 			"select livingapi_pkg.records_sync_ful4on(c_user=>:ide_id, p_dat_ids=>:dat_ids) from dual",
@@ -784,14 +826,14 @@ class DBHandler(Handler):
 		if "template" in params:
 			template = params.pop("template")
 			c.execute(
-				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = : identifier",
+				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = :identifier",
 				tpl_id=tpl_id,
 				identifier=template,
 			)
 		else:
 			template = None
 			c.execute(
-				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_defaultlist != 0",
+				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_type = 'listdefault'",
 				tpl_id=tpl_id,
 			)
 		r = c.fetchone()
@@ -803,6 +845,30 @@ class DBHandler(Handler):
 		vt_id = r.vt_id
 
 		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
+
+	def app_params_incremental_data(self, id):
+		c = self.cursor()
+		c.execute("select livingapi_pkg.app_params_inc_ful4on(:appid) from dual", appid=id)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
+	def app_views_incremental_data(self, id):
+		c = self.cursor()
+		c.execute("select livingapi_pkg.app_views_inc_ful4on(:appid) from dual", appid=id)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
+	def record_attachments_incremental_data(self, id):
+		c = self.cursor()
+		c.execute("select livingapi_pkg.record_attachments_inc_ful4on(:datid) from dual", datid=id)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
 
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
@@ -827,9 +893,9 @@ class DBHandler(Handler):
 			args[f"p_{pk}"] = record.id
 		for field in record.fields.values():
 			if record.id is None or field._dirty:
-				args[f"p_{field.control.field}"] = field._asdbarg(self)
+				args[f"p_{field.control.fieldname}"] = field._asdbarg(self)
 				if record.id is not None:
-					args[f"p_{field.control.field}_changed"] = 1
+					args[f"p_{field.control.fieldname}_changed"] = 1
 		c = self.cursor()
 		try:
 			result = proc(c, **args)
@@ -864,17 +930,17 @@ class DBHandler(Handler):
 		else:
 			saved = True
 
-		if record.id is None:
-			record.id = result[f"p_{pk}"]
-			record.createdat = datetime.datetime.now()
-			record.createdby = app.globals.user
-			record.updatecount = 0
-		else:
-			record.updatedat = datetime.datetime.now()
-			record.updatedby = app.globals.user
-			record.updatecount += 1
-		for field in record.fields.values():
-			field._dirty = False
+			if record.id is None:
+				record.id = result[f"p_{pk}"]
+				record.createdat = datetime.datetime.now()
+				record.createdby = app.globals.user
+				record.updatecount = 0
+			else:
+				record.updatedat = datetime.datetime.now()
+				record.updatedby = app.globals.user
+				record.updatecount += 1
+			for field in record.fields.values():
+				field._dirty = False
 
 		return saved
 
@@ -1171,7 +1237,7 @@ class FileHandler(Handler):
 				self._loadcontrols(app)
 				self._loadinternaltemplates(app)
 				apps[app.id] = app
-		return apps
+		return attrdict(apps)
 
 	def _loadcontrols(self, app):
 		path = self.basepath/f"{app.name} ({app.id})/index.json"

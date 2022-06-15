@@ -70,7 +70,7 @@ def test_global_variables(config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataOrder(expression="r.v_name"),
 			la.DataOrder(expression="app.p_str_value.value"),
 			la.DataOrder(expression="user.email"),
@@ -123,7 +123,7 @@ def test_datasource_appfilter(config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="all",
 			appfilter=f"a.uuid == '{person_app_id()}'"
 		),
@@ -142,7 +142,7 @@ def test_datasource_recordfilter(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="r.v_lastname == 'Einstein'",
@@ -161,7 +161,7 @@ def test_datasource_recordfilter_param_str(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="r.v_lastname == params.str.lastname",
@@ -180,7 +180,7 @@ def test_datasource_recordfilter_param_int(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="r.v_date_of_birth.year == params.int.year",
@@ -199,7 +199,7 @@ def test_datasource_recordfilter_param_date(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="r.v_date_of_birth == params.date.date_of_birth",
@@ -218,7 +218,7 @@ def test_datasource_recordfilter_param_datetime(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="datetime(r.v_date_of_birth) + hours(12) + minutes(34) + seconds(56) == params.datetime.date_of_birth",
@@ -237,7 +237,7 @@ def test_datasource_recordfilter_param_strlist(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="r.v_lastname in params.strlist.lastname",
@@ -256,7 +256,7 @@ def test_datasource_recordfilter_param_intlist(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="r.v_date_of_birth.year in params.intlist.year",
@@ -275,7 +275,7 @@ def test_datasource_recordfilter_param_datelist(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="r.v_date_of_birth in params.datelist.date_of_birth",
@@ -294,7 +294,7 @@ def test_datasource_recordfilter_param_datetimelist(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="datetime(r.v_date_of_birth) + hours(12) + minutes(34) + seconds(56) == params.datetimelist.date_of_birth[0]",
@@ -313,7 +313,7 @@ def test_datasource_recordfilter_appparam_int(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="r.v_date_of_birth.year == app.p_int_value.value",
@@ -332,7 +332,7 @@ def test_datasource_recordfilter_geo(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataOrder(expression="r.v_grave is not None", direction="desc", nulls="first"),
 			la.DataOrder(expression="dist(r.v_grave, geo(49.955267, 11.591212, 'LivingLogic AG'))", direction="asc", nulls="first"),
 			identifier="persons",
@@ -359,7 +359,7 @@ def test_datasource_sort_asc_nullsfirst(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataOrder(expression="r.v_date_of_death", direction="asc", nulls="first"),
 			identifier="persons",
 			app=c.apps.persons,
@@ -379,7 +379,7 @@ def test_datasource_sort_asc_nullslast(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataOrder(expression="r.v_date_of_death", direction="asc", nulls="last"),
 			identifier="persons",
 			app=c.apps.persons,
@@ -400,7 +400,7 @@ def test_datasource_sort_desc_nullsfirst(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataOrder(expression="r.v_date_of_death", direction="desc", nulls="first"),
 			identifier="persons",
 			app=c.apps.persons,
@@ -421,7 +421,7 @@ def test_datasource_sort_desc_nullslast(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataOrder(expression="r.v_date_of_death", direction="desc", nulls="last"),
 			identifier="persons",
 			app=c.apps.persons,
@@ -450,7 +450,7 @@ def test_datasource_masterdetail_recordfilter(config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataSourceChildren(
 				identifier="children",
 				control=c.apps.fields.c_parent,
@@ -483,7 +483,7 @@ def test_datasource_masterdetail_sort_asc(config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataSourceChildren(
 				la.DataOrder(expression="r.v_name", direction="asc", nulls="first"),
 				identifier="children",
@@ -516,7 +516,7 @@ def test_datasource_masterdetail_sort_desc(config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataSourceChildren(
 				la.DataOrder(expression="r.v_name", direction="desc", nulls="first"),
 				identifier="children",
@@ -546,7 +546,7 @@ def test_color_attributes(config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="app.p_color_value.value.r == 0x33 and app.p_color_value.value.g == 0x66 and app.p_color_value.value.b == 0x99 and app.p_color_value.value.a == 0xcc",
@@ -571,7 +571,7 @@ def test_color_methods(config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="app.p_color_value.value.lum() == 0.4",
@@ -596,7 +596,7 @@ def test_repr_color(config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter='repr(#369) == "#369" and repr(#369c) == "#369c" and repr(#123456) == "#123456" and repr(#12345678) == "#12345678"',
@@ -621,7 +621,7 @@ def test_geo_attributes(config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
 			recordfilter="int(geo(49.955267, 11.591212, 'LivingLogic AG').lat) == 49 and int(geo(49.955267, 11.591212, 'LivingLogic AG').long) == 11 and geo(49.955267, 11.591212, 'LivingLogic AG').info == 'LivingLogic AG'",
@@ -641,7 +641,7 @@ def test_datasource_paging(config_persons):
 	handler = PythonDB()
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataOrder(expression="r.v_lastname"),
 			la.DataOrder(expression="r.v_firstname"),
 			identifier="persons",
@@ -673,7 +673,7 @@ def test_datasourcechildren_paging(config_persons):
 	"""
 
 	vt = handler.make_viewtemplate(
-		la.DataSource(
+		la.DataSourceConfig(
 			la.DataOrder(expression="r.v_name"),
 			la.DataSourceChildren(
 				la.DataOrder(expression="r.v_lastname"),
