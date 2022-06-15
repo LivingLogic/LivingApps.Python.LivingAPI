@@ -1,4 +1,4 @@
-HEAD (2022-06-??)
+0.15 (2022-06-15)
 -----------------
 
 *	Add support for custom attributes (whose name starts with ``x_``).
