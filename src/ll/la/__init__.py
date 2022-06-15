@@ -5698,6 +5698,10 @@ class ViewTemplateConfig(Template):
 
 				/gateway/apps/1234567890abcdef12345678
 
+		``LISTDATAMANAGEMENT``
+			This is similar to ``LIST``, but a link to this view template will be
+			available in the datamanagement.
+
 		``DETAIL``
 			The template is supposed to display the details of a single record. The
 			URL looks like this::
@@ -5710,6 +5714,10 @@ class ViewTemplateConfig(Template):
 			This is similar to ``DETAIL``, but is used to replace the standard display
 			if a record is created or updated via the standard form.
 
+		``LISTDATAMANAGEMENT``
+			This is similar to ``DETAIL``, but a link to this view template will be
+			available for each record in the datamanagement.
+
 		``SUPPORT``
 			The template is supposed to be independant of any record. This can be
 			used for delivering static CSS or similar stuff. The URL looks the same
@@ -5718,8 +5726,10 @@ class ViewTemplateConfig(Template):
 
 		LIST = "list"
 		LISTDEFAULT = "listdefault"
+		LISTDATAMANAGEMENT = "listdatamanagement"
 		DETAIL = "detail"
 		DETAILRESULT = "detailresult"
+		DETAILDATAMANAGEMENT = "detaildatamanagement"
 		SUPPORT = "support"
 
 	class Permission(misc.IntEnum):

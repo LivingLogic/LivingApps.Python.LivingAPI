@@ -523,8 +523,6 @@ class DBHandler(Handler):
 			p_utv_whitespace=template.whitespace,
 			p_utv_doc=template.doc,
 			p_utv_source=template.source,
-			p_vt_defaultlist=int(viewtemplate.type is la.ViewTemplateConfig.Type.LISTDEFAULT) if viewtemplate.type in {la.ViewTemplateConfig.Type.LIST, la.ViewTemplateConfig.Type.LISTDEFAULT} else None,
-			p_vt_resultpage=int(viewtemplate.type is la.ViewTemplateConfig.Type.DETAILRESULT) if viewtemplate.type is {la.ViewTemplateConfig.Type.DETAIL, la.ViewTemplateConfig.Type.DETAILRESULT} else None,
 			p_vt_permission_level=viewtemplate.permission.value
 		)
 		viewtemplate.id = r.p_vt_id
@@ -838,7 +836,7 @@ class DBHandler(Handler):
 		else:
 			template = None
 			c.execute(
-				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_defaultlist != 0",
+				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_type = 'listdefault'",
 				tpl_id=tpl_id,
 			)
 		r = c.fetchone()
