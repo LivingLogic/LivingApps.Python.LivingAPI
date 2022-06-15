@@ -40,9 +40,6 @@ try:
 	from ll import orasql
 except ImportError:
 	orasql = None
-else:
-	if hasattr(orasql, "__oracledb_version__"):
-		orasql.init_oracle_client()
 
 from ll import la
 
