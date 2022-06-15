@@ -2690,6 +2690,24 @@ def test_geo_dist(handler):
 	assert lines(output) == lines(expected)
 
 
+def test_module_la(handler):
+	vt = handler.make_viewtemplate(
+		identifier="test_livingapi_module_la",
+		source="""
+			<?print repr(la)?>
+		"""
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected1 = """
+		<module la>
+	"""
+	expected2 = """
+		<module 'la'>
+	"""
+	assert lines(output) == lines(expected1) or lines(output) == lines(expected2)
+
+
 def test_isinstance_la(handler):
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_isinstance_la",

@@ -47,7 +47,7 @@ T_opt_str = Optional[str]
 
 NoneType = type(None)
 
-module = types.ModuleType("livingapps", "LivingAPI types")
+module = types.ModuleType("la", "LivingAPI types")
 module.ul4_attrs = {"__name__", "__doc__"}
 
 def register(name):
