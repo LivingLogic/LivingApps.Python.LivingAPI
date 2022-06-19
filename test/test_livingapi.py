@@ -2841,14 +2841,14 @@ def test_app_templates_on_demand(handler, config_persons):
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_app_templates_on_demand",
 			source="""
-				<?render app.templates.test_app_shortcuts_internal(app=app)?>
-				<?render app.t_test_app_shortcuts_internal(app=app)?>
+				<?render app.templates.test_app_template_on_demand_internal(app=app)?>
+				<?render app.t_test_app_template_on_demand_internal(app=app)?>
 			"""
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
 		expected = """
-			test_app_shortcuts_internal
-			test_app_shortcuts_internal
+			test_app_template_on_demand_internal
+			test_app_template_on_demand_internal
 		"""
 		assert lines(output) == lines(expected)
