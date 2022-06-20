@@ -162,12 +162,12 @@ class PythonHTTP(LocalTemplateHandler):
 		template = self.make_ul4template(**params)
 		with self.testhandler:
 			vars = self.testhandler.viewtemplate_data(*path, **params)
-		# We don't have to call the following code inside the ``with`` block
-		# since the data was fetched by the ``HTTPHandler`` which doesn't support
-		# loading data incrementally anyway. But this means that test might fail
-		# for these dynamic attributes (or have to be skipped).
-		# But note that we *do* have to call it inside a separate ``with`` block
-		# se that the backref registry gets reset afterwards
+			# We don't have to call the following code inside the ``with`` block
+			# since the data was fetched by the ``HTTPHandler`` which doesn't support
+			# loading data incrementally anyway. But this means that test might fail
+			# for these dynamic attributes (or have to be skipped).
+			# But note that we *do* have to call it inside a separate ``with`` block
+			# so that the backref registry gets reset afterwards.
 			globals = vars["globals"]
 			globals.request = la.HTTPRequest()
 			globals.request.params.update(**params)
