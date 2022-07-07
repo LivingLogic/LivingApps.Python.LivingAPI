@@ -14,6 +14,7 @@ See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 
 import io, re, unicodedata, datetime, operator, string, json, pathlib, types, enum, math, base64
 import urllib.parse as urlparse
+import collections
 from collections import abc
 
 from PIL import Image
@@ -2058,6 +2059,8 @@ class Globals(Base):
 				return self.templates[name[2:]]
 			elif name.startswith("l_"):
 				return self.libs[name[2:]]
+			elif name.startswith("cl_") and self.app:
+				return getattr(self.app, name)
 			elif self.app and name.startswith("p_"):
 				return self.app.params[name[2:]]
 			elif self.app and name.startswith("pv_"):
@@ -2082,6 +2085,7 @@ class Globals(Base):
 			for identifier in self.app.params:
 				attrs.add(f"p_{identifier}")
 				attrs.add(f"pv_{identifier}")
+				attrs.add(f"cl_{identifier}")
 		return attrs
 
 	def ul4_setattr(self, name, value):
@@ -2098,6 +2102,8 @@ class Globals(Base):
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
 		elif name.startswith("l_") and name[2:] in self.libs:
+			return True
+		elif name.startswith("cl_"):
 			return True
 		elif self.app and name.startswith("p_") and name[2:] in self.app.params:
 			return True
@@ -2360,6 +2366,7 @@ class App(Base):
 		self.categories = categories
 		self._params = params
 		self._views = views
+		self._chained_libraries = {}
 		self.datamanagement_identifier = datamanagement_identifier
 		self.basetable = None
 		self.primarykey = None
@@ -2413,10 +2420,24 @@ class App(Base):
 			self._templates = self.globals.handler.fetch_templates(self)
 		return self._templates
 
+	def _get_chained_library(self, identifier):
+		if identifier not in self._chained_libraries:
+			templates = self.templates
+			if identifier in self.params:
+				param = self.params[identifier]
+				if isinstance(param.value, App):
+					templates = collections.ChainMap(templates, param.value._get_chained_library(identifier).templates)
+			elif identifier in self.globals.libs:
+				templates = collections.ChainMap(templates, self.globals.libs[identifier].templates)
+			self._chained_libraries[identifier] = ChainedLibrary(identifier, self, templates)
+		return self._chained_libraries[identifier]
+
 	def __getattr__(self, name):
 		try:
 			if name.startswith("c_"):
 				return self.controls[name[2:]]
+			elif name.startswith("cl_"):
+				return self._get_chained_library(name[3:])
 			elif name.startswith("t_"):
 				return self.templates[name[2:]]
 			elif name.startswith("lc_") and self.layout_controls:
@@ -2443,6 +2464,7 @@ class App(Base):
 		for identifier in self.params:
 			attrs.add(f"p_{identifier}")
 			attrs.add(f"pv_{identifier}")
+			attrs.add(f"cl_{identifier}")
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
 		return attrs
@@ -2458,10 +2480,16 @@ class App(Base):
 			return True
 		elif name.startswith("pv_") and name[3:] in self.params:
 			return True
+		elif name.startswith("cl_"):
+			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
 		else:
 			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if self.ul4_hasattr(name):
+			return getattr(self, name)
 
 	def _gethandler(self, handler):
 		if handler is None:
@@ -7498,7 +7526,6 @@ class TemplateLibrary(Base):
 			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 		return super().__getattr__(name)
 
-
 	def __dir__(self):
 		"""
 		Make keys completeable in IPython.
@@ -7515,6 +7542,66 @@ class TemplateLibrary(Base):
 			return True
 		else:
 			return super().ul4_hasattr(name)
+
+
+class ChainedLibrary:
+	r"""
+	The result of chaining a library via an app parameter.
+
+	Relevant instance attributes are:
+
+	.. attribute:: identifier
+		:type: str
+
+		Human readable identifier.
+
+	.. attribute:: app
+		:type: App
+
+		The app that defines this chained library.
+
+	.. attribute:: templates
+
+		The UL4 templates belonging to this library.
+	"""
+
+	ul4_attrs = {"identifier", "app", "templates"}
+
+	def __init__(self, identifier, app, templates):
+		self.identifier = identifier
+		self.app = app
+		self.templates = templates
+
+	def __repr__(self):
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.identifier!r} with {len(self.templates)} templates at {id(self):x}>"
+
+	def __getattr__(self, name):
+		try:
+			if name.startswith("t_"):
+				return self.templates[name[2:]]
+		except KeyError:
+			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = self.ul4_attrs.copy()
+		for identifier in self.templates:
+			attrs.add(f"t_{identifier}")
+		return attrs
+
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
+			return True
+		elif name.startswith("t_") and name[2:] in self.templates:
+			return True
+		else:
+			return False
+
+	def ul4_getattr(self, name):
+		if self.ul4_hasattr(name):
+			return getattr(self, name)
 
 
 class HTTPRequest(Base):

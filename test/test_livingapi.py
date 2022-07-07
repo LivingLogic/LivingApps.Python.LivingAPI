@@ -2874,3 +2874,29 @@ def test_template_libraries(handler):
 			<script src="/static/ul4/1.13.0/dist/umd/ul4.js"></script>
 		"""
 		assert lines(output) == lines(expected)
+
+
+def test_chained_template_library(handler):
+	if not isinstance(handler, PythonHTTP):
+		vt = handler.make_viewtemplate(
+			identifier="chained_template_library",
+			source="""
+				<?render globals.app.cl_la_static.templates.la_static_ul4()?>
+				<?render globals.app.cl_la_static.t_la_static_ul4()?>
+				<?render globals.cl_la_static.templates.la_static_ul4()?>
+				<?render globals.cl_la_static.t_la_static_ul4()?>
+				<?print globals.app.cl_foo.identifier?>
+				<?print globals.cl_foo.identifier?>
+			"""
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			<script src="nosource"></script>
+			<script src="nosource"></script>
+			<script src="nosource"></script>
+			<script src="nosource"></script>
+			foo
+			foo
+		"""
+		assert lines(output) == lines(expected)
