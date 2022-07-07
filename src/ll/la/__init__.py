@@ -1751,6 +1751,7 @@ class Globals(Base):
 		"log_error",
 		"lang",
 		"templates",
+		"libs",
 		"request",
 		"response",
 		"geo",
@@ -2036,8 +2037,12 @@ class Globals(Base):
 		pass
 
 	@property
-	def templates(self):
+	def templates(self) -> Dict[str, ul4c.Template]:
 		return self.app.templates if self.app else attrdict()
+
+	@property
+	def libs(self) -> Dict[str, "TemplateLibrary"]:
+		return self.handler.fetch_templatelibraries() if self.handler is not None else attrdict()
 
 	vsqlsearchfield = vsql.Field("search", vsql.DataType.STR, "livingapi_pkg.global_search")
 
@@ -2051,6 +2056,8 @@ class Globals(Base):
 				return self.datasources[name[2:]]
 			elif name.startswith("t_"):
 				return self.templates[name[2:]]
+			elif name.startswith("l_"):
+				return self.libs[name[2:]]
 			elif self.app and name.startswith("p_"):
 				return self.app.params[name[2:]]
 			elif self.app and name.startswith("pv_"):
@@ -2069,6 +2076,8 @@ class Globals(Base):
 				attrs.add(f"d_{identifier}")
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
+		for identifier in self.libs:
+			attrs.add(f"l_{identifier}")
 		if self.app:
 			for identifier in self.app.params:
 				attrs.add(f"p_{identifier}")
@@ -2087,6 +2096,8 @@ class Globals(Base):
 		elif self.datasources and name.startswith("d_") and name[2:] in self.datasources:
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
+			return True
+		elif name.startswith("l_") and name[2:] in self.libs:
 			return True
 		elif self.app and name.startswith("p_") and name[2:] in self.app.params:
 			return True
@@ -7432,6 +7443,78 @@ class AppParameter(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+
+@register("templatelibrary")
+class TemplateLibrary(Base):
+	r"""
+	A template library contains a collection of templates.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id
+
+	.. attribute:: identifier
+		:type: str
+
+		Human readable identifier
+
+	.. attribute:: description
+		:type: str
+
+		Description of the library
+
+	.. attribute:: templates
+
+		The UL4 templates belonging to this library.
+	"""
+
+	ul4_attrs = {"id", "identifier", "description", "templates"}
+	ul4_type = ul4c.Type("la", "TemplateLibrary", "A LivingApps template library")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	templates = AttrDictAttr(get=True, ul4get=True, ul4onget=True)
+
+	def __init__(self, id=None, identifier=None, description=None, templates=None):
+		self.id = id
+		self.identifier = identifier
+		self.description = description
+		self.templates = attrdict(templates) if templates is not None else attrdict()
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def __getattr__(self, name):
+		try:
+			if name.startswith("t_"):
+				return self.templates[name[2:]]
+		except KeyError:
+			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
+
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		for identifier in self.templates:
+			attrs.add(f"t_{identifier}")
+		return attrs
+
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
+			return True
+		elif name.startswith("t_") and name[2:] in self.templates:
+			return True
+		else:
+			return super().ul4_hasattr(name)
 
 
 class HTTPRequest(Base):

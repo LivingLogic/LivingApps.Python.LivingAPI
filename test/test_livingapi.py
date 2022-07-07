@@ -2852,3 +2852,25 @@ def test_app_templates_on_demand(handler, config_persons):
 			test_livingapi_app_template_on_demand_internal
 		"""
 		assert lines(output) == lines(expected)
+
+
+def test_template_libraries(handler):
+	if not isinstance(handler, PythonHTTP):
+		vt = handler.make_viewtemplate(
+			identifier="template_libraries",
+			source="""
+				<?render globals.libs.la_static.templates.la_static_ul4()?>
+				<?render globals.libs.la_static.t_la_static_ul4()?>
+				<?render globals.l_la_static.templates.la_static_ul4()?>
+				<?render globals.l_la_static.t_la_static_ul4()?>
+			"""
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			<script src="/static/ul4/1.13.0/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.13.0/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.13.0/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.13.0/dist/umd/ul4.js"></script>
+		"""
+		assert lines(output) == lines(expected)
