@@ -11,6 +11,10 @@ import operator
 from conftest import *
 
 
+def lines(text):
+	return [line.strip() for line in text.splitlines(False) if line.strip()]
+
+
 template_unsorted_persons = """
 	<?whitespace strip?>
 	<?for (f, r) in isfirst(datasources.persons.app.records.values())?>
@@ -60,11 +64,10 @@ def test_global_variables(config_persons):
 	handler = PythonDB()
 
 	source = f"""
-		<?whitespace strip?>
 		<?for r in datasources.fieldsofactivity.app.records.values()?>
-			;<?print r.v_name?>
+			<?print r.v_name?>
 			<?for r2 in r.c_children.values()?>
-				;<?print r2.v_name?>
+				<?print r2.v_name?>
 			<?end for?>
 		<?end for?>
 	"""
@@ -105,9 +108,8 @@ def test_global_variables(config_persons):
 		expected.append(a.v_name)
 		for a2 in sorted((a2 for a2 in c.areas.values() if a2.v_parent is a), key=key):
 			expected.append(a2.v_name)
-	expected = ";" + ";".join(expected)
 
-	assert expected == output
+	assert expected == lines(output)
 
 
 def test_datasource_appfilter(config_persons):

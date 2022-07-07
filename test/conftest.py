@@ -26,6 +26,10 @@ def connect():
 	return os.environ["LA_LIVINGAPI_TEST_CONNECT"]
 
 
+def connect_postgres():
+	return os.environ["LA_LIVINGAPI_TEST_CONNECT_POSTGRES"]
+
+
 def uploaddir():
 	return os.environ["LA_LIVINGAPI_TEST_UPLOADDIR"]
 
@@ -95,7 +99,12 @@ def check_vsql(config_persons, code, result=None):
 
 class Handler:
 	def __init__(self):
-		self.dbhandler = la.DBHandler(connectstring=connect(), uploaddir=uploaddir(), ide_account=user())
+		self.dbhandler = la.DBHandler(
+			connectstring=connect(),
+			connectstring_postgres=connect_postgres(),
+			uploaddir=uploaddir(),
+			ide_account=user(),
+		)
 
 	def make_viewtemplate(self, *args, **kwargs):
 		viewtemplate = la.ViewTemplateConfig(*args, **{**{"mimetype": "text/plain"}, **kwargs})
@@ -162,12 +171,12 @@ class PythonHTTP(LocalTemplateHandler):
 		template = self.make_ul4template(**params)
 		with self.testhandler:
 			vars = self.testhandler.viewtemplate_data(*path, **params)
-		# We don't have to call the following code inside the ``with`` block
-		# since the data was fetched by the ``HTTPHandler`` which doesn't support
-		# loading data incrementally anyway. But this means that test might fail
-		# for these dynamic attributes (or have to be skipped).
-		# But note that we *do* have to call it inside a separate ``with`` block
-		# se that the backref registry gets reset afterwards
+			# We don't have to call the following code inside the ``with`` block
+			# since the data was fetched by the ``HTTPHandler`` which doesn't support
+			# loading data incrementally anyway. But this means that test might fail
+			# for these dynamic attributes (or have to be skipped).
+			# But note that we *do* have to call it inside a separate ``with`` block
+			# so that the backref registry gets reset afterwards.
 			globals = vars["globals"]
 			globals.request = la.HTTPRequest()
 			globals.request.params.update(**params)
@@ -194,8 +203,10 @@ class GatewayHTTP(Handler):
 class JavaDB(LocalTemplateHandler):
 	def __init__(self):
 		super().__init__()
-		(dbuserpassword, self.connectdescriptor) = connect().split("@", 1)
-		(self.dbuser, self.dbpassword) = dbuserpassword.split("/")
+		(dbuserpassword_oracle, self.connectdescriptor_oracle) = connect().split("@", 1)
+		(self.dbuser_oracle, self.dbpassword_oracle) = dbuserpassword_oracle.split("/")
+
+		self.connectionparams_postgres = dict(item.split("=", 1) for item in connect_postgres().split())
 
 	def _indent(self, text):
 		return textwrap.indent(text, "\t\t")
@@ -213,9 +224,12 @@ class JavaDB(LocalTemplateHandler):
 		else:
 			templateidentifier = None
 		data = dict(
-			jdbcurl=f"jdbc:oracle:thin:@{self.connectdescriptor}",
-			jdbcuser=self.dbuser,
-			jdbcpassword=self.dbpassword,
+			oracle_jdbcurl=f"jdbc:oracle:thin:@{self.connectdescriptor_oracle}",
+			oracle_jdbcuser=self.dbuser_oracle,
+			oracle_jdbcpassword=self.dbpassword_oracle,
+			postgres_jdbcurl=f"jdbc:postgresql://{self.connectionparams_postgres['host']}/{self.connectionparams_postgres['dbname']}",
+			postgres_jdbcuser=self.connectionparams_postgres['user'],
+			postgres_jdbcpassword=self.connectionparams_postgres['password'],
 			user=user(),
 			appid=path[0],
 			datid=path[1] if len(path) > 1 else None,

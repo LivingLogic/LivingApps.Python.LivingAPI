@@ -1,3 +1,9 @@
+0.16 (2022-07-07)
+-----------------
+
+*	Add support for template libraries and template library chains.
+
+
 0.15 (2022-06-15)
 -----------------
 

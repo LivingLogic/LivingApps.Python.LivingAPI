@@ -41,6 +41,11 @@ try:
 except ImportError:
 	orasql = None
 
+try:
+	import psycopg
+except ImportError:
+	psycopg = None
+
 from ll import la
 
 from ll.la import vsql
@@ -259,7 +264,10 @@ class Handler:
 		raise NotImplementedError
 
 	def fetch_templates(self, app):
-		return {}
+		return la.attrdict()
+
+	def fetch_templatelibraries(self):
+		return la.attrdict()
 
 	def _loadfile(self, id):
 		file = la.File(id=id)
@@ -281,12 +289,16 @@ class Handler:
 
 
 class DBHandler(Handler):
-	def __init__(self, *, connection=None, connectstring=None, uploaddir=None, ide_account=None, ide_id=None):
+	def __init__(self, *, connection=None, connectstring=None, connection_postgres=None, connectstring_postgres=None, uploaddir=None, ide_account=None, ide_id=None):
 		"""
 		Create a new :class:`DBHandler`.
 
 		For the database connection pass either ``connection`` with an
 		:mod:`~ll.orasql` connection or ``connectstring`` with a connecstring.
+
+		For a connection to the Postgres database pass either
+		``connection_postgres`` with a :mod:`psycopg` connection or
+		``connectstring_postgres`` with a connecstring.
 
 		``uploaddir`` must be an ``ssh`` URL specifying the upload directory
 		on the web server. If no uploads will be made, it can also be :const:`None`.
@@ -309,6 +321,17 @@ class DBHandler(Handler):
 			self.db = orasql.connect(connectstring, readlobs=True)
 		else:
 			raise ValueError("Parameter connectstring or connection is required")
+
+		if connection_postgres is not None:
+			if connectstring_postgres is not None:
+				raise ValueError("Specify connectstring_postgres or connection_postgres, but not both")
+			self.db_postgres = connection_postgres
+		elif connectstring_postgres is not None:
+			if psycopg is None:
+				raise ImportError("psycopg required")
+			self.db_postgres = psycopg.connect(connectstring_postgres)
+		else:
+			raise ValueError("Parameter connectstring_postgres or connection_postgres is required")
 
 		if uploaddir is not None:
 			uploaddir = url.URL(uploaddir)
@@ -338,6 +361,7 @@ class DBHandler(Handler):
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
+		self.templatelibraries = None # Maps ``tl_id`` to template library
 
 		if ide_id is not None:
 			if ide_account is not None:
@@ -362,6 +386,9 @@ class DBHandler(Handler):
 
 	def cursor(self):
 		return self.db.cursor(readlobs=True)
+
+	def cursor_pg(self):
+		return self.db_postgres.cursor()
 
 	def commit(self):
 		self.db.commit()
@@ -1016,6 +1043,48 @@ class DBHandler(Handler):
 				**self._loadinternaltemplates(app.superid),
 				**self._loadinternaltemplates(app.id),
 			}
+
+	def fetch_templatelibraries(self):
+		if self.templatelibraries is None:
+			self.templatelibraries = la.attrdict()
+			c1 = self.cursor_pg()
+			c2 = self.cursor_pg()
+			c1.execute("""
+				select
+					tl_id,
+					tl_identifier,
+					tl_description
+				from
+					templatelibrary.templatelibrary
+				order by
+					lower(tl_identifier)
+			""")
+			for row in c1:
+				c2.execute("""
+					select
+						lt_identifier,
+						utv_source
+					from
+						templatelibrary.librarytemplate_select
+					order by
+						lower(lt_identifier)
+				""")
+				templates = {}
+				for row2 in c2:
+					t = ul4c.Template(row2[1], row2[0])
+					templates[t.name] = t
+				tl = la.TemplateLibrary(row[0], row[1], row[2], templates)
+				self.templatelibraries[tl.identifier] = tl
+		return self.templatelibraries
+
+		# if tpl_uuid in self.internaltemplates:
+		# 	return self.internaltemplates[tpl_uuid]
+		# templates = {}
+		# for r in c:
+		# 	template = ul4c.Template(r.utv_source, name=r.it_identifier)
+		# 	templates[template.name] = template
+		# self.internaltemplates[tpl_uuid] = templates
+		# return templates
 
 
 class HTTPHandler(Handler):
