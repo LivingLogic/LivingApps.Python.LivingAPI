@@ -1,4 +1,4 @@
-HEAD (2022-07-07)
+0.16 (2022-07-07)
 -----------------
 
 *	Add support for template libraries and template library chains.
