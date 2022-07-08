@@ -1,3 +1,11 @@
+0.16.1 (2022-07-08)
+-------------------
+
+*	Ensure that our internal Postgres queries use ``tuple_row`` as the
+	``row_factory``. This makes us independent from the Postgres connection
+	we might have been given in the call to the ``DBHandler`` constructor.
+
+
 0.16 (2022-07-07)
 -----------------
 
