@@ -46,6 +46,11 @@ try:
 except ImportError:
 	psycopg = None
 
+try:
+	from psycopg import rows
+except ImportError:
+	rows = None
+
 from ll import la
 
 from ll.la import vsql
@@ -387,8 +392,8 @@ class DBHandler(Handler):
 	def cursor(self):
 		return self.db.cursor(readlobs=True)
 
-	def cursor_pg(self):
-		return self.db_postgres.cursor()
+	def cursor_pg(self, row_factory=rows.tuple_row):
+		return self.db_postgres.cursor(row_factory=row_factory)
 
 	def commit(self):
 		self.db.commit()
@@ -1047,8 +1052,8 @@ class DBHandler(Handler):
 	def fetch_templatelibraries(self):
 		if self.templatelibraries is None:
 			self.templatelibraries = la.attrdict()
-			c1 = self.cursor_pg()
-			c2 = self.cursor_pg()
+			c1 = self.cursor_pg(row_factory=rows.tuple_row)
+			c2 = self.cursor_pg(row_factory=rows.tuple_row)
 			c1.execute("""
 				select
 					tl_id,
@@ -1076,15 +1081,6 @@ class DBHandler(Handler):
 				tl = la.TemplateLibrary(row[0], row[1], row[2], templates)
 				self.templatelibraries[tl.identifier] = tl
 		return self.templatelibraries
-
-		# if tpl_uuid in self.internaltemplates:
-		# 	return self.internaltemplates[tpl_uuid]
-		# templates = {}
-		# for r in c:
-		# 	template = ul4c.Template(r.utv_source, name=r.it_identifier)
-		# 	templates[template.name] = template
-		# self.internaltemplates[tpl_uuid] = templates
-		# return templates
 
 
 class HTTPHandler(Handler):
