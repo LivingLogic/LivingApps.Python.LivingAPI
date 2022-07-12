@@ -2887,6 +2887,8 @@ def test_chained_template_library(handler):
 				<?render globals.cl_la_static.t_la_static_ul4()?>
 				<?print globals.app.cl_foo.identifier?>
 				<?print globals.cl_foo.identifier?>
+				<?print globals.app.cl_foo.app is globals.app?>
+				<?print globals.cl_foo.app is globals.app?>
 			"""
 		)
 
@@ -2898,5 +2900,7 @@ def test_chained_template_library(handler):
 			<script src="nosource"></script>
 			foo
 			foo
+			True
+			True
 		"""
 		assert lines(output) == lines(expected)
