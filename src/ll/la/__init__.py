@@ -7498,21 +7498,27 @@ class TemplateLibrary(Base):
 	.. attribute:: templates
 
 		The UL4 templates belonging to this library.
+
+	.. attribute:: params
+
+		The parameters belonging to this library.
 	"""
 
-	ul4_attrs = {"id", "identifier", "description", "templates"}
+	ul4_attrs = {"id", "identifier", "description", "templates", "params"}
 	ul4_type = ul4c.Type("la", "TemplateLibrary", "A LivingApps template library")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	templates = AttrDictAttr(get=True, ul4get=True, ul4onget=True)
+	templates = AttrDictAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	params = AttrDictAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, identifier=None, description=None, templates=None):
+	def __init__(self, id=None, identifier=None, description=None, templates=None, params=None):
 		self.id = id
 		self.identifier = identifier
 		self.description = description
 		self.templates = attrdict(templates) if templates is not None else attrdict()
+		self.params = attrdict(params) if params is not None else attrdict()
 
 	@property
 	def ul4onid(self) -> str:
@@ -7522,6 +7528,10 @@ class TemplateLibrary(Base):
 		try:
 			if name.startswith("t_"):
 				return self.templates[name[2:]]
+			if name.startswith("p_"):
+				return self.params[name[2:]]
+			if name.startswith("pv_"):
+				return self.params[name[3:]].value
 		except KeyError:
 			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 		return super().__getattr__(name)
@@ -7533,6 +7543,9 @@ class TemplateLibrary(Base):
 		attrs = set(super().__dir__())
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
+		for identifier in self.params:
+			attrs.add(f"p_{identifier}")
+			attrs.add(f"pv_{identifier}")
 		return attrs
 
 	def ul4_hasattr(self, name):
@@ -7540,8 +7553,72 @@ class TemplateLibrary(Base):
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
+		elif name.startswith("p_") and name[2:] in self.params:
+			return True
+		elif name.startswith("pv_") and name[3:] in self.params:
+			return True
 		else:
 			return super().ul4_hasattr(name)
+
+
+@register("libraryparameter")
+class LibraryParameter(Base):
+	r"""
+	An additional parameter for a template library.
+
+	This can e.g. be used to provide a simple way to configure the behaviour
+	of :class:`TemplateLibrary`\s.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id
+
+	.. attribute:: library
+		:type: TemplateLibrary
+
+		The template library this parameter belong to
+
+	.. attribute:: identifier
+		:type: str
+
+		Human readable identifier
+
+	.. attribute:: description
+		:type: str
+
+		Description of the parameter
+
+	.. attribute:: value
+
+		The parameter value. The type of the value depends on the type of the
+		parameter. Possible types are: :class:`bool`, :class:`int`,
+		:class:`float`, :class:`str`, :class:`~ll.color.Color`,
+		:class:`datetime.date`, :class:`datetime.datetime`,
+		:class:`datetime.timedelta`, :class:`~ll.misc.monthdelta` (and ``None``).
+	"""
+
+	ul4_attrs = {"id", "library", "identifier", "description", "value"}
+	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a template library")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	library = Attr(TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, library=None, identifier=None, description=None, value=None):
+		self.id = id
+		self.library = library
+		self.identifier = identifier
+		self.description = description
+		self.value = value
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
 
 
 class ChainedLibrary:
