@@ -4895,12 +4895,12 @@ class Record(Base):
 
 	def __getattr__(self, name):
 		try:
-			if name.startswith("c_"):
-				return self.children[name[2:]]
+			if name.startswith("v_"):
+				return self.values[name[2:]]
 			elif name.startswith("f_"):
 				return self.fields[name[2:]]
-			elif name.startswith("v_"):
-				return self.values[name[2:]]
+			elif name.startswith("c_"):
+				return self.children[name[2:]]
 			elif name in self.__class__.__dict__:
 				attr = getattr(self.__class__, name)
 				if isinstance(attr, Attr):
