@@ -216,7 +216,7 @@ def test_datasources(handler, config_apps):
 		),
 		identifier="test_livingapi_datasources",
 		source="""
-			<?for identifier in datasources?>
+			<?for identifier in sorted(datasources)?>
 				<?print identifier?>
 			<?end for?>
 		""",
