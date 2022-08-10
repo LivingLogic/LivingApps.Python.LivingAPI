@@ -7459,95 +7459,6 @@ class Category(Base):
 		return self.id
 
 
-@register("appparameter")
-class AppParameter(Base):
-	r"""
-	An additional parameter for an app.
-
-	This can e.g. be used to provide a simple way to configure the behaviour
-	of :class:`ViewTemplate`\s.
-
-	Relevant instance attributes are:
-
-	.. attribute:: id
-		:type: str
-
-		Unique database id
-
-	.. attribute:: app
-		:type: App
-
-		The app this parameter belong to
-
-	.. attribute:: identifier
-		:type: str
-
-		Human readable identifier
-
-	.. attribute:: description
-		:type: str
-
-		Description of the parameter
-
-	.. attribute:: value
-
-		The parameter value. The type of the value depends on the type of the
-		parameter. Possible types are: :class:`bool`, :class:`int`,
-		:class:`float`, :class:`str`, :class:`~ll.color.Color`,
-		:class:`datetime.date`, :class:`datetime.datetime`,
-		:class:`datetime.timedelta`, :class:`~ll.misc.monthdelta`,
-		:class:`File` and :class:`App` (and ``None``).
-
-	.. attribute:: createdat
-		:type: datetime.datetime
-
-		When was this parameter created?
-
-	.. attribute:: createdby
-		:type: User
-
-		Who created this parameter?
-
-	.. attribute:: updatedat
-		:type: Optional[datetime.datetime]
-
-		When was this parameter last updated?
-
-	.. attribute:: updatedby
-		:type: Optional[User]
-
-		Who updated this parameter last?
-	"""
-
-	ul4_attrs = {"id", "app", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
-	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application")
-
-	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-
-	def __init__(self, id=None, app=None, identifier=None, description=None, value=None):
-		self.id = id
-		self.app = app
-		self.identifier = identifier
-		self.description = description
-		self.value = value
-		self.createdat = None
-		self.createdby = None
-		self.updatedat = None
-		self.updatedby = None
-
-	@property
-	def ul4onid(self) -> str:
-		return self.id
-
-
 @register("templatelibrary")
 class TemplateLibrary(Base):
 	r"""
@@ -7636,13 +7547,13 @@ class TemplateLibrary(Base):
 			return super().ul4_hasattr(name)
 
 
-@register("libraryparameter")
-class LibraryParameter(Base):
+@register("appparameter")
+class AppParameter(Base):
 	r"""
-	An additional parameter for a template library.
+	An additional parameter for an app.
 
 	This can e.g. be used to provide a simple way to configure the behaviour
-	of :class:`TemplateLibrary`\s.
+	of :class:`ViewTemplate`\s.
 
 	Relevant instance attributes are:
 
@@ -7651,10 +7562,10 @@ class LibraryParameter(Base):
 
 		Unique database id
 
-	.. attribute:: library
-		:type: TemplateLibrary
+	.. attribute:: app
+		:type: App
 
-		The template library this parameter belong to
+		The app this parameter belong to
 
 	.. attribute:: identifier
 		:type: str
@@ -7672,28 +7583,65 @@ class LibraryParameter(Base):
 		parameter. Possible types are: :class:`bool`, :class:`int`,
 		:class:`float`, :class:`str`, :class:`~ll.color.Color`,
 		:class:`datetime.date`, :class:`datetime.datetime`,
-		:class:`datetime.timedelta`, :class:`~ll.misc.monthdelta` (and ``None``).
+		:class:`datetime.timedelta`, :class:`~ll.misc.monthdelta`,
+		:class:`File` and :class:`App` (and ``None``).
+
+	.. attribute:: createdat
+		:type: datetime.datetime
+
+		When was this parameter created?
+
+	.. attribute:: createdby
+		:type: User
+
+		Who created this parameter?
+
+	.. attribute:: updatedat
+		:type: Optional[datetime.datetime]
+
+		When was this parameter last updated?
+
+	.. attribute:: updatedby
+		:type: Optional[User]
+
+		Who updated this parameter last?
 	"""
 
-	ul4_attrs = {"id", "library", "identifier", "description", "value"}
-	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a template library")
+	ul4_attrs = {"id", "app", "library", "parent", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application or library")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	library = Attr(TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(App, TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, library=None, identifier=None, description=None, value=None):
+	def __init__(self, id=None, parent=None, identifier=None, description=None, value=None):
 		self.id = id
-		self.library = library
+		self.parent = parent
 		self.identifier = identifier
 		self.description = description
 		self.value = value
+		self.createdat = None
+		self.createdby = None
+		self.updatedat = None
+		self.updatedby = None
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	@property
+	def app(self) -> Optional[App]:
+		return self.parent if isinstance(self.parent, App) else None
+
+	@property
+	def library(self) -> Optional[TemplateLibrary]:
+		return self.parent if isinstance(self.parent, TemplateLibrary) else None
 
 
 class ChainedLibrary:
