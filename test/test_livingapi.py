@@ -216,7 +216,7 @@ def test_datasources(handler, config_apps):
 		),
 		identifier="test_livingapi_datasources",
 		source="""
-			<?for identifier in datasources?>
+			<?for identifier in sorted(datasources)?>
 				<?print identifier?>
 			<?end for?>
 		""",
@@ -2868,10 +2868,10 @@ def test_template_libraries(handler):
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
 		expected = """
-			<script src="/static/ul4/1.13.0/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.13.0/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.13.0/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.13.0/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
 		"""
 		assert lines(output) == lines(expected)
 
@@ -2887,6 +2887,8 @@ def test_chained_template_library(handler):
 				<?render globals.cl_la_static.t_la_static_ul4()?>
 				<?print globals.app.cl_foo.identifier?>
 				<?print globals.cl_foo.identifier?>
+				<?print globals.app.cl_foo.app is globals.app?>
+				<?print globals.cl_foo.app is globals.app?>
 			"""
 		)
 
@@ -2898,5 +2900,7 @@ def test_chained_template_library(handler):
 			<script src="nosource"></script>
 			foo
 			foo
+			True
+			True
 		"""
 		assert lines(output) == lines(expected)

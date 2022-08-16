@@ -322,7 +322,7 @@ def config_apps():
 	A test fixture that gives us a dictionary with a :class:`la.DBHandler` and
 	the two :class:`la.App` objects.
 	"""
-	handler = la.DBHandler(connectstring=connect(), uploaddir=uploaddir(), ide_account=user())
+	handler = la.DBHandler(connectstring=connect(), connectstring_postgres=connect_postgres(), uploaddir=uploaddir(), ide_account=user())
 
 	vars = handler.meta_data(person_app_id(), fields_app_id())
 

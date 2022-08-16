@@ -1051,35 +1051,15 @@ class DBHandler(Handler):
 
 	def fetch_templatelibraries(self):
 		if self.templatelibraries is None:
-			self.templatelibraries = la.attrdict()
-			c1 = self.cursor_pg(row_factory=rows.tuple_row)
-			c2 = self.cursor_pg(row_factory=rows.tuple_row)
-			c1.execute("""
-				select
-					tl_id,
-					tl_identifier,
-					tl_description
-				from
-					templatelibrary.templatelibrary
-				order by
-					lower(tl_identifier)
-			""")
-			for row in c1:
-				c2.execute("""
-					select
-						lt_identifier,
-						utv_source
-					from
-						templatelibrary.librarytemplate_select
-					order by
-						lower(lt_identifier)
-				""")
-				templates = {}
-				for row2 in c2:
-					t = ul4c.Template(row2[1], row2[0])
-					templates[t.name] = t
-				tl = la.TemplateLibrary(row[0], row[1], row[2], templates)
-				self.templatelibraries[tl.identifier] = tl
+			c = self.cursor_pg(row_factory=rows.tuple_row)
+			c.execute("select templatelibrary.alltemplatelibraries_ful4on()")
+			r = c.fetchone()
+			dump = r[0]
+			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
+			dump = ul4on.loads(dump)
+			if isinstance(dump, dict):
+				dump = la.attrdict(dump)
+			self.templatelibraries = la.attrdict(dump)
 		return self.templatelibraries
 
 

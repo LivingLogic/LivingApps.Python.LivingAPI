@@ -1699,6 +1699,11 @@ class Globals(Base):
 
 		Data for configured data sources.
 
+	.. attribute:: externaldatasources
+		:type: dict[str, ExternalDataSource]
+
+		Configuration and data for external data sources.
+
 	.. attribute:: hostname
 		:type: str
 
@@ -1743,6 +1748,7 @@ class Globals(Base):
 		"app",
 		"record",
 		"datasources",
+		"externaldatasources",
 		"user",
 		"flashes",
 		"log_debug",
@@ -1805,6 +1811,7 @@ class Globals(Base):
 	view_template_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	email_template_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	view_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
+	externaldatasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 
 	def __init__(self, id=None, version=None, hostname=None, platform=None, mode=None):
 		self.version = version
@@ -1826,6 +1833,7 @@ class Globals(Base):
 		self.view_template_id = None
 		self.email_template_id = None
 		self.view_id = None
+		self.externaldatasources = attrdict()
 
 	@property
 	def ul4onid(self) -> str:
@@ -1834,6 +1842,10 @@ class Globals(Base):
 	def _datasources_ul4onset(self, value):
 		if value is not None:
 			self.datasources = value
+
+	def _externaldatasources_ul4onset(self, value):
+		if value is not None:
+			self.externaldatasources = value
 
 	def _record_ul4onset(self, value):
 		if value is not None:
@@ -2055,11 +2067,13 @@ class Globals(Base):
 		try:
 			if self.datasources and name.startswith("d_"):
 				return self.datasources[name[2:]]
+			elif self.externaldatasources and name.startswith("e_"):
+				return self.externaldatasources[name[2:]]
 			elif name.startswith("t_"):
 				return self.templates[name[2:]]
 			elif name.startswith("l_"):
 				return self.libs[name[2:]]
-			elif name.startswith("cl_") and self.app:
+			elif self.app and name.startswith("cl_"):
 				return getattr(self.app, name)
 			elif self.app and name.startswith("p_"):
 				return self.app.params[name[2:]]
@@ -2077,6 +2091,9 @@ class Globals(Base):
 		if self.datasources:
 			for identifier in self.datasources:
 				attrs.add(f"d_{identifier}")
+		if self.externaldatasources:
+			for identifier in self.externaldatasources:
+				attrs.add(f"e_{identifier}")
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
 		for identifier in self.libs:
@@ -2085,14 +2102,7 @@ class Globals(Base):
 			for identifier in self.app.params:
 				attrs.add(f"p_{identifier}")
 				attrs.add(f"pv_{identifier}")
-				attrs.add(f"cl_{identifier}")
 		return attrs
-
-	def ul4_setattr(self, name, value):
-		if name == "lang":
-			self.lang = value
-		else:
-			super().ul4_setattr(name, value)
 
 	def ul4_hasattr(self, name):
 		if name in self.ul4_attrs:
@@ -2103,7 +2113,7 @@ class Globals(Base):
 			return True
 		elif name.startswith("l_") and name[2:] in self.libs:
 			return True
-		elif name.startswith("cl_"):
+		elif self.app and name.startswith("cl_"):
 			return True
 		elif self.app and name.startswith("p_") and name[2:] in self.app.params:
 			return True
@@ -2111,6 +2121,16 @@ class Globals(Base):
 			return True
 		else:
 			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if self.ul4_hasattr(name):
+			return getattr(self, name)
+
+	def ul4_setattr(self, name, value):
+		if name == "lang":
+			self.lang = value
+		else:
+			super().ul4_setattr(name, value)
 
 
 @register("app")
@@ -2423,13 +2443,16 @@ class App(Base):
 	def _get_chained_library(self, identifier):
 		if identifier not in self._chained_libraries:
 			templates = self.templates
+			params = self.params
 			if identifier in self.params:
 				param = self.params[identifier]
 				if isinstance(param.value, App):
 					templates = collections.ChainMap(templates, param.value._get_chained_library(identifier).templates)
+					params = collections.ChainMap(params, param.value._get_chained_library(identifier).params)
 			elif identifier in self.globals.libs:
 				templates = collections.ChainMap(templates, self.globals.libs[identifier].templates)
-			self._chained_libraries[identifier] = ChainedLibrary(identifier, self, templates)
+				params = collections.ChainMap(params, self.globals.libs[identifier].params)
+			self._chained_libraries[identifier] = ChainedLibrary(identifier, self, templates, params)
 		return self._chained_libraries[identifier]
 
 	def __getattr__(self, name):
@@ -2449,7 +2472,6 @@ class App(Base):
 		except KeyError:
 			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 		return super().__getattr__(name)
-
 
 	def __dir__(self):
 		"""
@@ -4895,12 +4917,12 @@ class Record(Base):
 
 	def __getattr__(self, name):
 		try:
-			if name.startswith("c_"):
-				return self.children[name[2:]]
+			if name.startswith("v_"):
+				return self.values[name[2:]]
 			elif name.startswith("f_"):
 				return self.fields[name[2:]]
-			elif name.startswith("v_"):
-				return self.values[name[2:]]
+			elif name.startswith("c_"):
+				return self.children[name[2:]]
 			elif name in self.__class__.__dict__:
 				attr = getattr(self.__class__, name)
 				if isinstance(attr, Attr):
@@ -7177,6 +7199,62 @@ class DataSource(Base):
 		return self.id
 
 
+@register("externaldatasource")
+class ExternalDataSource(Base):
+	"""
+	An :class:`!ExternalDataSource` object contains information about an
+	external datasource, which is an URL that provides additional data to a
+	view template. This data can either be text or JSON.
+
+	Relevant instance attribytes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id
+
+	.. attribute:: identifier
+		:type: str
+
+		A unique identifier for the external data source
+
+	.. attribute:: description
+		:type: Optional[str]
+
+		A description of the external data source.
+
+	.. attribute:: url
+		:type: str
+
+		The URL from which external data will be fetched.
+
+	.. attribute:: data
+		:type: Any
+
+		The data that has been fetched from the external data source.
+	"""
+
+	ul4_attrs = {"id", "identifier", "description", "url", "data"}
+	ul4_type = ul4c.Type("la", "ExternalDataSource", "The configuration of and the data resulting from an external data source")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	url = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	data = Attr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id:str=None, identifier:str=None, description:T_opt_str=None, url:str=None):
+		self.id = id
+		self.identifier = identifier
+		self.description = description
+		self.url = url
+		self.data = None
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+
 @register("lookupitem")
 class LookupItem(Base):
 	r"""
@@ -7384,6 +7462,94 @@ class Category(Base):
 		return self.id
 
 
+@register("templatelibrary")
+class TemplateLibrary(Base):
+	r"""
+	A template library contains a collection of templates.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id
+
+	.. attribute:: identifier
+		:type: str
+
+		Human readable identifier
+
+	.. attribute:: description
+		:type: str
+
+		Description of the library
+
+	.. attribute:: templates
+
+		The UL4 templates belonging to this library.
+
+	.. attribute:: params
+
+		The parameters belonging to this library.
+	"""
+
+	ul4_attrs = {"id", "identifier", "description", "templates", "params"}
+	ul4_type = ul4c.Type("la", "TemplateLibrary", "A LivingApps template library")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	templates = AttrDictAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	params = AttrDictAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, identifier=None, description=None, templates=None, params=None):
+		self.id = id
+		self.identifier = identifier
+		self.description = description
+		self.templates = attrdict(templates) if templates is not None else attrdict()
+		self.params = attrdict(params) if params is not None else attrdict()
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def __getattr__(self, name):
+		try:
+			if name.startswith("t_"):
+				return self.templates[name[2:]]
+			if name.startswith("p_"):
+				return self.params[name[2:]]
+			if name.startswith("pv_"):
+				return self.params[name[3:]].value
+		except KeyError:
+			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		for identifier in self.templates:
+			attrs.add(f"t_{identifier}")
+		for identifier in self.params:
+			attrs.add(f"p_{identifier}")
+			attrs.add(f"pv_{identifier}")
+		return attrs
+
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
+			return True
+		elif name.startswith("t_") and name[2:] in self.templates:
+			return True
+		elif name.startswith("p_") and name[2:] in self.params:
+			return True
+		elif name.startswith("pv_") and name[3:] in self.params:
+			return True
+		else:
+			return super().ul4_hasattr(name)
+
+
 @register("appparameter")
 class AppParameter(Base):
 	r"""
@@ -7444,11 +7610,11 @@ class AppParameter(Base):
 		Who updated this parameter last?
 	"""
 
-	ul4_attrs = {"id", "app", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
-	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application")
+	ul4_attrs = {"id", "app", "library", "parent", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application or library")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(App, TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -7457,9 +7623,9 @@ class AppParameter(Base):
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, app=None, identifier=None, description=None, value=None):
+	def __init__(self, id=None, parent=None, identifier=None, description=None, value=None):
 		self.id = id
-		self.app = app
+		self.parent = parent
 		self.identifier = identifier
 		self.description = description
 		self.value = value
@@ -7472,76 +7638,13 @@ class AppParameter(Base):
 	def ul4onid(self) -> str:
 		return self.id
 
-
-@register("templatelibrary")
-class TemplateLibrary(Base):
-	r"""
-	A template library contains a collection of templates.
-
-	Relevant instance attributes are:
-
-	.. attribute:: id
-		:type: str
-
-		Unique database id
-
-	.. attribute:: identifier
-		:type: str
-
-		Human readable identifier
-
-	.. attribute:: description
-		:type: str
-
-		Description of the library
-
-	.. attribute:: templates
-
-		The UL4 templates belonging to this library.
-	"""
-
-	ul4_attrs = {"id", "identifier", "description", "templates"}
-	ul4_type = ul4c.Type("la", "TemplateLibrary", "A LivingApps template library")
-
-	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	templates = AttrDictAttr(get=True, ul4get=True, ul4onget=True)
-
-	def __init__(self, id=None, identifier=None, description=None, templates=None):
-		self.id = id
-		self.identifier = identifier
-		self.description = description
-		self.templates = attrdict(templates) if templates is not None else attrdict()
+	@property
+	def app(self) -> Optional[App]:
+		return self.parent if isinstance(self.parent, App) else None
 
 	@property
-	def ul4onid(self) -> str:
-		return self.id
-
-	def __getattr__(self, name):
-		try:
-			if name.startswith("t_"):
-				return self.templates[name[2:]]
-		except KeyError:
-			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-		return super().__getattr__(name)
-
-	def __dir__(self):
-		"""
-		Make keys completeable in IPython.
-		"""
-		attrs = set(super().__dir__())
-		for identifier in self.templates:
-			attrs.add(f"t_{identifier}")
-		return attrs
-
-	def ul4_hasattr(self, name):
-		if name in self.ul4_attrs:
-			return True
-		elif name.startswith("t_") and name[2:] in self.templates:
-			return True
-		else:
-			return super().ul4_hasattr(name)
+	def library(self) -> Optional[TemplateLibrary]:
+		return self.parent if isinstance(self.parent, TemplateLibrary) else None
 
 
 class ChainedLibrary:
@@ -7565,20 +7668,25 @@ class ChainedLibrary:
 		The UL4 templates belonging to this library.
 	"""
 
-	ul4_attrs = {"identifier", "app", "templates"}
+	ul4_attrs = {"identifier", "app", "templates", "params"}
 
-	def __init__(self, identifier, app, templates):
+	def __init__(self, identifier, app, templates, params):
 		self.identifier = identifier
 		self.app = app
 		self.templates = templates
+		self.params = params
 
 	def __repr__(self):
-		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.identifier!r} with {len(self.templates)} templates at {id(self):x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.identifier!r} with {len(self.templates):,} templates and {len(self.params):,} params at {id(self):x}>"
 
 	def __getattr__(self, name):
 		try:
 			if name.startswith("t_"):
 				return self.templates[name[2:]]
+			elif name.startswith("p_"):
+				return self.params[name[2:]]
+			elif name.startswith("pv_"):
+				return self.params[name[3:]].value
 		except KeyError:
 			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
@@ -7589,12 +7697,19 @@ class ChainedLibrary:
 		attrs = self.ul4_attrs.copy()
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
+		for identifier in self.params:
+			attrs.add(f"p_{identifier}")
+			attrs.add(f"pv_{identifier}")
 		return attrs
 
 	def ul4_hasattr(self, name):
 		if name in self.ul4_attrs:
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
+			return True
+		elif name.startswith("p_") and name[2:] in self.params:
+			return True
+		elif name.startswith("pv_") and name[3:] in self.params:
 			return True
 		else:
 			return False
