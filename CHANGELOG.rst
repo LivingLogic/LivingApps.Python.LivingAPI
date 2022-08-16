@@ -1,3 +1,11 @@
+HEAD (2022-08-??)
+-----------------
+
+*	Add support for template library parameters.
+
+*	Add support for external data sources.
+
+
 0.16.1 (2022-07-08)
 -------------------
 
