@@ -1055,7 +1055,6 @@ class DBHandler(Handler):
 			c.execute("select templatelibrary.alltemplatelibraries_ful4on()")
 			r = c.fetchone()
 			dump = r[0]
-			open('/Users/walter/x/gurk.ulon', 'w').write(dump)
 			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
 			dump = ul4on.loads(dump)
 			if isinstance(dump, dict):
