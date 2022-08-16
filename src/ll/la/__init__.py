@@ -2066,13 +2066,13 @@ class Globals(Base):
 		try:
 			if self.datasources and name.startswith("d_"):
 				return self.datasources[name[2:]]
-			if self.externaldatasources and name.startswith("e_"):
+			elif self.externaldatasources and name.startswith("e_"):
 				return self.externaldatasources[name[2:]]
 			elif name.startswith("t_"):
 				return self.templates[name[2:]]
 			elif name.startswith("l_"):
 				return self.libs[name[2:]]
-			elif name.startswith("cl_") and self.app:
+			elif self.app and name.startswith("cl_"):
 				return getattr(self.app, name)
 			elif self.app and name.startswith("p_"):
 				return self.app.params[name[2:]]
@@ -2112,7 +2112,7 @@ class Globals(Base):
 			return True
 		elif name.startswith("l_") and name[2:] in self.libs:
 			return True
-		elif name.startswith("cl_"):
+		elif self.app and name.startswith("cl_"):
 			return True
 		elif self.app and name.startswith("p_") and name[2:] in self.app.params:
 			return True
