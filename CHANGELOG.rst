@@ -1,4 +1,4 @@
-HEAD (2022-08-??)
+0.17 (2022-08-16)
 -----------------
 
 *	Add support for template library parameters.
