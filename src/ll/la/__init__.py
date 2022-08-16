@@ -2101,7 +2101,6 @@ class Globals(Base):
 			for identifier in self.app.params:
 				attrs.add(f"p_{identifier}")
 				attrs.add(f"pv_{identifier}")
-				attrs.add(f"cl_{identifier}")
 		return attrs
 
 	def ul4_setattr(self, name, value):
