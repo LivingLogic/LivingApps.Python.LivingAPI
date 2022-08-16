@@ -2103,12 +2103,6 @@ class Globals(Base):
 				attrs.add(f"pv_{identifier}")
 		return attrs
 
-	def ul4_setattr(self, name, value):
-		if name == "lang":
-			self.lang = value
-		else:
-			super().ul4_setattr(name, value)
-
 	def ul4_hasattr(self, name):
 		if name in self.ul4_attrs:
 			return True
@@ -2126,6 +2120,16 @@ class Globals(Base):
 			return True
 		else:
 			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if self.ul4_hasattr(name):
+			return getattr(self, name)
+
+	def ul4_setattr(self, name, value):
+		if name == "lang":
+			self.lang = value
+		else:
+			super().ul4_setattr(name, value)
 
 
 @register("app")
@@ -2467,7 +2471,6 @@ class App(Base):
 		except KeyError:
 			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 		return super().__getattr__(name)
-
 
 	def __dir__(self):
 		"""
