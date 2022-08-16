@@ -1833,6 +1833,7 @@ class Globals(Base):
 		self.view_template_id = None
 		self.email_template_id = None
 		self.view_id = None
+		self.externaldatasources = attrdict()
 
 	@property
 	def ul4onid(self) -> str:
