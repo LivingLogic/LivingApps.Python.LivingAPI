@@ -124,6 +124,12 @@ class Handler:
 	def viewtemplate_data(self, *path, **params):
 		raise NotImplementedError
 
+	def viewtemplate_params_incremental_data(self, id):
+		return None
+
+	def emailtemplate_params_incremental_data(self, id):
+		return None
+
 	def app_params_incremental_data(self, id):
 		return None
 
@@ -274,6 +280,12 @@ class Handler:
 	def fetch_templatelibraries(self):
 		return la.attrdict()
 
+	def fetch_viewtemplate_params(self, vt_id):
+		return la.attrdict()
+
+	def fetch_emailtemplate_params(self, et_id):
+		return la.attrdict()
+
 	def _loadfile(self, id):
 		file = la.File(id=id)
 		file.handler = self
@@ -366,6 +378,8 @@ class DBHandler(Handler):
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
+		self.viewtemplate_params = {} # Maps ``vt_id`` to parameter dictionary
+		self.emailtemplate_params = {} # Maps ``et_id`` to parameter dictionary
 		self.templatelibraries = None # Maps ``tl_id`` to template library
 
 		if ide_id is not None:
@@ -878,6 +892,22 @@ class DBHandler(Handler):
 
 		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
 
+	def viewtemplate_params_incremental_data(self, id):
+		c = self.cursor()
+		c.execute("select livingapi_pkg.viewtemplate_params_inc_ful4on(:vtid) from dual", vtid=id)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
+	def emailtemplate_params_incremental_data(self, id):
+		c = self.cursor()
+		c.execute("select livingapi_pkg.emailtemplate_params_inc_ful4on(:etid) from dual", etid=id)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
 	def app_params_incremental_data(self, id):
 		c = self.cursor()
 		c.execute("select livingapi_pkg.app_params_inc_ful4on(:appid) from dual", appid=id)
@@ -1048,6 +1078,16 @@ class DBHandler(Handler):
 				**self._loadinternaltemplates(app.superid),
 				**self._loadinternaltemplates(app.id),
 			}
+
+	def fetch_viewtemplate_params(self, vt_id):
+		if vt_id not in self.viewtemplate_params:
+			self.viewtemplate_params[vt_id] = self.viewtemplate_params_incremental_data(vt_id)
+		return self.viewtemplate_params[vt_id]
+
+	def fetch_emailtemplate_params(self, et_id):
+		if vt_id not in self.emailtemplate_params:
+			self.emailtemplate_params[et_id] = self.emailtemplate_params_incremental_data(vt_id)
+		return self.emailtemplate_params[vt_id]
 
 	def fetch_templatelibraries(self):
 		if self.templatelibraries is None:

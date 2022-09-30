@@ -1738,6 +1738,12 @@ class Globals(Base):
 		:type: Optional[str]
 
 		View id of last database call.
+
+	.. attribute:: params
+		:type: Optional[dict[str, AppParameter]]
+
+		Parameters of the view or email template that overwrite the parameters
+		of the app.
 	"""
 
 	ul4_attrs = {
@@ -1758,6 +1764,7 @@ class Globals(Base):
 		"log_error",
 		"lang",
 		"templates",
+		"params",
 		"libs",
 		"request",
 		"response",
@@ -1828,12 +1835,12 @@ class Globals(Base):
 		self.handler = None
 		self.request = None
 		self.response = None
-		self._templates = None
 		self.mode = mode
 		self.view_template_id = None
 		self.email_template_id = None
 		self.view_id = None
 		self.externaldatasources = attrdict()
+		self._chained_libraries = {}
 
 	@property
 	def ul4onid(self) -> str:
@@ -2054,8 +2061,37 @@ class Globals(Base):
 		return self.app.templates if self.app else attrdict()
 
 	@property
+	def params(self) -> Dict[str, "AppParameter"]:
+		if self.handler is not None:
+			if self.view_template_id is not None:
+				return attrdict(
+					collections.ChainMap(
+						self.handler.fetch_viewtemplate_params(self.view_template_id),
+						self.app.params,
+					)
+				)
+			elif self.email_template_id is not None:
+				return attrdict(
+					collections.ChainMap(
+						self.handler.fetch_emailtemplate_params(self.email_template_id),
+						self.app.params,
+					)
+				)
+		return self.app.params
+
+	@property
 	def libs(self) -> Dict[str, "TemplateLibrary"]:
 		return self.handler.fetch_templatelibraries() if self.handler is not None else attrdict()
+
+	def _get_chained_library(self, identifier):
+		if identifier not in self._chained_libraries:
+			base = self.app._get_chained_library(identifier)
+			if self._params:
+				params = collections.ChainMap(self._params, base.params)
+				self._chained_libraries[identifier] = ChainedLibrary(identifier, None, base.templates, params)
+			else:
+				self._chained_libraries[identifier] = base
+		return self._chained_libraries[identifier]
 
 	vsqlsearchfield = vsql.Field("search", vsql.DataType.STR, "livingapi_pkg.global_search")
 
@@ -2074,11 +2110,11 @@ class Globals(Base):
 			elif name.startswith("l_"):
 				return self.libs[name[2:]]
 			elif self.app and name.startswith("cl_"):
-				return getattr(self.app, name)
+				return self._get_chained_library(name[3:])
 			elif self.app and name.startswith("p_"):
-				return self.app.params[name[2:]]
+				return self.params[name[2:]]
 			elif self.app and name.startswith("pv_"):
-				return self.app.params[name[3:]].value
+				return self.params[name[3:]].value
 		except KeyError:
 			pass
 		raise AttributeError(error_attribute_doesnt_exist(self, name))

@@ -1,3 +1,10 @@
+HEAD (2022-10-??)
+-----------------
+
+*	Add support for hierarchical parameters and parameters attached to
+	view and email templates.
+
+
 0.17 (2022-08-16)
 -----------------
 
