@@ -887,7 +887,7 @@ class EnumAttr(Attr):
 	def _default_repr(self, instance):
 		value = self.get(instance)
 		if value is not None:
-			return f"{self.name}={value.name!r}"
+			return f"{self.name}={value.value!r}"
 		else:
 			return None
 
