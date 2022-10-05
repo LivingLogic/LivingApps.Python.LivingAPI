@@ -399,10 +399,6 @@ class DBHandler(Handler):
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
 
-	def reset(self):
-		super().reset()
-		self.proc_clear_all(self.cursor())
-
 	def cursor(self):
 		return self.db.cursor(readlobs=True)
 
@@ -851,6 +847,8 @@ class DBHandler(Handler):
 		)
 
 		r = c.fetchone()
+		# Since the database has cleared its backref registry, we do that too
+		self.reset()
 		dump = r[0].decode("utf-8")
 		dump = self._loaddump(dump)
 		return dump
