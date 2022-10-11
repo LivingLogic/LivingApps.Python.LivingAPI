@@ -7604,10 +7604,35 @@ class AppParameter(Base):
 	.. attribute:: app
 		:type: App
 
-		The app this parameter belong to
+		The app this parameter belong to.
+
+	.. attribute:: library
+		:type: TemplateLibrary
+
+		The template library this parameter belong to.
+
+	.. attribute:: owner
+		:type: Union[App, TemplateLibrary]
+
+		The object this parameter belong to. This is either a :class:`App` or
+		a :class:`TemplatLibrary`.
+
+	.. attribute:: parent
+		:type: Optional[AppParameter]
+
+		If this is a :class:`!AppParameter` object inside another
+		:class:`!AppParameter` object of type ``list`` or ``dict``, ``parent``
+		references this parent object.
+		a :class:`TemplatLibrary`.
+
+	.. attribute:: order
+		:type: Optional[int]
+
+		Numeric value used to order the items in an :class:`!AppParameter` object
+		of type ``list``.
 
 	.. attribute:: identifier
-		:type: str
+		:type: Optional[str]
 
 		Human readable identifier
 
@@ -7623,7 +7648,8 @@ class AppParameter(Base):
 		:class:`float`, :class:`str`, :class:`~ll.color.Color`,
 		:class:`datetime.date`, :class:`datetime.datetime`,
 		:class:`datetime.timedelta`, :class:`~ll.misc.monthdelta`,
-		:class:`File` and :class:`App` (and ``None``).
+		:class:`File`, :class:`App`, :class:`Control`, :class:`list`,
+		:class:`dict` (and ``None``).
 
 	.. attribute:: createdat
 		:type: datetime.datetime
@@ -7646,11 +7672,53 @@ class AppParameter(Base):
 		Who updated this parameter last?
 	"""
 
-	ul4_attrs = {"id", "app", "library", "parent", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_attrs = {"id", "app", "library", "owner", "parent", "type", "order", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
 	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application or library")
 
+	class Type(misc.Enum):
+		"""
+		The type of a parameter. Possible values are:
+
+		*	``BOOL``
+		*	``INT``
+		*	``NUMBER``
+		*	``STR``
+		*	``HTML``
+		*	``COLOR``
+		*	``DATE``
+		*	``DATETIME``
+		*	``DATEDELTA``
+		*	``DATETIMEDELTA``
+		*	``MONTHDELTA``
+		*	``UPLOAD``
+		*	``APP``
+		*	``CONTROL``
+		*	``LIST``
+		*	``DICT``
+		"""
+
+		BOOL = "bool"
+		INT = "int"
+		NUMBER = "number"
+		STR = "str"
+		HTML = "html"
+		COLOR = "color"
+		DATE = "date"
+		DATETIME = "datetime"
+		DATEDELTA = "datedelta"
+		DATETIMEDELTA = "datetimedelta"
+		MONTHDELTA = "monthdelta"
+		UPLOAD = "upload"
+		APP = "app"
+		CONTROL = "control"
+		LIST = "list"
+		DICT = "dict"
+
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	parent = Attr(App, TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	owner = Attr(App, TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(lambda: AppParameter, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	type = EnumAttr(Type, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	order = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -7659,9 +7727,12 @@ class AppParameter(Base):
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, parent=None, identifier=None, description=None, value=None):
+	def __init__(self, id=None, parent=None, owner=None, type=None, order=None, identifier=None, description=None, value=None):
 		self.id = id
 		self.parent = parent
+		self.owner = owner
+		self.type = type
+		self.order = order
 		self.identifier = identifier
 		self.description = description
 		self.value = value
