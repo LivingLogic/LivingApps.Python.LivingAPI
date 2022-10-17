@@ -1840,6 +1840,7 @@ class Globals(Base):
 		self.email_template_id = None
 		self.view_id = None
 		self.externaldatasources = attrdict()
+		self._params = {}
 		self._chained_libraries = {}
 
 	@property
