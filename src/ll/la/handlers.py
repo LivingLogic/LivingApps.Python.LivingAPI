@@ -303,6 +303,7 @@ class Handler:
 		return globals
 
 	def _loaddump(self, dump):
+		print(f"Loading dump {dump!r} with objects {self.ul4on_decoder._objects}")
 		dump = self.ul4on_decoder.loads(dump)
 		if isinstance(dump, dict):
 			dump = la.attrdict(dump)
