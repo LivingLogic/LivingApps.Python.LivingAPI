@@ -2460,6 +2460,7 @@ class App(Base):
 	def ul4_add_param(self, type, identifier, description, value):
 		param = AppParameter(type=type, identifier=identifier, description=description, value=value)
 		self.addparam(param)
+		return param
 
 	def _records_ul4onset(self, value):
 		if value is not None:
@@ -7962,14 +7963,18 @@ class AppParameter(Base):
 			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
 		if self.value is None:
 			self.value = []
-		self.value.append(AppParameter(parent=self, owner=self.owner, type=type, order=self.value[-1].order+10, description=description, value=value))
+		param = AppParameter(parent=self, owner=self.owner, type=type, order=self.value[-1].order+10, description=description, value=value)
+		self.value.append(param)
+		return param
 
 	def add_param(self, type, identifier, description, value):
 		if self.type is not self.Type.DICT:
 			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
 		if self.value is None:
 			self.value = {}
-		self.value[identifier] = AppParameter(parent=self, owner=self.owner, type=type, identifier=identifier, description=description, value=value)
+		param = AppParameter(parent=self, owner=self.owner, type=type, identifier=identifier, description=description, value=value)
+		self.value[identifier] = param
+		return param
 
 	def is_dirty(self):
 		if self.id is None:
