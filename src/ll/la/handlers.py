@@ -253,7 +253,13 @@ class Handler:
 	def file_content(self, file):
 		raise NotImplementedError
 
+	def save_app(self, app, recursive=True):
+		raise NotImplementedError
+
 	def save_file(self, file):
+		raise NotImplementedError
+
+	def save_param(self, param, recursive=True):
 		raise NotImplementedError
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
@@ -361,8 +367,10 @@ class DBHandler(Handler):
 		self.proc_data_insert = orasql.Procedure("LIVINGAPI_PKG.DATA_INSERT")
 		self.proc_data_update = orasql.Procedure("LIVINGAPI_PKG.DATA_UPDATE")
 		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
+		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
 		self.proc_upload_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_INSERT")
+		self.proc_appparameter_import_waf = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_IMPORT")
 		self.proc_internaltemplate_import = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_IMPORT")
 		self.proc_internaltemplate_delete = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_DELETE")
 		self.proc_viewtemplate_import = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_IMPORT")
@@ -425,6 +433,9 @@ class DBHandler(Handler):
 			if app.viewtemplates is not None:
 				for viewtemplate in app.viewtemplates.values():
 					self.save_viewtemplate(viewtemplate, recursive=recursive)
+			if app._params is not None:
+				for param in app._params.values():
+					self.save_param(param)
 
 	def save_file(self, file):
 		if file.internalid is None:
@@ -459,6 +470,122 @@ class DBHandler(Handler):
 		with url.Context():
 			u = self.uploaddir/r.upl_name
 			return u.openread().read()
+
+	def save_param(self, param):
+		c = self.cursor()
+		r = self._save_param(
+			c,
+			identifier=param.identifier,
+			description=param.description,
+			value=param.value,
+			parentappid=param.parent.id if isinstance(param.parent, la.App) else None,
+			parentviewtemplateid=param.parent.id if isinstance(param.parent, la.ViewTemplateConfig) else None,
+			parentemailtemplateid=param.parent.id if isinstance(param.parent, la.EMailTemplate) else None,
+		)
+		param.id = r.p_ap_id
+
+	def _save_param(self, cursor, *, identifier=None, order=None, description=None, value=None, superid=None, parentappid=None, parentviewtemplateid=None, parentemailtemplateid=None):
+		p_ap_type = None
+		p_ap_value_bool = None
+		p_ap_value_date = None
+		p_ap_value_datetime = None
+		p_ap_value_other = None
+		p_upl_id = None
+		p_tpl_uuid_value = None
+		p_ctl_id = None
+
+		if value is None:
+			# Could be any other type too
+			p_ap_type = "str"
+		elif isinstance(value, bool):
+			p_ap_value_bool = int(value)
+			p_ap_type = "bool"
+		elif isinstance(value, datetime.datetime):
+			p_ap_value_datetime = value
+			p_ap_type = "datetime"
+		elif isinstance(value, datetime.date):
+			p_ap_value_date = value
+			p_ap_type = "date"
+		elif isinstance(value, la.File):
+			p_upl_id = value.internalid
+			p_ap_type = "upload"
+		elif isinstance(value, la.App):
+			p_tpl_uuid_value = value.id
+			p_ap_type = "App"
+		elif isinstance(value, la.Control):
+			p_ctl_id = value.id
+			p_ap_type = "control"
+		elif isinstance(value, int):
+			p_ap_value_other = str(value)
+			p_ap_type = "int"
+		elif isinstance(value, float):
+			p_ap_value_other = str(value)
+			p_ap_type = "number"
+		elif isinstance(value, str):
+			p_ap_value_other = value
+			p_ap_type = "str"
+		elif isinstance(value, color.Color):
+			p_ap_value_other = str((((value.r() << 8) + value.g() << 8) + value.b() << 8) + value.a())
+			p_ap_type = "color"
+		elif isinstance(value, datetime.timedelta):
+			value = value.total_seconds()/86400
+			p_ap_type = "datetimedelta" if value.seconds or value.microseconds else "datedelta"
+		elif isinstance(value, misc.monthdelta):
+			p_ap_value_other = str(value.months)
+			p_ap_type = "monthdelta"
+		elif isinstance(value, list):
+			p_ap_type = "list"
+		elif isinstance(value, dict):
+			p_ap_type = "dict"
+		else:
+			raise TypeError(f"Can't save parameter of type {type(value)}")
+
+		r = self.proc_appparameter_import_waf(
+			cursor,
+			c_user=self.ide_id,
+			p_tpl_uuid=parentappid,
+			p_vt_id=parentviewtemplateid,
+			p_et_id=parentemailtemplateid,
+			p_ap_id_super=superid,
+			p_ap_order=order,
+			p_ap_identifier=identifier,
+			p_ap_type=p_ap_type,
+			p_ap_description=description,
+			p_ap_value_bool=p_ap_value_bool,
+			p_ap_value_date=p_ap_value_date,
+			p_ap_value_datetime=p_ap_value_datetime,
+			p_ap_value_other=p_ap_value_other,
+			p_upl_id=p_upl_id,
+			p_tpl_uuid_value=p_tpl_uuid_value,
+			p_ctl_id=p_ctl_id,
+		)
+
+		if isinstance(value, list):
+			order = 10
+			for v in value:
+				self._save_param(
+					c,
+					order=order,
+					value=v,
+					superid=r.p_ap_id,
+					parentappid=parentappid,
+					parentviewtemplateid=parentviewtemplateid,
+					parentemailtemplateid=parentemailtemplateid,
+				)
+				order += 10
+		elif isinstance(value, dict):
+			for (identifier, v) in value.items():
+				self._save_param(
+					c,
+					identifier=identifier,
+					value=v,
+					superid=r.p_ap_id,
+					parentappid=parentappid,
+					parentviewtemplateid=parentviewtemplateid,
+					parentemailtemplateid=parentemailtemplateid,
+				)
+		return r
+
 
 	def _save_vsql_ast(self, vsqlexpr, required_datatype=None, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
 		"""
@@ -748,21 +875,15 @@ class DBHandler(Handler):
 			result = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
 			if result is not None:
 				return result
-		# Reset the backref registry, since we call ``livingapi_pkg.record_sync_ful4on()``
-		# which reset the db's backref registry too
-		# FIXME: Maybe we can upgrade this to use incremntal UL4ON dumps, but then
-		# we'd need the ability to force objects to be reloaded
-		self.reset()
 		c = self.cursor()
 		c.execute(
-			"select livingapi_pkg.record_sync_ful4on(c_user=>:ide_id, p_dat_id=>:dat_id) from dual",
-			ide_id=self.ide_id,
+			"select livingapi_pkg.record_sync_ful4on(p_dat_id=>:dat_id) from dual",
 			dat_id=dat_id,
 		)
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump.record
+		record = self._loaddump(dump)
+		return record
 
 	def records_sync_data(self, dat_ids, force=False):
 		if force:
@@ -775,21 +896,15 @@ class DBHandler(Handler):
 					missing.add(dat_id)
 				else:
 					found[dat_id] = record
-		# Reset the backref registry, since we call ``livingapi_pkg.records_sync_ful4on()``
-		# which reset the db's backref registry too
-		# FIXME: Maybe we can upgrade this to use incremntal UL4ON dumps, but then
-		# we'd need the ability to force objects to be reloaded
-		self.reset()
 		c = self.cursor()
 		c.execute(
-			"select livingapi_pkg.records_sync_ful4on(c_user=>:ide_id, p_dat_ids=>:dat_ids) from dual",
-			ide_id=self.ide_id,
+			"select livingapi_pkg.records_sync_ful4on(p_dat_ids=>:dat_ids) from dual",
 			dat_ids=self.varchars(missing),
 		)
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump.records
+		records = self._loaddump(dump)
+		return records
 
 	def _data(self, requestid=None, vt_id=None, et_id=None, vw_id=None, tpl_id=None, dat_id=None, dat_ids=None, ctl_identifier=None, searchtext=None, reqparams=None, mode=None, sync=False, exportmeta=False, funcname="data_ful4on"):
 		paramslist = []
@@ -1025,6 +1140,114 @@ class DBHandler(Handler):
 
 		if r.p_errormessage:
 			raise ValueError(r.p_errormessage)
+
+	def save_parameter(self, parameter, recursive=True):
+		c = self.cursor()
+		app = parameter.owner
+
+		p_ap_value_bool = None
+		p_ap_value_date = None
+		p_ap_value_datetime = None
+		p_ap_value_str = None
+		p_ap_value_html = None
+		p_ap_value_other = None
+		p_upl_id = None
+		p_tpl_uuid_value = None
+		p_ctl_id = None
+
+		if parameter.value is not None:
+			if parameter.type is parameter.Type.BOOL:
+				p_ap_value_bool = int(parameter.value)
+			elif parameter.type is parameter.Type.INT:
+				p_ap_value_other = str(parameter.value)
+			elif parameter.type is parameter.Type.NUMBER:
+				p_ap_value_other = str(parameter.value)
+			elif parameter.type is parameter.Type.STR:
+				p_ap_value_str = parameter.value
+			elif parameter.type is parameter.Type.HTML:
+				p_ap_value_html = parameter.value
+			elif parameter.type is parameter.Type.COLOR:
+				p_ap_value_other = parameter.value.r << 24 | parameter.value.g << 16 | parameter.value.b << 8 | parameter.value.a
+			elif parameter.type is parameter.Type.DATE:
+				p_ap_value_other = parameter.value
+			elif parameter.type is parameter.Type.DATETIME:
+				p_ap_value_date = parameter.value
+			elif parameter.type is parameter.Type.DATETIME:
+				p_ap_value_datetime = parameter.value
+			elif parameter.type is parameter.Type.DATEDELTA:
+				p_ap_value_datetime = parameter.value.days
+			elif parameter.type is parameter.Type.DATETIMEDELTA:
+				p_ap_value_datetime = parameter.value.days + parameter.value.days/24/60/60 + parameter.value.days/24/60/60/100000
+			elif parameter.type is parameter.Type.MONTHDELTA:
+				p_ap_value_datetime = parameter.value.months
+			elif parameter.type is parameter.Type.UPLOAD:
+				if parameter.value.internalid is None:
+					raise la.ValueError(error_object_unsaved(parameter.value))
+				p_upl_id = parameter.value.internalid
+			elif parameter.type is parameter.Type.APP:
+				p_tpl_uuid_value = parameter.value.id
+			elif parameter.type is parameter.Type.CONTROL:
+				p_ctl_id = parameter.value.id
+
+		try:
+			result = self.proc_appparameter_save(
+				c,
+				c_user=self.ide_id,
+				c_lang="de", # FIXME
+				p_requestid=None,
+				p_ap_id=parameter.id,
+				p_tpl_uuid=app.id,
+				p_vt_id=None,
+				p_et_id=None,
+				p_ap_id_super=parameter.parent.id if parameter.parent is not None else None,
+				p_ap_order=parameter.order,
+				p_ap_identifier=parameter.identifier,
+				p_ap_type=parameter.type.value,
+				p_ap_description=parameter.description,
+				p_ap_value_bool=p_ap_value_bool,
+				p_ap_value_date=p_ap_value_date,
+				p_ap_value_datetime=p_ap_value_datetime,
+				p_ap_value_str=p_ap_value_str,
+				p_ap_value_html=p_ap_value_html,
+				p_ap_value_other=p_ap_value_other,
+				p_upl_id=p_upl_id,
+				p_tpl_uuid_value=p_tpl_uuid_value,
+				p_ctl_id=p_ctl_id,
+			)
+		except orasql.DatabaseError as exc:
+			error = exc.args[0]
+			if error.code == 20010:
+				parts = error.message.split("\x01")[1:-1]
+				if parts:
+					# An error message with the usual formatting from ``errmsg_pkg``.
+					raise ValueError("\n".join(parts[1::2]))
+				else:
+					# An error message with strange formatting, use this as is.
+					raise ValueError(error.message)
+			else:
+				# Some other database exception
+				raise
+
+		if parameter.id is None:
+			parameter.id = result.p_ap_id
+			# parameter.createdat = datetime.datetime.now()
+			# parameter.createdby = app.globals.user
+		else:
+			pass
+			# parameter.updatedat = datetime.datetime.now()
+			# parameter.updatedby = app.globals.user
+		parameter._dirty = False
+
+	def parameter_sync_data(self, ap_id):
+		c = self.cursor()
+		c.execute(
+			"select livingapi_pkg.appparam_sync_ful4on(p_ap_id=>:ap_id) from dual",
+			ap_id=ap_id,
+		)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		parameter = self._loaddump(dump)
+		return parameter
 
 	def _executeaction(self, record, actionidentifier):
 		c = self.cursor()
