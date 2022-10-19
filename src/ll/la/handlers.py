@@ -30,7 +30,7 @@
 	and their configuration into and out of LivingApps.
 """
 
-import os, datetime, pathlib, itertools, json, mimetypes, operator, warnings
+import os, datetime, pathlib, itertools, json, mimetypes, operator, warnings, random
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -64,6 +64,11 @@ __all__ = ["Handler", "HTTPHandler", "DBHandler", "FileHandler"]
 ###
 ### Utility functions and classes
 ###
+
+def uuid():
+	now = datetime.datetime.now()
+	return f"{int(now.timestamp()):08x}{now.microsecond & 0xffff:04x}{random.randint(0, (1<<(12*4))-1):012x}"
+
 
 def raise_403(response):
 	"""
@@ -124,13 +129,13 @@ class Handler:
 	def viewtemplate_data(self, *path, **params):
 		raise NotImplementedError
 
-	def viewtemplate_params_incremental_data(self, id):
+	def viewtemplate_params_incremental_data(self, globals, id):
 		return None
 
-	def emailtemplate_params_incremental_data(self, id):
+	def emailtemplate_params_incremental_data(self, globals, id):
 		return None
 
-	def app_params_incremental_data(self, id):
+	def app_params_incremental_data(self, app):
 		return None
 
 	def record_attachments_data(self, id):
@@ -286,10 +291,10 @@ class Handler:
 	def fetch_templatelibraries(self):
 		return la.attrdict()
 
-	def fetch_viewtemplate_params(self, vt_id):
+	def fetch_viewtemplate_params(self, globals):
 		return la.attrdict()
 
-	def fetch_emailtemplate_params(self, et_id):
+	def fetch_emailtemplate_params(self, globals):
 		return la.attrdict()
 
 	def _loadfile(self, id):
@@ -303,7 +308,6 @@ class Handler:
 		return globals
 
 	def _loaddump(self, dump):
-		print(f"Loading dump {dump!r} with objects {self.ul4on_decoder._objects}")
 		dump = self.ul4on_decoder.loads(dump)
 		if isinstance(dump, dict):
 			dump = la.attrdict(dump)
@@ -335,6 +339,8 @@ class DBHandler(Handler):
 
 		super().__init__()
 
+		now = datetime.datetime.now()
+		self.requestid = uuid()
 		if connection is not None:
 			if connectstring is not None:
 				raise ValueError("Specify connectstring or connection, but not both")
@@ -382,7 +388,8 @@ class DBHandler(Handler):
 		self.proc_dataorder_delete = orasql.Procedure("DATASOURCE_PKG.DATAORDER_DELETE")
 		self.proc_vsqlsource_insert = orasql.Procedure("VSQL_PKG.VSQLSOURCE_INSERT")
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
-		self.proc_clear_all = orasql.Procedure("LIVINGAPI_PKG.CLEAR_ALL")
+		self.proc_init = orasql.Procedure("LIVINGAPI_PKG.INIT")
+		self.proc_clear_outputandbackrefs = orasql.Procedure("LIVINGAPI_PKG.CLEAR_OUTPUTANDBACKREFS")
 		self.func_seq = orasql.Function("LIVINGAPI_PKG.SEQ")
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
@@ -419,6 +426,10 @@ class DBHandler(Handler):
 
 	def rollback(self):
 		self.db.rollback()
+
+	def reset(self):
+		super().reset()
+		self.proc_clear_outputandbackrefs(self.cursor())
 
 	def seq(self):
 		c = self.cursor()
@@ -858,6 +869,76 @@ class DBHandler(Handler):
 			else:
 				self.proc_dataorder_delete(cursor, c_user=self.ide_id, p_do_id=do_id)
 
+	def _reinitialize_livingapi_db(self, cursor, globals):
+		"""
+		Reinitialize the server side state of the UL4ON codec machinery.
+
+		We do this by calling ``livingapi_pkg.init()`` passing the local
+		information about the current view/email template and detail record.
+
+		We also need to pass the state of the local UL4ON backref registry to
+		the server so that existing object won't have to be loaded again.
+
+		(This is mostly a performance optimization, but for email templates it
+		is essential that the detail record won't be loaded again, as we want
+		to use the state of the record as it was recorded in
+		``emailqueue.eq_data``).
+		"""
+		backrefs = []
+
+		for obj in self.ul4on_decoder._objects:
+			if isinstance(obj, str):
+				backrefs.append("str")
+				backrefs.append(obj)
+			else:
+				backrefs.append(obj.ul4onname)
+				backrefs.append(obj.ul4onid)
+
+		args = dict(
+			c_user=self.ide_id,
+			p_ul4onbackrefs=self.varchars(backrefs),
+		)
+		if globals.emailtemplate_id is not None:
+			args["p_et_id"] = globals.emailtemplate_id
+		elif globals.viewtemplate_id is not None:
+			args["p_vt_id"] = globals.viewtemplate_id
+		elif globals.app is not None:
+			args["p_tpl_uuid"] = globals.app.id
+		if globals.record is not None:
+			args["p_dat_id"] = globals.record.id
+		self.proc_init(cursor, **args)
+
+	def _execute_incremental_ul4on_query(self, cursor, globals, query, **args):
+		"""
+		Returns the deserialized UL4ON data from executing a database function
+		that returns an "incremental" dump. ("incremental" means that it might
+		have backreferences to a previous dump). The data from this dump
+		will be merged into the exiting data.
+
+		When such a database function (e.g. ``livingapi_pkg.app_params_inc_ful4on()``)
+		detects that the UL4ON codec machinery in ``ul4onblobbuffer_pkg`` and
+		``livingapi_pkg`` hasn't been initialized yet, it returns ``null``.
+
+		This can happen in email templates where the UL4ON dump will not be loaded
+		via calls to ``livingapi_pkg.data_ful4on()`` (but from
+		``emailqueue.eq_data``) or when executing a data action results in an
+		email, so that an UL4ON dump for the email queue will be generated, which
+		results in the UL4ON codec machinery being reset.
+
+		In this case we have to reinitialize the UL4ON codec machinery (by calling
+		:meth:`_reinitialize_livingapi_db`) and try calling the database function
+		again.
+		"""
+		cursor.execute(query, **args)
+		dump = cursor.fetchone()[0]
+		if dump is None:
+			self._reinitialize_livingapi_db(cursor, globals)
+			cursor.execute(query, **args)
+			dump = cursor.fetchone()[0]
+		dump = dump.decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
 	def meta_data(self, *appids):
 		cursor = self.cursor()
 		tpl_uuids = self.varchars(appids)
@@ -907,7 +988,7 @@ class DBHandler(Handler):
 		records = self._loaddump(dump)
 		return records
 
-	def _data(self, requestid=None, vt_id=None, et_id=None, vw_id=None, tpl_id=None, dat_id=None, dat_ids=None, ctl_identifier=None, searchtext=None, reqparams=None, mode=None, sync=False, exportmeta=False, funcname="data_ful4on"):
+	def _data(self, vt_id=None, et_id=None, vw_id=None, tpl_uuid=None, dat_id=None, dat_ids=None, ctl_identifier=None, searchtext=None, reqparams=None, mode=None, sync=False, exportmeta=False, funcname="data_ful4on"):
 		paramslist = []
 		if reqparams:
 			for (key, value) in reqparams.items():
@@ -923,6 +1004,10 @@ class DBHandler(Handler):
 
 		c = self.cursor()
 
+		# Reset the UL4ON decoder before loading
+		# (since the server will reset its UL4ON codec state too)
+		self.reset()
+
 		c.execute(
 			"""
 				select
@@ -932,7 +1017,7 @@ class DBHandler(Handler):
 						p_vt_id => :p_vt_id,
 						p_et_id => :p_et_id,
 						p_vw_id => :p_vw_id,
-						p_tpl_id => :p_tpl_id,
+						p_tpl_uuid => :p_tpl_uuid,
 						p_dat_id => :p_dat_id,
 						p_dat_ids => :p_dat_ids,
 						p_ctl_identifier => :p_ctl_identifier,
@@ -946,11 +1031,11 @@ class DBHandler(Handler):
 				from dual
 			""",
 			c_user=self.ide_id,
-			p_requestid=requestid,
+			p_requestid=self.requestid,
 			p_vt_id=vt_id,
 			p_et_id=et_id,
 			p_vw_id=vw_id,
-			p_tpl_id=tpl_id,
+			p_tpl_uuid=tpl_uuid,
 			p_dat_id=dat_id,
 			p_dat_ids=self.varchars(dat_ids or []),
 			p_ctl_identifier=ctl_identifier,
@@ -963,10 +1048,9 @@ class DBHandler(Handler):
 		)
 
 		r = c.fetchone()
-		# Since the database has cleared its backref registry, we do that too
-		self.reset()
 		dump = r[0].decode("utf-8")
 		dump = self._loaddump(dump)
+		# Since the database didn't reset its backref registry, we don't either
 		return dump
 
 	def viewtemplate_data(self, *path, **params):
@@ -1006,45 +1090,45 @@ class DBHandler(Handler):
 
 		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
 
-	def viewtemplate_params_incremental_data(self, id):
-		c = self.cursor()
-		c.execute("select livingapi_pkg.viewtemplate_params_inc_ful4on(:vtid) from dual", vtid=id)
-		r = c.fetchone()
-		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump
+	def viewtemplate_params_incremental_data(self, globals, id):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			globals,
+			"select livingapi_pkg.viewtemplate_params_inc_ful4on(:vtid) from dual",
+			vtid=id,
+		)
 
-	def emailtemplate_params_incremental_data(self, id):
-		c = self.cursor()
-		c.execute("select livingapi_pkg.emailtemplate_params_inc_ful4on(:etid) from dual", etid=id)
-		r = c.fetchone()
-		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump
+	def emailtemplate_params_incremental_data(self, globals, id):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			globals,
+			"select livingapi_pkg.emailtemplate_params_inc_ful4on(:etid) from dual",
+			etid=id,
+		)
 
-	def app_params_incremental_data(self, id):
-		c = self.cursor()
-		c.execute("select livingapi_pkg.app_params_inc_ful4on(:appid) from dual", appid=id)
-		r = c.fetchone()
-		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump
+	def app_params_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_params_inc_ful4on(:appid) from dual",
+			appid=app.id,
+		)
 
-	def app_views_incremental_data(self, id):
-		c = self.cursor()
-		c.execute("select livingapi_pkg.app_views_inc_ful4on(:appid) from dual", appid=id)
-		r = c.fetchone()
-		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump
+	def app_views_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_views_inc_ful4on(:appid) from dual",
+			appid=app.id,
+		)
 
-	def record_attachments_incremental_data(self, id):
-		c = self.cursor()
-		c.execute("select livingapi_pkg.record_attachments_inc_ful4on(:datid) from dual", datid=id)
-		r = c.fetchone()
-		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump
+	def record_attachments_incremental_data(self, record):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			record.app.globals,
+			"select livingapi_pkg.record_attachments_inc_ful4on(:dataid) from dual",
+			dat=record.id,
+		)
 
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
@@ -1195,7 +1279,7 @@ class DBHandler(Handler):
 				c,
 				c_user=self.ide_id,
 				c_lang="de", # FIXME
-				p_requestid=None,
+				p_requestid=self.requestid,
 				p_ap_id=parameter.id,
 				p_tpl_uuid=app.id,
 				p_vt_id=None,
@@ -1223,7 +1307,7 @@ class DBHandler(Handler):
 					# An error message with the usual formatting from ``errmsg_pkg``.
 					raise ValueError("\n".join(parts[1::2]))
 				else:
-					# An error message with strange formatting, use this as is.
+					# An error message with strange formatting, use it as it is.
 					raise ValueError(error.message)
 			else:
 				# Some other database exception
@@ -1231,12 +1315,11 @@ class DBHandler(Handler):
 
 		if parameter.id is None:
 			parameter.id = result.p_ap_id
-			# parameter.createdat = datetime.datetime.now()
-			# parameter.createdby = app.globals.user
+			parameter.createdat = datetime.datetime.now()
+			parameter.createdby = app.globals.user
 		else:
-			pass
-			# parameter.updatedat = datetime.datetime.now()
-			# parameter.updatedby = app.globals.user
+			parameter.updatedat = datetime.datetime.now()
+			parameter.updatedby = app.globals.user
 		parameter._dirty = False
 
 	def parameter_sync_data(self, ap_id):
@@ -1301,15 +1384,17 @@ class DBHandler(Handler):
 				**self._loadinternaltemplates(app.id),
 			}
 
-	def fetch_viewtemplate_params(self, vt_id):
-		if vt_id not in self.viewtemplate_params:
-			self.viewtemplate_params[vt_id] = self.viewtemplate_params_incremental_data(vt_id)
-		return self.viewtemplate_params[vt_id]
+	def fetch_viewtemplate_params(self, globals):
+		id = globals.viewtemplate_id
+		if id not in self.viewtemplate_params:
+			self.viewtemplate_params[id] = self.viewtemplate_params_incremental_data(globals, id)
+		return self.viewtemplate_params[id]
 
-	def fetch_emailtemplate_params(self, et_id):
-		if vt_id not in self.emailtemplate_params:
-			self.emailtemplate_params[et_id] = self.emailtemplate_params_incremental_data(vt_id)
-		return self.emailtemplate_params[vt_id]
+	def fetch_emailtemplate_params(self, globals):
+		id = globals.emailtemplate_id
+		if id not in self.emailtemplate_params:
+			self.emailtemplate_params[id] = self.emailtemplate_params_incremental_data(globals, id)
+		return self.emailtemplate_params[id]
 
 	def fetch_templatelibraries(self):
 		if self.templatelibraries is None:
@@ -1318,6 +1403,8 @@ class DBHandler(Handler):
 			r = c.fetchone()
 			dump = r[0]
 			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
+			# Note that we ignore the problem of persistent objects, since none of the
+			# persistent objects in this dump are in the other dump
 			dump = ul4on.loads(dump)
 			if isinstance(dump, dict):
 				dump = la.attrdict(dump)

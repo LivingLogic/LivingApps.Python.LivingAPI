@@ -1724,12 +1724,12 @@ class Globals(Base):
 
 		The type of template we're running.
 
-	.. attribute:: view_template_id
+	.. attribute:: viewtemplate_id
 		:type: Optional[str]
 
 		View template id of last database call.
 
-	.. attribute:: email_template_id
+	.. attribute:: emailtemplate_id
 		:type: Optional[str]
 
 		Email template id of last database call.
@@ -1815,10 +1815,12 @@ class Globals(Base):
 	app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	mode = EnumAttr(Mode, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	view_template_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
-	email_template_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
+	viewtemplate_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
+	emailtemplate_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	view_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	externaldatasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	template_params = AttrDictAttr(get="", ul4onget="_template_params_get", ul4onset="_template_params_ul4onset")
+	params = AttrDictAttr(get="", ul4get="_params_get")
 
 	def __init__(self, id=None, version=None, hostname=None, platform=None, mode=None):
 		self.version = version
@@ -1836,11 +1838,11 @@ class Globals(Base):
 		self.request = None
 		self.response = None
 		self.mode = mode
-		self.view_template_id = None
-		self.email_template_id = None
+		self.viewtemplate_id = None
+		self.emailtemplate_id = None
 		self.view_id = None
 		self.externaldatasources = attrdict()
-		self._params = {}
+		self._template_params = {}
 		self._chained_libraries = {}
 
 	@property
@@ -2061,24 +2063,34 @@ class Globals(Base):
 	def templates(self) -> Dict[str, ul4c.Template]:
 		return self.app.templates if self.app else attrdict()
 
-	@property
-	def params(self) -> Dict[str, "AppParameter"]:
-		if self.handler is not None:
-			if self.view_template_id is not None:
+	def _template_params_get(self) -> Dict[str, "AppParameter"]:
+		if self._template_params is None:
+			if self.handler is None:
+				raise NoHandlerError()
+			if self.viewtemplate_id is not None:
+				self._template_params = attrdict(self.handler.fetch_viewtemplate_params(self))
+			elif self.emailtemplate_id is not None:
+				self._template_params = attrdict(self.handler.fetch_emailtemplate_params(self))
+			else:
+				self._template_params = attrdict()
+		return self._template_params
+
+	def _template_params_ul4onset(self, value):
+		self._template_params = attrdict(value) if value else attrdict()
+
+	def _params_get(self) -> Dict[str, "AppParameter"]:
+		if self.template_params:
+			if self.app.params:
 				return attrdict(
 					collections.ChainMap(
-						self.handler.fetch_viewtemplate_params(self.view_template_id),
+						self.template_params,
 						self.app.params,
 					)
 				)
-			elif self.email_template_id is not None:
-				return attrdict(
-					collections.ChainMap(
-						self.handler.fetch_emailtemplate_params(self.email_template_id),
-						self.app.params,
-					)
-				)
-		return self.app.params
+			else:
+				return self.template_params
+		else:
+			return self.app.params
 
 	@property
 	def libs(self) -> Dict[str, "TemplateLibrary"]:
@@ -2087,8 +2099,8 @@ class Globals(Base):
 	def _get_chained_library(self, identifier):
 		if identifier not in self._chained_libraries:
 			base = self.app._get_chained_library(identifier)
-			if self._params:
-				params = collections.ChainMap(self._params, base.params)
+			if self.template_params:
+				params = collections.ChainMap(self.template_params, base.params)
 				self._chained_libraries[identifier] = ChainedLibrary(identifier, None, base.templates, params)
 			else:
 				self._chained_libraries[identifier] = base
@@ -2152,9 +2164,9 @@ class Globals(Base):
 			return True
 		elif self.app and name.startswith("cl_"):
 			return True
-		elif self.app and name.startswith("p_") and name[2:] in self.app.params:
+		elif self.app and name.startswith("p_") and name[2:] in self.params:
 			return True
-		elif self.app and name.startswith("pv_") and name[3:] in self.app.params:
+		elif self.app and name.startswith("pv_") and name[3:] in self.params:
 			return True
 		else:
 			return super().ul4_hasattr(name)
@@ -2499,11 +2511,13 @@ class App(Base):
 			if identifier in self.params:
 				param = self.params[identifier]
 				if isinstance(param.value, App):
-					templates = collections.ChainMap(templates, param.value._get_chained_library(identifier).templates)
-					params = collections.ChainMap(params, param.value._get_chained_library(identifier).params)
+					base = param.value._get_chained_library(identifier)
+					templates = collections.ChainMap(templates, base.templates)
+					params = collections.ChainMap(params, base.params)
 			elif identifier in self.globals.libs:
-				templates = collections.ChainMap(templates, self.globals.libs[identifier].templates)
-				params = collections.ChainMap(params, self.globals.libs[identifier].params)
+				base = self.globals.libs[identifier]
+				templates = collections.ChainMap(templates, base.templates)
+				params = collections.ChainMap(params, base.params)
 			self._chained_libraries[identifier] = ChainedLibrary(identifier, self, templates, params)
 		return self._chained_libraries[identifier]
 
@@ -2578,29 +2592,30 @@ class App(Base):
 		params = self._params
 		if params is None:
 			handler = self.globals.handler
-			if handler is not None:
-				params = handler.app_params_incremental_data(self.id)
-				if params is not None:
-					params = attrdict(params)
-					self._params = params
+			if handler is None:
+				raise NoHandlerError()
+			params = handler.app_params_incremental_data(self)
+			params = attrdict(params)
+			self._params = params
 		return params
 
 	def _params_set(self, value):
 		self._params = value
 
 	def _params_ul4onget(self):
+		# Bypass the logic that fetches the parameters from the database
 		return self._params
 
 	def _params_ul4onset(self, value):
 		if value is not None:
-			self.params = value
+			self._params = value
 
 	def _views_get(self):
 		views = self._views
 		if views is None:
 			handler = self.globals.handler
 			if handler is not None:
-				views = self._views = handler.app_views_incremental_data(self.id)
+				views = self._views = handler.app_views_incremental_data(self)
 		return views
 
 	def _views_set(self, value):
@@ -4862,7 +4877,7 @@ class Record(Base):
 		if attachments is None and self.id is not None:
 			handler = self.app.globals.handler
 			if handler is not None:
-				attachments = handler.record_attachments_incremental_data(self.id)
+				attachments = handler.record_attachments_incremental_data(self)
 				if attachments is not None:
 					attachments = attrdict(attachments)
 					self._attachments = attachments
@@ -8058,6 +8073,7 @@ class ChainedLibrary:
 	def ul4_getattr(self, name):
 		if self.ul4_hasattr(name):
 			return getattr(self, name)
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 
 class HTTPRequest(Base):
