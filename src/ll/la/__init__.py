@@ -7450,14 +7450,16 @@ class ViewLookupItem(Base):
 		Is this lookup item visible in its view?
 	"""
 
-	ul4_attrs = {"key", "label", "visible"}
+	ul4_attrs = {"id", "key", "label", "visible"}
 	ul4_type = ul4c.Type("la", "ViewLookupItem", "View specific information about a lookup item")
 
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	key = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	visible = BoolAttr(get=True, set=True, repr="", ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id:str=None, key:str=None, label:str=None, visible:bool=None):
+		self.id = id
 		self.key = key
 		self.label = label
 		self.visible = visible
