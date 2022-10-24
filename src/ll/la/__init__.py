@@ -6534,6 +6534,8 @@ class DataAction(Base):
 		return self
 
 
+# We don't have to register this class, since only subclasses will be put into
+# UL4ON dumps
 class DataActionCommand(Base):
 	"""
 	A :class:`DataAction` consists of multiple :class:`DataActionCommand`
