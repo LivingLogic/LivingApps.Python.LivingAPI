@@ -898,8 +898,14 @@ class DBHandler(Handler):
 					backrefs.append("ignore")
 					backrefs.append(None)
 			elif hasattr(obj, "ul4onname"):
-				backrefs.append(obj.ul4onname)
-				backrefs.append(obj.ul4onid)
+				if isinstance(obj, la.Geo):
+					backrefs.append("ignore")
+					backrefs.append(None)
+				elif obj.ul4onid is None:
+					raise TypeError(f"Can't sync backreference to non-persistent object of type {type(obj)!r}")
+				else:
+					backrefs.append(obj.ul4onname)
+					backrefs.append(obj.ul4onid)
 			else:
 				# Here we have a back reference that couldn't have been produced by
 				# the database # (this can happen for example when the template
