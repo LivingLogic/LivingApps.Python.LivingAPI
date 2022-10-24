@@ -888,11 +888,32 @@ class DBHandler(Handler):
 
 		for obj in self.ul4on_decoder._objects:
 			if isinstance(obj, str):
-				backrefs.append("str")
-				backrefs.append(obj)
-			else:
+				if len(obj) < 296:
+					backrefs.append("str")
+					backrefs.append(obj)
+				else:
+					# The database can't use backreferences to long strings, so we
+					# tell it to ignore those. We use the type ``ignore`` for that
+					# which is handled specifically by ``livingapi_pkg.init_ul4on()``.
+					backrefs.append("ignore")
+					backrefs.append(None)
+			elif hasattr(obj, "ul4onname"):
 				backrefs.append(obj.ul4onname)
 				backrefs.append(obj.ul4onid)
+			else:
+				# Here we have a back reference that couldn't have been produced by
+				# the database # (this can happen for example when the template
+				# gateway puts an UL4ON dump into the session, where the decisions
+				# whether to use backreferences or not is done by Java code,
+				# which uses backreferences to ``dict``\s and ``list``\ss).
+				#
+				# But since this backreference will never be produced by the database
+				# it doesn't matter which object we tell the database to put in this
+				# slot, because it will never get returned to us. But we **do** have
+				# to put something in that slot, otherwise all following backreference
+				# indexes would be off by one.
+				backrefs.append("ignore")
+				backrefs.append(None)
 
 		args = dict(
 			c_user=self.ide_id,
