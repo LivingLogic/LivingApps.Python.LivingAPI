@@ -886,40 +886,38 @@ class DBHandler(Handler):
 		"""
 		backrefs = []
 
+		# The backref registry might contain objects for which we can't sync
+		# backreferences to the database. This can happen when the dump hasn't
+		# been created by the database (for example when the template gateway
+		# puts an UL4ON dump into the session). But since the database doesn't
+		# know how to create those backreferences, we can be sure that it doesn't
+		# create then, so we can put any object into that backreference slot
+		# (But we **do** have to put something in that slot, otherwise all
+		# following backreference indexes would be off by one.
+		# For those fake backreferences we use the special type ``ignore``
+		# which is handled specifically by ``livingapi_pkg.init_ul4on()``
 		for obj in self.ul4on_decoder._objects:
+			ul4onname = "ignore"
+			ul4onid = None
 			if isinstance(obj, str):
+				# We tell the database to ignore long string, since it can't
+				# create backreferences to those.
 				if len(obj) < 296:
-					backrefs.append("str")
-					backrefs.append(obj)
-				else:
-					# The database can't use backreferences to long strings, so we
-					# tell it to ignore those. We use the type ``ignore`` for that
-					# which is handled specifically by ``livingapi_pkg.init_ul4on()``.
-					backrefs.append("ignore")
-					backrefs.append(None)
+					ul4onname = "str"
+					ul4onid = obj
+				# Else:
 			elif hasattr(obj, "ul4onname"):
-				if isinstance(obj, la.Geo):
-					backrefs.append("ignore")
-					backrefs.append(None)
-				elif obj.ul4onid is None:
-					raise TypeError(f"Can't sync backreference to non-persistent object of type {type(obj)!r}")
-				else:
-					backrefs.append(obj.ul4onname)
-					backrefs.append(obj.ul4onid)
-			else:
-				# Here we have a back reference that couldn't have been produced by
-				# the database # (this can happen for example when the template
-				# gateway puts an UL4ON dump into the session, where the decisions
-				# whether to use backreferences or not is done by Java code,
-				# which uses backreferences to ``dict``\s and ``list``\ss).
-				#
-				# But since this backreference will never be produced by the database
-				# it doesn't matter which object we tell the database to put in this
-				# slot, because it will never get returned to us. But we **do** have
-				# to put something in that slot, otherwise all following backreference
-				# indexes would be off by one.
-				backrefs.append("ignore")
-				backrefs.append(None)
+				# Ignore backreferences to ``Geo`` objects
+				if not isinstance(obj, la.Geo):
+					if obj.ul4onid is None:
+						raise TypeError(f"Can't sync backreference to non-persistent object of type {type(obj)!r}")
+					else:
+						ul4onname = obj.ul4onname
+						ul4onid = obj.ul4onid
+			# For everthing else we have a back reference that couldn't have been
+			# produced by the database, so we ignore it too.
+			backrefs.append(ul4onname)
+			backrefs.append(ul4onid)
 
 		args = dict(
 			c_user=self.ide_id,
