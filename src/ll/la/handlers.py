@@ -984,8 +984,9 @@ class DBHandler(Handler):
 				return result
 		c = self.cursor()
 		c.execute(
-			"select livingapi_pkg.record_sync_ful4on(p_dat_id=>:dat_id) from dual",
+			"select livingapi_pkg.record_sync_ful4on(p_dat_id=>:dat_id, p_force=>:force) from dual",
 			dat_id=dat_id,
+			force=int(force),
 		)
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
@@ -1005,8 +1006,9 @@ class DBHandler(Handler):
 					found[dat_id] = record
 		c = self.cursor()
 		c.execute(
-			"select livingapi_pkg.records_sync_ful4on(p_dat_ids=>:dat_ids) from dual",
+			"select livingapi_pkg.records_sync_ful4on(p_dat_ids=>:dat_ids, p_force=>:force) from dual",
 			dat_ids=self.varchars(missing),
+			force=int(force),
 		)
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
