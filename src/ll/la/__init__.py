@@ -68,6 +68,64 @@ def register(name):
 	return registration
 
 
+def url_with_params(url, first, params):
+	"""
+	Appends a query string to an url.
+
+	``url`` is the base URL.
+
+	``first`` specifies if the parameters in ``params`` are the first
+	parameters (if ``first`` is true) or the URL already contains parameters
+	(if ``first`` is false).
+
+	``params`` must be a dictionary. Values can be:
+
+	:const:`None`
+		Those will be ignore
+
+	:class:`str`
+		Those will be output as is
+
+	:class:`list`
+		Those will be output recursively as multiple parameters
+
+	Anything else
+		Will be converted to a string via UL4's ``str`` function.
+
+	For example::
+
+		>>> la.url_with_params('/url', True, {})
+		'/url'
+		>>> la.url_with_params('/url?foo=bar', False, {'foo': 'bar?'})
+		'/url?foo=bar&foo=bar%3F'
+		>>> la.url_with_params('/url', True, {'foo': 'bar?'})
+		'/url?foo=bar%3F'
+		>>> la.url_with_params('/url', True, {'foo': 'bar?'})
+		'/url?foo=bar%3F'
+		>>> la.url_with_params('/url', True, {'foo': 'bar?'})
+		'/url?foo=bar%3F'
+		>>> la.url_with_params('/url', True, {'foo': ['bar', 42]})
+		'/url?foo=bar&foo=42'
+		>>> la.url_with_params('/url', True, {'foo': ['bar', 42], 'baz': None})
+		'/url?foo=bar&foo=42'
+		>>> la.url_with_params('/url', True, {'foo': datetime.datetime.now()})
+		'/url?foo=2022-10-28%2013%3A26%3A42.643636'
+	"""
+	def flatten_param(name, value):
+		if isinstance(value, list):
+			for v in value:
+				yield from flatten_param(name, v)
+		elif isinstance(value, str):
+			yield (name, value)
+		elif value is not None:
+			yield (name, ul4c._str(value))
+
+	params = "&".join(f"{urlparse.quote(n)}={urlparse.quote(v)}" for (name, value) in params.items() for (n, v) in flatten_param(name, value))
+	if params:
+		url += "&?"[bool(first)] + params
+	return url
+
+
 def format_class(cls) -> str:
 	"""
 	Format the name of the class object ``cls``.
@@ -2377,6 +2435,9 @@ class App(Base):
 		"viewtemplates",
 		"dataactions",
 		"add_param",
+		"template_url",
+		"new_embedded_url",
+		"new_standalone_url",
 	}
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
@@ -2520,6 +2581,21 @@ class App(Base):
 				params = collections.ChainMap(params, base.params)
 			self._chained_libraries[identifier] = ChainedLibrary(identifier, self, templates, params)
 		return self._chained_libraries[identifier]
+
+	def template_url(self, identifier, record=None, /, **params):
+		url = f"/gateway/apps/{self.id}"
+		if record is not None:
+			url += f"/{record.id}"
+		url += f"?template={identifier}"
+		return url_with_params(url, False, params)
+
+	def new_embedded_url(self, **params):
+		url = f"/dateneingabe/{self.id}/new"
+		return url_with_params(url, True, params)
+
+	def new_standalone_url(self, **params):
+		url = f"/gateway/apps/{self.id}/new"
+		return url_with_params(url, True, params)
 
 	def __getattr__(self, name):
 		try:
@@ -4782,7 +4858,32 @@ class Record(Base):
 		record.
 	"""
 
-	ul4_attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "is_dirty", "save", "update", "executeaction", "state"}
+	ul4_attrs = {
+		"id",
+		"app",
+		"createdat",
+		"createdby",
+		"updatedat",
+		"updatedby",
+		"updatecount",
+		"fields",
+		"values",
+		"children",
+		"attachments",
+		"errors",
+		"has_errors",
+		"add_error",
+		"clear_errors",
+		"is_deleted",
+		"is_dirty",
+		"save",
+		"update",
+		"executeaction",
+		"state",
+		"template_url",
+		"edit_embedded_url",
+		"edit_standalone_url",
+	}
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
 
@@ -5103,6 +5204,18 @@ class Record(Base):
 
 	def ul4executeaction(self, identifier=None):
 		self.executeaction(identifier=identifier)
+
+	def template_url(self, identifier, /, **params):
+		url = f"/gateway/apps/{self.app.id}/{self.id}?template={identifier}"
+		return url_with_params(url, False, params)
+
+	def edit_embedded_url(self, **params):
+		url = f"/dateneingabe/{self.app.id}/{self.id}/edit"
+		return url_with_params(url, True, params)
+
+	def edit_standalone_url(self, **params):
+		url = f"/gateway/apps/{self.app.id}/{self.id}/edit"
+		return url_with_params(url, True, params)
 
 	def has_errors(self):
 		if self.errors:

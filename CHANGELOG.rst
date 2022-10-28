@@ -4,6 +4,18 @@ HEAD (2022-10-??)
 *	Add support for hierarchical parameters and parameters attached to
 	view and email templates.
 
+*	Add the following methods to :class:`App`:
+
+	- :meth:`template_url`,
+	- :meth:`new_embedded_url`,
+	- :meth:`new_standalone_url`
+
+	and the following methods to :class:`Record`:
+
+	- :meth:`template_url`,
+	- :meth:`edit_embedded_url`,
+	- :meth:`edit_standalone_url`
+
 
 0.17 (2022-08-16)
 -----------------
