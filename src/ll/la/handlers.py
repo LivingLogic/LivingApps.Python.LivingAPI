@@ -927,6 +927,8 @@ class DBHandler(Handler):
 			args["p_et_id"] = globals.emailtemplate_id
 		elif globals.viewtemplate_id is not None:
 			args["p_vt_id"] = globals.viewtemplate_id
+		elif globals.view_id is not None:
+			args["p_vw_id"] = globals.view_id
 		elif globals.app is not None:
 			args["p_tpl_uuid"] = globals.app.id
 		if globals.record is not None:
