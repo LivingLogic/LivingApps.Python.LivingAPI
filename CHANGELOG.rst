@@ -16,6 +16,9 @@ HEAD (2022-10-??)
 	- :meth:`edit_embedded_url`,
 	- :meth:`edit_standalone_url`
 
+*	Add support for automatic resynchronization of the UL4ON codec state between
+	the database and the :class:`DBHandler`.
+
 
 0.17 (2022-08-16)
 -----------------
