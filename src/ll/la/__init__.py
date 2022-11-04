@@ -22,7 +22,7 @@ from PIL import Image
 import requests.structures
 import validators
 
-from ll import misc, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
+from ll import misc, ul4c, ul4on, color # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
 from ll.la import vsql
 
@@ -66,6 +66,64 @@ def register(name):
 		module.ul4_attrs.add(cls.__name__)
 		return cls
 	return registration
+
+
+def url_with_params(url, first, params):
+	"""
+	Appends a query string to an url.
+
+	``url`` is the base URL.
+
+	``first`` specifies if the parameters in ``params`` are the first
+	parameters (if ``first`` is true) or the URL already contains parameters
+	(if ``first`` is false).
+
+	``params`` must be a dictionary. Values can be:
+
+	:const:`None`
+		Those will be ignore
+
+	:class:`str`
+		Those will be output as is
+
+	:class:`list`
+		Those will be output recursively as multiple parameters
+
+	Anything else
+		Will be converted to a string via UL4's ``str`` function.
+
+	For example::
+
+		>>> la.url_with_params('/url', True, {})
+		'/url'
+		>>> la.url_with_params('/url?foo=bar', False, {'foo': 'bar?'})
+		'/url?foo=bar&foo=bar%3F'
+		>>> la.url_with_params('/url', True, {'foo': 'bar?'})
+		'/url?foo=bar%3F'
+		>>> la.url_with_params('/url', True, {'foo': 'bar?'})
+		'/url?foo=bar%3F'
+		>>> la.url_with_params('/url', True, {'foo': 'bar?'})
+		'/url?foo=bar%3F'
+		>>> la.url_with_params('/url', True, {'foo': ['bar', 42]})
+		'/url?foo=bar&foo=42'
+		>>> la.url_with_params('/url', True, {'foo': ['bar', 42], 'baz': None})
+		'/url?foo=bar&foo=42'
+		>>> la.url_with_params('/url', True, {'foo': datetime.datetime.now()})
+		'/url?foo=2022-10-28%2013%3A26%3A42.643636'
+	"""
+	def flatten_param(name, value):
+		if isinstance(value, list):
+			for v in value:
+				yield from flatten_param(name, v)
+		elif isinstance(value, str):
+			yield (name, value)
+		elif value is not None:
+			yield (name, ul4c._str(value))
+
+	params = "&".join(f"{urlparse.quote(n)}={urlparse.quote(v)}" for (name, value) in params.items() for (n, v) in flatten_param(name, value))
+	if params:
+		url += "&?"[bool(first)] + params
+	return url
 
 
 def format_class(cls) -> str:
@@ -887,7 +945,7 @@ class EnumAttr(Attr):
 	def _default_repr(self, instance):
 		value = self.get(instance)
 		if value is not None:
-			return f"{self.name}={value.name!r}"
+			return f"{self.name}={value.value!r}"
 		else:
 			return None
 
@@ -1724,12 +1782,12 @@ class Globals(Base):
 
 		The type of template we're running.
 
-	.. attribute:: view_template_id
+	.. attribute:: viewtemplate_id
 		:type: Optional[str]
 
 		View template id of last database call.
 
-	.. attribute:: email_template_id
+	.. attribute:: emailtemplate_id
 		:type: Optional[str]
 
 		Email template id of last database call.
@@ -1738,6 +1796,12 @@ class Globals(Base):
 		:type: Optional[str]
 
 		View id of last database call.
+
+	.. attribute:: params
+		:type: Optional[dict[str, AppParameter]]
+
+		Parameters of the view or email template that overwrite the parameters
+		of the app.
 	"""
 
 	ul4_attrs = {
@@ -1758,6 +1822,7 @@ class Globals(Base):
 		"log_error",
 		"lang",
 		"templates",
+		"params",
 		"libs",
 		"request",
 		"response",
@@ -1808,10 +1873,12 @@ class Globals(Base):
 	app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	mode = EnumAttr(Mode, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	view_template_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
-	email_template_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
+	viewtemplate_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
+	emailtemplate_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	view_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	externaldatasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	template_params = AttrDictAttr(get="", ul4onget="_template_params_get", ul4onset="_template_params_ul4onset")
+	params = AttrDictAttr(get="", ul4get="_params_get")
 
 	def __init__(self, id=None, version=None, hostname=None, platform=None, mode=None):
 		self.version = version
@@ -1828,12 +1895,13 @@ class Globals(Base):
 		self.handler = None
 		self.request = None
 		self.response = None
-		self._templates = None
 		self.mode = mode
-		self.view_template_id = None
-		self.email_template_id = None
+		self.viewtemplate_id = None
+		self.emailtemplate_id = None
 		self.view_id = None
 		self.externaldatasources = attrdict()
+		self._template_params = {}
+		self._chained_libraries = {}
 
 	@property
 	def ul4onid(self) -> str:
@@ -2053,9 +2121,48 @@ class Globals(Base):
 	def templates(self) -> Dict[str, ul4c.Template]:
 		return self.app.templates if self.app else attrdict()
 
+	def _template_params_get(self) -> Dict[str, "AppParameter"]:
+		if self._template_params is None:
+			if self.handler is None:
+				raise NoHandlerError()
+			if self.viewtemplate_id is not None:
+				self._template_params = attrdict(self.handler.fetch_viewtemplate_params(self))
+			elif self.emailtemplate_id is not None:
+				self._template_params = attrdict(self.handler.fetch_emailtemplate_params(self))
+			else:
+				self._template_params = attrdict()
+		return self._template_params
+
+	def _template_params_ul4onset(self, value):
+		self._template_params = attrdict(value) if value else attrdict()
+
+	def _params_get(self) -> Dict[str, "AppParameter"]:
+		if self.template_params:
+			if self.app.params:
+				return attrdict(
+					collections.ChainMap(
+						self.template_params,
+						self.app.params,
+					)
+				)
+			else:
+				return self.template_params
+		else:
+			return self.app.params
+
 	@property
 	def libs(self) -> Dict[str, "TemplateLibrary"]:
 		return self.handler.fetch_templatelibraries() if self.handler is not None else attrdict()
+
+	def _get_chained_library(self, identifier):
+		if identifier not in self._chained_libraries:
+			base = self.app._get_chained_library(identifier)
+			if self.template_params:
+				params = collections.ChainMap(self.template_params, base.params)
+				self._chained_libraries[identifier] = ChainedLibrary(identifier, None, base.templates, params)
+			else:
+				self._chained_libraries[identifier] = base
+		return self._chained_libraries[identifier]
 
 	vsqlsearchfield = vsql.Field("search", vsql.DataType.STR, "livingapi_pkg.global_search")
 
@@ -2074,11 +2181,11 @@ class Globals(Base):
 			elif name.startswith("l_"):
 				return self.libs[name[2:]]
 			elif self.app and name.startswith("cl_"):
-				return getattr(self.app, name)
+				return self._get_chained_library(name[3:])
 			elif self.app and name.startswith("p_"):
-				return self.app.params[name[2:]]
+				return self.params[name[2:]]
 			elif self.app and name.startswith("pv_"):
-				return self.app.params[name[3:]].value
+				return self.params[name[3:]].value
 		except KeyError:
 			pass
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
@@ -2115,9 +2222,9 @@ class Globals(Base):
 			return True
 		elif self.app and name.startswith("cl_"):
 			return True
-		elif self.app and name.startswith("p_") and name[2:] in self.app.params:
+		elif self.app and name.startswith("p_") and name[2:] in self.params:
 			return True
-		elif self.app and name.startswith("pv_") and name[3:] in self.app.params:
+		elif self.app and name.startswith("pv_") and name[3:] in self.params:
 			return True
 		else:
 			return super().ul4_hasattr(name)
@@ -2327,6 +2434,10 @@ class App(Base):
 		"internaltemplates",
 		"viewtemplates",
 		"dataactions",
+		"add_param",
+		"template_url",
+		"new_embedded_url",
+		"new_standalone_url",
 	}
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
@@ -2365,7 +2476,7 @@ class App(Base):
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, name=None, description=None, lang=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
+	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = id
 		self.superid = None
 		self.globals = None
@@ -2402,6 +2513,7 @@ class App(Base):
 		self.dataactions = None
 		self._vsqlgroup_records = None
 		self._vsqlgroup_app = None
+		self.addparam(*args)
 
 	def __str__(self):
 		return self.fullname
@@ -2409,6 +2521,19 @@ class App(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def addparam(self, *params):
+		for param in params:
+			param.owner = self
+			if self._params is None:
+				self._params = {}
+			self._params[param.identifier] = param
+		return self
+
+	def ul4_add_param(self, type, identifier, description, value):
+		param = AppParameter(type=type, identifier=identifier, description=description, value=value)
+		self.addparam(param)
+		return param
 
 	def _records_ul4onset(self, value):
 		if value is not None:
@@ -2447,13 +2572,30 @@ class App(Base):
 			if identifier in self.params:
 				param = self.params[identifier]
 				if isinstance(param.value, App):
-					templates = collections.ChainMap(templates, param.value._get_chained_library(identifier).templates)
-					params = collections.ChainMap(params, param.value._get_chained_library(identifier).params)
+					base = param.value._get_chained_library(identifier)
+					templates = collections.ChainMap(templates, base.templates)
+					params = collections.ChainMap(params, base.params)
 			elif identifier in self.globals.libs:
-				templates = collections.ChainMap(templates, self.globals.libs[identifier].templates)
-				params = collections.ChainMap(params, self.globals.libs[identifier].params)
+				base = self.globals.libs[identifier]
+				templates = collections.ChainMap(templates, base.templates)
+				params = collections.ChainMap(params, base.params)
 			self._chained_libraries[identifier] = ChainedLibrary(identifier, self, templates, params)
 		return self._chained_libraries[identifier]
+
+	def template_url(self, identifier, record=None, /, **params):
+		url = f"/gateway/apps/{self.id}"
+		if record is not None:
+			url += f"/{record.id}"
+		url += f"?template={identifier}"
+		return url_with_params(url, False, params)
+
+	def new_embedded_url(self, **params):
+		url = f"/dateneingabe/{self.id}/new"
+		return url_with_params(url, True, params)
+
+	def new_standalone_url(self, **params):
+		url = f"/gateway/apps/{self.id}/new"
+		return url_with_params(url, True, params)
 
 	def __getattr__(self, name):
 		try:
@@ -2470,8 +2612,8 @@ class App(Base):
 			elif name.startswith("pv_") and self.params:
 				return self.params[name[3:]].value
 		except KeyError:
-			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-		return super().__getattr__(name)
+			pass
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __dir__(self):
 		"""
@@ -2510,7 +2652,9 @@ class App(Base):
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		if self.ul4_hasattr(name):
+		if name == "add_param":
+			return self.ul4_add_param
+		elif self.ul4_hasattr(name):
 			return getattr(self, name)
 
 	def _gethandler(self, handler):
@@ -2524,29 +2668,30 @@ class App(Base):
 		params = self._params
 		if params is None:
 			handler = self.globals.handler
-			if handler is not None:
-				params = handler.app_params_incremental_data(self.id)
-				if params is not None:
-					params = attrdict(params)
-					self._params = params
+			if handler is None:
+				raise NoHandlerError()
+			params = handler.app_params_incremental_data(self)
+			params = attrdict(params)
+			self._params = params
 		return params
 
 	def _params_set(self, value):
 		self._params = value
 
 	def _params_ul4onget(self):
+		# Bypass the logic that fetches the parameters from the database
 		return self._params
 
 	def _params_ul4onset(self, value):
 		if value is not None:
-			self.params = value
+			self._params = value
 
 	def _views_get(self):
 		views = self._views
 		if views is None:
 			handler = self.globals.handler
 			if handler is not None:
-				views = self._views = handler.app_views_incremental_data(self.id)
+				views = self._views = handler.app_views_incremental_data(self)
 		return views
 
 	def _views_set(self, value):
@@ -4611,6 +4756,33 @@ class ViewControl(Base):
 		self.mode = Control.Mode.EDIT
 
 
+class State(misc.Enum):
+	"""
+	The database synchronisation state of the record.
+
+	Values are:
+
+	``NEW``
+		The record object has been created by the template, but hasn't been
+		saved yet.
+
+	``SAVED``
+		The record object has been loaded from the database and hasn't been
+		changed since.
+
+	``CHANGED``
+		The record object has been changed by the user.
+
+	``DELETED``
+		The record has been deleted in the database.
+	"""
+
+	NEW = "new"
+	SAVED = "saved"
+	CHANGED = "changed"
+	DELETED = "deleted"
+
+
 @register("record")
 class Record(Base):
 	"""
@@ -4686,34 +4858,34 @@ class Record(Base):
 		record.
 	"""
 
-	ul4_attrs = {"id", "app", "createdat", "createdby", "updatedat", "updatedby", "updatecount", "fields", "values", "children", "attachments", "errors", "has_errors", "add_error", "clear_errors", "is_deleted", "is_dirty", "save", "update", "executeaction", "state"}
+	ul4_attrs = {
+		"id",
+		"app",
+		"createdat",
+		"createdby",
+		"updatedat",
+		"updatedby",
+		"updatecount",
+		"fields",
+		"values",
+		"children",
+		"attachments",
+		"errors",
+		"has_errors",
+		"add_error",
+		"clear_errors",
+		"is_deleted",
+		"is_dirty",
+		"save",
+		"update",
+		"executeaction",
+		"state",
+		"template_url",
+		"edit_embedded_url",
+		"edit_standalone_url",
+	}
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
-	class State(misc.Enum):
-		"""
-		The database synchronisation state of the record.
-
-		Values are:
-
-		``NEW``
-			The record object has been created by the template, but hasn't been
-			saved yet.
-
-		``SAVED``
-			The record object has been loaded from the database and hasn't been
-			changed since.
-
-		``CHANGED``
-			The record object has been changed by the user.
-
-		``DELETED``
-			The record has been deleted in the database.
-		"""
-
-		NEW = "new"
-		SAVED = "saved"
-		CHANGED = "changed"
-		DELETED = "deleted"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	state = EnumAttr(State, get="", required=True, repr=True, ul4get="")
@@ -4806,7 +4978,7 @@ class Record(Base):
 		if attachments is None and self.id is not None:
 			handler = self.app.globals.handler
 			if handler is not None:
-				attachments = handler.record_attachments_incremental_data(self.id)
+				attachments = handler.record_attachments_incremental_data(self)
 				if attachments is not None:
 					attachments = attrdict(attachments)
 					self._attachments = attachments
@@ -4846,13 +5018,13 @@ class Record(Base):
 
 	def _state_get(self):
 		if self._deleted:
-			return Record.State.DELETED
+			return State.DELETED
 		elif self._new:
-			return Record.State.NEW
+			return State.NEW
 		elif self.is_dirty():
-			return Record.State.CHANGED
+			return State.CHANGED
 		else:
-			return Record.State.SAVED
+			return State.SAVED
 
 	def _state_ul4get(self):
 		return self._state_get().name
@@ -4928,19 +5100,24 @@ class Record(Base):
 				if isinstance(attr, Attr):
 					return attr.get(self)
 		except KeyError:
-			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-		return super().__getattr__(name)
+			pass
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __setattr__(self, name, value):
-		try:
-			if name.startswith("v_"):
-				self.fields[name[2:]].value = value
+		if name.startswith("v_"):
+			name = name[2:]
+			if name in self.fields:
+				self.fields[name].value = value
 				return
-			elif name.startswith("c_"):
-				self.children[name[2:]] = value
+			else:
+				raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		elif name.startswith("c_"):
+			name = name[2:]
+			if self.children is not None and name in self.children:
+				self.children[name] = value
 				return
-		except KeyError:
-			pass
+			else:
+				raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 		else:
 			super().__setattr__(name, value)
 
@@ -5027,6 +5204,18 @@ class Record(Base):
 
 	def ul4executeaction(self, identifier=None):
 		self.executeaction(identifier=identifier)
+
+	def template_url(self, identifier, /, **params):
+		url = f"/gateway/apps/{self.app.id}/{self.id}?template={identifier}"
+		return url_with_params(url, False, params)
+
+	def edit_embedded_url(self, **params):
+		url = f"/dateneingabe/{self.app.id}/{self.id}/edit"
+		return url_with_params(url, True, params)
+
+	def edit_standalone_url(self, **params):
+		url = f"/gateway/apps/{self.app.id}/{self.id}/edit"
+		return url_with_params(url, True, params)
 
 	def has_errors(self):
 		if self.errors:
@@ -5728,7 +5917,7 @@ class ViewTemplateConfig(Template):
 		Who can access the template?
 
 	.. attribute:: datasources
-		:type: dict[str, DataSource] 
+		:type: dict[str, DataSource]
 
 		Configured data sources
 	"""
@@ -5761,13 +5950,13 @@ class ViewTemplateConfig(Template):
 
 		``LISTDATAMANAGEMENT``
 			This is similar to ``LIST``, but a link to this view template will be
-			available in the datamanagement.
+			available in the datamanagement and the menu.
 
 		``DETAIL``
 			The template is supposed to display the details of a single record. The
 			URL looks like this::
 
-				/gateway/apps/1234567890abcdef12345678/1234567890abcdef12345678?template=foo
+				/gateway/apps/1234567890abcdef12345678/abcdefabcdefabcdefabcdef?template=foo
 
 			(with ``abcdefabcdefabcdefabcdef`` being the id of the record)
 
@@ -6458,6 +6647,8 @@ class DataAction(Base):
 		return self
 
 
+# We don't have to register this class, since only subclasses will be put into
+# UL4ON dumps
 class DataActionCommand(Base):
 	"""
 	A :class:`DataAction` consists of multiple :class:`DataActionCommand`
@@ -7374,14 +7565,16 @@ class ViewLookupItem(Base):
 		Is this lookup item visible in its view?
 	"""
 
-	ul4_attrs = {"key", "label", "visible"}
+	ul4_attrs = {"id", "key", "label", "visible"}
 	ul4_type = ul4c.Type("la", "ViewLookupItem", "View specific information about a lookup item")
 
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	key = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	visible = BoolAttr(get=True, set=True, repr="", ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id:str=None, key:str=None, label:str=None, visible:bool=None):
+		self.id = id
 		self.key = key
 		self.label = label
 		self.visible = visible
@@ -7568,10 +7761,35 @@ class AppParameter(Base):
 	.. attribute:: app
 		:type: App
 
-		The app this parameter belong to
+		The app this parameter belong to.
+
+	.. attribute:: library
+		:type: TemplateLibrary
+
+		The template library this parameter belong to.
+
+	.. attribute:: owner
+		:type: Union[App, TemplateLibrary]
+
+		The object this parameter belong to. This is either a :class:`App` or
+		a :class:`TemplatLibrary`.
+
+	.. attribute:: parent
+		:type: Optional[AppParameter]
+
+		If this is a :class:`!AppParameter` object inside another
+		:class:`!AppParameter` object of type ``list`` or ``dict``, ``parent``
+		references this parent object.
+		a :class:`TemplatLibrary`.
+
+	.. attribute:: order
+		:type: Optional[int]
+
+		Numeric value used to order the items in an :class:`!AppParameter` object
+		of type ``list``.
 
 	.. attribute:: identifier
-		:type: str
+		:type: Optional[str]
 
 		Human readable identifier
 
@@ -7587,7 +7805,8 @@ class AppParameter(Base):
 		:class:`float`, :class:`str`, :class:`~ll.color.Color`,
 		:class:`datetime.date`, :class:`datetime.datetime`,
 		:class:`datetime.timedelta`, :class:`~ll.misc.monthdelta`,
-		:class:`File` and :class:`App` (and ``None``).
+		:class:`File`, :class:`App`, :class:`Control`, :class:`list`,
+		:class:`dict` (and ``None``).
 
 	.. attribute:: createdat
 		:type: datetime.datetime
@@ -7610,22 +7829,69 @@ class AppParameter(Base):
 		Who updated this parameter last?
 	"""
 
-	ul4_attrs = {"id", "app", "library", "parent", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_attrs = {"id", "app", "library", "owner", "parent", "type", "order", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby", "state"}
 	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application or library")
 
+	class Type(misc.Enum):
+		"""
+		The type of a parameter. Possible values are:
+
+		*	``BOOL``
+		*	``INT``
+		*	``NUMBER``
+		*	``STR``
+		*	``HTML``
+		*	``COLOR``
+		*	``DATE``
+		*	``DATETIME``
+		*	``DATEDELTA``
+		*	``DATETIMEDELTA``
+		*	``MONTHDELTA``
+		*	``UPLOAD``
+		*	``APP``
+		*	``CONTROL``
+		*	``LIST``
+		*	``DICT``
+		"""
+
+		BOOL = "bool"
+		INT = "int"
+		NUMBER = "number"
+		STR = "str"
+		HTML = "html"
+		COLOR = "color"
+		DATE = "date"
+		DATETIME = "datetime"
+		DATEDELTA = "datedelta"
+		DATETIMEDELTA = "datetimedelta"
+		MONTHDELTA = "monthdelta"
+		UPLOAD = "upload"
+		APP = "app"
+		CONTROL = "control"
+		LIST = "list"
+		DICT = "dict"
+
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	parent = Attr(App, TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	state = EnumAttr(State, get="", required=True, repr=True, ul4get="")
+	owner = Attr(App, TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(lambda: AppParameter, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	type = EnumAttr(Type, get=True, set="", repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	order = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(get=True, set="", ul4get=True, ul4onget=True, ul4onset=True)
 	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, parent=None, identifier=None, description=None, value=None):
+	def __init__(self, id=None, parent=None, owner=None, type=None, order=None, identifier=None, description=None, value=None):
 		self.id = id
 		self.parent = parent
+		self.owner = owner
+		self.__dict__["value"] = None
+		self.type = type
+		self.order = order
 		self.identifier = identifier
 		self.description = description
 		self.value = value
@@ -7633,10 +7899,18 @@ class AppParameter(Base):
 		self.createdby = None
 		self.updatedat = None
 		self.updatedby = None
+		self._new = True
+		self._deleted = False
+		self._dirty = True
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def ul4onload_end(self, decoder:ul4on.Decoder) -> None:
+		self._new = False
+		self._deleted = False
+		self._dirty = False
 
 	@property
 	def app(self) -> Optional[App]:
@@ -7645,6 +7919,205 @@ class AppParameter(Base):
 	@property
 	def library(self) -> Optional[TemplateLibrary]:
 		return self.parent if isinstance(self.parent, TemplateLibrary) else None
+
+	def ul4_hasattr(self, name):
+		if name == "append_param" and self.type is self.Type.LIST:
+			return True
+		elif name == "add_param" and self.type is self.Type.DICT:
+			return True
+		return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if name == "append_param" and self.type is self.Type.LIST:
+			return self.append_param
+		elif name == "add_param" and self.type is self.Type.DICT:
+			return self.add_param
+		return super().ul4_getattr(name)
+
+	def _state_get(self):
+		if self._deleted:
+			return State.DELETED
+		elif self._new:
+			return State.NEW
+		elif self.is_dirty():
+			return State.CHANGED
+		else:
+			return State.SAVED
+
+	def _state_ul4get(self):
+		return self._state_get().name
+
+	def _type_set(self, type):
+		if self.__dict__.get("type", None) is not type:
+			if isinstance(type, str):
+				type = self.Type(type)
+			self.__dict__["type"] = type
+			self._dirty = True
+			if self.value is not None:
+				if type is self.Type.BOOL:
+					if not isinstance(self.value, bool):
+						self.value = None
+				elif type is self.Type.INT:
+					if not isinstance(self.value, int):
+						self.value = None
+				elif type is self.Type.NUMBER:
+					if not isinstance(self.value, (int, float)):
+						self.value = None
+				elif type is self.Type.STR or type is self.Type.HTML:
+					if not isinstance(self.value, str):
+						self.value = None
+				elif type is self.Type.COLOR:
+					if not isinstance(self.value, color.Color):
+						self.value = None
+				elif type is self.Type.DATE:
+					if isinstance(self.value, datetime.datetime):
+						self.value = self.value.date()
+					elif not isinstance(self.value, datetime.date):
+						self.value = None
+				elif type is self.Type.DATETIME:
+					if isinstance(self.value, datetime.date) and not isinstance(self.value, datetime.datetime):
+						self.value = datetime.datetime(self.value.year, self.value.month, self.value.day)
+					else:
+						self.value = None
+				elif type is self.Type.DATEDELTA:
+					if isinstance(self.value, datetime.timedelta):
+						if self.value.seconds or self.value.microseconds:
+							self.value = datetime.timedelta(self.value.days)
+					else:
+						self.value = None
+				elif type is self.Type.DATETIMEDELTA:
+					if not isinstance(self.value, datetime.timedelta):
+						self.value = None
+				elif type is self.Type.MONTHDELTA:
+					if not isinstance(self.value, misc.monthdelta):
+						self.value = None
+				elif type is self.Type.UPLOAD:
+					if not isinstance(self.value, File):
+						self.value = None
+				elif type is self.Type.APP:
+					if not isinstance(self.value, App):
+						self.value = None
+				elif type is self.Type.APP:
+					if not isinstance(self.value, App):
+						self.value = None
+				elif type is self.Type.CONTROL:
+					if not isinstance(self.value, Control):
+						self.value = None
+				else:
+					self.value = None
+
+	def _value_set(self, value):
+		oldvalue = self.__dict__.get("value", None)
+		if value is None:
+			if oldvalue is not None:
+				# If the value is ``None``, we can keep the type
+				self.__dict__["value"] = None
+				self._dirty = True
+		elif isinstance(value, bool):
+			if self.type is not self.Type.BOOL or oldvalue != value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.BOOL
+				self._dirty = True
+		elif isinstance(value, int):
+			if self.type is not self.Type.INT or oldvalue != value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.INT
+				self._dirty = True
+		elif isinstance(value, float):
+			if self.type is not self.Type.NUMBER or oldvalue != value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.NUMBER
+				self._dirty = True
+		elif isinstance(value, str):
+			if oldvalue != value:
+				self.__dict__["value"] = value
+				if self.type is not self.Type.HTML:
+					self.__dict__["type"] = self.Type.STR
+				self._dirty = True
+		elif isinstance(value, color.Color):
+			if oldvalue != value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.COLOR
+				self._dirty = True
+		elif isinstance(value, datetime.datetime):
+			if oldvalue != value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.DATETIME
+				self._dirty = True
+		elif isinstance(value, datetime.date):
+			if oldvalue != value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.DATE
+				self._dirty = True
+		elif isinstance(value, datetime.timedelta):
+			if oldvalue != value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.DATETIMEDELTA if value.seconds or value.microseconds else self.Type.DATEDELTA
+				self._dirty = True
+		elif isinstance(value, misc.monthdelta):
+			if oldvalue != value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.MONTHDELTA
+				self._dirty = True
+		elif isinstance(value, File):
+			if oldvalue is not value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.UPLOAD
+				self._dirty = True
+		elif isinstance(value, App):
+			if oldvalue is not value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.APP
+				self._dirty = True
+		elif isinstance(value, Control):
+			if oldvalue is not value:
+				self.__dict__["value"] = value
+				self.__dict__["type"] = self.Type.CONTROL
+				self._dirty = True
+		else:
+			raise TypeError(f"Type {type(value)} not supported for app parameters")
+
+	def _gethandler(self, handler):
+		if handler is None:
+			if self.owner is None:
+				raise NoHandlerError()
+		return self.owner._gethandler(handler)
+
+	def save(self, sync=False, handler:T_opt_handler=None):
+		handler = self._gethandler(handler)
+		handler.save_parameter(self)
+		if sync:
+			handler.parameter_sync_data(self.id)
+		return True
+
+	def append_param(self, type, description, value):
+		if self.type is not self.Type.LIST:
+			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
+		if self.value is None:
+			self.value = []
+		param = AppParameter(parent=self, owner=self.owner, type=type, order=self.value[-1].order+10, description=description, value=value)
+		self.value.append(param)
+		return param
+
+	def add_param(self, type, identifier, description, value):
+		if self.type is not self.Type.DICT:
+			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
+		if self.value is None:
+			self.value = {}
+		param = AppParameter(parent=self, owner=self.owner, type=type, identifier=identifier, description=description, value=value)
+		self.value[identifier] = param
+		return param
+
+	def is_dirty(self):
+		if self.id is None:
+			return True
+		return self._dirty
+
+	def is_deleted(self):
+		return self._deleted
+
+	def is_new(self):
+		return self._new
 
 
 class ChainedLibrary:
@@ -7717,6 +8190,7 @@ class ChainedLibrary:
 	def ul4_getattr(self, name):
 		if self.ul4_hasattr(name):
 			return getattr(self, name)
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 
 class HTTPRequest(Base):

@@ -20,7 +20,7 @@ https://my.living-apps.de/docs/PythonSDK.html (in german).
 """
 
 CLASSIFIERS = """
-Development Status :: 3 - Alpha
+Development Status :: 5 - Production/Stable
 Intended Audience :: Developers
 License :: OSI Approved :: MIT License
 Operating System :: OS Independent
@@ -54,7 +54,7 @@ description = description.expandtabs(2)
 
 args = dict(
 	name="ll-la",
-	version="0.17",
+	version="0.18",
 	description="Python API for LivingApps",
 	long_description=description,
 	author="Walter Doerwald",

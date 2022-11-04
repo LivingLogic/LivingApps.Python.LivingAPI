@@ -30,7 +30,7 @@
 	and their configuration into and out of LivingApps.
 """
 
-import os, datetime, pathlib, itertools, json, mimetypes, operator, warnings
+import os, datetime, pathlib, itertools, json, mimetypes, operator, warnings, random
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
@@ -64,6 +64,11 @@ __all__ = ["Handler", "HTTPHandler", "DBHandler", "FileHandler"]
 ###
 ### Utility functions and classes
 ###
+
+def uuid():
+	now = datetime.datetime.now()
+	return f"{int(now.timestamp()):08x}{now.microsecond & 0xffff:04x}{random.randint(0, (1<<(12*4))-1):012x}"
+
 
 def raise_403(response):
 	"""
@@ -124,7 +129,13 @@ class Handler:
 	def viewtemplate_data(self, *path, **params):
 		raise NotImplementedError
 
-	def app_params_incremental_data(self, id):
+	def viewtemplate_params_incremental_data(self, globals, id):
+		return None
+
+	def emailtemplate_params_incremental_data(self, globals, id):
+		return None
+
+	def app_params_incremental_data(self, app):
 		return None
 
 	def record_attachments_data(self, id):
@@ -247,7 +258,13 @@ class Handler:
 	def file_content(self, file):
 		raise NotImplementedError
 
+	def save_app(self, app, recursive=True):
+		raise NotImplementedError
+
 	def save_file(self, file):
+		raise NotImplementedError
+
+	def save_param(self, param, recursive=True):
 		raise NotImplementedError
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
@@ -272,6 +289,12 @@ class Handler:
 		return la.attrdict()
 
 	def fetch_templatelibraries(self):
+		return la.attrdict()
+
+	def fetch_viewtemplate_params(self, globals):
+		return la.attrdict()
+
+	def fetch_emailtemplate_params(self, globals):
 		return la.attrdict()
 
 	def _loadfile(self, id):
@@ -316,6 +339,8 @@ class DBHandler(Handler):
 
 		super().__init__()
 
+		now = datetime.datetime.now()
+		self.requestid = uuid()
 		if connection is not None:
 			if connectstring is not None:
 				raise ValueError("Specify connectstring or connection, but not both")
@@ -349,8 +374,10 @@ class DBHandler(Handler):
 		self.proc_data_insert = orasql.Procedure("LIVINGAPI_PKG.DATA_INSERT")
 		self.proc_data_update = orasql.Procedure("LIVINGAPI_PKG.DATA_UPDATE")
 		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
+		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
 		self.proc_upload_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_INSERT")
+		self.proc_appparameter_import_waf = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_IMPORT")
 		self.proc_internaltemplate_import = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_IMPORT")
 		self.proc_internaltemplate_delete = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_DELETE")
 		self.proc_viewtemplate_import = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_IMPORT")
@@ -361,11 +388,14 @@ class DBHandler(Handler):
 		self.proc_dataorder_delete = orasql.Procedure("DATASOURCE_PKG.DATAORDER_DELETE")
 		self.proc_vsqlsource_insert = orasql.Procedure("VSQL_PKG.VSQLSOURCE_INSERT")
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
-		self.proc_clear_all = orasql.Procedure("LIVINGAPI_PKG.CLEAR_ALL")
+		self.proc_init = orasql.Procedure("LIVINGAPI_PKG.INIT")
+		self.proc_clear_outputandbackrefs = orasql.Procedure("LIVINGAPI_PKG.CLEAR_OUTPUTANDBACKREFS")
 		self.func_seq = orasql.Function("LIVINGAPI_PKG.SEQ")
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
+		self.viewtemplate_params = {} # Maps ``vt_id`` to parameter dictionary
+		self.emailtemplate_params = {} # Maps ``et_id`` to parameter dictionary
 		self.templatelibraries = None # Maps ``tl_id`` to template library
 
 		if ide_id is not None:
@@ -385,10 +415,6 @@ class DBHandler(Handler):
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
 
-	def reset(self):
-		super().reset()
-		self.proc_clear_all(self.cursor())
-
 	def cursor(self):
 		return self.db.cursor(readlobs=True)
 
@@ -400,6 +426,10 @@ class DBHandler(Handler):
 
 	def rollback(self):
 		self.db.rollback()
+
+	def reset(self):
+		super().reset()
+		self.proc_clear_outputandbackrefs(self.cursor())
 
 	def seq(self):
 		c = self.cursor()
@@ -415,6 +445,9 @@ class DBHandler(Handler):
 			if app.viewtemplates is not None:
 				for viewtemplate in app.viewtemplates.values():
 					self.save_viewtemplate(viewtemplate, recursive=recursive)
+			if app._params is not None:
+				for param in app._params.values():
+					self.save_param(param)
 
 	def save_file(self, file):
 		if file.internalid is None:
@@ -449,6 +482,122 @@ class DBHandler(Handler):
 		with url.Context():
 			u = self.uploaddir/r.upl_name
 			return u.openread().read()
+
+	def save_param(self, param):
+		c = self.cursor()
+		r = self._save_param(
+			c,
+			identifier=param.identifier,
+			description=param.description,
+			value=param.value,
+			parentappid=param.parent.id if isinstance(param.parent, la.App) else None,
+			parentviewtemplateid=param.parent.id if isinstance(param.parent, la.ViewTemplateConfig) else None,
+			parentemailtemplateid=param.parent.id if isinstance(param.parent, la.EMailTemplate) else None,
+		)
+		param.id = r.p_ap_id
+
+	def _save_param(self, cursor, *, identifier=None, order=None, description=None, value=None, superid=None, parentappid=None, parentviewtemplateid=None, parentemailtemplateid=None):
+		p_ap_type = None
+		p_ap_value_bool = None
+		p_ap_value_date = None
+		p_ap_value_datetime = None
+		p_ap_value_other = None
+		p_upl_id = None
+		p_tpl_uuid_value = None
+		p_ctl_id = None
+
+		if value is None:
+			# Could be any other type too
+			p_ap_type = "str"
+		elif isinstance(value, bool):
+			p_ap_value_bool = int(value)
+			p_ap_type = "bool"
+		elif isinstance(value, datetime.datetime):
+			p_ap_value_datetime = value
+			p_ap_type = "datetime"
+		elif isinstance(value, datetime.date):
+			p_ap_value_date = value
+			p_ap_type = "date"
+		elif isinstance(value, la.File):
+			p_upl_id = value.internalid
+			p_ap_type = "upload"
+		elif isinstance(value, la.App):
+			p_tpl_uuid_value = value.id
+			p_ap_type = "App"
+		elif isinstance(value, la.Control):
+			p_ctl_id = value.id
+			p_ap_type = "control"
+		elif isinstance(value, int):
+			p_ap_value_other = str(value)
+			p_ap_type = "int"
+		elif isinstance(value, float):
+			p_ap_value_other = str(value)
+			p_ap_type = "number"
+		elif isinstance(value, str):
+			p_ap_value_other = value
+			p_ap_type = "str"
+		elif isinstance(value, color.Color):
+			p_ap_value_other = str((((value.r() << 8) + value.g() << 8) + value.b() << 8) + value.a())
+			p_ap_type = "color"
+		elif isinstance(value, datetime.timedelta):
+			value = value.total_seconds()/86400
+			p_ap_type = "datetimedelta" if value.seconds or value.microseconds else "datedelta"
+		elif isinstance(value, misc.monthdelta):
+			p_ap_value_other = str(value.months)
+			p_ap_type = "monthdelta"
+		elif isinstance(value, list):
+			p_ap_type = "list"
+		elif isinstance(value, dict):
+			p_ap_type = "dict"
+		else:
+			raise TypeError(f"Can't save parameter of type {type(value)}")
+
+		r = self.proc_appparameter_import_waf(
+			cursor,
+			c_user=self.ide_id,
+			p_tpl_uuid=parentappid,
+			p_vt_id=parentviewtemplateid,
+			p_et_id=parentemailtemplateid,
+			p_ap_id_super=superid,
+			p_ap_order=order,
+			p_ap_identifier=identifier,
+			p_ap_type=p_ap_type,
+			p_ap_description=description,
+			p_ap_value_bool=p_ap_value_bool,
+			p_ap_value_date=p_ap_value_date,
+			p_ap_value_datetime=p_ap_value_datetime,
+			p_ap_value_other=p_ap_value_other,
+			p_upl_id=p_upl_id,
+			p_tpl_uuid_value=p_tpl_uuid_value,
+			p_ctl_id=p_ctl_id,
+		)
+
+		if isinstance(value, list):
+			order = 10
+			for v in value:
+				self._save_param(
+					c,
+					order=order,
+					value=v,
+					superid=r.p_ap_id,
+					parentappid=parentappid,
+					parentviewtemplateid=parentviewtemplateid,
+					parentemailtemplateid=parentemailtemplateid,
+				)
+				order += 10
+		elif isinstance(value, dict):
+			for (identifier, v) in value.items():
+				self._save_param(
+					c,
+					identifier=identifier,
+					value=v,
+					superid=r.p_ap_id,
+					parentappid=parentappid,
+					parentviewtemplateid=parentviewtemplateid,
+					parentemailtemplateid=parentemailtemplateid,
+				)
+		return r
+
 
 	def _save_vsql_ast(self, vsqlexpr, required_datatype=None, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
 		"""
@@ -720,6 +869,103 @@ class DBHandler(Handler):
 			else:
 				self.proc_dataorder_delete(cursor, c_user=self.ide_id, p_do_id=do_id)
 
+	def _reinitialize_livingapi_db(self, cursor, globals):
+		"""
+		Reinitialize the server side state of the UL4ON codec machinery.
+
+		We do this by calling ``livingapi_pkg.init()`` passing the local
+		information about the current view/email template and detail record.
+
+		We also need to pass the state of the local UL4ON backref registry to
+		the server so that existing object won't have to be loaded again.
+
+		(This is mostly a performance optimization, but for email templates it
+		is essential that the detail record won't be loaded again, as we want
+		to use the state of the record as it was recorded in
+		``emailqueue.eq_data``).
+		"""
+		backrefs = []
+
+		# The backref registry might contain objects for which we can't sync
+		# backreferences to the database. This can happen when the dump hasn't
+		# been created by the database (for example when the template gateway
+		# puts an UL4ON dump into the session). But since the database doesn't
+		# know how to create those backreferences, we can be sure that it doesn't
+		# create then, so we can put any object into that backreference slot
+		# (But we **do** have to put something in that slot, otherwise all
+		# following backreference indexes would be off by one.
+		# For those fake backreferences we use the special type ``ignore``
+		# which is handled specifically by ``livingapi_pkg.init_ul4on()``
+		for obj in self.ul4on_decoder._objects:
+			ul4onname = "ignore"
+			ul4onid = None
+			if isinstance(obj, str):
+				# We tell the database to ignore long string, since it can't
+				# create backreferences to those.
+				if len(obj) < 296:
+					ul4onname = "str"
+					ul4onid = obj
+				# Else:
+			elif hasattr(obj, "ul4onname"):
+				# Ignore backreferences to ``Geo`` objects
+				if not isinstance(obj, la.Geo):
+					if obj.ul4onid is None:
+						raise TypeError(f"Can't sync backreference to non-persistent object of type {type(obj)!r}")
+					else:
+						ul4onname = obj.ul4onname
+						ul4onid = obj.ul4onid
+			# For everthing else we have a back reference that couldn't have been
+			# produced by the database, so we ignore it too.
+			backrefs.append(ul4onname)
+			backrefs.append(ul4onid)
+
+		args = dict(
+			c_user=self.ide_id,
+			p_ul4onbackrefs=self.varchars(backrefs),
+		)
+		if globals.emailtemplate_id is not None:
+			args["p_et_id"] = globals.emailtemplate_id
+		elif globals.viewtemplate_id is not None:
+			args["p_vt_id"] = globals.viewtemplate_id
+		elif globals.view_id is not None:
+			args["p_vw_id"] = globals.view_id
+		elif globals.app is not None:
+			args["p_tpl_uuid"] = globals.app.id
+		if globals.record is not None:
+			args["p_dat_id"] = globals.record.id
+		self.proc_init(cursor, **args)
+
+	def _execute_incremental_ul4on_query(self, cursor, globals, query, **args):
+		"""
+		Returns the deserialized UL4ON data from executing a database function
+		that returns an "incremental" dump. ("incremental" means that it might
+		have backreferences to a previous dump). The data from this dump
+		will be merged into the exiting data.
+
+		When such a database function (e.g. ``livingapi_pkg.app_params_inc_ful4on()``)
+		detects that the UL4ON codec machinery in ``ul4onblobbuffer_pkg`` and
+		``livingapi_pkg`` hasn't been initialized yet, it returns ``null``.
+
+		This can happen in email templates where the UL4ON dump will not be loaded
+		via calls to ``livingapi_pkg.data_ful4on()`` (but from
+		``emailqueue.eq_data``) or when executing a data action results in an
+		email, so that an UL4ON dump for the email queue will be generated, which
+		results in the UL4ON codec machinery being reset.
+
+		In this case we have to reinitialize the UL4ON codec machinery (by calling
+		:meth:`_reinitialize_livingapi_db`) and try calling the database function
+		again.
+		"""
+		cursor.execute(query, **args)
+		dump = cursor.fetchone()[0]
+		if dump is None:
+			self._reinitialize_livingapi_db(cursor, globals)
+			cursor.execute(query, **args)
+			dump = cursor.fetchone()[0]
+		dump = dump.decode("utf-8")
+		dump = self._loaddump(dump)
+		return dump
+
 	def meta_data(self, *appids):
 		cursor = self.cursor()
 		tpl_uuids = self.varchars(appids)
@@ -738,21 +984,16 @@ class DBHandler(Handler):
 			result = self.ul4on_decoder.persistent_object(la.Record.ul4onname, dat_id)
 			if result is not None:
 				return result
-		# Reset the backref registry, since we call ``livingapi_pkg.record_sync_ful4on()``
-		# which reset the db's backref registry too
-		# FIXME: Maybe we can upgrade this to use incremntal UL4ON dumps, but then
-		# we'd need the ability to force objects to be reloaded
-		self.reset()
 		c = self.cursor()
 		c.execute(
-			"select livingapi_pkg.record_sync_ful4on(c_user=>:ide_id, p_dat_id=>:dat_id) from dual",
-			ide_id=self.ide_id,
+			"select livingapi_pkg.record_sync_ful4on(p_dat_id=>:dat_id, p_force=>:force) from dual",
 			dat_id=dat_id,
+			force=int(force),
 		)
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump.record
+		record = self._loaddump(dump)
+		return record
 
 	def records_sync_data(self, dat_ids, force=False):
 		if force:
@@ -765,23 +1006,18 @@ class DBHandler(Handler):
 					missing.add(dat_id)
 				else:
 					found[dat_id] = record
-		# Reset the backref registry, since we call ``livingapi_pkg.records_sync_ful4on()``
-		# which reset the db's backref registry too
-		# FIXME: Maybe we can upgrade this to use incremntal UL4ON dumps, but then
-		# we'd need the ability to force objects to be reloaded
-		self.reset()
 		c = self.cursor()
 		c.execute(
-			"select livingapi_pkg.records_sync_ful4on(c_user=>:ide_id, p_dat_ids=>:dat_ids) from dual",
-			ide_id=self.ide_id,
+			"select livingapi_pkg.records_sync_ful4on(p_dat_ids=>:dat_ids, p_force=>:force) from dual",
 			dat_ids=self.varchars(missing),
+			force=int(force),
 		)
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump.records
+		records = self._loaddump(dump)
+		return records
 
-	def _data(self, requestid=None, vt_id=None, et_id=None, vw_id=None, tpl_id=None, dat_id=None, dat_ids=None, ctl_identifier=None, searchtext=None, reqparams=None, mode=None, sync=False, exportmeta=False, funcname="data_ful4on"):
+	def _data(self, vt_id=None, et_id=None, vw_id=None, tpl_uuid=None, dat_id=None, dat_ids=None, ctl_identifier=None, searchtext=None, reqparams=None, mode=None, sync=False, exportmeta=False, funcname="data_ful4on"):
 		paramslist = []
 		if reqparams:
 			for (key, value) in reqparams.items():
@@ -797,6 +1033,10 @@ class DBHandler(Handler):
 
 		c = self.cursor()
 
+		# Reset the UL4ON decoder before loading
+		# (since the server will reset its UL4ON codec state too)
+		self.reset()
+
 		c.execute(
 			"""
 				select
@@ -806,7 +1046,7 @@ class DBHandler(Handler):
 						p_vt_id => :p_vt_id,
 						p_et_id => :p_et_id,
 						p_vw_id => :p_vw_id,
-						p_tpl_id => :p_tpl_id,
+						p_tpl_uuid => :p_tpl_uuid,
 						p_dat_id => :p_dat_id,
 						p_dat_ids => :p_dat_ids,
 						p_ctl_identifier => :p_ctl_identifier,
@@ -820,11 +1060,11 @@ class DBHandler(Handler):
 				from dual
 			""",
 			c_user=self.ide_id,
-			p_requestid=requestid,
+			p_requestid=self.requestid,
 			p_vt_id=vt_id,
 			p_et_id=et_id,
 			p_vw_id=vw_id,
-			p_tpl_id=tpl_id,
+			p_tpl_uuid=tpl_uuid,
 			p_dat_id=dat_id,
 			p_dat_ids=self.varchars(dat_ids or []),
 			p_ctl_identifier=ctl_identifier,
@@ -839,6 +1079,7 @@ class DBHandler(Handler):
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
 		dump = self._loaddump(dump)
+		# Since the database didn't reset its backref registry, we don't either
 		return dump
 
 	def viewtemplate_data(self, *path, **params):
@@ -878,29 +1119,45 @@ class DBHandler(Handler):
 
 		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
 
-	def app_params_incremental_data(self, id):
-		c = self.cursor()
-		c.execute("select livingapi_pkg.app_params_inc_ful4on(:appid) from dual", appid=id)
-		r = c.fetchone()
-		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump
+	def viewtemplate_params_incremental_data(self, globals, id):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			globals,
+			"select livingapi_pkg.viewtemplate_params_inc_ful4on(:vtid) from dual",
+			vtid=id,
+		)
 
-	def app_views_incremental_data(self, id):
-		c = self.cursor()
-		c.execute("select livingapi_pkg.app_views_inc_ful4on(:appid) from dual", appid=id)
-		r = c.fetchone()
-		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump
+	def emailtemplate_params_incremental_data(self, globals, id):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			globals,
+			"select livingapi_pkg.emailtemplate_params_inc_ful4on(:etid) from dual",
+			etid=id,
+		)
 
-	def record_attachments_incremental_data(self, id):
-		c = self.cursor()
-		c.execute("select livingapi_pkg.record_attachments_inc_ful4on(:datid) from dual", datid=id)
-		r = c.fetchone()
-		dump = r[0].decode("utf-8")
-		dump = self._loaddump(dump)
-		return dump
+	def app_params_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_params_inc_ful4on(:appid) from dual",
+			appid=app.id,
+		)
+
+	def app_views_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_views_inc_ful4on(:appid) from dual",
+			appid=app.id,
+		)
+
+	def record_attachments_incremental_data(self, record):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			record.app.globals,
+			"select livingapi_pkg.record_attachments_inc_ful4on(:dataid) from dual",
+			dat=record.id,
+		)
 
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
@@ -998,6 +1255,113 @@ class DBHandler(Handler):
 		if r.p_errormessage:
 			raise ValueError(r.p_errormessage)
 
+	def save_parameter(self, parameter, recursive=True):
+		c = self.cursor()
+		app = parameter.owner
+
+		p_ap_value_bool = None
+		p_ap_value_date = None
+		p_ap_value_datetime = None
+		p_ap_value_str = None
+		p_ap_value_html = None
+		p_ap_value_other = None
+		p_upl_id = None
+		p_tpl_uuid_value = None
+		p_ctl_id = None
+
+		if parameter.value is not None:
+			if parameter.type is parameter.Type.BOOL:
+				p_ap_value_bool = int(parameter.value)
+			elif parameter.type is parameter.Type.INT:
+				p_ap_value_other = str(parameter.value)
+			elif parameter.type is parameter.Type.NUMBER:
+				p_ap_value_other = str(parameter.value)
+			elif parameter.type is parameter.Type.STR:
+				p_ap_value_str = parameter.value
+			elif parameter.type is parameter.Type.HTML:
+				p_ap_value_html = parameter.value
+			elif parameter.type is parameter.Type.COLOR:
+				p_ap_value_other = parameter.value.r << 24 | parameter.value.g << 16 | parameter.value.b << 8 | parameter.value.a
+			elif parameter.type is parameter.Type.DATE:
+				p_ap_value_other = parameter.value
+			elif parameter.type is parameter.Type.DATETIME:
+				p_ap_value_date = parameter.value
+			elif parameter.type is parameter.Type.DATETIME:
+				p_ap_value_datetime = parameter.value
+			elif parameter.type is parameter.Type.DATEDELTA:
+				p_ap_value_datetime = parameter.value.days
+			elif parameter.type is parameter.Type.DATETIMEDELTA:
+				p_ap_value_datetime = parameter.value.days + parameter.value.days/24/60/60 + parameter.value.days/24/60/60/100000
+			elif parameter.type is parameter.Type.MONTHDELTA:
+				p_ap_value_datetime = parameter.value.months
+			elif parameter.type is parameter.Type.UPLOAD:
+				if parameter.value.internalid is None:
+					raise la.ValueError(error_object_unsaved(parameter.value))
+				p_upl_id = parameter.value.internalid
+			elif parameter.type is parameter.Type.APP:
+				p_tpl_uuid_value = parameter.value.id
+			elif parameter.type is parameter.Type.CONTROL:
+				p_ctl_id = parameter.value.id
+
+		try:
+			result = self.proc_appparameter_save(
+				c,
+				c_user=self.ide_id,
+				c_lang="de", # FIXME
+				p_requestid=self.requestid,
+				p_ap_id=parameter.id,
+				p_tpl_uuid=app.id,
+				p_vt_id=None,
+				p_et_id=None,
+				p_ap_id_super=parameter.parent.id if parameter.parent is not None else None,
+				p_ap_order=parameter.order,
+				p_ap_identifier=parameter.identifier,
+				p_ap_type=parameter.type.value,
+				p_ap_description=parameter.description,
+				p_ap_value_bool=p_ap_value_bool,
+				p_ap_value_date=p_ap_value_date,
+				p_ap_value_datetime=p_ap_value_datetime,
+				p_ap_value_str=p_ap_value_str,
+				p_ap_value_html=p_ap_value_html,
+				p_ap_value_other=p_ap_value_other,
+				p_upl_id=p_upl_id,
+				p_tpl_uuid_value=p_tpl_uuid_value,
+				p_ctl_id=p_ctl_id,
+			)
+		except orasql.DatabaseError as exc:
+			error = exc.args[0]
+			if error.code == 20010:
+				parts = error.message.split("\x01")[1:-1]
+				if parts:
+					# An error message with the usual formatting from ``errmsg_pkg``.
+					raise ValueError("\n".join(parts[1::2]))
+				else:
+					# An error message with strange formatting, use it as it is.
+					raise ValueError(error.message)
+			else:
+				# Some other database exception
+				raise
+
+		if parameter.id is None:
+			parameter.id = result.p_ap_id
+			parameter.createdat = datetime.datetime.now()
+			parameter.createdby = app.globals.user
+		else:
+			parameter.updatedat = datetime.datetime.now()
+			parameter.updatedby = app.globals.user
+		parameter._dirty = False
+
+	def parameter_sync_data(self, ap_id):
+		c = self.cursor()
+		c.execute(
+			"select livingapi_pkg.appparam_sync_ful4on(p_ap_id=>:ap_id) from dual",
+			ap_id=ap_id,
+		)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		parameter = self._loaddump(dump)
+		return parameter
+
 	def _executeaction(self, record, actionidentifier):
 		c = self.cursor()
 		r = self.proc_dataaction_execute(
@@ -1049,6 +1413,18 @@ class DBHandler(Handler):
 				**self._loadinternaltemplates(app.id),
 			}
 
+	def fetch_viewtemplate_params(self, globals):
+		id = globals.viewtemplate_id
+		if id not in self.viewtemplate_params:
+			self.viewtemplate_params[id] = self.viewtemplate_params_incremental_data(globals, id)
+		return self.viewtemplate_params[id]
+
+	def fetch_emailtemplate_params(self, globals):
+		id = globals.emailtemplate_id
+		if id not in self.emailtemplate_params:
+			self.emailtemplate_params[id] = self.emailtemplate_params_incremental_data(globals, id)
+		return self.emailtemplate_params[id]
+
 	def fetch_templatelibraries(self):
 		if self.templatelibraries is None:
 			c = self.cursor_pg(row_factory=rows.tuple_row)
@@ -1056,6 +1432,8 @@ class DBHandler(Handler):
 			r = c.fetchone()
 			dump = r[0]
 			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
+			# Note that we ignore the problem of persistent objects, since none of the
+			# persistent objects in this dump are in the other dump
 			dump = ul4on.loads(dump)
 			if isinstance(dump, dict):
 				dump = la.attrdict(dump)
