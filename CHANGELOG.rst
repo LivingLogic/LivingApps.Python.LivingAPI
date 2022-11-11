@@ -1,4 +1,13 @@
-HEAD (2022-10-??)
+0.18.1 (2022-11-11)
+-------------------
+
+*	Updated required XIST version.
+
+*	Added optional dependencies to :mod:`cx_Oracle` and :mod:`psycopg` (required
+	when :class:`DBHandler` is used).
+
+
+0.18 (2022-11-04)
 -----------------
 
 *	Add support for hierarchical parameters and parameters attached to
