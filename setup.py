@@ -54,7 +54,7 @@ description = description.expandtabs(2)
 
 args = dict(
 	name="ll-la",
-	version="0.18.1",
+	version="0.18.2",
 	description="Python API for LivingApps",
 	long_description=description,
 	author="Walter Doerwald",
@@ -74,7 +74,7 @@ args = dict(
 		"validators >= 0.18.2",
 	],
 	extras_require={
-		"db": ["cx_Oracle >= 8.0", "pyscopg[binary] >= 3.0.5"],
+		"db": ["cx_Oracle >= 8.0", "psycopg[binary] >= 3.0.5"],
 	},
 	zip_safe=False,
 )
