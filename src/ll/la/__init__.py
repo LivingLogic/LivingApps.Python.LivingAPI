@@ -7017,6 +7017,10 @@ class Installation(Base):
 		self.id = id
 		self.name = name
 
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
 	vsqlgroup = vsql.Group(
 		"installation_link",
 		internalid=(vsql.DataType.STR, "upl_id"),
