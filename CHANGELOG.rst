@@ -1,3 +1,11 @@
+0.19.0 (2022-11-11)
+-------------------
+
+*	:meth:`DBHandler.reset` now calls ``LIVINGAPI_PKG.CLEAR_ALL()`` instead
+	of ``LIVINGAPI_PKG.CLEAR_OUTPUTANDBACKREFS()`` to completely reset the
+	server side state.
+
+
 0.18.2 (2022-11-11)
 -------------------
 

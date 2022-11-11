@@ -389,7 +389,7 @@ class DBHandler(Handler):
 		self.proc_vsqlsource_insert = orasql.Procedure("VSQL_PKG.VSQLSOURCE_INSERT")
 		self.proc_vsql_insert = orasql.Procedure("VSQL_PKG.VSQL_INSERT")
 		self.proc_init = orasql.Procedure("LIVINGAPI_PKG.INIT")
-		self.proc_clear_outputandbackrefs = orasql.Procedure("LIVINGAPI_PKG.CLEAR_OUTPUTANDBACKREFS")
+		self.proc_clear_all = orasql.Procedure("LIVINGAPI_PKG.CLEAR_ALL")
 		self.func_seq = orasql.Function("LIVINGAPI_PKG.SEQ")
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
@@ -429,7 +429,7 @@ class DBHandler(Handler):
 
 	def reset(self):
 		super().reset()
-		self.proc_clear_outputandbackrefs(self.cursor())
+		self.proc_clear_all(self.cursor())
 
 	def seq(self):
 		c = self.cursor()
