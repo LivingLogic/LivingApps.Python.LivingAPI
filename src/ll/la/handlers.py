@@ -326,7 +326,9 @@ class DBHandler(Handler):
 
 		For a connection to the Postgres database pass either
 		``connection_postgres`` with a :mod:`psycopg` connection or
-		``connectstring_postgres`` with a connecstring.
+		``connectstring_postgres`` with a connecstring. If you pass neither,
+		functionality that requires the Postgres database (like template libraries)
+		will not be available and will fail if used.
 
 		``uploaddir`` must be an ``ssh`` URL specifying the upload directory
 		on the web server. If no uploads will be made, it can also be :const:`None`.
@@ -344,30 +346,22 @@ class DBHandler(Handler):
 		if connection is not None:
 			if connectstring is not None:
 				raise ValueError("Specify connectstring or connection, but not both")
-			self.db = connection
+			self._db = connection
 		elif connectstring is not None:
-			if orasql is None:
-				raise ImportError("ll.orasql required")
-			self.db = orasql.connect(connectstring, readlobs=True)
-		else:
-			raise ValueError("Parameter connectstring or connection is required")
+			self._db = connectstring
 
 		if connection_postgres is not None:
 			if connectstring_postgres is not None:
 				raise ValueError("Specify connectstring_postgres or connection_postgres, but not both")
-			self.db_postgres = connection_postgres
+			self._db_pg = connection_postgres
 		elif connectstring_postgres is not None:
-			if psycopg is None:
-				raise ImportError("psycopg required")
-			self.db_postgres = psycopg.connect(connectstring_postgres)
-		else:
-			raise ValueError("Parameter connectstring_postgres or connection_postgres is required")
+			self._db_pg = connectstring_postgres
 
 		if uploaddir is not None:
 			uploaddir = url.URL(uploaddir)
 		self.uploaddir = uploaddir
 
-		self.varchars = self.db.gettype("LL.VARCHARS")
+		self._varchars = None
 		self.urlcontext = None
 
 		# Procedures
@@ -415,11 +409,37 @@ class DBHandler(Handler):
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
 
+	@property
+	def db(self):
+		if self._db is None:
+			raise ValueError("Not Oracle database connection available")
+		elif isinstance(self._db, str):
+			if orasql is None:
+				raise ImportError("ll.orasql required")
+			self._db = orasql.connect(self._db, readlobs=True)
+		return self._db
+
+	@property
+	def db_pg(self):
+		if self._db_pg is None:
+			raise ValueError("Not Postgres database connection available")
+		elif isinstance(self._db_pg, str):
+			if psycopg is None:
+				raise ImportError("psycopg required")
+			self._db_pg = psycopg.connect(self._db_pg)
+		return self._db_pg
+
+	@property
+	def varchars(self):
+		if self._varchars is None:
+			self._varchars = self.db.gettype("LL.VARCHARS")
+		return self._varchars
+
 	def cursor(self):
 		return self.db.cursor(readlobs=True)
 
 	def cursor_pg(self, row_factory=rows.tuple_row):
-		return self.db_postgres.cursor(row_factory=row_factory)
+		return self.db_pg.cursor(row_factory=row_factory)
 
 	def commit(self):
 		self.db.commit()

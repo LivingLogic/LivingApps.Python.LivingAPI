@@ -2230,8 +2230,10 @@ class Globals(Base):
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		if self.ul4_hasattr(name):
+		if name.startswith(("d_", "t_", "l_", "cl_", "p_", "pv_")):
 			return getattr(self, name)
+		else:
+			return super().ul4_getattr(name)
 
 	def ul4_setattr(self, name, value):
 		if name == "lang":
@@ -2654,8 +2656,10 @@ class App(Base):
 	def ul4_getattr(self, name):
 		if name == "add_param":
 			return self.ul4_add_param
-		elif self.ul4_hasattr(name):
+		elif name.startswith(("c_", "lc_", "p_", "pv_", "cl_", "t_")):
 			return getattr(self, name)
+		elif self.ul4_hasattr(name):
+			return super().ul4_getattr(name)
 
 	def _gethandler(self, handler):
 		if handler is None:
@@ -5149,7 +5153,10 @@ class Record(Base):
 		# support the ``handler`` parameter.
 		if name in {"save", "delete", "executeaction"}:
 			return getattr(self, "ul4" + name)
-		return getattr(self, name)
+		elif name.startswith(("f_", "v_", "c_")):
+			return getattr(self, name)
+		else:
+			return super().ul4_getattr(name)
 
 	def ul4_setattr(self, name, value):
 		if name.startswith("v_") and name[2:] in self.app.controls:
@@ -6795,7 +6802,7 @@ class DataActionCommandWithIdentifier(DataActionCommand):
 	children = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, condition=None, app=None, identifier=None):
-		super().__init__(id, condition)
+		super().__init__(id=id, condition=condition)
 		self.app = app
 		self.identifier = identifier
 		self.children = []

@@ -1,3 +1,10 @@
+0.20.0 (2022-11-15)
+-------------------
+
+*	Fixed :meth:`ul4_getattr` implementation to honor UL4 logic in descriptors.
+
+*	The Postgres database connection is now optional.
+
 0.19.1 (2022-11-11)
 -------------------
 
