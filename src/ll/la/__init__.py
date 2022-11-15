@@ -6802,7 +6802,7 @@ class DataActionCommandWithIdentifier(DataActionCommand):
 	children = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, condition=None, app=None, identifier=None):
-		super().__init__(id, condition)
+		super().__init__(id=id, condition=condition)
 		self.app = app
 		self.identifier = identifier
 		self.children = []

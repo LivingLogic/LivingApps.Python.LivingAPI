@@ -1,3 +1,8 @@
+0.20.0 (2022-11-15)
+-------------------
+
+*	Fixed :meth:`ul4_getattr` implementation to honor UL4 logic in descriptors.
+
 0.19.1 (2022-11-11)
 -------------------
 
