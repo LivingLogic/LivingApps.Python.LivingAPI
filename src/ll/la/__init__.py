@@ -5462,6 +5462,12 @@ class Field(Base):
 	def add_error(self, *errors):
 		self.errors.extend(errors)
 
+	def set_error(self, error):
+		if error is None:
+			self.errors = []
+		else:
+			self.errors = [error]
+
 	def clear_errors(self):
 		self.errors = []
 
@@ -7103,6 +7109,7 @@ class LayoutControl(Base):
 		self.id = id
 		self.label = label
 		self.identifier = identifier
+		self.visible = True
 
 	@property
 	def ul4onid(self) -> str:
@@ -7129,6 +7136,7 @@ class HTMLLayoutControl(LayoutControl):
 	ul4_type = ul4c.Type("la", "HTMLLayoutControl", "HTML decoration in an input form")
 
 	value = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	visible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("imagelayoutcontrol")
@@ -7157,6 +7165,7 @@ class ImageLayoutControl(LayoutControl):
 
 	image_original = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	image_scaled = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	visible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("buttonlayoutcontrol")
@@ -7169,6 +7178,8 @@ class ButtonLayoutControl(LayoutControl):
 	_subtype = None
 
 	ul4_type = ul4c.Type("la", "ButtonLayoutControl", "A submit button in an input form")
+
+	visible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("view")
