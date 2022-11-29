@@ -1,9 +1,18 @@
-0.20.0 (2022-11-15)
+0.21 (2022-11-29)
 -------------------
+
+*	Added :meth:`Field.set_error`.
+
+*	Added ``LayoutControl.visible``.
+
+
+0.20 (2022-11-15)
+-----------------
 
 *	Fixed :meth:`ul4_getattr` implementation to honor UL4 logic in descriptors.
 
 *	The Postgres database connection is now optional.
+
 
 0.19.1 (2022-11-11)
 -------------------
@@ -11,8 +20,8 @@
 *	Add missing ``ul4onid`` property to :class:`Installation`.
 
 
-0.19.0 (2022-11-11)
--------------------
+0.19 (2022-11-11)
+-----------------
 
 *	:meth:`DBHandler.reset` now calls ``LIVINGAPI_PKG.CLEAR_ALL()`` instead
 	of ``LIVINGAPI_PKG.CLEAR_OUTPUTANDBACKREFS()`` to completely reset the
@@ -143,8 +152,8 @@
 	``NumberControl`` objects.
 
 
-0.14.0 (2021-12-08)
--------------------
+0.14 (2021-12-08)
+-----------------
 
 *	Renamed ``AppLookupControl.lookupapp`` to ``lookup_app`` and
 	``AppLookupControl.lookupcontrols`` to ``lookup_controls``.
@@ -208,9 +217,8 @@
 *	Implemented field value validation and support for field default values.
 
 
-
-0.13.0 (2020-09-17)
--------------------
+0.13 (2020-09-17)
+-----------------
 
 *	Add support for "deferred" types in :class:`Attr`. This makes it possible
 	to have cyclic references in attribute "declarations".
