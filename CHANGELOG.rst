@@ -1,3 +1,9 @@
+HEAD (2022-11-??)
+-----------------
+
+*	Added incremental loading of layout controls.
+
+
 0.21 (2022-11-29)
 -----------------
 

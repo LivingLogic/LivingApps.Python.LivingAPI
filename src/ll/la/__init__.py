@@ -7298,7 +7298,7 @@ class View(Base):
 	start = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	end = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	layout_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	layout_controls = Attr(get="", set="", ul4get="_layout_controls_get", ul4onget="_layout_controls_ul4onget", ul4onset="_layout_controls_set")
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	login_required = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	result_page = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset="")
@@ -7314,11 +7314,11 @@ class View(Base):
 		self.height = height
 		self.start = start
 		self.end = end
+		self._layout_controls = None
 		self.lang = lang
 		self.login_required = login_required
 		self.result_page = result_page
 		self.use_geo = use_geo
-
 
 	@property
 	def ul4onid(self) -> str:
@@ -7335,8 +7335,6 @@ class View(Base):
 				return self.layout_controls[name[3:]]
 		except KeyError:
 			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-		return super().__getattr__(name)
-
 
 	def __dir__(self):
 		"""
@@ -7358,6 +7356,20 @@ class View(Base):
 			return True
 		else:
 			return super().ul4_hasattr(name)
+
+	def _layout_controls_get(self):
+		layout_controls = self._layout_controls
+		if layout_controls is None:
+			handler = self.app.globals.handler
+			if handler is not None:
+				layout_controls = self._layout_controls = handler.view_layout_controls_incremental_data(self)
+		return layout_controls
+
+	def _layout_controls_set(self, value):
+		self._layout_controls = value
+
+	def _layout_controls_ul4onget(self):
+		return self._layout_controls
 
 
 @register("datasource")

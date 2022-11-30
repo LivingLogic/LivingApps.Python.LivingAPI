@@ -138,7 +138,10 @@ class Handler:
 	def app_params_incremental_data(self, app):
 		return None
 
-	def record_attachments_data(self, id):
+	def view_layout_controls_incremental_data(self, view):
+		return None
+
+	def record_attachments_incremental_data(self, id):
 		return None
 
 	def meta_data(self, *appids):
@@ -1175,8 +1178,16 @@ class DBHandler(Handler):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			record.app.globals,
-			"select livingapi_pkg.record_attachments_inc_ful4on(:dataid) from dual",
-			dat=record.id,
+			"select livingapi_pkg.record_attachments_inc_ful4on(:datid) from dual",
+			datid=record.id,
+		)
+
+	def view_layout_controls_incremental_data(self, view):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			view.app.globals,
+			"select livingapi_pkg.view_layoutcontrols_inc_ful4on(:vwid) from dual",
+			vwid=view.id,
 		)
 
 	def save_record(self, record, recursive=True):
