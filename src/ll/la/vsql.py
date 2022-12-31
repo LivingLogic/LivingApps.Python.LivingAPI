@@ -2869,10 +2869,10 @@ DateAST.add_rules(f"DATE", "")
 DateTimeAST.add_rules(f"DATETIME", "")
 
 # Function ``today()``
-FuncAST.add_rules(f"DATE today", "trunc(sysdate)")
+FuncAST.add_rules(f"DATE <- today()", "trunc(sysdate)")
 
 # Function ``now(0``
-FuncAST.add_rules(f"DATETIME now", "sysdate")
+FuncAST.add_rules(f"DATETIME <- now()", "sysdate")
 
 # Function ``bool()``
 FuncAST.add_rules(f"BOOL <- bool()", "0")
