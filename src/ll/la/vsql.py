@@ -858,7 +858,7 @@ class AST(Repr):
 	nodevalue = None
 	"""
 	The node value is an instance attribute that represents a string that
-	isn't be represented by any child node. E.g. the values of constants or
+	isn't represented by any child node. E.g. the values of constants or
 	the names of functions, methods and attributes. Will be overwritten by
 	properties in subclasses.
 	"""
