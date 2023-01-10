@@ -141,6 +141,9 @@ class Handler:
 	def view_layout_controls_incremental_data(self, view):
 		return None
 
+	def app_child_controls_incremental_data(self, app):
+		return None
+
 	def record_attachments_incremental_data(self, id):
 		return None
 
@@ -1188,6 +1191,14 @@ class DBHandler(Handler):
 			view.app.globals,
 			"select livingapi_pkg.view_layoutcontrols_inc_ful4on(:vwid) from dual",
 			vwid=view.id,
+		)
+
+	def app_child_controls_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_childcontrols_inc_ful4on(:tpluuid) from dual",
+			tpluuid=app.id,
 		)
 
 	def save_record(self, record, recursive=True):

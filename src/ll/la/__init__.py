@@ -2297,6 +2297,12 @@ class App(Base):
 
 		The definition of the fields of this app.
 
+	.. attribute:: child_controls
+		:type: list[Control]
+
+		All controls of type ``applookup`` or ``multipleapplookup`` whose target
+		app is this app.
+
 	.. attribute:: records
 		:type: Optional[dict[str, Record]]
 
@@ -2416,6 +2422,7 @@ class App(Base):
 		"updatedat",
 		"updatedby",
 		"controls",
+		"child_controls",
 		"records",
 		"recordcount",
 		"installation",
@@ -2477,6 +2484,7 @@ class App(Base):
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	child_controls = Attr(get="", set="", ul4get="_child_controls_get", ul4onget="_child_controls_ul4onget", ul4onset="_child_controls_set")
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = id
@@ -2493,6 +2501,7 @@ class App(Base):
 		self.updatedat = updatedat
 		self.updatedby = updatedby
 		self.controls = None
+		self._child_controls = None
 		self.records = None
 		self.recordcount = recordcount
 		self.installation = installation
@@ -2689,6 +2698,20 @@ class App(Base):
 	def _params_ul4onset(self, value):
 		if value is not None:
 			self._params = value
+
+	def _child_controls_get(self):
+		child_controls = self._child_controls
+		if child_controls is None:
+			handler = self.globals.handler
+			if handler is not None:
+				child_controls = self._child_controls = handler.app_child_controls_incremental_data(self)
+		return child_controls
+
+	def _child_controls_set(self, value):
+		self._child_controls = value
+
+	def _child_controls_ul4onget(self):
+		return self._child_controls
 
 	def _views_get(self):
 		views = self._views
