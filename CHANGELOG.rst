@@ -3,6 +3,11 @@ HEAD (2022-11-??)
 
 *	Added incremental loading of layout controls.
 
+*	Added ``App.child_controls`` (This gives all ``applookup`` and
+	``multipleapplookup`` controls in other apps that point to this app).
+
+*	Internal templates are now stored in the Postgres database.
+
 
 0.21 (2022-11-29)
 -----------------

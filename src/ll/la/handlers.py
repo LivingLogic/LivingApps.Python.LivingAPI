@@ -1429,19 +1429,19 @@ class DBHandler(Handler):
 	def _loadinternaltemplates(self, tpl_uuid):
 		if tpl_uuid in self.internaltemplates:
 			return self.internaltemplates[tpl_uuid]
-		c = self.cursor()
+		c = self.cursor_pg()
 		c.execute("""
 			select
 				it_identifier,
 				utv_source
 			from
-				internaltemplate_select
+				internaltemplate.internaltemplate_select
 			where
-				tpl_uuid=:tpl_uuid
-		""", tpl_uuid=tpl_uuid)
+				app_id=%s
+		""", [tpl_uuid])
 		templates = {}
 		for r in c:
-			template = ul4c.Template(r.utv_source, name=r.it_identifier)
+			template = ul4c.Template(r[1], name=r[0])
 			templates[template.name] = template
 		self.internaltemplates[tpl_uuid] = templates
 		return templates
