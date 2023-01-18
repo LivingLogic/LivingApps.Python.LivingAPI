@@ -8,6 +8,9 @@ HEAD (2022-11-??)
 
 *	Internal templates are now stored in the Postgres database.
 
+*	Add shortcut attributes ``p_*``, ``pv_*``, ``cl_*`` and ``t_*`` to
+	:class:`DataSource`. These atttributes forward to the app.
+
 
 0.21 (2022-11-29)
 -----------------

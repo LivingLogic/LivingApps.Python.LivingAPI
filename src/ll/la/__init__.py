@@ -7446,6 +7446,55 @@ class DataSource(Base):
 	def ul4onid(self) -> str:
 		return self.id
 
+	def __getattr__(self, name):
+		if self.app is not None:
+			try:
+				if name.startswith("cl_"):
+					return self._get_chained_library(name[3:])
+				elif name.startswith("t_"):
+					return self.app.templates[name[2:]]
+				elif name.startswith("p_") and self.app.params:
+					return self.app.params[name[2:]]
+				elif name.startswith("pv_") and self.app.params:
+					return self.app.params[name[3:]].value
+			except KeyError:
+				pass
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		if self.app is not None:
+			for identifier in self.app.params:
+				attrs.add(f"p_{identifier}")
+				attrs.add(f"pv_{identifier}")
+				attrs.add(f"cl_{identifier}")
+			for identifier in self.app.templates:
+				attrs.add(f"t_{identifier}")
+		return attrs
+
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
+			return True
+		elif name.startswith("p_") and self.app is not None and name[2:] in self.app.params:
+			return True
+		elif name.startswith("pv_") and self.app is not None and name[3:] in self.app.params:
+			return True
+		elif name.startswith("cl_") and self.app is not None:
+			return True
+		elif name.startswith("t_") and self.app is not None and name[2:] in self.app.templates:
+			return True
+		else:
+			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if name.startswith(("p_", "pv_", "cl_", "t_")):
+			return getattr(self, name)
+		elif self.ul4_hasattr(name):
+			return super().ul4_getattr(name)
+
 
 @register("externaldatasource")
 class ExternalDataSource(Base):
