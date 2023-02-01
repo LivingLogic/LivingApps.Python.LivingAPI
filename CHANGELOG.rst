@@ -11,6 +11,8 @@ HEAD (2022-11-??)
 *	Add shortcut attributes ``p_*``, ``pv_*``, ``cl_*`` and ``t_*`` to
 	:class:`DataSource`. These atttributes forward to the app.
 
+*	When a record gets saved it's state is now set to ``SAVED``.
+
 
 0.21 (2022-11-29)
 -----------------

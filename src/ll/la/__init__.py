@@ -5211,6 +5211,7 @@ class Record(Base):
 		if sync:
 			handler.ul4on_decoder.store_persistent_object(self)
 			handler.record_sync_data(self.id, force=True)
+		self._new = False
 		return result
 
 	def update(self, **kwargs):
