@@ -1150,56 +1150,56 @@ class DBHandler(Handler):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			globals,
-			"select livingapi_pkg.viewtemplate_params_inc_ful4on(:vtid) from dual",
-			vtid=id,
+			"select livingapi_pkg.viewtemplate_params_inc_ful4on(:p_vt_id) from dual",
+			p_vt_id=id,
 		)
 
 	def emailtemplate_params_incremental_data(self, globals, id):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			globals,
-			"select livingapi_pkg.emailtemplate_params_inc_ful4on(:etid) from dual",
-			etid=id,
+			"select livingapi_pkg.emailtemplate_params_inc_ful4on(:p_et_id) from dual",
+			p_et_id=id,
 		)
 
 	def app_params_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			app.globals,
-			"select livingapi_pkg.app_params_inc_ful4on(:appid) from dual",
-			appid=app.id,
+			"select livingapi_pkg.app_params_inc_ful4on(:p_tpl_uuid) from dual",
+			p_tpl_uuid=app.id,
 		)
 
 	def app_views_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			app.globals,
-			"select livingapi_pkg.app_views_inc_ful4on(:appid) from dual",
-			appid=app.id,
+			"select livingapi_pkg.app_views_inc_ful4on(:p_tpl_uuid) from dual",
+			p_tpl_uuid=app.id,
 		)
 
 	def record_attachments_incremental_data(self, record):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			record.app.globals,
-			"select livingapi_pkg.record_attachments_inc_ful4on(:datid) from dual",
-			datid=record.id,
+			"select livingapi_pkg.record_attachments_inc_ful4on(:p_dat_id) from dual",
+			p_dat_id=record.id,
 		)
 
 	def view_layout_controls_incremental_data(self, view):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			view.app.globals,
-			"select livingapi_pkg.view_layoutcontrols_inc_ful4on(:vwid) from dual",
-			vwid=view.id,
+			"select livingapi_pkg.view_layoutcontrols_inc_ful4on(:p_vw_id) from dual",
+			p_vw_id=view.id,
 		)
 
 	def app_child_controls_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			app.globals,
-			"select livingapi_pkg.app_childcontrols_inc_ful4on(:tpluuid) from dual",
-			tpluuid=app.id,
+			"select livingapi_pkg.app_childcontrols_inc_ful4on(:p_tpl_uuid) from dual",
+			p_tpl_uuid=app.id,
 		)
 
 	def save_record(self, record, recursive=True):
