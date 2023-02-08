@@ -1,4 +1,4 @@
-HEAD (2022-11-??)
+HEAD (2023-02-??)
 -----------------
 
 *	Added incremental loading of layout controls.
@@ -12,6 +12,10 @@ HEAD (2022-11-??)
 	:class:`DataSource`. These atttributes forward to the app.
 
 *	When a record gets saved it's state is now set to ``SAVED``.
+
+*	Added the class :class`Link` and added the attribute ``App.links``
+	containing all currently active links in this app that are accessible to
+	the current user.
 
 
 0.21 (2022-11-29)

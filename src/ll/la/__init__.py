@@ -2303,6 +2303,12 @@ class App(Base):
 		All controls of type ``applookup`` or ``multipleapplookup`` whose target
 		app is this app.
 
+	.. attribute:: links
+		:type: list[Link]
+
+		All links that have been configured for this app that are currently active
+		and where the target is accessible to the current user.
+
 	.. attribute:: records
 		:type: Optional[dict[str, Record]]
 
@@ -2423,6 +2429,7 @@ class App(Base):
 		"updatedby",
 		"controls",
 		"child_controls",
+		"links",
 		"records",
 		"recordcount",
 		"installation",
@@ -2485,6 +2492,7 @@ class App(Base):
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	child_controls = Attr(get="", set="", ul4get="_child_controls_get", ul4onget="_child_controls_ul4onget", ul4onset="_child_controls_set")
+	links = Attr(get="", set="", ul4get="_links_get", ul4onget="_links_ul4onget", ul4onset="_links_set")
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = id
@@ -2502,6 +2510,7 @@ class App(Base):
 		self.updatedby = updatedby
 		self.controls = None
 		self._child_controls = None
+		self._links = None
 		self.records = None
 		self.recordcount = recordcount
 		self.installation = installation
@@ -2712,6 +2721,20 @@ class App(Base):
 
 	def _child_controls_ul4onget(self):
 		return self._child_controls
+
+	def _links_get(self):
+		links = self._links
+		if links is None:
+			handler = self.globals.handler
+			if handler is not None:
+				links = self._links = handler.app_links_incremental_data(self)
+		return links
+
+	def _links_set(self, value):
+		self._links = value
+
+	def _links_ul4onget(self):
+		return self._links
 
 	def _views_get(self):
 		views = self._views
@@ -8225,6 +8248,299 @@ class AppParameter(Base):
 
 	def is_new(self):
 		return self._new
+
+
+@register("link")
+class Link(Base):
+	r"""
+	A configured additional link in an app.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id
+
+	.. attribute:: name
+		:type: str
+
+		The link text.
+
+	.. attribute:: app
+		:type: App
+
+		The app this link belong to.
+
+	.. attribute:: display_type
+		:type: Link.DisplayType
+
+		How should this link be displayed?
+
+	.. attribute:: target_type
+		:type: Link.TargetType
+
+		What kind of page does the link link to?
+
+	.. attribute:: description
+		:type: Optional[str]
+
+		Additional HTML description for the link.
+
+	.. attribute:: description_url
+		:type: Optional[str]
+
+		If this is not :const:`None`, the description should be fetched as an HTML
+		snippet from this URL.
+
+	.. attribute:: icon
+		:type: Optional[str]
+
+		The name of a Font Awesome icon.
+
+		The name might have one of the suffixes ``-brand``, ``-sharp-solid``,
+		``-solid``, ``-regular``, ``-light``, ``-thin`` or ``-duotone`` to force
+		the use of the appropriate Font Awesome style instead of the default.
+
+	.. attribute:: image
+		:type: Optional[File]
+
+		An image to be displayed alongside the link.
+
+	.. attribute:: title
+		:type: Optional[str]
+
+		The ``title`` attribute for the link.
+
+	.. attribute:: target
+		:type: Optional[str]
+
+		The ``target`` attribute for the link.
+
+	.. attribute:: cssclass
+		:type: Optional[str]
+
+		The ``class`` attribute for the link.
+
+	.. attribute:: group_title
+		:type: Optional[str]
+
+		Groups menuitems into a menu with this name and panel links into a
+		panel with this name.
+
+	.. attribute:: target_url
+		:type: str
+
+		The link itself.
+
+	.. attribute:: order
+		:type: Optional[int]
+
+		Links are ordered by this integer value in menus and panels (except for
+		panels on the custom overview page, where panels are displayed in a
+		two-dimensional grid).
+
+	.. attribute:: row
+		:type: Optional[int]
+
+		Row number for displaying this link as a panel on the custom overview
+		page.
+
+	.. attribute:: column
+		:type: Optional[int]
+
+		Column number for displaying this link as a panel on the custom overview
+		page.
+
+	.. attribute:: width
+		:type: Optional[int]
+
+		Width of this link as a panel on the custom overview page.
+
+	.. attribute:: height
+		:type: Optional[int]
+
+		Height of this link as a panel on the custom overview page.
+
+	.. attribute:: start_time
+		:type: Optional[datetime.datetime]
+
+		If ``start_time`` is not ``None``, the link should not be displayed before
+		this point in time (and will no be output as part of the :class:`Apps`\s
+		``links`` attribute).
+
+	.. attribute:: end_time
+		:type: Optional[datetime.datetime]
+
+		If ``end_time`` is not ``None``, the link should not be displayed before
+		this point in time (and will no be output as part of the :class:`Apps`\s
+		``links`` attribute).
+
+	.. attribute:: on_app_overview_page
+		:type: bool
+
+		Should this links be displayed on the app overview page (i.e. the page
+		containing the list of apps)?
+
+	.. attribute:: on_app_detail_page
+		:type: bool
+
+		Should this links be displayed on the app detail page (i.e. the start
+		page of an app)?
+
+	.. attribute:: on_form_page
+		:type: bool
+
+		Should this links be displayed on the form page?
+
+	.. attribute:: on_iframe_page
+		:type: bool
+
+		Should this links be displayed on the iframe page?
+
+	.. attribute:: on_custom_overview_page
+		:type: bool
+
+		Should this links be displayed on the custom overview page?
+
+	.. attribute:: createdat
+		:type: datetime.datetime
+
+		When was this link created?
+
+	.. attribute:: createdby
+		:type: User
+
+		Who created this link?
+
+	.. attribute:: updatedat
+		:type: Optional[datetime.datetime]
+
+		When was this link last updated?
+
+	.. attribute:: updatedby
+		:type: Optional[User]
+
+		Who updated this link last?
+	"""
+
+	ul4_attrs = {"id", "name", "app", "display_type", "target_type", "description", "description_url", "icon", "image", "title", "target", "style", "group_title", "target_url", "order", "row", "column", "width", "height", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_type = ul4c.Type("la", "Link", "A configured link of a LivingApp")
+
+	class DisplayType(misc.Enum):
+		"""
+		How should this link be displayed? Possible values are:
+
+		*	``MENUITEM``
+		*	``PANEL``
+		"""
+
+		MENUITEM = "menuitem"
+		PANEL = "panel"
+
+	class TargetType(misc.Enum):
+		"""
+		What is the target of this link? Possible values are:
+
+		*	``NEWFORM_STANDALONE``
+		*	``NEWFORM_EMBEDDED``
+		*	``DATAMANAGEMENT``
+		*	``CUSTOMOVERVIEW``
+		*	``EVALUATION``
+		*	``IMPORT_EXPORT``
+		*	``TASKS``
+		*	``FORMBUILDER``
+		*	``WORKFLOW_MANAGER``
+		*	``DATA_CONFIG``
+		*	``PERMISSIONS``
+		*	``EXPERT``
+		*	``VIEWTEMPLATE``
+		*	``DATAMANAGEVIEW``
+		*	``CUSTOM``
+		"""
+
+		NEWFORM_STANDALONE = "newform_standalone"
+		NEWFORM_EMBEDDED = "newform_embedded"
+		DATAMANAGEMENT = "datamanagement"
+		CUSTOMOVERVIEW = "customoverview"
+		EVALUATION = "evaluation"
+		IMPORT_EXPORT = "import_export"
+		TASKS = "tasks"
+		FORMBUILDER = "formbuilder"
+		WORKFLOW_MANAGER = "workflow_manager"
+		DATA_CONFIG = "data_config"
+		PERMISSIONS = "permissions"
+		EXPERT = "expert"
+		VIEWTEMPLATE = "viewtemplate"
+		DATAMANAGEVIEW = "datamanageview"
+		CUSTOM = "custom"
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	display_type = EnumAttr(DisplayType, get=True, set=False, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	target_type = EnumAttr(TargetType, get=True, set=False, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description_url = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
+	icon = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	title = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	target = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	style = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	group_title = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	target_url = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	order = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	row = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	column = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	width = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	height = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	start_time = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	end_time = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_app_overview_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_app_detail_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_form_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_iframe_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_custom_overview_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, name=None, app=None, display_type=None, target_type=None, description=None):
+		self.id = id
+		self.name = name
+		self.app = app
+		self.display_type = display_type
+		self.target_type = target_type
+		self.description = None
+		self.description_url = None
+		self.icon = None
+		self.image = None
+		self.title = None
+		self.target = None
+		self.style = None
+		self.group_title = None
+		self.target_url = None
+		self.order = None
+		self.row = None
+		self.column = None
+		self.width = None
+		self.height = None
+		self.start_time = None
+		self.end_time = None
+		self.on_app_overview_page = False
+		self.on_app_detail_page = False
+		self.on_form_page = False
+		self.on_iframe_page = False
+		self.on_custom_overview_page = False
+		self.createdat = None
+		self.createdby = None
+		self.updatedat = None
+		self.updatedby = None
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
 
 
 class ChainedLibrary:
