@@ -8425,7 +8425,7 @@ class Link(Base):
 	"""
 
 	ul4_attrs = {"id", "name", "app", "display_type", "target_type", "description", "description_url", "icon", "image", "title", "target", "style", "group_title", "target_url", "order", "row", "column", "width", "height", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "createdat", "createdby", "updatedat", "updatedby"}
-	ul4_type = ul4c.Type("la", "Link", "A configured link of a LivingApp")
+	ul4_type = ul4c.Type("la", "Link", "A link that can appear in a menu or panel on the LivingApps pages")
 
 	class DisplayType(misc.Enum):
 		"""
