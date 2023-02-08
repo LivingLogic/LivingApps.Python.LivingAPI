@@ -376,7 +376,7 @@ class DBHandler(Handler):
 		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
 		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
-		self.proc_upload_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_INSERT")
+		self.proc_upload_upr_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_UPR_INSERT")
 		self.proc_appparameter_import_waf = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_IMPORT")
 		self.proc_internaltemplate_import = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_IMPORT")
 		self.proc_internaltemplate_delete = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_DELETE")
@@ -480,7 +480,7 @@ class DBHandler(Handler):
 			if file._content is None:
 				raise ValueError(f"Can't save {file!r} without content!")
 			c = self.cursor()
-			r = self.proc_upload_insert(
+			r = self.proc_upload_upr_insert(
 				c,
 				c_user=self.ide_id,
 				p_upl_orgname=file.filename,
@@ -493,6 +493,7 @@ class DBHandler(Handler):
 				self.urlcontext = url.Context()
 			with (self.uploaddir/r.p_upl_name).open("wb", context=self.urlcontext) as f:
 				f.write(file._content)
+			file.id = r.p_upr_id
 			file.internalid = r.p_upl_id
 
 	def file_content(self, file):
