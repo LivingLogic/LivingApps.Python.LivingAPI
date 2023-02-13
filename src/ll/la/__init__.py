@@ -8262,7 +8262,7 @@ class Link(Base):
 
 		Unique database id
 
-	.. attribute:: name
+	.. attribute:: label
 		:type: str
 
 		The link text.
@@ -8424,7 +8424,7 @@ class Link(Base):
 		Who updated this link last?
 	"""
 
-	ul4_attrs = {"id", "name", "app", "display_type", "target_type", "description", "description_url", "icon", "image", "title", "target", "style", "group_title", "target_url", "order", "row", "column", "width", "height", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_attrs = {"id", "label", "app", "display_type", "target_type", "description", "description_url", "icon", "image", "title", "target", "style", "group_title", "target_url", "order", "row", "column", "width", "height", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "createdat", "createdby", "updatedat", "updatedby"}
 	ul4_type = ul4c.Type("la", "Link", "A link that can appear in a menu or panel on the LivingApps pages")
 
 	class DisplayType(misc.Enum):
@@ -8477,7 +8477,7 @@ class Link(Base):
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	display_type = EnumAttr(DisplayType, get=True, set=False, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	target_type = EnumAttr(TargetType, get=True, set=False, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -8506,9 +8506,9 @@ class Link(Base):
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, name=None, app=None, display_type=None, target_type=None, description=None):
+	def __init__(self, id=None, label=None, app=None, display_type=None, target_type=None, description=None):
 		self.id = id
-		self.name = name
+		self.label = label
 		self.app = app
 		self.display_type = display_type
 		self.target_type = target_type
