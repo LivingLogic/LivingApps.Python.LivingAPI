@@ -2428,6 +2428,7 @@ class App(Base):
 		"updatedat",
 		"updatedby",
 		"controls",
+		"layout_controls",
 		"child_controls",
 		"links",
 		"records",
