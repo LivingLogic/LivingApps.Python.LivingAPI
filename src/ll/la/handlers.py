@@ -144,6 +144,12 @@ class Handler:
 	def app_child_controls_incremental_data(self, app):
 		return None
 
+	def app_menus_incremental_data(self, app):
+		return None
+
+	def app_panels_incremental_data(self, app):
+		return None
+
 	def record_attachments_incremental_data(self, id):
 		return None
 
@@ -294,7 +300,10 @@ class Handler:
 	def fetch_templates(self, app):
 		return la.attrdict()
 
-	def fetch_templatelibraries(self):
+	def fetch_librarytemplates(self):
+		return la.attrdict()
+
+	def fetch_libraryparams(self):
 		return la.attrdict()
 
 	def fetch_viewtemplate_params(self, globals):
@@ -378,8 +387,6 @@ class DBHandler(Handler):
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
 		self.proc_upload_upr_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_UPR_INSERT")
 		self.proc_appparameter_import_waf = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_IMPORT")
-		self.proc_internaltemplate_import = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_IMPORT")
-		self.proc_internaltemplate_delete = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_DELETE")
 		self.proc_viewtemplate_import = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_IMPORT")
 		self.proc_viewtemplate_delete = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_DELETE")
 		self.proc_datasource_import = orasql.Procedure("DATASOURCE_PKG.DATASOURCE_IMPORT")
@@ -396,7 +403,8 @@ class DBHandler(Handler):
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
 		self.viewtemplate_params = {} # Maps ``vt_id`` to parameter dictionary
 		self.emailtemplate_params = {} # Maps ``et_id`` to parameter dictionary
-		self.templatelibraries = None # Maps ``tl_id`` to template library
+		self.librarytemplates = None # Maps ``lt_id`` to templates
+		self.libraryparams = None # Maps ``lp_id`` to :class:`AppParameter`
 
 		if ide_id is not None:
 			if ide_account is not None:
@@ -449,9 +457,11 @@ class DBHandler(Handler):
 
 	def commit(self):
 		self.db.commit()
+		self.db_pg.commit()
 
 	def rollback(self):
 		self.db.rollback()
+		self.db_pg.rollback()
 
 	def reset(self):
 		super().reset()
@@ -471,8 +481,8 @@ class DBHandler(Handler):
 			if app.viewtemplates is not None:
 				for viewtemplate in app.viewtemplates.values():
 					self.save_viewtemplate(viewtemplate, recursive=recursive)
-			if app._params is not None:
-				for param in app._params.values():
+			if app._ownparams is not None:
+				for param in app._ownparams.values():
 					self.save_param(param)
 
 	def save_file(self, file):
@@ -702,16 +712,30 @@ class DBHandler(Handler):
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
 		template = ul4c.Template(internaltemplate.source, name=internaltemplate.identifier)
-		cursor = self.cursor()
-		self.proc_internaltemplate_import(
-			cursor,
-			c_user=self.ide_id,
-			p_tpl_uuid=internaltemplate.app.id,
-			p_it_identifier=template.name,
-			p_utv_source=template.source,
-			p_utv_signature=ul4c._str(template.signature) if template.signature is not None else None,
-			p_utv_whitespace=template.whitespace,
-			p_utv_doc=template.doc,
+		cursor = self.cursor_pg()
+
+		cursor.execute(
+			"""
+			call internaltemplate.internaltemplate_import(
+				c_user => %s,
+				p_it_id => null,
+				p_app_id => %s,
+				p_it_identifier => %s,
+				p_utv_source => %s,
+				p_utv_signature => %s,
+				p_utv_whitespace => %s,
+				p_utv_doc => %s
+			)
+			""",
+			[
+				self.ide_id,
+				internaltemplate.app.id,
+				template.name,
+				template.source,
+				ul4c._str(template.signature) if template.signature is not None else None,
+				template.whitespace,
+				template.doc,
+			]
 		)
 
 	def save_viewtemplate(self, viewtemplate, recursive=True):
@@ -1202,11 +1226,20 @@ class DBHandler(Handler):
 			p_tpl_uuid=app.id,
 		)
 
-	def app_links_incremental_data(self, app):
+	def app_menus_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			app.globals,
-			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid) from dual",
+			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'menuitem') from dual",
+			c_user=self.ide_id,
+			p_tpl_uuid=app.id,
+		)
+
+	def app_panels_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'panel') from dual",
 			c_user=self.ide_id,
 			p_tpl_uuid=app.id,
 		)
@@ -1477,10 +1510,10 @@ class DBHandler(Handler):
 			self.emailtemplate_params[id] = self.emailtemplate_params_incremental_data(globals, id)
 		return self.emailtemplate_params[id]
 
-	def fetch_templatelibraries(self):
-		if self.templatelibraries is None:
+	def fetch_librarytemplates(self):
+		if self.librarytemplates is None:
 			c = self.cursor_pg(row_factory=rows.tuple_row)
-			c.execute("select templatelibrary.alltemplatelibraries_ful4on()")
+			c.execute("select templatelibrary.librarytemplates_ful4on()")
 			r = c.fetchone()
 			dump = r[0]
 			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
@@ -1489,8 +1522,23 @@ class DBHandler(Handler):
 			dump = ul4on.loads(dump)
 			if isinstance(dump, dict):
 				dump = la.attrdict(dump)
-			self.templatelibraries = la.attrdict(dump)
-		return self.templatelibraries
+			self.librarytemplates = la.attrdict(dump)
+		return self.librarytemplates
+
+	def fetch_libraryparams(self):
+		if self.libraryparams is None:
+			c = self.cursor_pg(row_factory=rows.tuple_row)
+			c.execute("select templatelibrary.libraryparameters_ful4on()")
+			r = c.fetchone()
+			dump = r[0]
+			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
+			# Note that we ignore the problem of persistent objects, since none of the
+			# persistent objects in this dump are in the other dump
+			dump = ul4on.loads(dump)
+			if isinstance(dump, dict):
+				dump = la.attrdict(dump)
+			self.libraryparams = la.attrdict(dump)
+		return self.libraryparams
 
 
 class HTTPHandler(Handler):

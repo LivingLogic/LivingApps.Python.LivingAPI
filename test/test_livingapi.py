@@ -1101,7 +1101,7 @@ def test_numbercontrol_attributes(handler, config_apps):
 			precision1=<?print repr(c.precision)?>
 			minimum1=<?print repr(c.minimum)?>
 			maximum1=<?print repr(c.maximum)?>
-			<?code c.precision = 2?>
+			<?code c.precision = 4?>
 			<?code c.minimum = -100?>
 			<?code c.maximum = 100?>
 			precision2=<?print int(c.precision)?>
@@ -1112,10 +1112,10 @@ def test_numbercontrol_attributes(handler, config_apps):
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = """
-		precision1=None
+		precision1=2
 		minimum1=None
 		maximum1=None
-		precision2=2
+		precision2=4
 		minimum2=-100
 		maximum2=100
 	"""
