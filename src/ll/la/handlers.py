@@ -41,6 +41,8 @@ try:
 except ImportError:
 	orasql = None
 
+orasql_required_message = "ll.orasql required (install via `pip install ll-xist`)"
+
 try:
 	import psycopg
 except ImportError:
@@ -50,6 +52,8 @@ try:
 	from psycopg import rows
 except ImportError:
 	rows = None
+
+psycopg_required_message = "psycopg required (install via `pip install 'psycopg[binary]'`)"
 
 from ll import la
 
@@ -431,20 +435,20 @@ class DBHandler(Handler):
 	@property
 	def db(self):
 		if self._db is None:
-			raise ValueError("Not Oracle database connection available")
+			raise ValueError("No Oracle database connection available")
 		elif isinstance(self._db, str):
 			if orasql is None:
-				raise ImportError("ll.orasql required")
+				raise ImportError(orasql_required_message)
 			self._db = orasql.connect(self._db, readlobs=True)
 		return self._db
 
 	@property
 	def db_pg(self):
 		if self._db_pg is None:
-			raise ValueError("Not Postgres database connection available")
+			raise ValueError("No Postgres database connection available")
 		elif isinstance(self._db_pg, str):
 			if psycopg is None:
-				raise ImportError("psycopg required")
+				raise ImportError(psycopg_required_message)
 			self._db_pg = psycopg.connect(self._db_pg)
 		return self._db_pg
 
@@ -457,7 +461,11 @@ class DBHandler(Handler):
 	def cursor(self):
 		return self.db.cursor(readlobs=True)
 
-	def cursor_pg(self, row_factory=rows.tuple_row):
+	def cursor_pg(self, row_factory=None):
+		if row_factory is None:
+			if rows is None:
+				raise ImportError(psycopg_required_message)
+			row_factory = rows.tuple_row
 		return self.db_pg.cursor(row_factory=row_factory)
 
 	def commit(self):
