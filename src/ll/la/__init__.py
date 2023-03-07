@@ -8044,12 +8044,9 @@ class AppParameter(Base):
 		self.id = id
 		self.parent = parent
 		self.owner = owner
-		self.__dict__["value"] = None
-		self.type = type
 		self.order = order
 		self.identifier = identifier
 		self.description = description
-		self.value = value
 		self.createdat = None
 		self.createdby = None
 		self.updatedat = None
@@ -8057,6 +8054,16 @@ class AppParameter(Base):
 		self._new = True
 		self._deleted = False
 		self._dirty = True
+		self.__dict__["type"] = None
+		self.__dict__["value"] = None
+		if type is not None:
+			self.type = type
+			if value is not None:
+				self.value = value
+		elif value is not None:
+			self.value = value
+		else:
+			raise ValueError("one of type or value must not be None")
 
 	@property
 	def ul4onid(self) -> str:
@@ -8152,9 +8159,6 @@ class AppParameter(Base):
 				elif type is self.Type.APP:
 					if not isinstance(self.value, App):
 						self.value = None
-				elif type is self.Type.APP:
-					if not isinstance(self.value, App):
-						self.value = None
 				elif type is self.Type.CONTROL:
 					if not isinstance(self.value, Control):
 						self.value = None
@@ -8245,20 +8249,23 @@ class AppParameter(Base):
 			handler.parameter_sync_data(self.id)
 		return True
 
-	def append_param(self, type, description, value):
+	def delete(self, handler:T_opt_handler=None):
+		self._gethandler(handler).delete_parameter(self)
+
+	def append_param(self, *, type=None, description=None, value=None):
 		if self.type is not self.Type.LIST:
 			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
 		if self.value is None:
-			self.value = []
-		param = AppParameter(parent=self, owner=self.owner, type=type, order=self.value[-1].order+10, description=description, value=value)
+			self.__dict__["value"] = []
+		param = AppParameter(parent=self, owner=self.owner, type=type, order=self.value[-1].order+10 if self.value else 10, description=description, value=value)
 		self.value.append(param)
 		return param
 
-	def add_param(self, type, identifier, description, value):
+	def add_param(self, identifier, *, type=None, description=None, value=None):
 		if self.type is not self.Type.DICT:
 			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
 		if self.value is None:
-			self.value = {}
+			self.__dict__["value"] = {}
 		param = AppParameter(parent=self, owner=self.owner, type=type, identifier=identifier, description=description, value=value)
 		self.value[identifier] = param
 		return param

@@ -276,7 +276,7 @@ class Handler:
 	def save_file(self, file):
 		raise NotImplementedError
 
-	def save_param(self, param, recursive=True):
+	def save_parameter(self, parameter, recursive=True):
 		raise NotImplementedError
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
@@ -364,6 +364,8 @@ class DBHandler(Handler):
 			self._db = connection
 		elif connectstring is not None:
 			self._db = connectstring
+		else:
+			self._db = None
 
 		if connection_postgres is not None:
 			if connectstring_postgres is not None:
@@ -371,6 +373,8 @@ class DBHandler(Handler):
 			self._db_pg = connection_postgres
 		elif connectstring_postgres is not None:
 			self._db_pg = connectstring_postgres
+		else:
+			self._db_pg = None
 
 		if uploaddir is not None:
 			uploaddir = url.URL(uploaddir)
@@ -384,6 +388,7 @@ class DBHandler(Handler):
 		self.proc_data_update = orasql.Procedure("LIVINGAPI_PKG.DATA_UPDATE")
 		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
 		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
+		self.proc_appparameter_delete = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_DELETE")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
 		self.proc_upload_upr_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_UPR_INSERT")
 		self.proc_appparameter_import_waf = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_IMPORT")
@@ -456,12 +461,16 @@ class DBHandler(Handler):
 		return self.db_pg.cursor(row_factory=row_factory)
 
 	def commit(self):
-		self.db.commit()
-		self.db_pg.commit()
+		if self._db is not None:
+			self.db.commit()
+		if self._db_pg is not None:
+			self.db_pg.commit()
 
 	def rollback(self):
-		self.db.rollback()
-		self.db_pg.rollback()
+		if self.db is not None:
+			self.db.rollback()
+		if self.db_pg is not None:
+			self.db_pg.rollback()
 
 	def reset(self):
 		super().reset()
@@ -483,7 +492,7 @@ class DBHandler(Handler):
 					self.save_viewtemplate(viewtemplate, recursive=recursive)
 			if app._ownparams is not None:
 				for param in app._ownparams.values():
-					self.save_param(param)
+					self.save_parameter(param)
 
 	def save_file(self, file):
 		if file.internalid is None:
@@ -519,122 +528,6 @@ class DBHandler(Handler):
 		with url.Context():
 			u = self.uploaddir/r.upl_name
 			return u.openread().read()
-
-	def save_param(self, param):
-		c = self.cursor()
-		r = self._save_param(
-			c,
-			identifier=param.identifier,
-			description=param.description,
-			value=param.value,
-			parentappid=param.parent.id if isinstance(param.parent, la.App) else None,
-			parentviewtemplateid=param.parent.id if isinstance(param.parent, la.ViewTemplateConfig) else None,
-			parentemailtemplateid=param.parent.id if isinstance(param.parent, la.EMailTemplate) else None,
-		)
-		param.id = r.p_ap_id
-
-	def _save_param(self, cursor, *, identifier=None, order=None, description=None, value=None, superid=None, parentappid=None, parentviewtemplateid=None, parentemailtemplateid=None):
-		p_ap_type = None
-		p_ap_value_bool = None
-		p_ap_value_date = None
-		p_ap_value_datetime = None
-		p_ap_value_other = None
-		p_upl_id = None
-		p_tpl_uuid_value = None
-		p_ctl_id = None
-
-		if value is None:
-			# Could be any other type too
-			p_ap_type = "str"
-		elif isinstance(value, bool):
-			p_ap_value_bool = int(value)
-			p_ap_type = "bool"
-		elif isinstance(value, datetime.datetime):
-			p_ap_value_datetime = value
-			p_ap_type = "datetime"
-		elif isinstance(value, datetime.date):
-			p_ap_value_date = value
-			p_ap_type = "date"
-		elif isinstance(value, la.File):
-			p_upl_id = value.internalid
-			p_ap_type = "upload"
-		elif isinstance(value, la.App):
-			p_tpl_uuid_value = value.id
-			p_ap_type = "App"
-		elif isinstance(value, la.Control):
-			p_ctl_id = value.id
-			p_ap_type = "control"
-		elif isinstance(value, int):
-			p_ap_value_other = str(value)
-			p_ap_type = "int"
-		elif isinstance(value, float):
-			p_ap_value_other = str(value)
-			p_ap_type = "number"
-		elif isinstance(value, str):
-			p_ap_value_other = value
-			p_ap_type = "str"
-		elif isinstance(value, color.Color):
-			p_ap_value_other = str((((value.r() << 8) + value.g() << 8) + value.b() << 8) + value.a())
-			p_ap_type = "color"
-		elif isinstance(value, datetime.timedelta):
-			value = value.total_seconds()/86400
-			p_ap_type = "datetimedelta" if value.seconds or value.microseconds else "datedelta"
-		elif isinstance(value, misc.monthdelta):
-			p_ap_value_other = str(value.months)
-			p_ap_type = "monthdelta"
-		elif isinstance(value, list):
-			p_ap_type = "list"
-		elif isinstance(value, dict):
-			p_ap_type = "dict"
-		else:
-			raise TypeError(f"Can't save parameter of type {type(value)}")
-
-		r = self.proc_appparameter_import_waf(
-			cursor,
-			c_user=self.ide_id,
-			p_tpl_uuid=parentappid,
-			p_vt_id=parentviewtemplateid,
-			p_et_id=parentemailtemplateid,
-			p_ap_id_super=superid,
-			p_ap_order=order,
-			p_ap_identifier=identifier,
-			p_ap_type=p_ap_type,
-			p_ap_description=description,
-			p_ap_value_bool=p_ap_value_bool,
-			p_ap_value_date=p_ap_value_date,
-			p_ap_value_datetime=p_ap_value_datetime,
-			p_ap_value_other=p_ap_value_other,
-			p_upl_id=p_upl_id,
-			p_tpl_uuid_value=p_tpl_uuid_value,
-			p_ctl_id=p_ctl_id,
-		)
-
-		if isinstance(value, list):
-			order = 10
-			for v in value:
-				self._save_param(
-					c,
-					order=order,
-					value=v,
-					superid=r.p_ap_id,
-					parentappid=parentappid,
-					parentviewtemplateid=parentviewtemplateid,
-					parentemailtemplateid=parentemailtemplateid,
-				)
-				order += 10
-		elif isinstance(value, dict):
-			for (identifier, v) in value.items():
-				self._save_param(
-					c,
-					identifier=identifier,
-					value=v,
-					superid=r.p_ap_id,
-					parentappid=parentappid,
-					parentviewtemplateid=parentviewtemplateid,
-					parentemailtemplateid=parentemailtemplateid,
-				)
-		return r
-
 
 	def _save_vsql_ast(self, vsqlexpr, required_datatype=None, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
 		"""
@@ -1366,19 +1259,20 @@ class DBHandler(Handler):
 			elif parameter.type is parameter.Type.HTML:
 				p_ap_value_html = parameter.value
 			elif parameter.type is parameter.Type.COLOR:
-				p_ap_value_other = parameter.value.r << 24 | parameter.value.g << 16 | parameter.value.b << 8 | parameter.value.a
+				p_ap_value_other = f"#{parameter.value.r():02x}{parameter.value.g():02x}{parameter.value.b():02x}{parameter.value.a():02x}"
 			elif parameter.type is parameter.Type.DATE:
-				p_ap_value_other = parameter.value
-			elif parameter.type is parameter.Type.DATETIME:
 				p_ap_value_date = parameter.value
 			elif parameter.type is parameter.Type.DATETIME:
 				p_ap_value_datetime = parameter.value
 			elif parameter.type is parameter.Type.DATEDELTA:
-				p_ap_value_datetime = parameter.value.days
+				p_ap_value_other = str(parameter.value.days)
 			elif parameter.type is parameter.Type.DATETIMEDELTA:
-				p_ap_value_datetime = parameter.value.days + parameter.value.days/24/60/60 + parameter.value.days/24/60/60/100000
+				seconds = parameter.value.seconds
+				(minutes, seconds) = divmod(seconds, 60)
+				(hours, minutes) = divmod(minutes, 60)
+				p_ap_value_other = f"{parameter.value.days} days, {hours:02}:{minutes:02}:{seconds:02}"
 			elif parameter.type is parameter.Type.MONTHDELTA:
-				p_ap_value_datetime = parameter.value.months
+				p_ap_value_other = str(parameter.value.months())
 			elif parameter.type is parameter.Type.UPLOAD:
 				if parameter.value.internalid is None:
 					raise la.ValueError(error_object_unsaved(parameter.value))
@@ -1419,10 +1313,10 @@ class DBHandler(Handler):
 				parts = error.message.split("\x01")[1:-1]
 				if parts:
 					# An error message with the usual formatting from ``errmsg_pkg``.
-					raise ValueError("\n".join(parts[1::2]))
+					raise ValueError("\n".join(parts[1::2])) from None
 				else:
 					# An error message with strange formatting, use it as it is.
-					raise ValueError(error.message)
+					raise ValueError(error.message) from None
 			else:
 				# Some other database exception
 				raise
@@ -1435,6 +1329,28 @@ class DBHandler(Handler):
 			parameter.updatedat = datetime.datetime.now()
 			parameter.updatedby = app.globals.user
 		parameter._dirty = False
+		if recursive:
+			if parameter.type is parameter.Type.LIST:
+				for child in parameter.value:
+					self.save_parameter(child, True)
+			elif parameter.type is parameter.Type.DICT:
+				for child in parameter.value.values():
+					self.save_parameter(child, True)
+
+	def delete_parameter(self, parameter):
+		if not parameter._deleted:
+			args = {
+				"c_user": self.ide_id,
+				"p_ap_id": parameter.id,
+			}
+			c = self.cursor()
+			r = self.proc_appparameter_delete(c, **args)
+			if parameter.parent is not None:
+				if parameter.type is parameter.Type.DICT:
+					parameter.parent.value.pop(parameter.identifier)
+				elif parameter.type is parameter.Type.LIST:
+					parameter.parent.value.remove(parameter)
+			parameter._deleted = True
 
 	def parameter_sync_data(self, ap_id):
 		c = self.cursor()

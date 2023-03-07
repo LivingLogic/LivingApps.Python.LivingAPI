@@ -17,6 +17,14 @@ HEAD (2023-02-??)
 	containing all currently active links in this app that are accessible to
 	the current user.
 
+*	Fixed transaction handling for postgres.
+
+*	Skip transaction handling when no connections are given for :class:`DBHandler`.
+
+*	Implemented deleting of parameters.
+
+*	Fixed parameter save logic to use the WAF procedures.
+
 
 0.21 (2022-11-29)
 -----------------
