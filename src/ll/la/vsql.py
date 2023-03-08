@@ -2871,7 +2871,7 @@ DateTimeAST.add_rules(f"DATETIME", "")
 # Function ``today()``
 FuncAST.add_rules(f"DATE <- today()", "trunc(sysdate)")
 
-# Function ``now(0``
+# Function ``now()``
 FuncAST.add_rules(f"DATETIME <- now()", "sysdate")
 
 # Function ``bool()``
