@@ -8062,8 +8062,6 @@ class AppParameter(Base):
 				self.value = value
 		elif value is not None:
 			self.value = value
-		else:
-			raise ValueError("one of type or value must not be None")
 
 	@property
 	def ul4onid(self) -> str:
@@ -8257,6 +8255,8 @@ class AppParameter(Base):
 			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
 		if self.value is None:
 			self.__dict__["value"] = []
+		if type is None and value is None:
+			raise ValueError("one of type or value must not be None")
 		param = AppParameter(parent=self, owner=self.owner, type=type, order=self.value[-1].order+10 if self.value else 10, description=description, value=value)
 		self.value.append(param)
 		return param
@@ -8266,6 +8266,8 @@ class AppParameter(Base):
 			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
 		if self.value is None:
 			self.__dict__["value"] = {}
+		if type is None and value is None:
+			raise ValueError("one of type or value must not be None")
 		param = AppParameter(parent=self, owner=self.owner, type=type, identifier=identifier, description=description, value=value)
 		self.value[identifier] = param
 		return param
