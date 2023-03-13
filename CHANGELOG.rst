@@ -13,7 +13,7 @@ HEAD (2023-02-??)
 
 *	When a record gets saved it's state is now set to ``SAVED``.
 
-*	Added the class :class`Link` and added the attribute ``App.links``
+*	Added the class :class:`Link` and added the attribute ``App.links``
 	containing all currently active links in this app that are accessible to
 	the current user.
 
