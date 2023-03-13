@@ -1,5 +1,33 @@
+0.22 (2023-03-13)
+-----------------
+
+*	Added incremental loading of layout controls.
+
+*	Added ``App.child_controls`` (This gives all ``applookup`` and
+	``multipleapplookup`` controls in other apps that point to this app).
+
+*	Internal templates are now stored in the Postgres database.
+
+*	Add shortcut attributes ``p_*``, ``pv_*``, ``cl_*`` and ``t_*`` to
+	:class:`DataSource`. These atttributes forward to the app.
+
+*	When a record gets saved it's state is now set to ``SAVED``.
+
+*	Added the class :class:`Link` and added the attribute ``App.links``
+	containing all currently active links in this app that are accessible to
+	the current user.
+
+*	Fixed transaction handling for postgres.
+
+*	Skip transaction handling when no connections are given for :class:`DBHandler`.
+
+*	Implemented deleting of parameters.
+
+*	Fixed parameter save logic to use the WAF procedures.
+
+
 0.21 (2022-11-29)
--------------------
+-----------------
 
 *	Added :meth:`Field.set_error`.
 

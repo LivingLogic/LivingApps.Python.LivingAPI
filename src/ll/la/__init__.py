@@ -2150,10 +2150,6 @@ class Globals(Base):
 		else:
 			return self.app.params
 
-	@property
-	def libs(self) -> Dict[str, "TemplateLibrary"]:
-		return self.handler.fetch_templatelibraries() if self.handler is not None else attrdict()
-
 	def _get_chained_library(self, identifier):
 		if identifier not in self._chained_libraries:
 			base = self.app._get_chained_library(identifier)
@@ -2203,8 +2199,6 @@ class Globals(Base):
 				attrs.add(f"e_{identifier}")
 		for identifier in self.templates:
 			attrs.add(f"t_{identifier}")
-		for identifier in self.libs:
-			attrs.add(f"l_{identifier}")
 		if self.app:
 			for identifier in self.app.params:
 				attrs.add(f"p_{identifier}")
@@ -2218,8 +2212,6 @@ class Globals(Base):
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
-		elif name.startswith("l_") and name[2:] in self.libs:
-			return True
 		elif self.app and name.startswith("cl_"):
 			return True
 		elif self.app and name.startswith("p_") and name[2:] in self.params:
@@ -2230,7 +2222,7 @@ class Globals(Base):
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		if name.startswith(("d_", "t_", "l_", "cl_", "p_", "pv_")):
+		if name.startswith(("d_", "t_", "cl_", "p_", "pv_")):
 			return getattr(self, name)
 		else:
 			return super().ul4_getattr(name)
@@ -2296,6 +2288,25 @@ class App(Base):
 		:type: Optional[dict[str, Control]]
 
 		The definition of the fields of this app.
+
+	.. attribute:: child_controls
+		:type: list[Control]
+
+		All controls of type ``applookup`` or ``multipleapplookup`` whose target
+		app is this app.
+
+	.. attribute:: menus
+		:type: list[MenuItem]
+
+		All menus and menu items that have been configured for this app that are
+		currently active and where the target page is accessible to the current
+		user.
+
+	.. attribute:: panels
+		:type: list[Panel]
+
+		All panels that have been configured for this app that are currently
+		active and where the target page is accessible to the current user.
 
 	.. attribute:: records
 		:type: Optional[dict[str, Record]]
@@ -2416,6 +2427,10 @@ class App(Base):
 		"updatedat",
 		"updatedby",
 		"controls",
+		"layout_controls",
+		"child_controls",
+		"menus",
+		"panels",
 		"records",
 		"recordcount",
 		"installation",
@@ -2458,7 +2473,8 @@ class App(Base):
 	recordcount = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	installation = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	categories = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
-	params = AttrDictAttr(get="", set="", ul4get="_params_get", ul4onget="_params_ul4onget", ul4onset="_params_set")
+	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
+	params = AttrDictAttr(get="", ul4get="_params_get")
 	views = Attr(get="", set="", ul4get="_views_get", ul4onget="_views_ul4onget", ul4onset="_views_set")
 	datamanagement_identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	basetable = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2466,7 +2482,7 @@ class App(Base):
 	insertprocedure = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updateprocedure = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	deleteprocedure = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	_templates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	_owntemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2474,6 +2490,9 @@ class App(Base):
 	favorite = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	active_view = Attr(lambda: View, str, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	datasource = Attr(lambda: DataSource, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	menus = Attr(get="", set="", ul4get="_menus_get", ul4onget="_menus_ul4onget", ul4onset="_menus_set")
+	panels = Attr(get="", set="", ul4get="_panels_get", ul4onget="_panels_ul4onget", ul4onset="_panels_set")
+	child_controls = Attr(get="", set="", ul4get="_child_controls_get", ul4onget="_child_controls_ul4onget", ul4onset="_child_controls_set")
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2493,11 +2512,13 @@ class App(Base):
 		self.updatedat = updatedat
 		self.updatedby = updatedby
 		self.controls = None
+		self._child_controls = None
+		self._menus = None
+		self._panels = None
 		self.records = None
 		self.recordcount = recordcount
 		self.installation = installation
 		self.categories = categories
-		self._params = params
 		self._views = views
 		self._chained_libraries = {}
 		self.datamanagement_identifier = datamanagement_identifier
@@ -2506,7 +2527,8 @@ class App(Base):
 		self.insertprocedure = None
 		self.updateprocedure = None
 		self.deleteprocedure = None
-		self._templates = None
+		self._owntemplates = None
+		self._ownparams = params
 		self.favorite = False
 		self.active_view = None
 		self.datasource = None
@@ -2562,25 +2584,29 @@ class App(Base):
 		self.__dict__["active_view"] = value
 
 	@property
+	def owntemplates(self):
+		if self._owntemplates is None:
+			self._owntemplates = self.globals.handler.fetch_templates(self)
+		return self._owntemplates
+
+	@property
 	def templates(self):
-		if self._templates is None:
-			self._templates = self.globals.handler.fetch_templates(self)
-		return self._templates
+		return self._get_chained_library("la").templates
 
 	def _get_chained_library(self, identifier):
 		if identifier not in self._chained_libraries:
-			templates = self.templates
-			params = self.params
-			if identifier in self.params:
-				param = self.params[identifier]
+			handler = self._gethandler()
+			templates = self.owntemplates
+			params = self.ownparams
+			if identifier in self.ownparams:
+				param = self.ownparams[identifier]
 				if isinstance(param.value, App):
 					base = param.value._get_chained_library(identifier)
 					templates = collections.ChainMap(templates, base.templates)
 					params = collections.ChainMap(params, base.params)
-			elif identifier in self.globals.libs:
-				base = self.globals.libs[identifier]
-				templates = collections.ChainMap(templates, base.templates)
-				params = collections.ChainMap(params, base.params)
+			else:
+				templates = collections.ChainMap(templates, handler.fetch_librarytemplates())
+				params = collections.ChainMap(params, handler.fetch_libraryparams())
 			self._chained_libraries[identifier] = ChainedLibrary(identifier, self, templates, params)
 		return self._chained_libraries[identifier]
 
@@ -2661,34 +2687,79 @@ class App(Base):
 		elif self.ul4_hasattr(name):
 			return super().ul4_getattr(name)
 
-	def _gethandler(self, handler):
+	def _gethandler(self, handler=None):
 		if handler is None:
 			if self.globals is None or self.globals.handler is None:
 				raise NoHandlerError()
 			handler = self.globals.handler
 		return handler
 
-	def _params_get(self):
-		params = self._params
+	def _ownparams_get(self):
+		params = self._ownparams
 		if params is None:
 			handler = self.globals.handler
 			if handler is None:
 				raise NoHandlerError()
 			params = handler.app_params_incremental_data(self)
 			params = attrdict(params)
-			self._params = params
+			self._ownparams = params
 		return params
 
-	def _params_set(self, value):
-		self._params = value
+	def _ownparams_set(self, value):
+		self._ownparams = value
 
-	def _params_ul4onget(self):
+	def _ownparams_ul4onget(self):
 		# Bypass the logic that fetches the parameters from the database
-		return self._params
+		return self._ownparams
 
-	def _params_ul4onset(self, value):
+	def _ownparams_ul4onset(self, value):
 		if value is not None:
-			self._params = value
+			self._ownparams = value
+
+	def _params_get(self):
+		return self._get_chained_library("la").params
+
+	def _menus_get(self):
+		menus = self._menus
+		if menus is None:
+			handler = self.globals.handler
+			if handler is not None:
+				menus = self._menus = handler.app_menus_incremental_data(self)
+		return menus
+
+	def _menus_set(self, value):
+		self._menus = value
+
+	def _menus_ul4onget(self):
+		return self._menus
+
+	def _panels_get(self):
+		panels = self._panels
+		if panels is None:
+			handler = self.globals.handler
+			if handler is not None:
+				panels = self._panels = handler.app_panels_incremental_data(self)
+		return panels
+
+	def _panels_set(self, value):
+		self._panels = value
+
+	def _panels_ul4onget(self):
+		return self._panels
+
+	def _child_controls_get(self):
+		child_controls = self._child_controls
+		if child_controls is None:
+			handler = self.globals.handler
+			if handler is not None:
+				child_controls = self._child_controls = handler.app_child_controls_incremental_data(self)
+		return child_controls
+
+	def _child_controls_set(self, value):
+		self._child_controls = value
+
+	def _child_controls_ul4onget(self):
+		return self._child_controls
 
 	def _views_get(self):
 		views = self._views
@@ -5188,6 +5259,7 @@ class Record(Base):
 		if sync:
 			handler.ul4on_decoder.store_persistent_object(self)
 			handler.record_sync_data(self.id, force=True)
+		self._new = False
 		return result
 
 	def update(self, **kwargs):
@@ -7298,7 +7370,7 @@ class View(Base):
 	start = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	end = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	layout_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	layout_controls = Attr(get="", set="", ul4get="_layout_controls_get", ul4onget="_layout_controls_ul4onget", ul4onset="_layout_controls_set")
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	login_required = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	result_page = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset="")
@@ -7314,11 +7386,11 @@ class View(Base):
 		self.height = height
 		self.start = start
 		self.end = end
+		self._layout_controls = None
 		self.lang = lang
 		self.login_required = login_required
 		self.result_page = result_page
 		self.use_geo = use_geo
-
 
 	@property
 	def ul4onid(self) -> str:
@@ -7335,8 +7407,6 @@ class View(Base):
 				return self.layout_controls[name[3:]]
 		except KeyError:
 			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-		return super().__getattr__(name)
-
 
 	def __dir__(self):
 		"""
@@ -7358,6 +7428,20 @@ class View(Base):
 			return True
 		else:
 			return super().ul4_hasattr(name)
+
+	def _layout_controls_get(self):
+		layout_controls = self._layout_controls
+		if layout_controls is None:
+			handler = self.app.globals.handler
+			if handler is not None:
+				layout_controls = self._layout_controls = handler.view_layout_controls_incremental_data(self)
+		return layout_controls
+
+	def _layout_controls_set(self, value):
+		self._layout_controls = value
+
+	def _layout_controls_ul4onget(self):
+		return self._layout_controls
 
 
 @register("datasource")
@@ -7410,6 +7494,55 @@ class DataSource(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def __getattr__(self, name):
+		if self.app is not None:
+			try:
+				if name.startswith("cl_"):
+					return self._get_chained_library(name[3:])
+				elif name.startswith("t_"):
+					return self.app.templates[name[2:]]
+				elif name.startswith("p_") and self.app.params:
+					return self.app.params[name[2:]]
+				elif name.startswith("pv_") and self.app.params:
+					return self.app.params[name[3:]].value
+			except KeyError:
+				pass
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		if self.app is not None:
+			for identifier in self.app.params:
+				attrs.add(f"p_{identifier}")
+				attrs.add(f"pv_{identifier}")
+				attrs.add(f"cl_{identifier}")
+			for identifier in self.app.templates:
+				attrs.add(f"t_{identifier}")
+		return attrs
+
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
+			return True
+		elif name.startswith("p_") and self.app is not None and name[2:] in self.app.params:
+			return True
+		elif name.startswith("pv_") and self.app is not None and name[3:] in self.app.params:
+			return True
+		elif name.startswith("cl_") and self.app is not None:
+			return True
+		elif name.startswith("t_") and self.app is not None and name[2:] in self.app.templates:
+			return True
+		else:
+			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if name.startswith(("p_", "pv_", "cl_", "t_")):
+			return getattr(self, name)
+		elif self.ul4_hasattr(name):
+			return super().ul4_getattr(name)
 
 
 @register("externaldatasource")
@@ -7911,12 +8044,9 @@ class AppParameter(Base):
 		self.id = id
 		self.parent = parent
 		self.owner = owner
-		self.__dict__["value"] = None
-		self.type = type
 		self.order = order
 		self.identifier = identifier
 		self.description = description
-		self.value = value
 		self.createdat = None
 		self.createdby = None
 		self.updatedat = None
@@ -7924,6 +8054,14 @@ class AppParameter(Base):
 		self._new = True
 		self._deleted = False
 		self._dirty = True
+		self.__dict__["type"] = None
+		self.__dict__["value"] = None
+		if type is not None:
+			self.type = type
+			if value is not None:
+				self.value = value
+		elif value is not None:
+			self.value = value
 
 	@property
 	def ul4onid(self) -> str:
@@ -8019,9 +8157,6 @@ class AppParameter(Base):
 				elif type is self.Type.APP:
 					if not isinstance(self.value, App):
 						self.value = None
-				elif type is self.Type.APP:
-					if not isinstance(self.value, App):
-						self.value = None
 				elif type is self.Type.CONTROL:
 					if not isinstance(self.value, Control):
 						self.value = None
@@ -8112,20 +8247,27 @@ class AppParameter(Base):
 			handler.parameter_sync_data(self.id)
 		return True
 
-	def append_param(self, type, description, value):
+	def delete(self, handler:T_opt_handler=None):
+		self._gethandler(handler).delete_parameter(self)
+
+	def append_param(self, *, type=None, description=None, value=None):
 		if self.type is not self.Type.LIST:
 			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
 		if self.value is None:
-			self.value = []
-		param = AppParameter(parent=self, owner=self.owner, type=type, order=self.value[-1].order+10, description=description, value=value)
+			self.__dict__["value"] = []
+		if type is None and value is None:
+			raise ValueError("one of type or value must not be None")
+		param = AppParameter(parent=self, owner=self.owner, type=type, order=self.value[-1].order+10 if self.value else 10, description=description, value=value)
 		self.value.append(param)
 		return param
 
-	def add_param(self, type, identifier, description, value):
+	def add_param(self, identifier, *, type=None, description=None, value=None):
 		if self.type is not self.Type.DICT:
 			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
 		if self.value is None:
-			self.value = {}
+			self.__dict__["value"] = {}
+		if type is None and value is None:
+			raise ValueError("one of type or value must not be None")
 		param = AppParameter(parent=self, owner=self.owner, type=type, identifier=identifier, description=description, value=value)
 		self.value[identifier] = param
 		return param
@@ -8140,6 +8282,346 @@ class AppParameter(Base):
 
 	def is_new(self):
 		return self._new
+
+
+@register("menuitem")
+class MenuItem(Base):
+	r"""
+	An additional menu item in an app that links to a target page.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id
+
+	.. attribute:: label
+		:type: str
+
+		The link text.
+
+	.. attribute:: app
+		:type: App
+
+		The app this item belongs to.
+
+	.. attribute:: type
+		:type: MenuItem.Type
+
+		What kind of page does the item link to?
+
+	.. attribute:: icon
+		:type: Optional[str]
+
+		The name of a Font Awesome icon.
+
+		The name might have one of the suffixes ``-brand``, ``-sharp-solid``,
+		``-sharp-regular``, ``-solid``, ``-regular``, ``-light``, ``-thin`` or
+		``-duotone`` to force the use of the appropriate Font Awesome style
+		instead of the default.
+
+	.. attribute:: title
+		:type: Optional[str]
+
+		The ``title`` attribute for the link.
+
+	.. attribute:: target
+		:type: Optional[str]
+
+		The ``target`` attribute for the link.
+
+	.. attribute:: cssclass
+		:type: Optional[str]
+
+		The ``class`` attribute for the link.
+
+	.. attribute:: url
+		:type: str
+
+		The link itself.
+
+	.. attribute:: order
+		:type: Optional[int]
+
+		Items are ordered by this integer value in menus and panels (except for
+		panels on the custom overview page, where panels are displayed in a
+		two-dimensional grid).
+
+	.. attribute:: children
+		:type: List[MenuItem]
+
+		List of sub items
+
+	.. attribute:: start_time
+		:type: Optional[datetime.datetime]
+
+		If ``start_time`` is not ``None``, the item should not be displayed before
+		this point in time (and will not be output as part of the :class:`Apps`\s
+		``menus`` or ``panels`` attribute).
+
+	.. attribute:: end_time
+		:type: Optional[datetime.datetime]
+
+		If ``end_time`` is not ``None``, the item should not be displayed before
+		this point in time (and will not be output as part of the :class:`Apps`\s
+		``menus`` or ``panels`` attribute).
+
+	.. attribute:: on_app_overview_page
+		:type: bool
+
+		Should this item be displayed on the app overview page (i.e. the page
+		containing the list of apps)?
+
+	.. attribute:: on_app_detail_page
+		:type: bool
+
+		Should this item be displayed on the app detail page (i.e. the start
+		page of an app)?
+
+	.. attribute:: on_form_page
+		:type: bool
+
+		Should this item be displayed on the form page?
+
+	.. attribute:: on_iframe_page
+		:type: bool
+
+		Should this item be displayed on the iframe page?
+
+	.. attribute:: on_custom_overview_page
+		:type: bool
+
+		Should this item be displayed on the custom overview page?
+
+	.. attribute:: createdat
+		:type: datetime.datetime
+
+		When was this item created?
+
+	.. attribute:: createdby
+		:type: User
+
+		Who created this item?
+
+	.. attribute:: updatedat
+		:type: Optional[datetime.datetime]
+
+		When was this item last updated?
+
+	.. attribute:: updatedby
+		:type: Optional[User]
+
+		Who updated this item last?
+	"""
+
+	ul4_attrs = {"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "children", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_type = ul4c.Type("la", "MenuItem", "An additional menu item in an app that links to a target page.")
+
+	class Type(misc.Enum):
+		"""
+		What is the target of the link? Possible values are:
+
+		*	``NEWFORM_STANDALONE``
+		*	``NEWFORM_EMBEDDED``
+		*	``DATAMANAGEMENT``
+		*	``CUSTOMOVERVIEW``
+		*	``EVALUATION``
+		*	``IMPORT_EXPORT``
+		*	``TASKS``
+		*	``FORMBUILDER``
+		*	``WORKFLOW_MANAGER``
+		*	``DATA_CONFIG``
+		*	``PERMISSIONS``
+		*	``EXPERT``
+		*	``VIEWTEMPLATE``
+		*	``DATAMANAGEVIEW``
+		*	``CUSTOM``
+		"""
+
+		NEWFORM_STANDALONE = "newform_standalone"
+		NEWFORM_EMBEDDED = "newform_embedded"
+		DATAMANAGEMENT = "datamanagement"
+		CUSTOMOVERVIEW = "customoverview"
+		EVALUATION = "evaluation"
+		IMPORT_EXPORT = "import_export"
+		TASKS = "tasks"
+		FORMBUILDER = "formbuilder"
+		WORKFLOW_MANAGER = "workflow_manager"
+		DATA_CONFIG = "data_config"
+		PERMISSIONS = "permissions"
+		EXPERT = "expert"
+		VIEWTEMPLATE = "viewtemplate"
+		DATAMANAGEVIEW = "datamanageview"
+		CUSTOM = "custom"
+		NOLINK = "nolink"
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(lambda: MenuItem, lambda: Panel, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	type = EnumAttr(Type, get=True, set=False, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	icon = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	title = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	target = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	cssclass = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	url = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	order = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	start_time = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	end_time = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_app_overview_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_app_detail_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_form_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_iframe_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_custom_overview_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, identifier=None, label=None, app=None, type=None):
+		self.id = id
+		self.identifier = identifier
+		self.label = label
+		self.app = app
+		self.parent = None
+		self.type = type
+		self.icon = None
+		self.title = None
+		self.target = None
+		self.cssclass = None
+		self.url = None
+		self.start_time = None
+		self.end_time = None
+		self.on_app_overview_page = False
+		self.on_app_detail_page = False
+		self.on_form_page = False
+		self.on_iframe_page = False
+		self.on_custom_overview_page = False
+		self.children = attrdict()
+		self.createdat = None
+		self.createdby = None
+		self.updatedat = None
+		self.updatedby = None
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def __getattr__(self, name):
+		try:
+			if name.startswith("c_"):
+				return self.children[name[2:]]
+		except KeyError:
+			pass
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		for identifier in self.children:
+			attrs.add(f"c_{identifier}")
+		return attrs
+
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
+			return True
+		elif name.startswith("c_") and name[2:] in self.children:
+			return True
+		else:
+			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if name.startswith("c_"):
+			return getattr(self, name)
+		elif self.ul4_hasattr(name):
+			return super().ul4_getattr(name)
+
+
+@register("panel")
+class Panel(MenuItem):
+	r"""
+	An additional panel in an app that is display on various LivingApps pages
+	and links to a target page.
+
+	In addition to the attributes inherited from :class:`MenuItem` the following
+	instance attributes are available:
+
+	.. attribute:: description
+		:type: Optional[str]
+
+		Additional HTML description for the panel.
+
+	.. attribute:: description_url
+		:type: Optional[str]
+
+		If this is not :const:`None`, the description should be fetched as an HTML
+		snippet from this URL.
+
+	.. attribute:: image
+		:type: Optional[File]
+
+		An image to be displayed as the panel title.
+
+	.. attribute:: row
+		:type: Optional[int]
+
+		Row number for displaying this panel on the custom overview page.
+
+	.. attribute:: column
+		:type: Optional[int]
+
+		Column number for displaying this panel on the custom overview page.
+
+	.. attribute:: width
+		:type: Optional[int]
+
+		Width of this panel on the custom overview page.
+
+	.. attribute:: height
+		:type: Optional[int]
+
+		Height of this panel on the custom overview page.
+	"""
+
+	ul4_attrs = MenuItem.ul4_attrs.union({"description", "description_url", "image", "row", "column", "width", "height"})
+	ul4_type = ul4c.Type("la", "Panel", "An additional panel in an app that is displayed on various LivingApps pages and links to a target page.")
+
+	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description_url = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
+	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	row = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	column = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	width = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	height = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, identifier=None, label=None, app=None, type=None):
+		super().__init__(id=id, identifier=identifier, label=label, app=app, type=type)
+		self.description = None
+		self.description_url = None
+		self.image = None
+		self.row = None
+		self.column = None
+		self.width = None
+		self.height = None
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		attrs.add("description")
+		attrs.add("description_url")
+		attrs.add("image")
+		attrs.add("row")
+		attrs.add("column")
+		attrs.add("width")
+		attrs.add("height")
+		return attrs
 
 
 class ChainedLibrary:

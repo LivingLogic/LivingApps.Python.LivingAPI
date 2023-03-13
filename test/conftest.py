@@ -292,10 +292,10 @@ class JavaDB(LocalTemplateHandler):
 ###
 
 params = [
-	"python_db",
-	pytest.param("python_http", marks=pytest.mark.flaky(reruns=3, reruns_delay=2)),
-	pytest.param("java_db", marks=pytest.mark.java),
-	pytest.param("gateway_http", marks=pytest.mark.flaky(reruns=0, reruns_delay=2)),
+	pytest.param("python_db", marks=[pytest.mark.python, pytest.mark.db]),
+	pytest.param("python_http", marks=[pytest.mark.python, pytest.mark.http, pytest.mark.flaky(reruns=3, reruns_delay=2)]),
+	pytest.param("java_db", marks=[pytest.mark.java, pytest.mark.db]),
+	pytest.param("gateway_http", marks=[pytest.mark.java, pytest.mark.http, pytest.mark.flaky(reruns=0, reruns_delay=2)]),
 ]
 
 

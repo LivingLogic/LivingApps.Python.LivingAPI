@@ -858,7 +858,7 @@ class AST(Repr):
 	nodevalue = None
 	"""
 	The node value is an instance attribute that represents a string that
-	isn't be represented by any child node. E.g. the values of constants or
+	isn't represented by any child node. E.g. the values of constants or
 	the names of functions, methods and attributes. Will be overwritten by
 	properties in subclasses.
 	"""
@@ -1056,7 +1056,7 @@ class AST(Repr):
 			for (i, type) in enumerate(spec):
 				typeref = cls.typeref(type)
 				if typeref:
-					# Fetch reference type (and corect offset if there's in name in ``spec``)
+					# Fetch reference type (and correct offset if there's in name in ``spec``)
 					type = spec[typeref+1 if namepos and typeref >= namepos else typeref]
 					if cls.typeref(type):
 						raise ValueError("typeref to typeref")
@@ -2869,10 +2869,10 @@ DateAST.add_rules(f"DATE", "")
 DateTimeAST.add_rules(f"DATETIME", "")
 
 # Function ``today()``
-FuncAST.add_rules(f"DATE today", "trunc(sysdate)")
+FuncAST.add_rules(f"DATE <- today()", "trunc(sysdate)")
 
-# Function ``now(0``
-FuncAST.add_rules(f"DATETIME now", "sysdate")
+# Function ``now()``
+FuncAST.add_rules(f"DATETIME <- now()", "sysdate")
 
 # Function ``bool()``
 FuncAST.add_rules(f"BOOL <- bool()", "0")

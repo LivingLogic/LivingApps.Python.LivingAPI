@@ -41,6 +41,8 @@ try:
 except ImportError:
 	orasql = None
 
+orasql_required_message = "ll.orasql required (install via `pip install ll-xist`)"
+
 try:
 	import psycopg
 except ImportError:
@@ -50,6 +52,8 @@ try:
 	from psycopg import rows
 except ImportError:
 	rows = None
+
+psycopg_required_message = "psycopg required (install via `pip install 'psycopg[binary]'`)"
 
 from ll import la
 
@@ -138,7 +142,19 @@ class Handler:
 	def app_params_incremental_data(self, app):
 		return None
 
-	def record_attachments_data(self, id):
+	def view_layout_controls_incremental_data(self, view):
+		return None
+
+	def app_child_controls_incremental_data(self, app):
+		return None
+
+	def app_menus_incremental_data(self, app):
+		return None
+
+	def app_panels_incremental_data(self, app):
+		return None
+
+	def record_attachments_incremental_data(self, id):
 		return None
 
 	def meta_data(self, *appids):
@@ -264,7 +280,7 @@ class Handler:
 	def save_file(self, file):
 		raise NotImplementedError
 
-	def save_param(self, param, recursive=True):
+	def save_parameter(self, parameter, recursive=True):
 		raise NotImplementedError
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
@@ -288,7 +304,10 @@ class Handler:
 	def fetch_templates(self, app):
 		return la.attrdict()
 
-	def fetch_templatelibraries(self):
+	def fetch_librarytemplates(self):
+		return la.attrdict()
+
+	def fetch_libraryparams(self):
 		return la.attrdict()
 
 	def fetch_viewtemplate_params(self, globals):
@@ -349,6 +368,8 @@ class DBHandler(Handler):
 			self._db = connection
 		elif connectstring is not None:
 			self._db = connectstring
+		else:
+			self._db = None
 
 		if connection_postgres is not None:
 			if connectstring_postgres is not None:
@@ -356,6 +377,8 @@ class DBHandler(Handler):
 			self._db_pg = connection_postgres
 		elif connectstring_postgres is not None:
 			self._db_pg = connectstring_postgres
+		else:
+			self._db_pg = None
 
 		if uploaddir is not None:
 			uploaddir = url.URL(uploaddir)
@@ -369,11 +392,10 @@ class DBHandler(Handler):
 		self.proc_data_update = orasql.Procedure("LIVINGAPI_PKG.DATA_UPDATE")
 		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
 		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
+		self.proc_appparameter_delete = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_DELETE")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
-		self.proc_upload_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_INSERT")
+		self.proc_upload_upr_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_UPR_INSERT")
 		self.proc_appparameter_import_waf = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_IMPORT")
-		self.proc_internaltemplate_import = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_IMPORT")
-		self.proc_internaltemplate_delete = orasql.Procedure("INTERNALTEMPLATE_PKG.INTERNALTEMPLATE_DELETE")
 		self.proc_viewtemplate_import = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_IMPORT")
 		self.proc_viewtemplate_delete = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_DELETE")
 		self.proc_datasource_import = orasql.Procedure("DATASOURCE_PKG.DATASOURCE_IMPORT")
@@ -390,7 +412,8 @@ class DBHandler(Handler):
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
 		self.viewtemplate_params = {} # Maps ``vt_id`` to parameter dictionary
 		self.emailtemplate_params = {} # Maps ``et_id`` to parameter dictionary
-		self.templatelibraries = None # Maps ``tl_id`` to template library
+		self.librarytemplates = None # Maps ``lt_id`` to templates
+		self.libraryparams = None # Maps ``lp_id`` to :class:`AppParameter`
 
 		if ide_id is not None:
 			if ide_account is not None:
@@ -412,20 +435,20 @@ class DBHandler(Handler):
 	@property
 	def db(self):
 		if self._db is None:
-			raise ValueError("Not Oracle database connection available")
+			raise ValueError("No Oracle database connection available")
 		elif isinstance(self._db, str):
 			if orasql is None:
-				raise ImportError("ll.orasql required")
+				raise ImportError(orasql_required_message)
 			self._db = orasql.connect(self._db, readlobs=True)
 		return self._db
 
 	@property
 	def db_pg(self):
 		if self._db_pg is None:
-			raise ValueError("Not Postgres database connection available")
+			raise ValueError("No Postgres database connection available")
 		elif isinstance(self._db_pg, str):
 			if psycopg is None:
-				raise ImportError("psycopg required")
+				raise ImportError(psycopg_required_message)
 			self._db_pg = psycopg.connect(self._db_pg)
 		return self._db_pg
 
@@ -438,14 +461,24 @@ class DBHandler(Handler):
 	def cursor(self):
 		return self.db.cursor(readlobs=True)
 
-	def cursor_pg(self, row_factory=rows.tuple_row):
+	def cursor_pg(self, row_factory=None):
+		if row_factory is None:
+			if rows is None:
+				raise ImportError(psycopg_required_message)
+			row_factory = rows.tuple_row
 		return self.db_pg.cursor(row_factory=row_factory)
 
 	def commit(self):
-		self.db.commit()
+		if self._db is not None:
+			self.db.commit()
+		if self._db_pg is not None:
+			self.db_pg.commit()
 
 	def rollback(self):
-		self.db.rollback()
+		if self.db is not None:
+			self.db.rollback()
+		if self.db_pg is not None:
+			self.db_pg.rollback()
 
 	def reset(self):
 		super().reset()
@@ -465,16 +498,16 @@ class DBHandler(Handler):
 			if app.viewtemplates is not None:
 				for viewtemplate in app.viewtemplates.values():
 					self.save_viewtemplate(viewtemplate, recursive=recursive)
-			if app._params is not None:
-				for param in app._params.values():
-					self.save_param(param)
+			if app._ownparams is not None:
+				for param in app._ownparams.values():
+					self.save_parameter(param)
 
 	def save_file(self, file):
 		if file.internalid is None:
 			if file._content is None:
 				raise ValueError(f"Can't save {file!r} without content!")
 			c = self.cursor()
-			r = self.proc_upload_insert(
+			r = self.proc_upload_upr_insert(
 				c,
 				c_user=self.ide_id,
 				p_upl_orgname=file.filename,
@@ -487,6 +520,7 @@ class DBHandler(Handler):
 				self.urlcontext = url.Context()
 			with (self.uploaddir/r.p_upl_name).open("wb", context=self.urlcontext) as f:
 				f.write(file._content)
+			file.id = r.p_upr_id
 			file.internalid = r.p_upl_id
 
 	def file_content(self, file):
@@ -502,122 +536,6 @@ class DBHandler(Handler):
 		with url.Context():
 			u = self.uploaddir/r.upl_name
 			return u.openread().read()
-
-	def save_param(self, param):
-		c = self.cursor()
-		r = self._save_param(
-			c,
-			identifier=param.identifier,
-			description=param.description,
-			value=param.value,
-			parentappid=param.parent.id if isinstance(param.parent, la.App) else None,
-			parentviewtemplateid=param.parent.id if isinstance(param.parent, la.ViewTemplateConfig) else None,
-			parentemailtemplateid=param.parent.id if isinstance(param.parent, la.EMailTemplate) else None,
-		)
-		param.id = r.p_ap_id
-
-	def _save_param(self, cursor, *, identifier=None, order=None, description=None, value=None, superid=None, parentappid=None, parentviewtemplateid=None, parentemailtemplateid=None):
-		p_ap_type = None
-		p_ap_value_bool = None
-		p_ap_value_date = None
-		p_ap_value_datetime = None
-		p_ap_value_other = None
-		p_upl_id = None
-		p_tpl_uuid_value = None
-		p_ctl_id = None
-
-		if value is None:
-			# Could be any other type too
-			p_ap_type = "str"
-		elif isinstance(value, bool):
-			p_ap_value_bool = int(value)
-			p_ap_type = "bool"
-		elif isinstance(value, datetime.datetime):
-			p_ap_value_datetime = value
-			p_ap_type = "datetime"
-		elif isinstance(value, datetime.date):
-			p_ap_value_date = value
-			p_ap_type = "date"
-		elif isinstance(value, la.File):
-			p_upl_id = value.internalid
-			p_ap_type = "upload"
-		elif isinstance(value, la.App):
-			p_tpl_uuid_value = value.id
-			p_ap_type = "App"
-		elif isinstance(value, la.Control):
-			p_ctl_id = value.id
-			p_ap_type = "control"
-		elif isinstance(value, int):
-			p_ap_value_other = str(value)
-			p_ap_type = "int"
-		elif isinstance(value, float):
-			p_ap_value_other = str(value)
-			p_ap_type = "number"
-		elif isinstance(value, str):
-			p_ap_value_other = value
-			p_ap_type = "str"
-		elif isinstance(value, color.Color):
-			p_ap_value_other = str((((value.r() << 8) + value.g() << 8) + value.b() << 8) + value.a())
-			p_ap_type = "color"
-		elif isinstance(value, datetime.timedelta):
-			value = value.total_seconds()/86400
-			p_ap_type = "datetimedelta" if value.seconds or value.microseconds else "datedelta"
-		elif isinstance(value, misc.monthdelta):
-			p_ap_value_other = str(value.months)
-			p_ap_type = "monthdelta"
-		elif isinstance(value, list):
-			p_ap_type = "list"
-		elif isinstance(value, dict):
-			p_ap_type = "dict"
-		else:
-			raise TypeError(f"Can't save parameter of type {type(value)}")
-
-		r = self.proc_appparameter_import_waf(
-			cursor,
-			c_user=self.ide_id,
-			p_tpl_uuid=parentappid,
-			p_vt_id=parentviewtemplateid,
-			p_et_id=parentemailtemplateid,
-			p_ap_id_super=superid,
-			p_ap_order=order,
-			p_ap_identifier=identifier,
-			p_ap_type=p_ap_type,
-			p_ap_description=description,
-			p_ap_value_bool=p_ap_value_bool,
-			p_ap_value_date=p_ap_value_date,
-			p_ap_value_datetime=p_ap_value_datetime,
-			p_ap_value_other=p_ap_value_other,
-			p_upl_id=p_upl_id,
-			p_tpl_uuid_value=p_tpl_uuid_value,
-			p_ctl_id=p_ctl_id,
-		)
-
-		if isinstance(value, list):
-			order = 10
-			for v in value:
-				self._save_param(
-					c,
-					order=order,
-					value=v,
-					superid=r.p_ap_id,
-					parentappid=parentappid,
-					parentviewtemplateid=parentviewtemplateid,
-					parentemailtemplateid=parentemailtemplateid,
-				)
-				order += 10
-		elif isinstance(value, dict):
-			for (identifier, v) in value.items():
-				self._save_param(
-					c,
-					identifier=identifier,
-					value=v,
-					superid=r.p_ap_id,
-					parentappid=parentappid,
-					parentviewtemplateid=parentviewtemplateid,
-					parentemailtemplateid=parentemailtemplateid,
-				)
-		return r
-
 
 	def _save_vsql_ast(self, vsqlexpr, required_datatype=None, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
 		"""
@@ -695,16 +613,30 @@ class DBHandler(Handler):
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
 		template = ul4c.Template(internaltemplate.source, name=internaltemplate.identifier)
-		cursor = self.cursor()
-		self.proc_internaltemplate_import(
-			cursor,
-			c_user=self.ide_id,
-			p_tpl_uuid=internaltemplate.app.id,
-			p_it_identifier=template.name,
-			p_utv_source=template.source,
-			p_utv_signature=ul4c._str(template.signature) if template.signature is not None else None,
-			p_utv_whitespace=template.whitespace,
-			p_utv_doc=template.doc,
+		cursor = self.cursor_pg()
+
+		cursor.execute(
+			"""
+			call internaltemplate.internaltemplate_import(
+				c_user => %s,
+				p_it_id => null,
+				p_app_id => %s,
+				p_it_identifier => %s,
+				p_utv_source => %s,
+				p_utv_signature => %s,
+				p_utv_whitespace => %s,
+				p_utv_doc => %s
+			)
+			""",
+			[
+				self.ide_id,
+				internaltemplate.app.id,
+				template.name,
+				template.source,
+				ul4c._str(template.signature) if template.signature is not None else None,
+				template.whitespace,
+				template.doc,
+			]
 		)
 
 	def save_viewtemplate(self, viewtemplate, recursive=True):
@@ -1143,40 +1075,74 @@ class DBHandler(Handler):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			globals,
-			"select livingapi_pkg.viewtemplate_params_inc_ful4on(:vtid) from dual",
-			vtid=id,
+			"select livingapi_pkg.viewtemplate_params_inc_ful4on(:p_vt_id) from dual",
+			p_vt_id=id,
 		)
 
 	def emailtemplate_params_incremental_data(self, globals, id):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			globals,
-			"select livingapi_pkg.emailtemplate_params_inc_ful4on(:etid) from dual",
-			etid=id,
+			"select livingapi_pkg.emailtemplate_params_inc_ful4on(:p_et_id) from dual",
+			p_et_id=id,
 		)
 
 	def app_params_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			app.globals,
-			"select livingapi_pkg.app_params_inc_ful4on(:appid) from dual",
-			appid=app.id,
+			"select livingapi_pkg.app_params_inc_ful4on(:p_tpl_uuid) from dual",
+			p_tpl_uuid=app.id,
 		)
 
 	def app_views_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			app.globals,
-			"select livingapi_pkg.app_views_inc_ful4on(:appid) from dual",
-			appid=app.id,
+			"select livingapi_pkg.app_views_inc_ful4on(:p_tpl_uuid) from dual",
+			p_tpl_uuid=app.id,
 		)
 
 	def record_attachments_incremental_data(self, record):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			record.app.globals,
-			"select livingapi_pkg.record_attachments_inc_ful4on(:dataid) from dual",
-			dat=record.id,
+			"select livingapi_pkg.record_attachments_inc_ful4on(:p_dat_id) from dual",
+			p_dat_id=record.id,
+		)
+
+	def view_layout_controls_incremental_data(self, view):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			view.app.globals,
+			"select livingapi_pkg.view_layoutcontrols_inc_ful4on(:p_vw_id) from dual",
+			p_vw_id=view.id,
+		)
+
+	def app_child_controls_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_childcontrols_inc_ful4on(:p_tpl_uuid) from dual",
+			p_tpl_uuid=app.id,
+		)
+
+	def app_menus_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'menuitem') from dual",
+			c_user=self.ide_id,
+			p_tpl_uuid=app.id,
+		)
+
+	def app_panels_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'panel') from dual",
+			c_user=self.ide_id,
+			p_tpl_uuid=app.id,
 		)
 
 	def save_record(self, record, recursive=True):
@@ -1301,19 +1267,20 @@ class DBHandler(Handler):
 			elif parameter.type is parameter.Type.HTML:
 				p_ap_value_html = parameter.value
 			elif parameter.type is parameter.Type.COLOR:
-				p_ap_value_other = parameter.value.r << 24 | parameter.value.g << 16 | parameter.value.b << 8 | parameter.value.a
+				p_ap_value_other = f"#{parameter.value.r():02x}{parameter.value.g():02x}{parameter.value.b():02x}{parameter.value.a():02x}"
 			elif parameter.type is parameter.Type.DATE:
-				p_ap_value_other = parameter.value
-			elif parameter.type is parameter.Type.DATETIME:
 				p_ap_value_date = parameter.value
 			elif parameter.type is parameter.Type.DATETIME:
 				p_ap_value_datetime = parameter.value
 			elif parameter.type is parameter.Type.DATEDELTA:
-				p_ap_value_datetime = parameter.value.days
+				p_ap_value_other = str(parameter.value.days)
 			elif parameter.type is parameter.Type.DATETIMEDELTA:
-				p_ap_value_datetime = parameter.value.days + parameter.value.days/24/60/60 + parameter.value.days/24/60/60/100000
+				seconds = parameter.value.seconds
+				(minutes, seconds) = divmod(seconds, 60)
+				(hours, minutes) = divmod(minutes, 60)
+				p_ap_value_other = f"{parameter.value.days} days, {hours:02}:{minutes:02}:{seconds:02}"
 			elif parameter.type is parameter.Type.MONTHDELTA:
-				p_ap_value_datetime = parameter.value.months
+				p_ap_value_other = str(parameter.value.months())
 			elif parameter.type is parameter.Type.UPLOAD:
 				if parameter.value.internalid is None:
 					raise la.ValueError(error_object_unsaved(parameter.value))
@@ -1354,10 +1321,10 @@ class DBHandler(Handler):
 				parts = error.message.split("\x01")[1:-1]
 				if parts:
 					# An error message with the usual formatting from ``errmsg_pkg``.
-					raise ValueError("\n".join(parts[1::2]))
+					raise ValueError("\n".join(parts[1::2])) from None
 				else:
 					# An error message with strange formatting, use it as it is.
-					raise ValueError(error.message)
+					raise ValueError(error.message) from None
 			else:
 				# Some other database exception
 				raise
@@ -1370,6 +1337,28 @@ class DBHandler(Handler):
 			parameter.updatedat = datetime.datetime.now()
 			parameter.updatedby = app.globals.user
 		parameter._dirty = False
+		if recursive:
+			if parameter.type is parameter.Type.LIST:
+				for child in parameter.value:
+					self.save_parameter(child, True)
+			elif parameter.type is parameter.Type.DICT:
+				for child in parameter.value.values():
+					self.save_parameter(child, True)
+
+	def delete_parameter(self, parameter):
+		if not parameter._deleted:
+			args = {
+				"c_user": self.ide_id,
+				"p_ap_id": parameter.id,
+			}
+			c = self.cursor()
+			r = self.proc_appparameter_delete(c, **args)
+			if parameter.parent is not None:
+				if parameter.type is parameter.Type.DICT:
+					parameter.parent.value.pop(parameter.identifier)
+				elif parameter.type is parameter.Type.LIST:
+					parameter.parent.value.remove(parameter)
+			parameter._deleted = True
 
 	def parameter_sync_data(self, ap_id):
 		c = self.cursor()
@@ -1407,19 +1396,19 @@ class DBHandler(Handler):
 	def _loadinternaltemplates(self, tpl_uuid):
 		if tpl_uuid in self.internaltemplates:
 			return self.internaltemplates[tpl_uuid]
-		c = self.cursor()
+		c = self.cursor_pg()
 		c.execute("""
 			select
 				it_identifier,
 				utv_source
 			from
-				internaltemplate_select
+				internaltemplate.internaltemplate_select
 			where
-				tpl_uuid=:tpl_uuid
-		""", tpl_uuid=tpl_uuid)
+				app_id=%s
+		""", [tpl_uuid])
 		templates = {}
 		for r in c:
-			template = ul4c.Template(r.utv_source, name=r.it_identifier)
+			template = ul4c.Template(r[1], name=r[0])
 			templates[template.name] = template
 		self.internaltemplates[tpl_uuid] = templates
 		return templates
@@ -1445,10 +1434,10 @@ class DBHandler(Handler):
 			self.emailtemplate_params[id] = self.emailtemplate_params_incremental_data(globals, id)
 		return self.emailtemplate_params[id]
 
-	def fetch_templatelibraries(self):
-		if self.templatelibraries is None:
+	def fetch_librarytemplates(self):
+		if self.librarytemplates is None:
 			c = self.cursor_pg(row_factory=rows.tuple_row)
-			c.execute("select templatelibrary.alltemplatelibraries_ful4on()")
+			c.execute("select templatelibrary.librarytemplates_ful4on()")
 			r = c.fetchone()
 			dump = r[0]
 			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
@@ -1457,8 +1446,23 @@ class DBHandler(Handler):
 			dump = ul4on.loads(dump)
 			if isinstance(dump, dict):
 				dump = la.attrdict(dump)
-			self.templatelibraries = la.attrdict(dump)
-		return self.templatelibraries
+			self.librarytemplates = la.attrdict(dump)
+		return self.librarytemplates
+
+	def fetch_libraryparams(self):
+		if self.libraryparams is None:
+			c = self.cursor_pg(row_factory=rows.tuple_row)
+			c.execute("select templatelibrary.libraryparameters_ful4on()")
+			r = c.fetchone()
+			dump = r[0]
+			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
+			# Note that we ignore the problem of persistent objects, since none of the
+			# persistent objects in this dump are in the other dump
+			dump = ul4on.loads(dump)
+			if isinstance(dump, dict):
+				dump = la.attrdict(dump)
+			self.libraryparams = la.attrdict(dump)
+		return self.libraryparams
 
 
 class HTTPHandler(Handler):
