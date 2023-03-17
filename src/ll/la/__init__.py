@@ -8586,9 +8586,34 @@ class Panel(MenuItem):
 		:type: Optional[int]
 
 		Height of this panel on the custom overview page.
+
+	.. attribute:: header_type
+		:type: HeaderType
+
+		How to display the header of the panel.
+
+	.. attribute:: header_background
+		:type: Optional[HeaderBackground]
+
+		Which background to show for the header.
+
+	.. attribute:: text_color
+		:type: Optional[color.Color]
+
+		The text color for the header.
+
+	.. attribute:: background_color1
+		:type: Optional[color.Color]
+
+		The primary (or only) background color for the header.
+
+	.. attribute:: background_color2
+		:type: Optional[color.Color]
+
+		The secondary background color for the header.
 	"""
 
-	ul4_attrs = MenuItem.ul4_attrs.union({"description", "description_url", "image", "row", "column", "width", "height"})
+	ul4_attrs = MenuItem.ul4_attrs.union({"description", "description_url", "image", "row", "column", "width", "height", "header_type", "header_background", "text_color", "background_color1", "background_color2"})
 	ul4_type = ul4c.Type("la", "Panel", "An additional panel in an app that is displayed on various LivingApps pages and links to a target page.")
 
 	class HeaderType(misc.Enum):
