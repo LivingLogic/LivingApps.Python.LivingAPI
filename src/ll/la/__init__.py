@@ -8591,6 +8591,46 @@ class Panel(MenuItem):
 	ul4_attrs = MenuItem.ul4_attrs.union({"description", "description_url", "image", "row", "column", "width", "height"})
 	ul4_type = ul4c.Type("la", "Panel", "An additional panel in an app that is displayed on various LivingApps pages and links to a target page.")
 
+	class HeaderType(misc.Enum):
+		"""
+		How to display the panel header.
+
+		Enum values have the following meaning:
+
+		``TITLE``
+			A normal title bar.
+
+		``CARD``
+			Show more of the background, with increased height.
+		"""
+
+		TITLE = "title"
+		CARD = "card"
+
+	class HeaderBackground(misc.Enum):
+		"""
+		What background to display for the panel header.
+
+		Enum values have the following meaning:
+
+		``UNIFORMCOLOR``
+			The background is just a single color.
+
+		``LINEARGRADIENT``
+			The background is a linear background from top to bottom.
+
+		``RADIALGRADIENT``
+			The background is a radial background centered at the middle of the top edge.
+
+		``IMAGE``
+			The background is an image.
+		"""
+
+		UNIFORMCOLOR = "uniformcolor"
+		LINEARGRADIENT = "lineargradient"
+		RADIALGRADIENT = "radialgradient"
+		IMAGE = "image"
+
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description_url = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -8598,6 +8638,11 @@ class Panel(MenuItem):
 	column = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	width = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	height = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	header_type = EnumAttr(HeaderType, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	header_background = EnumAttr(HeaderBackground, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	text_color = Attr(color.Color, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	background_color1 = Attr(color.Color, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	background_color2 = Attr(color.Color, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, identifier=None, label=None, app=None, type=None):
 		super().__init__(id=id, identifier=identifier, label=label, app=app, type=type)
@@ -8608,6 +8653,11 @@ class Panel(MenuItem):
 		self.column = None
 		self.width = None
 		self.height = None
+		self.header_type = None
+		self.header_background = None
+		self.text_color = None
+		self.background_color1 = None
+		self.background_color2 = None
 
 	def __dir__(self):
 		"""
@@ -8621,6 +8671,11 @@ class Panel(MenuItem):
 		attrs.add("column")
 		attrs.add("width")
 		attrs.add("height")
+		attrs.add("header_type")
+		attrs.add("header_background")
+		attrs.add("text_color")
+		attrs.add("background_color1")
+		attrs.add("background_color2")
 		return attrs
 
 
