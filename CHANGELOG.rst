@@ -1,7 +1,18 @@
+0.23 (2023-03-17)
+-----------------
+
+*	Added :class:`Panel` attributes :attr:`header_type`,
+	:attr:`header_background`, :attr:`text_color`, :attr:`background_color1`
+	and :attr:`background_color2`.
+
+*	:class:`Link`\s have been split into :class:`MenuItem` and :class:`Panel`
+	objects.
+
+
 0.22.1 (2023-03-13)
 -------------------
 
-Fixed version number in ``setup.py``.
+*	Fixed version number in ``setup.py``.
 
 
 0.22 (2023-03-13)
@@ -9,7 +20,7 @@ Fixed version number in ``setup.py``.
 
 *	Added incremental loading of layout controls.
 
-*	Added ``App.child_controls`` (This gives all ``applookup`` and
+*	Added ``App.child_controls`` (This contains all ``applookup`` and
 	``multipleapplookup`` controls in other apps that point to this app).
 
 *	Internal templates are now stored in the Postgres database.
