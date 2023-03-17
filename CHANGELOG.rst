@@ -1,3 +1,10 @@
+0.23.1 (2023-03-17)
+-------------------
+
+*	Added the new :class:`Panel` attributes to ``Panel.ul4_attrs`` to make them
+	accessible for UL4.
+
+
 0.23 (2023-03-17)
 -----------------
 
