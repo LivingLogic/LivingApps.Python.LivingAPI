@@ -1,3 +1,11 @@
+0.23.2 (2023-04-03)
+-------------------
+
+*	Removed shortcut attributes from :class:`DataSource`.
+
+*	Added ``APPSTART`` to :class:`MenuItem.Type`.
+
+
 0.23.1 (2023-03-17)
 -------------------
 
