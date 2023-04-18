@@ -1,4 +1,4 @@
-0.24.0 (2023-04-18)
+HEAD (2023-??-??)
 -------------------
 
 *	Merged attributes ``iconsmall`` and ``iconlarge`` of :class:`App` objects
