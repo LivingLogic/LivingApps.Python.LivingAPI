@@ -2420,6 +2420,7 @@ class App(Base):
 		"description",
 		"lang",
 		"startlink",
+		"icon",
 		"iconlarge",
 		"iconsmall",
 		"createdat",
@@ -2464,8 +2465,9 @@ class App(Base):
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	startlink = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	iconlarge = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	iconsmall = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	icon = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	iconlarge = Attr(File, get="_icon_get", ul4get="_icon_get")
+	iconsmall = Attr(File, get="_icon_get", ul4get="_icon_get")
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	layout_controls = AttrDictAttr(get="", ul4get="_layout_controls_get")
@@ -2497,7 +2499,7 @@ class App(Base):
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, iconlarge=None, iconsmall=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
+	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, icon=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = id
 		self.superid = None
 		self.globals = None
@@ -2505,8 +2507,7 @@ class App(Base):
 		self.description = description
 		self.lang = lang
 		self.startlink = startlink
-		self.iconlarge = iconlarge
-		self.iconsmall = iconsmall
+		self.icon = icon
 		self.createdat = createdat
 		self.createdby = createdby
 		self.updatedat = updatedat
@@ -2558,6 +2559,9 @@ class App(Base):
 		param = AppParameter(type=type, identifier=identifier, description=description, value=value)
 		self.addparam(param)
 		return param
+
+	def _icon_get(self):
+		return self.icon
 
 	def _records_ul4onset(self, value):
 		if value is not None:

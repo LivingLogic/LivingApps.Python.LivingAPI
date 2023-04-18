@@ -1,3 +1,10 @@
+0.24.0 (2023-04-18)
+-------------------
+
+*	Merged attributes ``iconsmall`` and ``iconlarge`` of :class:`App` objects
+	into ``icon``.
+
+
 0.23.2 (2023-04-03)
 -------------------
 
