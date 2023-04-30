@@ -1277,22 +1277,23 @@ class File(Base):
 	ul4_attrs = {"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"}
 	ul4_type = ul4c.Type("la", "File", "An uploaded file")
 
-	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	id = Attr(str, get=True, set=True, ul4get=True)
 	filename = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	mimetype = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	width = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	height = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	internalid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	internal_id = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	size = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	duration = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	geo = Attr(lambda: Geo, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	storagefilename = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	archive = Attr(lambda: File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	url = Attr(str, get=True, ul4get=True)
+	url = Attr(str, get="", ul4get="_url_get", repr="_url_repr")
 	archive_url = Attr(str, get=True, ul4get=True)
+	context_id = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, storagefilename=None, archive=None, internalid=None, createdat=None, content=None):
+	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, storagefilename=None, archive=None, internal_id=None, createdat=None, content=None):
 		self.id = id
 		self.filename = filename
 		self.mimetype = mimetype
@@ -1302,8 +1303,9 @@ class File(Base):
 		self.duration = duration
 		self.geo = geo
 		self.storagefilename = storagefilename
-		self.internalid = internalid
+		self.internal_id = internal_id
 		self.createdat = createdat
+		self.context_id = None
 		self.handler = None
 		self._content = content
 		if content is not None and mimetype.startswith("image/") and width is None and height is None:
@@ -1317,9 +1319,11 @@ class File(Base):
 	def ul4onid(self) -> str:
 		return self.id
 
-	@property
-	def url(self) -> str:
-		return f"/gateway/files/{self.id}"
+	def _url_get(self) -> str:
+		return f"/files/{self.context_id}/{self.id}/{self.internal_id}"
+
+	def _url_repr(self) -> str:
+		return f"url={self.url!r}"
 
 	@property
 	def archive_url(self) -> str:
@@ -1357,9 +1361,9 @@ class File(Base):
 		return self._gethandler(handler).file_content(self)
 
 	vsqlgroup = vsql.Group(
-		"uploadref_select",
-		internalid=(vsql.DataType.STR, "upl_id"),
-		id=(vsql.DataType.STR, "upr_id"),
+		"upload_ref_select",
+		internal_id=(vsql.DataType.STR, "upl_id"),
+		id=(vsql.DataType.STR, "upr_path"),
 		filename=(vsql.DataType.STR, "upl_orgname"),
 		mimetype=(vsql.DataType.STR, "upl_mimetype"),
 		width=(vsql.DataType.INT, "upl_width"),
@@ -1805,6 +1809,7 @@ class Globals(Base):
 	"""
 
 	ul4_attrs = {
+		"id",
 		"version",
 		"hostname",
 		"platform",
@@ -1862,6 +1867,7 @@ class Globals(Base):
 		EMAIL_TEXT = "email/text"
 		EMAIL_HTML = "email/html"
 
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	version = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	platform = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	user = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1881,6 +1887,7 @@ class Globals(Base):
 	params = AttrDictAttr(get="", ul4get="_params_get")
 
 	def __init__(self, id=None, version=None, hostname=None, platform=None, mode=None):
+		self.id = id
 		self.version = version
 		self.hostname = hostname
 		self.platform = platform
@@ -1905,7 +1912,7 @@ class Globals(Base):
 
 	@property
 	def ul4onid(self) -> str:
-		return "42"
+		return self.id
 
 	def _datasources_ul4onset(self, value):
 		if value is not None:
@@ -2269,15 +2276,10 @@ class App(Base):
 	.. attribute:: startlink
 		:type: str
 
-	.. attribute:: iconlarge
+	.. attribute:: image
 		:type: File
 
-		Large version of app icon.
-
-	.. attribute:: iconsmall
-		:type: File
-
-		Small version of app icon.
+		App icon.
 
 	.. attribute:: createdby
 		:type: User
@@ -2420,7 +2422,7 @@ class App(Base):
 		"description",
 		"lang",
 		"startlink",
-		"icon",
+		"image",
 		"iconlarge",
 		"iconsmall",
 		"createdat",
@@ -2465,9 +2467,9 @@ class App(Base):
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	startlink = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	icon = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	iconlarge = Attr(File, get="_icon_get", ul4get="_icon_get")
-	iconsmall = Attr(File, get="_icon_get", ul4get="_icon_get")
+	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	iconlarge = Attr(File, get="_image_get", ul4get="_image_get")
+	iconsmall = Attr(File, get="_image_get", ul4get="_image_get")
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	layout_controls = AttrDictAttr(get="", ul4get="_layout_controls_get")
@@ -2499,7 +2501,7 @@ class App(Base):
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, icon=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
+	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
 		self.id = id
 		self.superid = None
 		self.globals = None
@@ -2507,7 +2509,7 @@ class App(Base):
 		self.description = description
 		self.lang = lang
 		self.startlink = startlink
-		self.icon = icon
+		self.image = image
 		self.createdat = createdat
 		self.createdby = createdby
 		self.updatedat = updatedat
@@ -2560,8 +2562,8 @@ class App(Base):
 		self.addparam(param)
 		return param
 
-	def _icon_get(self):
-		return self.icon
+	def _image_get(self):
+		return self.image
 
 	def _records_ul4onset(self, value):
 		if value is not None:
@@ -4452,11 +4454,11 @@ class FileControl(Control):
 	def _asdbarg(self, handler, field):
 		value = field._value
 		if value is not None:
-			if value.internalid is None:
+			if value.internal_id is None:
 				field.add_error(error_object_unsaved(value))
 				value = field._value = None
 			else:
-				value = value.internalid
+				value = value.internal_id
 		return value
 
 	@property

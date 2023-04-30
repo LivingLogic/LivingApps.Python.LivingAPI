@@ -322,7 +322,7 @@ class Handler:
 		return file
 
 	def _loadglobals(self, id=None):
-		globals = la.Globals()
+		globals = la.Globals(id=id)
 		globals.handler = self
 		return globals
 
@@ -503,7 +503,7 @@ class DBHandler(Handler):
 					self.save_parameter(param)
 
 	def save_file(self, file):
-		if file.internalid is None:
+		if file.internal_id is None:
 			if file._content is None:
 				raise ValueError(f"Can't save {file!r} without content!")
 			c = self.cursor()
@@ -520,21 +520,13 @@ class DBHandler(Handler):
 				self.urlcontext = url.Context()
 			with (self.uploaddir/r.p_upl_name).open("wb", context=self.urlcontext) as f:
 				f.write(file._content)
-			file.id = r.p_upr_id
-			file.internalid = r.p_upl_id
+			file.context_id = r.p_context_id
+			file.id = r.p_upr_path
+			file.internal_id = r.p_upl_id
 
 	def file_content(self, file):
-		upr_id = file.url.rsplit("/")[-1]
-		c = self.cursor()
-		c.execute(
-			"select u.upl_name from upload u, uploadref ur where u.upl_id=ur.upl_id and ur.upr_id = :upr_id",
-			upr_id=upr_id,
-		)
-		r = c.fetchone()
-		if r is None:
-			raise ValueError(f"no such file {file.url!r}")
 		with url.Context():
-			u = self.uploaddir/r.upl_name
+			u = self.uploaddir/file.storagefilename
 			return u.openread().read()
 
 	def _save_vsql_ast(self, vsqlexpr, required_datatype=None, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
