@@ -5630,59 +5630,6 @@ class Attachment(Base):
 		return self.id
 
 
-@register("imageattachment")
-class ImageAttachment(Attachment):
-	"""
-	An image attachment for a :class:`Record`.
-
-	Relevant instance attributes are:
-
-	.. attribute:: original
-		:type: File
-
-		Original uploaded image.
-
-	.. attribute:: thumb
-		:type: File
-
-		Thumbnail size version of the image.
-
-	.. attribute:: small
-		:type: File
-
-		Small version of the image.
-
-	.. attribute:: medium
-		:type: File
-
-		Medium version of the image.
-
-	.. attribute:: large
-		:type: File
-
-		Large version of the image.
-	"""
-
-	ul4_attrs = Attachment.ul4_attrs.union({"original", "thumb", "small", "medium", "large"})
-	ul4_type = ul4c.Type("la", "ImageAttachment", "An image attachment of a record")
-
-	type = "imageattachment"
-
-	original = Attr(File, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	thumb = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	small = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	medium = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	large = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-
-	def __init__(self, id=None, record=None, label=None, active=None, original=None, thumb=None, small=None, medium=None, large=None):
-		super().__init__(id=id, record=record, label=label, active=active)
-		self.original = original
-		self.thumb = thumb
-		self.small = small
-		self.medium = medium
-		self.large = large
-
-
 class SimpleAttachment(Attachment):
 	"""
 	Base class for all :class:`Record` attachment that consist of a single value.
