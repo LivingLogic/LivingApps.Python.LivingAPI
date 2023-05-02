@@ -1488,16 +1488,11 @@ class User(Base):
 
 		Preferred language
 
-	.. attribute:: avatar_small
+	.. attribute:: image
 		:type: File
 
-		Small version of the avatar icon (visible in the top right corner of the
-		page when this user is logged in)
-
-	.. attribute:: avatar_large
-		:type: File
-
-		Large version of the avatar icon.
+		Avatar icon (visible in the top right corner of the page when this user
+		is logged in)
 
 	.. attribute:: summary
 		:type: Optional[str]
@@ -1542,7 +1537,7 @@ class User(Base):
 
 	ul4_attrs = {
 		"id", "gender", "title", "firstname", "surname", "initials", "email",
-		"lang", "avatar_small", "avatar_large", "streetname", "streetnumber",
+		"lang", "image", "avatar_small", "avatar_large", "streetname", "streetnumber",
 		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
 		"company_website", "company", "position", "department", "keyviews"
 	}
@@ -1563,8 +1558,9 @@ class User(Base):
 	phone = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fax = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	avatar_small = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	avatar_large = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	avatar_small = Attr(File, get="_image_get", ul4get="_image_get")
+	avatar_large = Attr(File, get="_image_get", ul4get="_image_get")
 	summary = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	interests = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	personal_website = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1612,6 +1608,9 @@ class User(Base):
 	def ul4onid(self) -> str:
 		return self.id
 
+	def _image_get(self) -> File:
+		return self.image
+
 	@classmethod
 	def vsqlfield(cls, ul4var="user", sqlvar="livingapi_pkg.global_user"):
 		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.ide_id(+)", cls.vsqlgroup)
@@ -1633,16 +1632,10 @@ class User(Base):
 		fax=(vsql.DataType.STR, "ide_fax"),
 		lang=(vsql.DataType.STR, "ide_lang"),
 		# FIXME: We can't add the uploads, because the Oracle side doesn't support it yet.
-		avatar_small=(
+		image=(
 			vsql.DataType.STR,
-			"upl_id_avatar_small",
-			"({m}.upl_id_avatar_small = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_avatar_small')",
-			File.vsqlgroup,
-		),
-		avatar_large=(
-			vsql.DataType.STR,
-			"upl_id_avatar_large",
-			"({m}.upl_id_avatar_large = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_avatar_large')",
+			"upl_id_image",
+			"({m}.upl_id_image = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_image')",
 			File.vsqlgroup,
 		),
 		summary=(vsql.DataType.STR, "ide_summary"),
@@ -7238,11 +7231,10 @@ class ImageLayoutControl(LayoutControl):
 	type = "image"
 	_subtype = None
 
-	ul4_attrs = LayoutControl.ul4_attrs.union({"image_original", "image_scaled"})
+	ul4_attrs = LayoutControl.ul4_attrs.union({"image"})
 	ul4_type = ul4c.Type("la", "ImageLayoutControl", "An image decoration in an input form")
 
-	image_original = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	image_scaled = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	visible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 

@@ -2,7 +2,13 @@ HEAD (2023-??-??)
 -------------------
 
 *	Merged attributes ``iconsmall`` and ``iconlarge`` of :class:`App` objects
-	into ``icon``.
+	into ``image``.
+
+*	Merged attributes ``avatarsmall`` and ``avatarlarge`` of :class:`User`
+	objects into ``image``.
+
+*	Merged attributes ``original`` and ``scaled`` of :class:`ImageLayoutControl`
+	objects into ``image``.
 
 
 0.23.2 (2023-04-03)
