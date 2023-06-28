@@ -1056,7 +1056,7 @@ class AST(Repr):
 			for (i, type) in enumerate(spec):
 				typeref = cls.typeref(type)
 				if typeref:
-					# Fetch reference type (and correct offset if there's in name in ``spec``)
+					# Fetch reference type (and correct offset if there's a name in ``spec``)
 					type = spec[typeref+1 if namepos and typeref >= namepos else typeref]
 					if cls.typeref(type):
 						raise ValueError("typeref to typeref")
