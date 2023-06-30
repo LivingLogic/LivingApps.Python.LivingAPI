@@ -10,6 +10,11 @@ HEAD (2023-??-??)
 *	Merged attributes ``original`` and ``scaled`` of :class:`ImageLayoutControl`
 	objects into ``image``.
 
+*	Added attribute ``z_index`` to ``Control``, ``ViewControl`` and
+	``LayoutControl``.
+
+*	Added attribute ``MenuItem.accessible``.
+
 
 0.23.2 (2023-04-03)
 -------------------

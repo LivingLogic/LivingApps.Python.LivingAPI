@@ -3074,6 +3074,7 @@ class Control(Base):
 	left = Attr(int, get="", ul4get="_left_get")
 	width = Attr(int, get="", ul4get="_width_get")
 	height = Attr(int, get="", ul4get="_height_get")
+	z_index = Attr(int, get="", ul4get="_z_index_get")
 	liveupdate = BoolAttr(get="", ul4get="_liveupdate_get")
 	tabindex = Attr(int, get="", ul4get="_tabindex_get")
 	required = BoolAttr(get="", ul4get="_required_get")
@@ -3138,6 +3139,12 @@ class Control(Base):
 		vc = self._get_viewcontrol()
 		if vc is not None:
 			return vc.height
+		return None
+
+	def _z_index_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.z_index
 		return None
 
 	def _liveupdate_get(self):
@@ -4748,7 +4755,7 @@ class ViewControl(Base):
 
 	ul4_attrs = {
 		"id", "label", "identifier", "type", "subtype", "view", "control",
-		"type", "subtype", "top", "left", "width", "height", "liveupdate",
+		"type", "subtype", "top", "left", "width", "height", "z_index", "liveupdate",
 		"default", "tabIndex", "minlength", "maxlength", "required", "placeholder",
 		"mode", "labelpos", "lookup_none_key", "lookup_none_label", "lookupdata",
 		"autoalign", "labelwidth", "autoexpandable"
@@ -4765,6 +4772,7 @@ class ViewControl(Base):
 	left = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	width = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	height = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	z_index = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	liveupdate = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	default = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	tabindex = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -4790,6 +4798,7 @@ class ViewControl(Base):
 		self.left = None
 		self.width = None
 		self.height = None
+		self.z_index = None
 		self.liveupdate = False
 		self.default = None
 		self.tabindex = None
@@ -7111,7 +7120,7 @@ class LayoutControl(Base):
 		height of this layout control in the form
 	"""
 
-	ul4_attrs = {"id", "label", "identifier", "view", "type", "subtype", "top", "left", "width", "height"}
+	ul4_attrs = {"id", "label", "identifier", "view", "type", "subtype", "top", "left", "width", "height", "z_index", "visible"}
 	ul4_type = ul4c.Type("la", "LayoutControl", "A decoration in an input form")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -7122,11 +7131,20 @@ class LayoutControl(Base):
 	left = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	width = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	height = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	z_index = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	visible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, label=None, identifier=None):
 		self.id = id
 		self.label = label
 		self.identifier = identifier
+		self.visible = True
+		self.view = None
+		self.top = None
+		self.left = None
+		self.width = None
+		self.height = None
+		self.z_index = None
 		self.visible = True
 
 	@property
@@ -7154,7 +7172,6 @@ class HTMLLayoutControl(LayoutControl):
 	ul4_type = ul4c.Type("la", "HTMLLayoutControl", "HTML decoration in an input form")
 
 	value = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	visible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("imagelayoutcontrol")
@@ -7182,7 +7199,6 @@ class ImageLayoutControl(LayoutControl):
 	ul4_type = ul4c.Type("la", "ImageLayoutControl", "An image decoration in an input form")
 
 	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	visible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("buttonlayoutcontrol")
@@ -7195,8 +7211,6 @@ class ButtonLayoutControl(LayoutControl):
 	_subtype = None
 
 	ul4_type = ul4c.Type("la", "ButtonLayoutControl", "A submit button in an input form")
-
-	visible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 
 @register("view")
@@ -8311,7 +8325,7 @@ class MenuItem(Base):
 		Who updated this item last?
 	"""
 
-	ul4_attrs = {"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "children", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_attrs = {"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "accessible", "children", "createdat", "createdby", "updatedat", "updatedby"}
 	ul4_type = ul4c.Type("la", "MenuItem", "An additional menu item in an app that links to a target page.")
 
 	class Type(misc.Enum):
@@ -8372,6 +8386,7 @@ class MenuItem(Base):
 	on_form_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	on_iframe_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	on_custom_overview_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	accessible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -8397,6 +8412,7 @@ class MenuItem(Base):
 		self.on_form_page = False
 		self.on_iframe_page = False
 		self.on_custom_overview_page = False
+		self.accessible = False
 		self.children = attrdict()
 		self.createdat = None
 		self.createdby = None
