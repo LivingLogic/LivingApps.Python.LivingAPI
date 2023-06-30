@@ -15,6 +15,8 @@ HEAD (2023-??-??)
 
 *	Added attribute ``MenuItem.accessible``.
 
+*	Update upload handling to support a world without ``uploadref``.
+
 
 0.23.2 (2023-04-03)
 -------------------
