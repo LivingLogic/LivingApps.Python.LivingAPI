@@ -1832,6 +1832,13 @@ class Globals(Base):
 		"flash_warning",
 		"flash_error",
 		"dist",
+		"my_apps_url",
+		"my_tasks_url",
+		"catalog_url",
+		"chats_url",
+		"profile_url",
+		"account_url",
+		"logout_url",
 	}
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
@@ -2233,6 +2240,27 @@ class Globals(Base):
 		else:
 			super().ul4_setattr(name, value)
 
+	def my_apps_url(self):
+		return "/apps.htm"
+
+	def my_tasks_url(self):
+		return "/xist4c/web/aufgaben_id_393_.htm"
+
+	def catalog_url(self):
+		return "/katalog/home.htm"
+
+	def chats_url(self):
+		return "/chats.htm"
+
+	def profile_url(self):
+		return "/profil/index.htm"
+
+	def account_url(self):
+		return "/account.htm"
+
+	def logout_url(self):
+		return "/login.htm?logout=standardCug"
+
 
 @register("app")
 class App(Base):
@@ -2451,6 +2479,15 @@ class App(Base):
 		"template_url",
 		"new_embedded_url",
 		"new_standalone_url",
+		"home_url",
+		"datamanagement_url",
+		"import_url",
+		"tasks_url",
+		# "formbuilder_url",
+		# "tasks_config_url",
+		"datamanagement_config_url",
+		"permissions_url",
+		"datamanageview_url",
 	}
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
@@ -2623,6 +2660,36 @@ class App(Base):
 	def new_standalone_url(self, **params):
 		url = f"/gateway/apps/{self.id}/new"
 		return url_with_params(url, True, params)
+
+	def home_url(self):
+		return f"/apps/{self.id}.htm"
+
+	def datamanagement_url(self):
+		return f"/_id_36_.htm?uuid={self.id}&dId={self.id}&resetInfo=true&templateIdentifier=created_{self.id}"
+
+	def import_url(self):
+		return f"/import-export/{self.id}.htm"
+
+	def tasks_url(self):
+		return f"/_id_1073_.htm?uuid={self.id}&dId={self.id}&p_tpl_uuid={self.id}&resetInfo=true&templateIdentifier=created_task_{self.id}"
+
+	# def formbuilder_url(self):
+	# 	lang = self.globals.lang
+	# 	if not lang:
+	# 		lang = "de"
+	# 	return f"/formbuilder/index.html?lang={lang}&searchDescription={tpl_id}&p_tpl_uuid={self.id}&p_cl_id={cl_id}"
+
+	# def tasks_config_url(self):
+	# 	return f"/konfiguration/aufgaben.htm?com.livinglogic.cms.apps.search.model.SearchState.search_submit=true&searchDescription={tpl_id}&dId={self.id}"
+
+	def datamanagement_config_url(self):
+		return f"/datenmanagement-konfigurieren/{self.id}.htm"
+
+	def permissions_url(self):
+		return f"/_id_833_.htm?uuid={self.id}&dId={self.id}&resetInfo=true"
+
+	def datamanageview_url(self, identifier):
+		return f"/_id_36_.htm?uuid={self.id}&dId={self.id}&resetInfo=true&templateIdentifier=created_{self.id}_datamanage_master_{identifier}"
 
 	def __getattr__(self, name):
 		try:

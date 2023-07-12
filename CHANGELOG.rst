@@ -17,6 +17,14 @@ HEAD (2023-??-??)
 
 *	Update upload handling to support a world without ``uploadref``.
 
+*	Add methods ``home_url()``, ``datamanagement_url()``, ``import_url()``, ``tasks_url()``, 
+	``datamanagement_config_url()``, ``permissions_url()`` and ``datamanageview_url()``
+	to class :class:`App` which return the relative urls for the respective menus.
+
+*	Add methods ``my_apps_url()``, ``my_tasks_url()``, ``catalog_url()``, ``chats_url()``,
+	``profile_url()``, ``account_url()`` and ``logout_url()`` to class :class:`Globals` which
+	return the relative urls for the respective menus.
+
 
 0.23.2 (2023-04-03)
 -------------------
