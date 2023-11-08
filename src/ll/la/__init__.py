@@ -1306,7 +1306,6 @@ class File(Base):
 		self.internal_id = internal_id
 		self.createdat = createdat
 		self.context_id = None
-		self.handler = None
 		self._content = content
 		if content is not None and mimetype.startswith("image/") and width is None and height is None:
 			from PIL import Image # This requires :mod:`Pillow`, which you can install with ``pip install pillow``
@@ -1315,12 +1314,28 @@ class File(Base):
 				self.width = img.size[0]
 				self.height = img.size[1]
 
+	def __getattr__(self, name):
+		if name.startswith("t_"):
+			template = self.globals._fetch_template(self, name[2:])
+			if template is not None:
+				return template
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def ul4_getattr(self, name):
+		if name.startswith("t_"):
+			return getattr(self, name)
+		else:
+			return super().ul4_getattr(name)
+
 	@property
 	def ul4onid(self) -> str:
 		return self.id
 
 	def _url_get(self) -> str:
-		return f"/files/{self.context_id}/{self.id}/{self.internal_id}"
+		if self.context_id is not None and self.id is not None:
+			return f"/files/{self.context_id}/{self.id}"
+		else:
+			return None
 
 	def _url_repr(self) -> str:
 		return f"url={self.url!r}"
@@ -2103,7 +2118,7 @@ class Globals(Base):
 			encoded_filename = urlparse.quote(filename)
 			if encoded_filename == filename:
 				v.append(f"/fn:{encoded_filename}")
-			v.append(f"/plain/https://{self.hostname}/gateway/files/{image.id}")
+			v.append(f"/plain/https://{self.hostname}{image.url}")
 		else:
 			v.append(f"/plain/{urlparse.quote(image)}")
 		return "".join(v)
