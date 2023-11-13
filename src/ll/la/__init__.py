@@ -12,7 +12,7 @@
 See http://www.living-apps.de/ or http://www.living-apps.com/ for more info.
 """
 
-import io, re, unicodedata, datetime, operator, string, json, pathlib, types, enum, math, base64
+import os, io, re, unicodedata, datetime, mimetypes, operator, string, json, pathlib, types, enum, math, base64
 import urllib.parse as urlparse
 import collections
 from collections import abc
@@ -22,7 +22,7 @@ from PIL import Image
 import requests.structures
 import validators
 
-from ll import misc, ul4c, ul4on, color # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
+from ll import misc, url, ul4c, ul4on, color # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
 from ll.la import vsql
 
@@ -1233,6 +1233,11 @@ class File(Base):
 
 		Unique database id.
 
+	.. attribute:: globals
+		:type: Globals
+
+		The :class:`Globals` objects.
+
 	.. attribute:: url
 		:type: str
 
@@ -1277,7 +1282,10 @@ class File(Base):
 	ul4_attrs = {"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"}
 	ul4_type = ul4c.Type("la", "File", "An uploaded file")
 
+	template_types = ("file_instance",)
+
 	id = Attr(str, get=True, set=True, ul4get=True)
+	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	filename = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	mimetype = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	width = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1295,6 +1303,7 @@ class File(Base):
 
 	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, storagefilename=None, archive=None, internal_id=None, createdat=None, content=None):
 		self.id = id
+		self.globals = None
 		self.filename = filename
 		self.mimetype = mimetype
 		self.width = width
@@ -1313,6 +1322,11 @@ class File(Base):
 			with Image.open(stream) as img:
 				self.width = img.size[0]
 				self.height = img.size[1]
+
+	def _gethandler(self):
+		if self.globals is None:
+			raise NoHandlerError()
+		return self.globals._gethandler()
 
 	def __getattr__(self, name):
 		if name.startswith("t_"):
@@ -1345,35 +1359,18 @@ class File(Base):
 		if self.archive is None:
 			return self.url
 		else:
-			return f"{self.archive.url}/{self.storagefilename}"
+			return f"{self.archive.url}/{self.filename}"
 
-	def ul4_getattr(self, name):
-		# For these method call the version of the method instead, that doesn't
-		# support the ``handler`` parameter.
-		if name == "save":
-			return getattr(self, "ul4" + name)
-		return super().ul4_getattr(name)
+	def save(self) -> None:
+		self._gethandler().save_file(self)
 
-	def _gethandler(self, handler:T_opt_handler) -> "ll.la.handlers.Handler":
-		if handler is None:
-			if self.handler is None:
-				raise NoHandlerError()
-			handler = self.handler
-		return handler
-
-	def save(self, handler:T_opt_handler=None) -> None:
-		self._gethandler(handler).save_file(self)
-
-	def ul4save(self) -> None:
-		self.save()
-
-	def content(self, handler:T_opt_handler=None) -> bytes:
+	def content(self) -> bytes:
 		"""
 		Return the file content as a :class:`bytes` object.
 		"""
 		if self._content is not None:
 			return self._content
-		return self._gethandler(handler).file_content(self)
+		return self._gethandler().file_content(self)
 
 	vsqlgroup = vsql.Group(
 		"upload_ref_select",
@@ -1396,6 +1393,11 @@ class Geo(Base):
 
 	Relevant instance attributes are:
 
+	.. attribute:: globals
+		:type: Globals
+
+		The :class:`Globals` objects.
+
 	.. attribute:: lat
 		:type: float
 
@@ -1415,14 +1417,31 @@ class Geo(Base):
 	ul4_attrs = {"lat", "long", "info"}
 	ul4_type = ul4c.Type("la", "Geo", "Geographical coordinates and location information")
 
+	template_types = ("geo_instance",)
+
+	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lat = FloatAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	long = FloatAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	info = Attr(str, get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, lat=None, long=None, info=None):
+		self.globals = None
 		self.lat = lat
 		self.long = long
 		self.info = info
+
+	def __getattr__(self, name):
+		if name.startswith("t_"):
+			template = self.globals._fetch_template(self, name[2:])
+			if template is not None:
+				return template
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def ul4_getattr(self, name):
+		if name.startswith(("t_")):
+			return getattr(self, name)
+		else:
+			return super().ul4_getattr(name)
 
 	@classmethod
 	def ul4oncreate(cls, id:T_opt_str=None) -> "Geo":
@@ -1929,6 +1948,11 @@ class Globals(Base):
 	def ul4onid(self) -> str:
 		return self.id
 
+	def _gethandler(self):
+		if self.handler is None:
+			raise NoHandlerError()
+		return self.handler
+
 	def _datasources_ul4onset(self, value):
 		if value is not None:
 			self.datasources = value
@@ -1940,6 +1964,48 @@ class Globals(Base):
 	def _record_ul4onset(self, value):
 		if value is not None:
 			self.record = value
+
+	def file(self, source):
+		"""
+		Create a :class:`~ll.la.File` object from :obj:`source`.
+
+		:obj:`source` can be :class:`pathlib.Path` or :class:`os.PathLike` object,
+		an :class:`~ll.url.URL` object or a stream (i.e. an object with a
+		:meth:`read` method and a :attr:`name` attribute.
+		"""
+		path = None
+		mimetype = None
+		if isinstance(source, pathlib.Path):
+			content = source.read_bytes()
+			filename = source.name
+			path = str(source.resolve())
+		elif isinstance(source, str):
+			with open(source, "rb") as f:
+				content = f.read()
+			filename = os.path.basename(source)
+			path = source
+		elif isinstance(source, os.PathLike):
+			path = source.__fspath__()
+			with open(path, "rb") as f:
+				content = f.read()
+			filename = os.path.basename(path)
+		elif isinstance(source, url.URL):
+			filename = source.file
+			with source.openread() as r:
+				content = r.read()
+		else:
+			content = source.read()
+			if source.name:
+				filename = os.path.basename(source.name)
+			else:
+				filename = "Unnnamed"
+		if mimetype is None:
+			mimetype = mimetypes.guess_type(filename, strict=False)[0]
+			if mimetype is None:
+				mimetype = "application/octet-stream"
+		file = File(filename=filename, mimetype=mimetype, content=content)
+		file.globals = self
+		return file
 
 	def geo(self, lat:T_opt_float=None, long:T_opt_float=None, info:T_opt_str=None) -> Geo:
 		return self.handler.geo(lat, long, info)
@@ -2143,7 +2209,7 @@ class Globals(Base):
 	def templates(self) -> Dict[str, ul4c.Template]:
 		return self.app.templates if self.app else attrdict()
 
-	def _template_params_get(self) -> Dict[str, "AppParameter"]:
+	def _template_params_get(self) -> Dict[str, "MutableAppParameter"]:
 		if self._template_params is None:
 			if self.handler is None:
 				raise NoHandlerError()
@@ -2158,7 +2224,7 @@ class Globals(Base):
 	def _template_params_ul4onset(self, value):
 		self._template_params = attrdict(value) if value else attrdict()
 
-	def _params_get(self) -> Dict[str, "AppParameter"]:
+	def _params_get(self) -> Dict[str, "MutableAppParameter"]:
 		if self.template_params:
 			if self.app.params:
 				return attrdict(
@@ -2171,16 +2237,6 @@ class Globals(Base):
 				return self.template_params
 		else:
 			return self.app.params
-
-	def _get_chained_library(self, identifier):
-		if identifier not in self._chained_libraries:
-			base = self.app._get_chained_library(identifier)
-			if self.template_params:
-				params = collections.ChainMap(self.template_params, base.params)
-				self._chained_libraries[identifier] = ChainedLibrary(identifier, None, base.templates, params)
-			else:
-				self._chained_libraries[identifier] = base
-		return self._chained_libraries[identifier]
 
 	vsqlsearchfield = vsql.Field("search", vsql.DataType.STR, "livingapi_pkg.global_search")
 
@@ -2195,11 +2251,11 @@ class Globals(Base):
 			elif self.externaldatasources and name.startswith("e_"):
 				return self.externaldatasources[name[2:]]
 			elif name.startswith("t_"):
-				return self.templates[name[2:]]
+				template = self.app._fetch_template(self.app, name[2:])
+				if template is not None:
+					return template
 			elif name.startswith("l_"):
 				return self.libs[name[2:]]
-			elif self.app and name.startswith("cl_"):
-				return self._get_chained_library(name[3:])
 			elif self.app and name.startswith("p_"):
 				return self.params[name[2:]]
 			elif self.app and name.startswith("pv_"):
@@ -2234,8 +2290,6 @@ class Globals(Base):
 			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
-		elif self.app and name.startswith("cl_"):
-			return True
 		elif self.app and name.startswith("p_") and name[2:] in self.params:
 			return True
 		elif self.app and name.startswith("pv_") and name[3:] in self.params:
@@ -2244,7 +2298,7 @@ class Globals(Base):
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		if name.startswith(("d_", "t_", "cl_", "p_", "pv_")):
+		if name.startswith(("d_", "t_", "p_", "pv_")):
 			return getattr(self, name)
 		else:
 			return super().ul4_getattr(name)
@@ -2494,6 +2548,7 @@ class App(Base):
 		"template_url",
 		"new_embedded_url",
 		"new_standalone_url",
+		"new_url",
 		"home_url",
 		"datamanagement_url",
 		"import_url",
@@ -2505,6 +2560,8 @@ class App(Base):
 		"datamanageview_url",
 	}
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
+
+	template_types = ("app_instance", None)
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2531,7 +2588,7 @@ class App(Base):
 	insertprocedure = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updateprocedure = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	deleteprocedure = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	_owntemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	owntemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2546,10 +2603,11 @@ class App(Base):
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, categories=None, params=None, views=None, datamanagement_identifier=None):
+	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, datamanagement_identifier=None):
 		self.id = id
 		self.superid = None
 		self.globals = None
+		self.handler = None
 		self.name = name
 		self.description = description
 		self.lang = lang
@@ -2566,9 +2624,8 @@ class App(Base):
 		self.records = None
 		self.recordcount = recordcount
 		self.installation = installation
-		self.categories = categories
-		self._views = views
-		self._chained_libraries = {}
+		self.categories = None
+		self._views = None
 		self.datamanagement_identifier = datamanagement_identifier
 		self.basetable = None
 		self.primarykey = None
@@ -2576,7 +2633,8 @@ class App(Base):
 		self.updateprocedure = None
 		self.deleteprocedure = None
 		self._owntemplates = None
-		self._ownparams = params
+		self._ownparams = None
+		self._params = None
 		self.favorite = False
 		self.active_view = None
 		self.datasource = None
@@ -2597,13 +2655,13 @@ class App(Base):
 	def addparam(self, *params):
 		for param in params:
 			param.owner = self
-			if self._params is None:
-				self._params = {}
-			self._params[param.identifier] = param
+			self.ownparams[param.identifier] = param
+			if self._params is not None:
+				self._params[param.identifier] = param
 		return self
 
 	def ul4_add_param(self, type, identifier, description, value):
-		param = AppParameter(type=type, identifier=identifier, description=description, value=value)
+		param = MutableAppParameter(type=type, identifier=identifier, description=description, value=value)
 		self.addparam(param)
 		return param
 
@@ -2634,32 +2692,32 @@ class App(Base):
 			raise AttributeError(error_attribute_wrong_type(self, "active_view", value, (View, str)))
 		self.__dict__["active_view"] = value
 
-	@property
-	def owntemplates(self):
+	def _fetch_owntemplates(self):
 		if self._owntemplates is None:
-			self._owntemplates = self.globals.handler.fetch_templates(self)
+			self._owntemplates = self.globals.handler._loadinternaltemplates(self.id)
 		return self._owntemplates
 
-	@property
-	def templates(self):
-		return self._get_chained_library("la").templates
+	def _template_candidates(self):
+		yield self._fetch_owntemplates()
+		if "la" in self.ownparams and isinstance(self.ownparams["la"], App):
+			yield from self.ownparams["la"]._template_candidates()
+		else:
+			if self.superid is not None:
+				yield self.globals.handler._loadinternaltemplates(self.superid)
+			yield self.globals.handler.fetch_librarytemplates()
 
-	def _get_chained_library(self, identifier):
-		if identifier not in self._chained_libraries:
-			handler = self._gethandler()
-			templates = self.owntemplates
-			params = self.ownparams
-			if identifier in self.ownparams:
-				param = self.ownparams[identifier]
-				if isinstance(param.value, App):
-					base = param.value._get_chained_library(identifier)
-					templates = collections.ChainMap(templates, base.templates)
-					params = collections.ChainMap(params, base.params)
-			else:
-				templates = collections.ChainMap(templates, handler.fetch_librarytemplates())
-				params = collections.ChainMap(params, handler.fetch_libraryparams())
-			self._chained_libraries[identifier] = ChainedLibrary(identifier, self, templates, params)
-		return self._chained_libraries[identifier]
+	def _fetch_template(self, instance, identifier):
+		for templates in self._template_candidates():
+			for type in instance.template_types:
+				if type in templates and identifier in templates[type]:
+					template = templates[type][identifier]
+					if type is not None:
+						template = ul4c.BoundTemplate(instance, template)
+					return template
+		return None
+
+	def _templates_get(self):
+		templates = attrdict()
 
 	def template_url(self, identifier, record=None, /, **params):
 		url = f"/gateway/apps/{self.id}"
@@ -2675,6 +2733,12 @@ class App(Base):
 	def new_standalone_url(self, **params):
 		url = f"/gateway/apps/{self.id}/new"
 		return url_with_params(url, True, params)
+
+	def new_url(self, **params):
+		if self.ownparams["la_default_form_variant"] == "standalone":
+			return self.new_standalone_url(**params)
+		else:
+			return self.new_embedded_url(**params)
 
 	def home_url(self):
 		return f"/apps/{self.id}.htm"
@@ -2710,10 +2774,10 @@ class App(Base):
 		try:
 			if name.startswith("c_"):
 				return self.controls[name[2:]]
-			elif name.startswith("cl_"):
-				return self._get_chained_library(name[3:])
 			elif name.startswith("t_"):
-				return self.templates[name[2:]]
+				template = self._fetch_template(self, name[2:])
+				if template is not None:
+					return template
 			elif name.startswith("lc_") and self.layout_controls:
 				return self.layout_controls[name[3:]]
 			elif name.startswith("p_") and self.params:
@@ -2738,8 +2802,10 @@ class App(Base):
 			attrs.add(f"p_{identifier}")
 			attrs.add(f"pv_{identifier}")
 			attrs.add(f"cl_{identifier}")
-		for identifier in self.templates:
-			attrs.add(f"t_{identifier}")
+		for type in (None, "app_instance"):
+			if type in self.templates:
+				for identifier in self.templates[type]:
+					attrs.add(f"t_{identifier}")
 		return attrs
 
 	def ul4_hasattr(self, name):
@@ -2753,8 +2819,6 @@ class App(Base):
 			return True
 		elif name.startswith("pv_") and name[3:] in self.params:
 			return True
-		elif name.startswith("cl_"):
-			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
 		else:
@@ -2763,17 +2827,30 @@ class App(Base):
 	def ul4_getattr(self, name):
 		if name == "add_param":
 			return self.ul4_add_param
-		elif name.startswith(("c_", "lc_", "p_", "pv_", "cl_", "t_")):
+		elif name.startswith(("c_", "lc_", "p_", "pv_", "t_")):
 			return getattr(self, name)
 		elif self.ul4_hasattr(name):
 			return super().ul4_getattr(name)
 
-	def _gethandler(self, handler=None):
-		if handler is None:
-			if self.globals is None or self.globals.handler is None:
-				raise NoHandlerError()
-			handler = self.globals.handler
-		return handler
+	def _gethandler(self):
+		if self.handler is not None:
+			return self.handler
+		if self.globals is None:
+			raise NoHandlerError()
+		return self.globals._gethandler()
+
+	def _params_inheritance_chain(self):
+		yield self._ownparams_get()
+		if "la" in self.ownparams and isinstance(self._ownparams["la"], App):
+			yield from self.ownparams["la"]._params_inheritance_chain()
+		else:
+			yield self.globals.handler.fetch_libraryparams()
+
+	def _param(self, identifier):
+		for params in self._params_inheritance_chain():
+			if identifier in params:
+				return params[identifier]
+		return None
 
 	def _ownparams_get(self):
 		params = self._ownparams
@@ -2798,7 +2875,12 @@ class App(Base):
 			self._ownparams = value
 
 	def _params_get(self):
-		return self._get_chained_library("la").params
+		if self._params is None:
+			params = attrdict()
+			for candidate in reversed(list(self._params_inheritance_chain())):
+				params.update(candidate)
+			self._params = params
+		return self._params
 
 	def _menus_get(self):
 		menus = self._menus
@@ -2861,8 +2943,8 @@ class App(Base):
 			return attrdict()
 		return self.active_view.layout_controls
 
-	def save(self, handler:T_opt_handler=None, recursive=True):
-		self._gethandler(handler).save_app(self, recursive=recursive)
+	def save(self, recursive=True):
+		self._gethandler().save_app(self, recursive=recursive)
 
 	_saveletters = string.ascii_letters + string.digits + "()-+_ äöüßÄÖÜ"
 
@@ -3173,6 +3255,23 @@ class Control(Base):
 		self.priority = priority
 		self.order = order
 		self._vsqlfield = None
+
+	@property
+	def template_types(self):
+		return (f"control_{self.type}_instance", "control_instance")
+
+	def __getattr__(self, name):
+		if name.startswith("t_"):
+			template = self.app._fetch_template(self, name[2:])
+			if template is not None:
+				return template
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def ul4_getattr(self, name):
+		if name.startswith(("t_")):
+			return getattr(self, name)
+		else:
+			return super().ul4_getattr(name)
 
 	@property
 	def ul4onid(self) -> str:
@@ -4923,23 +5022,21 @@ class ViewControl(Base):
 
 class State(misc.Enum):
 	"""
-	The database synchronisation state of the record.
+	The database synchronisation state of the record or parameter.
 
 	Values are:
 
 	``NEW``
-		The record object has been created by the template, but hasn't been
-		saved yet.
+		The object has been created by the template, but hasn't been saved yet.
 
 	``SAVED``
-		The record object has been loaded from the database and hasn't been
-		changed since.
+		The object has been loaded from the database and hasn't been changed since.
 
 	``CHANGED``
-		The record object has been changed by the user.
+		The object has been changed by the user.
 
 	``DELETED``
-		The record has been deleted in the database.
+		The object has been deleted in the database.
 	"""
 
 	NEW = "new"
@@ -5043,14 +5140,17 @@ class Record(Base):
 		"is_dirty",
 		"save",
 		"update",
+		"delete",
 		"executeaction",
 		"state",
 		"template_url",
 		"edit_embedded_url",
 		"edit_standalone_url",
+		"edit_url",
 	}
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
+	template_types = ("record_instance",)
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	state = EnumAttr(State, get="", required=True, repr=True, ul4get="")
@@ -5260,6 +5360,10 @@ class Record(Base):
 				return self.fields[name[2:]]
 			elif name.startswith("c_"):
 				return self.children[name[2:]]
+			elif name.startswith("t_"):
+				template = self.app._fetch_template(self, name[2:])
+				if template is not None:
+					return template
 			elif name in self.__class__.__dict__:
 				attr = getattr(self.__class__, name)
 				if isinstance(attr, Attr):
@@ -5310,11 +5414,7 @@ class Record(Base):
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		# For these methods call the version of the method instead, that doesn't
-		# support the ``handler`` parameter.
-		if name in {"save", "delete", "executeaction"}:
-			return getattr(self, "ul4" + name)
-		elif name.startswith(("f_", "v_", "c_")):
+		if name.startswith(("f_", "v_", "c_", "t_")):
 			return getattr(self, name)
 		else:
 			return super().ul4_getattr(name)
@@ -5333,14 +5433,13 @@ class Record(Base):
 			return
 		super().ul4_setattr(name, value)
 
-	def _gethandler(self, handler):
-		if handler is None:
-			if self.app is None:
-				raise NoHandlerError()
-		return self.app._gethandler(handler)
+	def _gethandler(self):
+		if self.app is None:
+			raise NoHandlerError()
+		return self.app._gethandler()
 
-	def save(self, force=False, sync=False, handler:T_opt_handler=None):
-		handler = self._gethandler(handler)
+	def save(self, force=False, sync=False):
+		handler = self._gethandler()
 		if not force:
 			self.check_errors()
 		result = handler.save_record(self)
@@ -5359,20 +5458,14 @@ class Record(Base):
 			self.fields[identifier].value = value
 		self.save(force=True)
 
-	def delete(self, handler:T_opt_handler=None):
-		self._gethandler(handler).delete_record(self)
+	def delete(self):
+		self._gethandler().delete_record(self)
 
-	def executeaction(self, handler:T_opt_handler=None, identifier=None):
-		self._gethandler(handler)._executeaction(self, identifier)
+	def executeaction(self, identifier=None):
+		self._gethandler()._executeaction(self, identifier)
 
 	def ul4save(self, force=False, sync=False):
 		return self.save(force=force, sync=sync)
-
-	def ul4delete(self):
-		self.delete()
-
-	def ul4executeaction(self, identifier=None):
-		self.executeaction(identifier=identifier)
 
 	def template_url(self, identifier, /, **params):
 		url = f"/gateway/apps/{self.app.id}/{self.id}?template={identifier}"
@@ -5385,6 +5478,12 @@ class Record(Base):
 	def edit_standalone_url(self, **params):
 		url = f"/gateway/apps/{self.app.id}/{self.id}/edit"
 		return url_with_params(url, True, params)
+
+	def edit_url(self, **params):
+		if self.app.ownparams["la_default_form_variant"] == "standalone":
+			return self.edit_standalone_url(**params)
+		else:
+			return self.edit_embedded_url(**params)
 
 	def has_errors(self):
 		if self.errors:
@@ -5526,6 +5625,10 @@ class Field(Base):
 		self._dirty = False
 
 	@property
+	def template_types(self):
+		return (f"field_{self.control.type}_instance", "field_instance")
+
+	@property
 	def label(self):
 		return self._label if self._label is not None else self.control.label
 
@@ -5651,6 +5754,19 @@ class Field(Base):
 			s += " has_errors()=True"
 		s += f" at {id(self):#x}>"
 		return s
+
+	def __getattr__(self, name):
+		if name.startswith("t_"):
+			template = self.control.app._fetch_template(self, name[2:])
+			if template is not None:
+				return template
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def ul4_getattr(self, name):
+		if name.startswith(("t_")):
+			return getattr(self, name)
+		else:
+			return super().ul4_getattr(name)
 
 	def ul4ondump(self, encoder):
 		encoder.dump(self.control)
@@ -5945,11 +6061,10 @@ class Template(Base):
 	def template(self:T_opt_handler) -> "ll.la.handlers.Handler":
 		return ul4c.Template(self.source, name=self.identifier, signature=self.signature, whitespace=self.whitespace)
 
-	def _gethandler(self, handler):
-		if handler is None:
-			if self.app is None:
-				raise NoHandlerError()
-		return self.app._gethandler(handler)
+	def _gethandler(self):
+		if self.app is None:
+			raise NoHandlerError()
+		return self.app._gethandler()
 
 	def _save(self, path, content):
 		content = content or ""
@@ -6009,11 +6124,11 @@ class InternalTemplate(Template):
 	def __str__(self):
 		return f"{self.app or '?'}/internaltemplate={self.identifier}"
 
-	def save(self, handler:T_opt_handler=None, recursive=True):
-		self._gethandler(handler).save_internaltemplate(self)
+	def save(self, recursive=True):
+		self._gethandler().save_internaltemplate(self)
 
-	def delete(self, handler:T_opt_handler=None):
-		self._gethandler(handler).delete_internaltemplate(self)
+	def delete(self):
+		self._gethandler().delete_internaltemplate(self)
 
 
 @register("viewtemplateconfig")
@@ -6137,11 +6252,11 @@ class ViewTemplateConfig(Template):
 			self.datasources[datasource.identifier] = datasource
 		return self
 
-	def save(self, handler:T_opt_handler=None, recursive=True):
-		self._gethandler(handler).save_viewtemplate(self)
+	def save(self, recursive=True):
+		self._gethandler().save_viewtemplate(self)
 
-	def delete(self, handler:T_opt_handler=None):
-		self._gethandler(handler).delete_viewtemplate(self)
+	def delete(self):
+		self._gethandler().delete_viewtemplate(self)
 
 
 @register("datasourceconfig")
@@ -6392,14 +6507,13 @@ class DataSourceConfig(Base):
 				raise TypeError(f"don't know what to do with positional argument {item!r}")
 		return self
 
-	def _gethandler(self, handler):
-		if handler is None:
-			if self.parent is None:
-				raise NoHandlerError()
-		return self.parent._gethandler(handler)
+	def _gethandler(self):
+		if self.parent is None:
+			raise NoHandlerError()
+		return self.parent._gethandler()
 
-	def save(self, handler:T_opt_handler=None, recursive=True):
-		self._gethandler(handler).save_datasourceconfig(self)
+	def save(self, recursive=True):
+		self._gethandler().save_datasourceconfig(self)
 
 
 @register("datasourcechildren")
@@ -6482,14 +6596,13 @@ class DataSourceChildren(Base):
 				raise TypeError(f"don't know what to do with positional argument {item!r}")
 		return self
 
-	def _gethandler(self, handler):
-		if handler is None:
-			if self.datasource is None:
-				raise NoHandlerError()
-		return self.datasource._gethandler(handler)
+	def _gethandler(self):
+		if self.datasource is None:
+			raise NoHandlerError()
+		return self.datasource._gethandler()
 
-	def save(self, handler, recursive=True):
-		self._gethandler(handler).save_datasourcechildren(self)
+	def save(self, recursive=True):
+		self._gethandler().save_datasourcechildren(self)
 
 
 @register("dataorder")
@@ -7230,14 +7343,31 @@ class LayoutControl(Base):
 		self.visible = True
 
 	@property
+	def template_types(self):
+		return (f"layoutcontrol_{self.type}_instance", "layoutcontrol_instance")
+
+	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def __getattr__(self, name):
+		if name.startswith("t_"):
+			template = self.view.app._fetch_template(self, name[2:])
+			if template is not None:
+				return template
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def ul4_getattr(self, name):
+		if name.startswith("t_"):
+			return getattr(self, name)
+		else:
+			return super().ul4_getattr(name)
 
 
 @register("htmllayoutcontrol")
 class HTMLLayoutControl(LayoutControl):
 	"""
-	A :class:`!HTMLLayoutControl` provides HTML "decorarion" in an input form.
+	A :class:`!HTMLLayoutControl` provides HTML "decoration" in an input form.
 
 	Relevant instance attributes are:
 
@@ -7893,8 +8023,11 @@ class TemplateLibrary(Base):
 @register("appparameter")
 class AppParameter(Base):
 	r"""
-	An additional parameter for an app.
+	An parameter for an app or the library.
 
+	This class provides objects that can not be changed by UL4 templates, and
+	are therefore used for the library parameters. The mutable subclass
+	:class:`MutableAppParameter` is used for parameters attached to apps.
 	This can e.g. be used to provide a simple way to configure the behaviour
 	of :class:`ViewTemplate`\s.
 
@@ -8019,14 +8152,13 @@ class AppParameter(Base):
 		DICT = "dict"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	state = EnumAttr(State, get="", required=True, repr=True, ul4get="")
 	owner = Attr(App, TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	parent = Attr(lambda: AppParameter, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	type = EnumAttr(Type, get=True, set="", repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	type = EnumAttr(Type, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	order = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	value = Attr(get=True, set="", ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -8048,6 +8180,36 @@ class AppParameter(Base):
 		self._dirty = True
 		self.__dict__["type"] = None
 		self.__dict__["value"] = None
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	@property
+	def app(self) -> Optional[App]:
+		return self.parent if isinstance(self.parent, App) else None
+
+
+@register("mutableappparameter")
+class MutableAppParameter(AppParameter):
+	r"""
+	An additional parameter for an app.
+
+	Instances of this class can be changed by UL4 templates.
+	"""
+
+	ul4_attrs = AppParameter.ul4_attrs.union({"state", "save", "delete"})
+	ul4_type = ul4c.Type("la", "MutableAppParameter", "A mutable parameter of a LivingApps application")
+
+	state = EnumAttr(State, get="", required=True, repr=True, ul4get="")
+	type = EnumAttr(AppParameter.Type, get=True, set="", repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(get=True, set="", ul4get=True, ul4set="_value_set", ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, parent=None, owner=None, type=None, order=None, identifier=None, description=None, value=None):
+		super().__init__(id=id, parent=parent, owner=owner, type=type, order=order, identifier=identifier, description=description, value=value)
+		self._new = True
+		self._deleted = False
+		self._dirty = True
 		if type is not None:
 			self.type = type
 			if value is not None:
@@ -8055,22 +8217,10 @@ class AppParameter(Base):
 		elif value is not None:
 			self.value = value
 
-	@property
-	def ul4onid(self) -> str:
-		return self.id
-
 	def ul4onload_end(self, decoder:ul4on.Decoder) -> None:
 		self._new = False
 		self._deleted = False
 		self._dirty = False
-
-	@property
-	def app(self) -> Optional[App]:
-		return self.parent if isinstance(self.parent, App) else None
-
-	@property
-	def library(self) -> Optional[TemplateLibrary]:
-		return self.parent if isinstance(self.parent, TemplateLibrary) else None
 
 	def ul4_hasattr(self, name):
 		if name == "append_param" and self.type is self.Type.LIST:
@@ -8226,21 +8376,20 @@ class AppParameter(Base):
 		else:
 			raise TypeError(f"Type {type(value)} not supported for app parameters")
 
-	def _gethandler(self, handler):
-		if handler is None:
-			if self.owner is None:
-				raise NoHandlerError()
-		return self.owner._gethandler(handler)
+	def _gethandler(self):
+		if self.owner is None:
+			raise NoHandlerError()
+		return self.owner._gethandler()
 
-	def save(self, sync=False, handler:T_opt_handler=None):
-		handler = self._gethandler(handler)
+	def save(self, sync=False):
+		handler = self._gethandler()
 		handler.save_parameter(self)
 		if sync:
 			handler.parameter_sync_data(self.id)
 		return True
 
-	def delete(self, handler:T_opt_handler=None):
-		self._gethandler(handler).delete_parameter(self)
+	def delete(self):
+		self._gethandler().delete_parameter(self)
 
 	def append_param(self, *, type=None, description=None, value=None):
 		if self.type is not self.Type.LIST:
@@ -8410,6 +8559,8 @@ class MenuItem(Base):
 	ul4_attrs = {"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "accessible", "children", "createdat", "createdby", "updatedat", "updatedby"}
 	ul4_type = ul4c.Type("la", "MenuItem", "An additional menu item in an app that links to a target page.")
 
+	template_types = ("menuitem_instance",)
+
 	class Type(misc.Enum):
 		"""
 		What is the target of the link? Possible values are:
@@ -8511,6 +8662,10 @@ class MenuItem(Base):
 				return self.children[name[2:]]
 		except KeyError:
 			pass
+		if name.startswith("t_"):
+			template = self.app._fetch_template(self, name[2:])
+			if template is not None:
+				return template
 		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __dir__(self):
@@ -8532,6 +8687,8 @@ class MenuItem(Base):
 
 	def ul4_getattr(self, name):
 		if name.startswith("c_"):
+			return getattr(self, name)
+		elif name.startswith("t_"):
 			return getattr(self, name)
 		elif self.ul4_hasattr(name):
 			return super().ul4_getattr(name)
@@ -8610,6 +8767,8 @@ class Panel(MenuItem):
 
 	ul4_attrs = MenuItem.ul4_attrs.union({"description", "description_url", "image", "row", "column", "width", "height", "header_type", "header_background", "text_color", "background_color1", "background_color2"})
 	ul4_type = ul4c.Type("la", "Panel", "An additional panel in an app that is displayed on various LivingApps pages and links to a target page.")
+
+	template_types = ("panel_instance", "menuitem_instance")
 
 	class HeaderType(misc.Enum):
 		"""

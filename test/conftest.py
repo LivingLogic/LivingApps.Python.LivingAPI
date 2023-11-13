@@ -108,19 +108,21 @@ class Handler:
 
 	def make_viewtemplate(self, *args, **kwargs):
 		viewtemplate = la.ViewTemplateConfig(*args, **{**{"mimetype": "text/plain"}, **kwargs})
-		app = la.App()
-		app.id = person_app_id()
-		app.addtemplate(viewtemplate)
 		with self.dbhandler:
+			app = la.App()
+			app.handler = self.dbhandler
+			app.id = person_app_id()
+			app.addtemplate(viewtemplate)
 			app.save(self.dbhandler)
 		return viewtemplate
 
 	def make_internaltemplate(self, *args, **kwargs):
 		internaltemplate = la.InternalTemplate(*args, **kwargs)
-		app = la.App()
-		app.id = person_app_id()
-		app.addtemplate(internaltemplate)
 		with self.dbhandler:
+			app = la.App()
+			app.handler = self.dbhandler
+			app.id = person_app_id()
+			app.addtemplate(internaltemplate)
 			app.save(self.dbhandler)
 		return internaltemplate
 
@@ -328,8 +330,10 @@ def config_apps():
 
 	persons_app = vars["apps"][person_app_id()]
 	fields_app = vars["apps"][fields_app_id()]
+	globals = vars["globals"]
 
 	return attrdict(
+		globals=globals,
 		handler=handler,
 		apps=attrdict(
 			persons=persons_app,
@@ -376,13 +380,13 @@ def config_norecords(config_apps):
 
 	# Remove all persons
 	for r in persons_app.records.values():
-		r.delete(c.handler)
+		r.delete()
 
 	# Recursively remove areas of activity
 	def removeaa(r):
 		for r2 in r.c_children.values():
 			removeaa(r2)
-		r.delete(c.handler)
+		r.delete()
 
 	for r in fields_app.records.values():
 		if r.v_parent is None:
@@ -448,15 +452,15 @@ def config_persons(config_fields):
 	def p(**values):
 		p = personen_app(**values)
 		if p.v_portrait is not None and p.v_portrait.id is None:
-			p.v_portrait.save(c.handler)
-		p.save(c.handler)
+			p.v_portrait.save()
+		p.save()
 		return p
 
 	def u(u):
-		return c.handler.file(url_.URL(u))
+		return c.globals.file(url_.URL(u))
 
 	def g(lat=None, long=None, info=None):
-		return c.handler.geo(lat, long, info)
+		return c.globals.geo(lat, long, info)
 
 	c.persons.ae = p(
 		firstname="Albert",

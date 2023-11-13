@@ -97,7 +97,6 @@ class Handler:
 	def __init__(self):
 		self.globals = None
 		registry = {
-			"de.livinglogic.livingapi.file": self._loadfile,
 			"de.livinglogic.livingapi.globals": self._loadglobals,
 		}
 		self.ul4on_decoder = ul4on.Decoder(registry)
@@ -159,48 +158,6 @@ class Handler:
 
 	def meta_data(self, *appids):
 		raise NotImplementedError
-
-	def file(self, source):
-		"""
-		Create a :class:`~ll.la.File` object from :obj:`source`.
-
-		:obj:`source` can be :class:`pathlib.Path` or :class:`os.PathLike` object,
-		an :class:`~ll.url.URL` object or a stream (i.e. an object with a
-		:meth:`read` method and a :attr:`name` attribute.
-		"""
-		path = None
-		mimetype = None
-		if isinstance(source, pathlib.Path):
-			content = source.read_bytes()
-			filename = source.name
-			path = str(source.resolve())
-		elif isinstance(source, str):
-			with open(source, "rb") as f:
-				content = f.read()
-			filename = os.path.basename(source)
-			path = source
-		elif isinstance(source, os.PathLike):
-			path = source.__fspath__()
-			with open(path, "rb") as f:
-				content = f.read()
-			filename = os.path.basename(path)
-		elif isinstance(source, url.URL):
-			filename = source.file
-			with source.openread() as r:
-				content = r.read()
-		else:
-			content = source.read()
-			if source.name:
-				filename = os.path.basename(source.name)
-			else:
-				filename = "Unnnamed"
-		if mimetype is None:
-			mimetype = mimetypes.guess_type(filename, strict=False)[0]
-			if mimetype is None:
-				mimetype = "application/octet-stream"
-		file = la.File(filename=filename, mimetype=mimetype, content=content)
-		file.handler = self
-		return file
 
 	def _geofrominfo(self, info:str) -> la.Geo:
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder``
@@ -315,11 +272,6 @@ class Handler:
 
 	def fetch_emailtemplate_params(self, globals):
 		return la.attrdict()
-
-	def _loadfile(self, id):
-		file = la.File(id=id)
-		file.handler = self
-		return file
 
 	def _loadglobals(self, id=None):
 		globals = la.Globals(id=id)
@@ -1392,16 +1344,21 @@ class DBHandler(Handler):
 		c.execute("""
 			select
 				it_identifier,
+				tmt_key,
 				utv_source
 			from
 				internaltemplate.internaltemplate_select
 			where
 				app_id=%s
 		""", [tpl_uuid])
-		templates = {}
+		templates = la.attrdict()
 		for r in c:
-			template = ul4c.Template(r[1], name=r[0])
-			templates[template.name] = template
+			(identifier, type, source) = r
+			namespace = f"app_{tpl_uuid}.internaltemplates.{type}" if type else f"app_{tpl_uuid}.internaltemplates"
+			template = ul4c.Template(source, name=identifier, namespace=namespace)
+			if type not in templates:
+				templates[type] = la.attrdict()
+			templates[type][template.name] = template
 		self.internaltemplates[tpl_uuid] = templates
 		return templates
 
@@ -1429,16 +1386,23 @@ class DBHandler(Handler):
 	def fetch_librarytemplates(self):
 		if self.librarytemplates is None:
 			c = self.cursor_pg(row_factory=rows.tuple_row)
-			c.execute("select templatelibrary.librarytemplates_ful4on()")
-			r = c.fetchone()
-			dump = r[0]
-			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
-			# Note that we ignore the problem of persistent objects, since none of the
-			# persistent objects in this dump are in the other dump
-			dump = ul4on.loads(dump)
-			if isinstance(dump, dict):
-				dump = la.attrdict(dump)
-			self.librarytemplates = la.attrdict(dump)
+			c.execute("""
+				select
+					lt_identifier,
+					tmt_key,
+					utv_source
+				from
+					templatelibrary.librarytemplate_select
+			""")
+			templates = la.attrdict()
+			for r in c:
+				(identifier, type, source) = r
+				namespace = f"templatelibrary.{type}" if type else f"templatelibrary"
+				template = ul4c.Template(source, name=identifier, namespace=namespace)
+				if type not in templates:
+					templates[type] = la.attrdict()
+				templates[type][template.name] = template
+			self.librarytemplates = templates
 		return self.librarytemplates
 
 	def fetch_libraryparams(self):
