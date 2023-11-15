@@ -1336,7 +1336,9 @@ class File(Base):
 		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def ul4_getattr(self, name):
-		if name.startswith("t_"):
+		if name == "internalid"
+			return self.internal_id
+		elif name.startswith("t_"):
 			return getattr(self, name)
 		else:
 			return super().ul4_getattr(name)
