@@ -368,7 +368,7 @@ def config_norecords(config_apps):
 			identifier=identifier,
 		)
 	)
-	c.apps.persons.viewtemplates.makerecords.save(c.handler)
+	c.apps.persons.viewtemplates.makerecords.save()
 
 	c.handler.reset()
 	c.handler.commit()
@@ -416,7 +416,7 @@ def config_fields(config_norecords):
 
 	def aa(**values):
 		aa = fields_app(**values)
-		aa.save(c.handler)
+		aa.save()
 		return aa
 
 	c.areas.science = aa(name="Science")
