@@ -2861,48 +2861,44 @@ def test_template_libraries(handler):
 		vt = handler.make_viewtemplate(
 			identifier="template_libraries",
 			source="""
-				<?render globals.libs.la_static.templates.la_static_ul4()?>
-				<?render globals.libs.la_static.t_la_static_ul4()?>
-				<?render globals.l_la_static.templates.la_static_ul4()?>
-				<?render globals.l_la_static.t_la_static_ul4()?>
+				<?render globals.templates.la_static_ul4()?>
+				<?render globals.t_la_static_ul4()?>
+				<?render globals.app.templates.la_static_ul4()?>
+				<?render globals.app.t_la_static_ul4()?>
 			"""
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
 		expected = """
-			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.0/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.0/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.0/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.0/dist/umd/ul4.js"></script>
 		"""
 		assert lines(output) == lines(expected)
 
 
-def test_chained_template_library(handler):
+def test_library_parameters(handler):
 	if not isinstance(handler, PythonHTTP):
 		vt = handler.make_viewtemplate(
-			identifier="chained_template_library",
+			identifier="library_parameters",
 			source="""
-				<?render globals.app.cl_la_static.templates.la_static_ul4()?>
-				<?render globals.app.cl_la_static.t_la_static_ul4()?>
-				<?render globals.cl_la_static.templates.la_static_ul4()?>
-				<?render globals.cl_la_static.t_la_static_ul4()?>
-				<?print globals.app.cl_foo.identifier?>
-				<?print globals.cl_foo.identifier?>
-				<?print globals.app.cl_foo.app is globals.app?>
-				<?print globals.cl_foo.app is globals.app?>
+				<?print globals.params.la_css_active_color.value?>
+				<?print globals.p_la_css_active_color.value?>
+				<?print globals.pv_la_css_active_color?>
+				<?print globals.app.params.la_css_active_color.value?>
+				<?print globals.app.p_la_css_active_color.value?>
+				<?print globals.app.pv_la_css_active_color?>
 			"""
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
 		expected = """
-			<script src="nosource"></script>
-			<script src="nosource"></script>
-			<script src="nosource"></script>
-			<script src="nosource"></script>
-			foo
-			foo
-			True
-			True
+			#008bd2
+			#008bd2
+			#008bd2
+			#008bd2
+			#008bd2
+			#008bd2
 		"""
 		assert lines(output) == lines(expected)
