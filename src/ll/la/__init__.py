@@ -2583,6 +2583,7 @@ class App(Base):
 	categories = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
 	params = AttrDictAttr(get="", ul4get="_params_get")
+	templates = Attr(get="", ul4get="_templates_get")
 	views = Attr(get="", set="", ul4get="_views_get", ul4onget="_views_ul4onget", ul4onset="_views_set")
 	datamanagement_identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	basetable = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2627,6 +2628,7 @@ class App(Base):
 		self.recordcount = recordcount
 		self.installation = installation
 		self.categories = None
+		self._templates = None
 		self._views = None
 		self.datamanagement_identifier = datamanagement_identifier
 		self.basetable = None
@@ -2719,7 +2721,13 @@ class App(Base):
 		return None
 
 	def _templates_get(self):
-		templates = attrdict()
+		if self._templates is None:
+			self._templates = attrdict()
+			for templates in reversed(list(self._template_candidates())):
+				for type in ("app_instance", None):
+					if type in templates:
+						self._templates.update(templates[type])
+		return self._templates
 
 	def template_url(self, identifier, record=None, /, **params):
 		url = f"/gateway/apps/{self.id}"
@@ -2803,11 +2811,8 @@ class App(Base):
 		for identifier in self.params:
 			attrs.add(f"p_{identifier}")
 			attrs.add(f"pv_{identifier}")
-			attrs.add(f"cl_{identifier}")
-		for type in (None, "app_instance"):
-			if type in self.templates:
-				for identifier in self.templates[type]:
-					attrs.add(f"t_{identifier}")
+			for identifier in self.templates:
+				attrs.add(f"t_{identifier}")
 		return attrs
 
 	def ul4_hasattr(self, name):
@@ -2815,7 +2820,7 @@ class App(Base):
 			return True
 		elif name.startswith("c_") and name[2:] in self.controls:
 			return True
-		elif name.startswith("lc_") and self.layout_controls and name[3:] in self.layout_controls:
+		elif name.startswith("lc_") and name[3:] in self.layout_controls:
 			return True
 		elif name.startswith("p_") and name[2:] in self.params:
 			return True
