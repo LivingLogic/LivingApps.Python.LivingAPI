@@ -2656,12 +2656,14 @@ def test_view_layout_controls(handler, config_apps):
 			<?code papp = globals.d_persons.app?>
 			<?code pview = first(app.views.values())?>
 			<?print "save" in pview.layout_controls?>
-			<?print isinstance(first(pview.layout_controls.values()), la.ButtonLayoutControl)?>
+			<?print isinstance(pview.layout_controls.save, la.ButtonLayoutControl)?>
+			<?print isinstance(pview.lc_save, la.ButtonLayoutControl)?>
 		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = """
+		True
 		True
 		True
 	"""
