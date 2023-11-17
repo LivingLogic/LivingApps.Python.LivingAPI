@@ -163,7 +163,7 @@ def test_file_attributes(handler):
 			<?code icon = app.iconlarge or app.iconsmall?>
 			id=<?print isinstance(icon.id, str)?>
 			internalid=<?print isinstance(icon.internalid, str)?>
-			url=<?print icon.url.startswith("/gateway/files/")?>
+			url=<?print icon.url.startswith("/files/")?>
 			filename=<?print icon.filename.endswith([".gif", ".png", ".jpg", ".jpeg"])?>
 			mimetype=<?print icon.mimetype in {"image/gif", "image/png", "image/jpeg"}?>
 			width=<?print icon.width > 0?>
