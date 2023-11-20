@@ -5142,7 +5142,7 @@ class Record(Base):
 		record.
 	"""
 
-	ul4_attrs = {
+	ul4_attrs = Base.ul4_attrs.union({
 		"id",
 		"app",
 		"createdat",
@@ -5155,9 +5155,12 @@ class Record(Base):
 		"children",
 		"attachments",
 		"errors",
+		"custom",
 		"has_errors",
+		"has_errors_in_active_view",
 		"add_error",
 		"clear_errors",
+		"clear_all_errors",
 		"is_deleted",
 		"is_dirty",
 		"save",
@@ -5169,7 +5172,7 @@ class Record(Base):
 		"edit_embedded_url",
 		"edit_standalone_url",
 		"edit_url",
-	}
+	})
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
 	template_types = ("record_instance",)
@@ -5189,6 +5192,7 @@ class Record(Base):
 	errors = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
 	lookupdata = AttrDictAttr(ul4onget="", ul4onset="")
+	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
 		self.id = id
@@ -5206,6 +5210,7 @@ class Record(Base):
 		self.children = attrdict()
 		self.attachments = None
 		self.errors = []
+		self.custom = None
 		self._new = True
 		self._deleted = False
 
@@ -5416,7 +5421,7 @@ class Record(Base):
 		"""
 		Make keys completeable in IPython.
 		"""
-		attrs = set(super().__dir__())
+		attrs = set(self.ul4_attrs)
 		for identifier in self.app.controls:
 			attrs.add(f"f_{identifier}")
 			attrs.add(f"v_{identifier}")
@@ -5424,6 +5429,9 @@ class Record(Base):
 			for identifier in self.children:
 				attrs.add(f"c_{identifier}")
 		return attrs
+
+	def ul4_dir(self):
+		return dir(self)
 
 	def ul4_hasattr(self, name):
 		if name in self.ul4_attrs:
@@ -7614,6 +7622,8 @@ class View(Base):
 				return self.controls[name[2:]]
 			elif name.startswith("lc_"):
 				return self.layout_controls[name[3:]]
+			else:
+				raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 		except KeyError:
 			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 

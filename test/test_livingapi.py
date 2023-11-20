@@ -3022,3 +3022,58 @@ def test_app_dir(handler, config_apps):
 		panels=True
 	"""
 	assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_record_dir(handler, config_apps):
+	c = config_apps
+
+	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="persons",
+			app=c.apps.persons,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+		),
+		identifier="test_livingapi_record_dir",
+		source=f"""
+			<?code record = first(app.records.values())?>
+			<?for attrname in sorted(dir(record))?>
+				<?if not attrname.startswith(["t_", "f_", "v_", "c_"])?>
+					<?print attrname?>=<?print isdefined(getattr(record, attrname))?>
+				<?end if?>
+			<?end for?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		id=True
+		app=True
+		createdat=True
+		createdby=True
+		updatedat=True
+		updatedby=True
+		updatecount=True
+		fields=True
+		values=True
+		children=True
+		attachments=True
+		errors=True
+		has_errors=True
+		has_errors_in_active_view=True
+		add_error=True
+		clear_errors=True
+		clear_all_errors=True
+		is_deleted=True
+		is_dirty=True
+		save=True
+		update=True
+		delete=True
+		executeaction=True
+		state=True
+		template_url=True
+		edit_embedded_url=True
+		edit_standalone_url=True
+		edit_url=True
+		custom=True
+	"""
+	assert sorted(lines(output)) == sorted(lines(expected))
