@@ -1837,7 +1837,7 @@ class Globals(Base):
 		of the app.
 	"""
 
-	ul4_attrs = {
+	ul4_attrs = Base.ul4_attrs.union({
 		"id",
 		"version",
 		"hostname",
@@ -1848,18 +1848,18 @@ class Globals(Base):
 		"datasources",
 		"externaldatasources",
 		"user",
+		"lang",
+		"templates",
+		"params",
 		"flashes",
+		"request",
+		"response",
+		"custom",
 		"log_debug",
 		"log_info",
 		"log_notice",
 		"log_warning",
 		"log_error",
-		"lang",
-		"templates",
-		"params",
-		"libs",
-		"request",
-		"response",
 		"geo",
 		"scaled_url",
 		"seq",
@@ -1875,7 +1875,7 @@ class Globals(Base):
 		"profile_url",
 		"account_url",
 		"logout_url",
-	}
+	})
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
 	class Mode(misc.Enum):
@@ -1914,6 +1914,7 @@ class Globals(Base):
 	hostname = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	templates = Attr(get="", ul4get="_templates_get")
 	mode = EnumAttr(Mode, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplate_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	emailtemplate_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
@@ -1921,6 +1922,7 @@ class Globals(Base):
 	externaldatasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	template_params = AttrDictAttr(get="", ul4onget="_template_params_get", ul4onset="_template_params_ul4onset")
 	params = AttrDictAttr(get="", ul4get="_params_get")
+	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, id=None, version=None, hostname=None, platform=None, mode=None):
 		self.id = id
@@ -1944,7 +1946,7 @@ class Globals(Base):
 		self.view_id = None
 		self.externaldatasources = attrdict()
 		self._template_params = {}
-		self._chained_libraries = {}
+		self.custom = False
 
 	@property
 	def ul4onid(self) -> str:
@@ -2207,9 +2209,11 @@ class Globals(Base):
 	def log_error(self, *args):
 		pass
 
-	@property
-	def templates(self) -> Dict[str, ul4c.Template]:
-		return self.app.templates if self.app else attrdict()
+	def _templates_get(self) -> Dict[str, ul4c.Template]:
+		if self.app is not None:
+			return self.app.templates
+		else:
+			return attrdict()
 
 	def _template_params_get(self) -> Dict[str, "MutableAppParameter"]:
 		if self._template_params is None:
@@ -2252,7 +2256,7 @@ class Globals(Base):
 				return self.datasources[name[2:]]
 			elif self.externaldatasources and name.startswith("e_"):
 				return self.externaldatasources[name[2:]]
-			elif name.startswith("t_"):
+			elif name.startswith("t_") and self.app:
 				template = self.app._fetch_template(self.app, name[2:])
 				if template is not None:
 					return template
@@ -2270,7 +2274,7 @@ class Globals(Base):
 		"""
 		Make keys completeable in IPython.
 		"""
-		attrs = set(super().__dir__())
+		attrs = set(self.ul4_attrs)
 		if self.datasources:
 			for identifier in self.datasources:
 				attrs.add(f"d_{identifier}")
@@ -2284,6 +2288,9 @@ class Globals(Base):
 				attrs.add(f"p_{identifier}")
 				attrs.add(f"pv_{identifier}")
 		return attrs
+
+	def ul4_dir(self):
+		return dir(self)
 
 	def ul4_hasattr(self, name):
 		if name in self.ul4_attrs:
@@ -2509,7 +2516,7 @@ class App(Base):
 		Data actions of this app.
 	"""
 
-	ul4_attrs = {
+	ul4_attrs = Base.ul4_attrs.union({
 		"id",
 		"globals",
 		"name",
@@ -2535,19 +2542,20 @@ class App(Base):
 		"params",
 		"views",
 		"datamanagement_identifier",
-		"basetable",
-		"primarykey",
-		"insertprocedure",
-		"updateprocedure",
-		"deleteprocedure",
+		"custom",
+		# "basetable",
+		# "primarykey",
+		# "insertprocedure",
+		# "updateprocedure",
+		# "deleteprocedure",
 		"templates",
 		"insert",
 		"favorite",
 		"active_view",
 		"datasource",
-		"internaltemplates",
-		"viewtemplates",
-		"dataactions",
+		# "internaltemplates",
+		# "viewtemplates",
+		# "dataactions",
 		"add_param",
 		"template_url",
 		"new_embedded_url",
@@ -2562,7 +2570,7 @@ class App(Base):
 		"datamanagement_config_url",
 		"permissions_url",
 		"datamanageview_url",
-	}
+	})
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
 	template_types = ("app_instance", None)
@@ -2607,6 +2615,7 @@ class App(Base):
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, datamanagement_identifier=None):
 		self.id = id
@@ -2649,6 +2658,7 @@ class App(Base):
 		self.dataactions = None
 		self._vsqlgroup_records = None
 		self._vsqlgroup_app = None
+		self.custom = None
 		self.addparam(*args)
 
 	def __str__(self):
@@ -2804,7 +2814,7 @@ class App(Base):
 		"""
 		Make keys completeable in IPython.
 		"""
-		attrs = set(super().__dir__())
+		attrs = set(self.ul4_attrs)
 		for identifier in self.controls:
 			attrs.add(f"c_{identifier}")
 		if self.layout_controls:
@@ -2816,6 +2826,9 @@ class App(Base):
 			for identifier in self.templates:
 				attrs.add(f"t_{identifier}")
 		return attrs
+
+	def ul4_dir(self):
+		return dir(self)
 
 	def ul4_hasattr(self, name):
 		if name in self.ul4_attrs:

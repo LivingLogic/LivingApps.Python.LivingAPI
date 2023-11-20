@@ -2902,3 +2902,123 @@ def test_library_parameters(handler):
 			#008bd2
 		"""
 		assert lines(output) == lines(expected)
+
+
+def test_globals_dir(handler, config_apps):
+	c = config_apps
+
+	vt = handler.make_viewtemplate(
+		identifier="test_livingapi_globals_dir",
+		source=f"""
+			<?for attrname in sorted(dir(globals))?>
+				<?if not attrname.startswith(["t_", "p_", "pv_"])?>
+					<?print attrname?>=<?print isdefined(getattr(globals, attrname))?>
+				<?end if?>
+			<?end for?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		id=True
+		version=True
+		hostname=True
+		platform=True
+		mode=True
+		app=True
+		record=True
+		datasources=True
+		externaldatasources=True
+		user=True
+		lang=True
+		templates=True
+		params=True
+		request=True
+		response=True
+		custom=True
+		geo=True
+		dist=True
+		seq=True
+		flashes=True
+		flash_info=True
+		flash_notice=True
+		flash_warning=True
+		flash_error=True
+		log_debug=True
+		log_info=True
+		log_notice=True
+		log_warning=True
+		log_error=True
+		scaled_url=True
+		my_apps_url=True
+		my_tasks_url=True
+		catalog_url=True
+		chats_url=True
+		profile_url=True
+		account_url=True
+		logout_url=True
+	"""
+	assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_app_dir(handler, config_apps):
+	c = config_apps
+
+	vt = handler.make_viewtemplate(
+		identifier="test_livingapi_globals_dir",
+		source=f"""
+			<?for attrname in sorted(dir(app))?>
+				<?if not attrname.startswith(["t_", "c_", "lc_", "p_", "pv_"])?>
+					<?print attrname?>=<?print isdefined(getattr(app, attrname))?>
+				<?end if?>
+			<?end for?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		id=True
+		globals=True
+		name=True
+		description=True
+		lang=True
+		startlink=True
+		image=True
+		iconlarge=True
+		iconsmall=True
+		createdat=True
+		createdby=True
+		updatedat=True
+		updatedby=True
+		templates=True
+		controls=True
+		layout_controls=True
+		child_controls=True
+		records=True
+		recordcount=True
+		installation=True
+		categories=True
+		params=True
+		views=True
+		active_view=True
+		datasource=True
+		datamanagement_identifier=True
+		custom=True
+		favorite=True
+		insert=True
+		add_param=True
+		new_embedded_url=True
+		new_standalone_url=True
+		new_url=True
+		template_url=True
+		home_url=True
+		datamanagement_url=True
+		import_url=True
+		tasks_url=True
+		datamanagement_config_url=True
+		permissions_url=True
+		datamanageview_url=True
+		menus=True
+		panels=True
+	"""
+	assert sorted(lines(output)) == sorted(lines(expected))
