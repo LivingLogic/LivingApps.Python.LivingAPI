@@ -1164,6 +1164,71 @@ class Base:
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 
+class CustomAttributes(Base):
+	ul4_attrs = Base.ul4_attrs.union({"custom"})
+
+	def __init__(self):
+		super().__init__()
+		self.custom = None
+
+	def _fetch_template(self, instance, identifier):
+		for templates in self._template_candidates():
+			for type in instance.template_types:
+				if type in templates and identifier in templates[type]:
+					template = templates[type][identifier]
+					if type is not None:
+						template = ul4c.BoundTemplate(instance, template)
+					return template
+		return None
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(self.ul4_attrs)
+		for attrname in self.__dict__:
+			if attrname.startswith("x_"):
+				attrs.add(attrname)
+		for templates in self._template_candidates():
+			for type in self.template_types:
+				if type in templates:
+					for identifier in templates:
+						attrs.add(f"t_{identifier}")
+		return attrs
+
+	def ul4_dir(self):
+		return dir(self)
+
+	def ul4_hasattr(self, name):
+		if name in self.ul4_attrs:
+			return True
+		elif name.startswith("x_"):
+			return name in self.__dict__
+		elif name.startswith("t_"):
+			for templates in self._template_candidates():
+				for type in self.template_types:
+					if type in templates and name[2:] in templates[type]:
+						return True
+			return False
+		else:
+			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if name.startswith("x_"):
+			return getattr(self, name)
+		elif name.startswith("t_"):
+			template = self._fetch_template(self, name[2:])
+			if template is not None:
+				return template
+		return super().ul4_getattr(name)
+
+	def ul4_setattr(self, name, value):
+		if name.startswith("x_") or name == "custom":
+			setattr(self, name, value)
+		else:
+			super().ul4_setattr(name, value)
+
+
 @register("flashmessage")
 class FlashMessage(Base):
 	"""
@@ -1194,7 +1259,7 @@ class FlashMessage(Base):
 		The message itself
 	"""
 
-	ul4_attrs = {"timestamp", "type", "title", "message"}
+	ul4_attrs = Base.ul4_attrs.union({"timestamp", "type", "title", "message"})
 	ul4_type = ul4c.Type("la", "FlashMessage", "A flash message in a web page")
 
 	class MessageType(misc.Enum):
@@ -1279,7 +1344,7 @@ class File(Base):
 		The filesize in bytes.
 	"""
 
-	ul4_attrs = {"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"})
 	ul4_type = ul4c.Type("la", "File", "An uploaded file")
 
 	template_types = ("file_instance",)
@@ -1416,7 +1481,7 @@ class Geo(Base):
 		Description of the location.
 	"""
 
-	ul4_attrs = {"lat", "long", "info"}
+	ul4_attrs = Base.ul4_attrs.union({"lat", "long", "info"})
 	ul4_type = ul4c.Type("la", "Geo", "Geographical coordinates and location information")
 
 	template_types = ("geo_instance",)
@@ -1571,12 +1636,12 @@ class User(Base):
 		The :class:`KeyView`\s of this user (only when it is the logged in user)
 	"""
 
-	ul4_attrs = {
+	ul4_attrs = Base.ul4_attrs.union({
 		"id", "gender", "title", "firstname", "surname", "initials", "email",
 		"lang", "image", "avatar_small", "avatar_large", "streetname", "streetnumber",
 		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
 		"company_website", "company", "position", "department", "keyviews"
-	}
+	})
 	ul4_type = ul4c.Type("la", "User", "A LivingApps user/account")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -1719,7 +1784,7 @@ class KeyView(Base):
 
 	"""
 
-	ul4_attrs = {"id", "identifier", "name", "key", "user"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "name", "key", "user"})
 	ul4_type = ul4c.Type("la", "KeyView", "Object granting access to a view template")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -1741,7 +1806,7 @@ class KeyView(Base):
 
 
 @register("globals")
-class Globals(Base):
+class Globals(CustomAttributes):
 	r"""
 	Global information.
 
@@ -1837,7 +1902,7 @@ class Globals(Base):
 		of the app.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({
+	ul4_attrs = CustomAttributes.ul4_attrs.union({
 		"id",
 		"version",
 		"hostname",
@@ -1877,6 +1942,8 @@ class Globals(Base):
 		"logout_url",
 	})
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
+
+	template_types = ("app_instance", None)
 
 	class Mode(misc.Enum):
 		"""
@@ -1925,6 +1992,7 @@ class Globals(Base):
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, id=None, version=None, hostname=None, platform=None, mode=None):
+		super().__init__()
 		self.id = id
 		self.version = version
 		self.hostname = hostname
@@ -1946,7 +2014,6 @@ class Globals(Base):
 		self.view_id = None
 		self.externaldatasources = attrdict()
 		self._template_params = {}
-		self.custom = False
 
 	@property
 	def ul4onid(self) -> str:
@@ -2193,7 +2260,6 @@ class Globals(Base):
 			v.append(f"/plain/{urlparse.quote(image)}")
 		return "".join(v)
 
-
 	def log_debug(self, *args):
 		pass
 
@@ -2208,6 +2274,10 @@ class Globals(Base):
 
 	def log_error(self, *args):
 		pass
+
+	def _template_candidates(self):
+		if self.app is not None:
+			yield from self.app._template_candidates()
 
 	def _templates_get(self) -> Dict[str, ul4c.Template]:
 		if self.app is not None:
@@ -2268,13 +2338,13 @@ class Globals(Base):
 				return self.params[name[3:]].value
 		except KeyError:
 			pass
-		raise AttributeError(error_attribute_doesnt_exist(self, name))
+		return super().__getattr__(name)
 
 	def __dir__(self):
 		"""
 		Make keys completeable in IPython.
 		"""
-		attrs = set(self.ul4_attrs)
+		attrs = super().__dir__()
 		if self.datasources:
 			for identifier in self.datasources:
 				attrs.add(f"d_{identifier}")
@@ -2289,13 +2359,8 @@ class Globals(Base):
 				attrs.add(f"pv_{identifier}")
 		return attrs
 
-	def ul4_dir(self):
-		return dir(self)
-
 	def ul4_hasattr(self, name):
-		if name in self.ul4_attrs:
-			return True
-		elif self.datasources and name.startswith("d_") and name[2:] in self.datasources:
+		if self.datasources and name.startswith("d_") and name[2:] in self.datasources:
 			return True
 		elif self.externaldatasources and name.startswith("e_") and name[2:] in self.externaldatasources:
 			return True
@@ -2343,7 +2408,7 @@ class Globals(Base):
 
 
 @register("app")
-class App(Base):
+class App(CustomAttributes):
 	"""
 	A LivingApp.
 
@@ -2516,7 +2581,7 @@ class App(Base):
 		Data actions of this app.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({
+	ul4_attrs = CustomAttributes.ul4_attrs.union({
 		"id",
 		"globals",
 		"name",
@@ -2618,6 +2683,7 @@ class App(Base):
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, datamanagement_identifier=None):
+		super().__init__()
 		self.id = id
 		self.superid = None
 		self.globals = None
@@ -2658,7 +2724,6 @@ class App(Base):
 		self.dataactions = None
 		self._vsqlgroup_records = None
 		self._vsqlgroup_app = None
-		self.custom = None
 		self.addparam(*args)
 
 	def __str__(self):
@@ -2722,21 +2787,11 @@ class App(Base):
 				yield self.globals.handler._loadinternaltemplates(self.superid)
 			yield self.globals.handler.fetch_librarytemplates()
 
-	def _fetch_template(self, instance, identifier):
-		for templates in self._template_candidates():
-			for type in instance.template_types:
-				if type in templates and identifier in templates[type]:
-					template = templates[type][identifier]
-					if type is not None:
-						template = ul4c.BoundTemplate(instance, template)
-					return template
-		return None
-
 	def _templates_get(self):
 		if self._templates is None:
 			self._templates = attrdict()
 			for templates in reversed(list(self._template_candidates())):
-				for type in ("app_instance", None):
+				for type in self.template_types:
 					if type in templates:
 						self._templates.update(templates[type])
 		return self._templates
@@ -2808,13 +2863,13 @@ class App(Base):
 				return self.params[name[3:]].value
 		except KeyError:
 			pass
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
 
 	def __dir__(self):
 		"""
 		Make keys completeable in IPython.
 		"""
-		attrs = set(self.ul4_attrs)
+		attrs = super().__dir__()
 		for identifier in self.controls:
 			attrs.add(f"c_{identifier}")
 		if self.layout_controls:
@@ -2823,17 +2878,12 @@ class App(Base):
 		for identifier in self.params:
 			attrs.add(f"p_{identifier}")
 			attrs.add(f"pv_{identifier}")
-			for identifier in self.templates:
-				attrs.add(f"t_{identifier}")
+		for identifier in self.templates:
+			attrs.add(f"t_{identifier}")
 		return attrs
 
-	def ul4_dir(self):
-		return dir(self)
-
 	def ul4_hasattr(self, name):
-		if name in self.ul4_attrs:
-			return True
-		elif name.startswith("c_") and name[2:] in self.controls:
+		if name.startswith("c_") and name[2:] in self.controls:
 			return True
 		elif name.startswith("lc_") and name[3:] in self.layout_controls:
 			return True
@@ -3102,7 +3152,7 @@ class App(Base):
 		return result
 
 
-class Control(Base):
+class Control(CustomAttributes):
 	"""
 	Describes a field in a LivingApp.
 
@@ -3230,7 +3280,7 @@ class Control(Base):
 
 	_type = None
 	_subtype = None
-	ul4_attrs = {"id", "identifier", "app", "label", "type", "subtype", "fulltype", "priority", "order", "default", "ininsertprocedure", "inupdateprocedure"}
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "identifier", "type", "subtype", "fulltype", "app", "label", "priority", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "required", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "ininsertprocedure", "inupdateprocedure"})
 	ul4_type = ul4c.Type("la", "Control", "Metainformation about a field in a LivingApps application")
 
 	class Mode(misc.Enum):
@@ -3266,9 +3316,13 @@ class Control(Base):
 	required = BoolAttr(get="", ul4get="_required_get")
 	mode = EnumAttr(Mode, get="", ul4get="")
 	labelpos = EnumAttr(LabelPos, get="", ul4get="")
+	labelwidth = Attr(int, get="", ul4get="_labelwidth_get")
+	autoalign = BoolAttr(get="", ul4get="_autoalign_get")
 	in_active_view = BoolAttr(get="", ul4get="_in_active_view_get")
+	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None):
+		super().__init__()
 		self.id = id
 		self.app = None
 		self.identifier = identifier
@@ -3282,18 +3336,8 @@ class Control(Base):
 	def template_types(self):
 		return (f"control_{self.type}_instance", "control_instance")
 
-	def __getattr__(self, name):
-		if name.startswith("t_"):
-			template = self.app._fetch_template(self, name[2:])
-			if template is not None:
-				return template
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-
-	def ul4_getattr(self, name):
-		if name.startswith(("t_")):
-			return getattr(self, name)
-		else:
-			return super().ul4_getattr(name)
+	def _template_candidates(self):
+		yield from self.app._template_candidates()
 
 	@property
 	def ul4onid(self) -> str:
@@ -3392,6 +3436,18 @@ class Control(Base):
 			return labelpos.value
 		return None
 
+	def _labelwidth_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.labelwidth
+		return None
+
+	def _autoalign_get(self):
+		vc = self._get_viewcontrol()
+		if vc is not None:
+			return vc.autoalign
+		return None
+
 	def _in_active_view_get(self):
 		vc = self._get_viewcontrol()
 		return vc is not None
@@ -3436,6 +3492,8 @@ class StringControl(Control):
 
 		The placeholder for the HTML input.
 	"""
+
+	ul4_attrs = Control.ul4_attrs.union({"minlength", "maxlength", "placeholder"})
 
 	_type = "string"
 	ul4_type = ul4c.Type("la", "StringControl", "A LivingApps string field")
@@ -4956,13 +5014,13 @@ class ViewControl(Base):
 		``multiplelookup``).
 	"""
 
-	ul4_attrs = {
+	ul4_attrs = Base.ul4_attrs.union({
 		"id", "label", "identifier", "type", "subtype", "view", "control",
 		"type", "subtype", "top", "left", "width", "height", "z_index", "liveupdate",
 		"default", "tabIndex", "minlength", "maxlength", "required", "placeholder",
 		"mode", "labelpos", "lookup_none_key", "lookup_none_label", "lookupdata",
 		"autoalign", "labelwidth", "autoexpandable"
-	}
+	})
 	ul4_type = ul4c.Type("la", "ViewControl", "Contains view specific information aboutn a control")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -5068,7 +5126,7 @@ class State(misc.Enum):
 
 
 @register("record")
-class Record(Base):
+class Record(CustomAttributes):
 	"""
 	A record from a LivingApp.
 
@@ -5142,7 +5200,7 @@ class Record(Base):
 		record.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({
+	ul4_attrs = CustomAttributes.ul4_attrs.union({
 		"id",
 		"app",
 		"createdat",
@@ -5195,6 +5253,7 @@ class Record(Base):
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
+		super().__init__()
 		self.id = id
 		self.app = app
 		self.createdat = createdat
@@ -5210,7 +5269,6 @@ class Record(Base):
 		self.children = attrdict()
 		self.attachments = None
 		self.errors = []
-		self.custom = None
 		self._new = True
 		self._deleted = False
 
@@ -5237,6 +5295,9 @@ class Record(Base):
 		self._sparsevalues = None
 		self._sparsefielderrors = None
 		self._sparselookupdata = None
+
+	def _template_candidates(self):
+		yield from self.app._template_candidates()
 
 	def _fields_get(self):
 		if self.__dict__["fields"] is None:
@@ -5397,7 +5458,39 @@ class Record(Base):
 					return attr.get(self)
 		except KeyError:
 			pass
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = super().__dir__()
+		for identifier in self.app.controls:
+			attrs.add(f"f_{identifier}")
+			attrs.add(f"v_{identifier}")
+		if self.children:
+			for identifier in self.children:
+				attrs.add(f"c_{identifier}")
+		return attrs
+
+	def ul4_dir(self):
+		return dir(self)
+
+	def ul4_hasattr(self, name):
+		if name.startswith(("f_", "v_")):
+			return name[2:] in self.app.controls
+		elif name.startswith("c_"):
+			return name[2:] in self.children
+		elif name.startswith("x_") and name in self.__dict__:
+			return True
+		else:
+			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if name.startswith(("f_", "v_", "c_", "t_")):
+			return getattr(self, name)
+		else:
+			return super().ul4_getattr(name)
 
 	def __setattr__(self, name, value):
 		if name.startswith("v_"):
@@ -5417,40 +5510,10 @@ class Record(Base):
 		else:
 			super().__setattr__(name, value)
 
-	def __dir__(self):
-		"""
-		Make keys completeable in IPython.
-		"""
-		attrs = set(self.ul4_attrs)
-		for identifier in self.app.controls:
-			attrs.add(f"f_{identifier}")
-			attrs.add(f"v_{identifier}")
-		if self.children:
-			for identifier in self.children:
-				attrs.add(f"c_{identifier}")
-		return attrs
-
-	def ul4_dir(self):
-		return dir(self)
-
-	def ul4_hasattr(self, name):
-		if name in self.ul4_attrs:
-			return True
-		elif name.startswith(("f_", "v_")):
-			return name[2:] in self.app.controls
-		elif name.startswith("c_"):
-			return name[2:] in self.children
-		else:
-			return super().ul4_hasattr(name)
-
-	def ul4_getattr(self, name):
-		if name.startswith(("f_", "v_", "c_", "t_")):
-			return getattr(self, name)
-		else:
-			return super().ul4_getattr(name)
-
 	def ul4_setattr(self, name, value):
-		if name.startswith("v_") and name[2:] in self.app.controls:
+		if name.startswith("x_"):
+			setattr(self, name, value)
+		elif name.startswith("v_") and name[2:] in self.app.controls:
 			setattr(self, name, value)
 			return
 		elif name.startswith("c_"):
@@ -5574,7 +5637,7 @@ class Record(Base):
 		return self._new
 
 
-class Field(Base):
+class Field(CustomAttributes):
 	r"""
 	A :class:`!Field` object contains the value of a certain field (i.e. a
 	:class:`Control`) for a certain :class:`Record`.
@@ -5653,10 +5716,11 @@ class Field(Base):
 		Should the input for this field be visible or invisible in the input form?
 	"""
 
-	ul4_attrs = {"control", "record", "label", "lookupdata", "value", "is_empty", "is_dirty", "errors", "has_errors", "has_custom_lookupdata", "add_error", "clear_errors", "enabled", "writable", "visible"}
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "lookupdata", "value", "is_empty", "is_dirty", "errors", "has_errors", "has_custom_lookupdata", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible"})
 	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
 
 	def __init__(self, control, record, value):
+		super().__init__()
 		self.control = control
 		self.record = record
 		self._label = None
@@ -5673,6 +5737,9 @@ class Field(Base):
 	@property
 	def template_types(self):
 		return (f"field_{self.control.type}_instance", "field_instance")
+
+	def _template_candidates(self):
+		yield from self.record._template_candidates()
 
 	@property
 	def label(self):
@@ -5801,19 +5868,6 @@ class Field(Base):
 		s += f" at {id(self):#x}>"
 		return s
 
-	def __getattr__(self, name):
-		if name.startswith("t_"):
-			template = self.control.app._fetch_template(self, name[2:])
-			if template is not None:
-				return template
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-
-	def ul4_getattr(self, name):
-		if name.startswith(("t_")):
-			return getattr(self, name)
-		else:
-			return super().ul4_getattr(name)
-
 	def ul4ondump(self, encoder):
 		encoder.dump(self.control)
 		encoder.dump(self.record)
@@ -5864,7 +5918,7 @@ class Attachment(Base):
 		Is this attachment active?
 	"""
 
-	ul4_attrs = {"id", "type", "record", "label", "active"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "type", "record", "label", "active"})
 	ul4_type = ul4c.Type("la", "Attachment", "An attachment of a record")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -6013,7 +6067,7 @@ class EMailAttachment(Base):
 		Size of the content in characters or ``None`` if ``content`` is ``None``.
 	"""
 
-	ul4_attrs = {"mimetype", "filename", "content"}
+	ul4_attrs = Base.ul4_attrs.union({"mimetype", "filename", "content"})
 	ul4_type = ul4c.InstantiableType("la", "EMailAttachment", "An email text attachment")
 
 	mimetype = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True, repr=True)
@@ -6411,7 +6465,7 @@ class DataSourceConfig(Base):
 		Children configuration for records that reference the record from this app.
 	"""
 
-	ul4_attrs = {"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includeparams", "includeviews", "includecategories", "orders", "children"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "parent", "identifier", "app", "includecloned", "appfilter", "includecontrols", "includerecords", "includecount", "recordpermission", "recordfilter", "includepermissions", "includeattachments", "includeparams", "includeviews", "includecategories", "orders", "children"})
 	ul4_type = ul4c.Type("la", "DataSourceConfig", "A data source for a view, email or form template")
 
 	class IncludeControls(misc.IntEnum):
@@ -6604,7 +6658,7 @@ class DataSourceChildren(Base):
 		The sort expressions for sorting the children dict.
 	"""
 
-	ul4_attrs = {"id", "datasource", "identifier", "control", "filters", "orders"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "datasource", "identifier", "control", "filters", "orders"})
 	ul4_type = ul4c.Type("la", "DataSourceChildren", "A master/detail specification in a datasource")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -6686,7 +6740,7 @@ class DataOrder(Base):
 		Where to sort empty (``null``) values (``FIRST`` or ``LAST``)
 	"""
 
-	ul4_attrs = {"id", "parent", "expression", "direction", "nulls"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "parent", "expression", "direction", "nulls"})
 	ul4_type = ul4c.Type("la", "DataOrder", "A sort specification")
 
 	class Direction(misc.Enum):
@@ -6859,7 +6913,7 @@ class DataAction(Base):
 		Execute before deleting the record?
 	"""
 
-	ul4_attrs = {
+	ul4_attrs = Base.ul4_attrs.union({
 		"id",
 		"app",
 		"identifier",
@@ -6871,7 +6925,7 @@ class DataAction(Base):
 		"message",
 		"filter",
 		"commands",
-	}
+	})
 	ul4_type = ul4c.Type("la", "DataAction", "An action executed by the system or user on a record")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -6961,12 +7015,12 @@ class DataActionCommand(Base):
 		Field expressions for each field of the target app or parameter of the command.
 	"""
 
-	ul4_attrs = {
+	ul4_attrs = Base.ul4_attrs.union({
 		"id",
 		"parent",
 		"condition",
 		"details",
-	}
+	})
 	ul4_type = ul4c.Type("la", "DataActionCommand", "A single instruction of a data action")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -7173,13 +7227,13 @@ class DataActionDetail(Base):
 		and ``insertformstatic``)
 	"""
 
-	ul4_attrs = {
+	ul4_attrs = Base.ul4_attrs.union({
 		"id",
 		"parent",
 		"control",
 		"type",
 		"children",
-	}
+	})
 	ul4_type = ul4c.Type("la", "DataActionDetail", "A parameter for data action instruction")
 
 	class Type(misc.Enum):
@@ -7288,7 +7342,7 @@ class Installation(Base):
 		Name of the installation
 	"""
 
-	ul4_attrs = {"id", "name"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "name"})
 	ul4_type = ul4c.Type("la", "Installation", "The installation that created an app")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -7310,7 +7364,7 @@ class Installation(Base):
 	)
 
 
-class LayoutControl(Base):
+class LayoutControl(CustomAttributes):
 	r"""
 	A :class:`!LayoutControl` is similar to a :class:`Control`, except that it
 	does not correspond to a real field of :class:`Record`\s, but simply
@@ -7361,12 +7415,18 @@ class LayoutControl(Base):
 		height of this layout control in the form
 	"""
 
-	ul4_attrs = {"id", "label", "identifier", "view", "type", "subtype", "top", "left", "width", "height", "z_index", "visible"}
+	_type = None
+	_subtype = None
+
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "label", "identifier", "view", "type", "subtype", "fulltype", "top", "left", "width", "height", "z_index", "visible"})
 	ul4_type = ul4c.Type("la", "LayoutControl", "A decoration in an input form")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	type = Attr(str, get="", ul4get="_type_get")
+	subtype = Attr(str, get="", ul4get="_subtype_get")
+	fulltype = Attr(str, get="", ul4get="_fulltype_get")
 	view = Attr(lambda: View, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	top = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	left = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -7376,6 +7436,7 @@ class LayoutControl(Base):
 	visible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, label=None, identifier=None):
+		super().__init__()
 		self.id = id
 		self.label = label
 		self.identifier = identifier
@@ -7392,22 +7453,21 @@ class LayoutControl(Base):
 	def template_types(self):
 		return (f"layoutcontrol_{self.type}_instance", "layoutcontrol_instance")
 
+	def _template_candidates(self):
+		yield from self.view.app._template_candidates()
+
 	@property
 	def ul4onid(self) -> str:
 		return self.id
 
-	def __getattr__(self, name):
-		if name.startswith("t_"):
-			template = self.view.app._fetch_template(self, name[2:])
-			if template is not None:
-				return template
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+	def _type_get(self):
+		return self._type
 
-	def ul4_getattr(self, name):
-		if name.startswith("t_"):
-			return getattr(self, name)
-		else:
-			return super().ul4_getattr(name)
+	def _subtype_get(self):
+		return self._subtype
+
+	def _fulltype_get(self):
+		return self._fulltype
 
 
 @register("htmllayoutcontrol")
@@ -7423,8 +7483,9 @@ class HTMLLayoutControl(LayoutControl):
 		HTML source
 	"""
 
-	type = "string"
+	_type = "string"
 	_subtype = "html"
+	_fulltype = f"{_type}/{_subtype}"
 
 	ul4_attrs = LayoutControl.ul4_attrs.union({"value"})
 	ul4_type = ul4c.Type("la", "HTMLLayoutControl", "HTML decoration in an input form")
@@ -7450,8 +7511,8 @@ class ImageLayoutControl(LayoutControl):
 		Image scaled to final size
 	"""
 
-	type = "image"
-	_subtype = None
+	_type = "image"
+	_fulltype = _type
 
 	ul4_attrs = LayoutControl.ul4_attrs.union({"image"})
 	ul4_type = ul4c.Type("la", "ImageLayoutControl", "An image decoration in an input form")
@@ -7465,14 +7526,14 @@ class ButtonLayoutControl(LayoutControl):
 	A :class:`!ButtonLayoutControl` describes a submit button in an input form.
 	"""
 
-	type = "button"
-	_subtype = None
+	_type = "button"
+	_fulltype = _type
 
 	ul4_type = ul4c.Type("la", "ButtonLayoutControl", "A submit button in an input form")
 
 
 @register("view")
-class View(Base):
+class View(CustomAttributes):
 	r"""
 	An :class:`App` can have multiple :class:`View`\s which provide different
 	form for creating or changing record.
@@ -7557,8 +7618,10 @@ class View(Base):
 		Should the input form use the geo location of the user?
 	"""
 
-	ul4_attrs = {"id", "name", "app", "order", "width", "height", "start", "end", "lang", "login_required", "result_page", "use_geo", "controls", "layout_controls"}
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "name", "combined_type", "app", "order", "width", "height", "start", "end", "lang", "login_required", "result_page", "use_geo", "controls", "layout_controls"})
 	ul4_type = ul4c.Type("la", "View", "An input form for a LivingApps application")
+
+	template_types = ()
 
 	class CombinedType(misc.Enum):
 		"""
@@ -7594,6 +7657,7 @@ class View(Base):
 	use_geo = EnumAttr(UseGeo, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None, lang=None, login_required=False, result_page=True, use_geo="no"):
+		super().__init__()
 		self.id = id
 		self.name = name
 		self.combined_type = None
@@ -7613,6 +7677,9 @@ class View(Base):
 	def ul4onid(self) -> str:
 		return self.id
 
+	def _template_candidates(self):
+		yield from ()
+
 	def _result_page_ul4onset(self, value):
 		self.use_use = not value
 
@@ -7623,7 +7690,7 @@ class View(Base):
 			elif name.startswith("lc_"):
 				return self.layout_controls[name[3:]]
 			else:
-				raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+				return super().__getattr__(name)
 		except KeyError:
 			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
@@ -7631,7 +7698,7 @@ class View(Base):
 		"""
 		Make keys completeable in IPython.
 		"""
-		attrs = set(super().__dir__())
+		attrs = super().__dir__()
 		for identifier in self.controls:
 			attrs.add(f"c_{identifier}")
 		for identifier in self.layout_controls:
@@ -7639,9 +7706,7 @@ class View(Base):
 		return attrs
 
 	def ul4_hasattr(self, name):
-		if name in self.ul4_attrs:
-			return True
-		elif name.startswith("c_") and name[2:] in self.controls:
+		if name.startswith("c_") and name[2:] in self.controls:
 			return True
 		elif name.startswith("lc_") and name[3:] in self.layout_controls:
 			return True
@@ -7696,7 +7761,7 @@ class DataSource(Base):
 		if copies of this app or all apps are included)
 	"""
 
-	ul4_attrs = {"id", "identifier", "app", "apps"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "app", "apps"})
 	ul4_type = ul4c.Type("la", "DataSource", "The data resulting from a data source configuration")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -7750,7 +7815,7 @@ class ExternalDataSource(Base):
 		The data that has been fetched from the external data source.
 	"""
 
-	ul4_attrs = {"id", "identifier", "description", "url", "data"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "description", "url", "data"})
 	ul4_type = ul4c.Type("la", "ExternalDataSource", "The configuration of and the data resulting from an external data source")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -7805,7 +7870,7 @@ class LookupItem(Base):
 		Is this item visible in the currently active view?
 	"""
 
-	ul4_attrs = {"id", "control", "key", "label", "visible"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "control", "key", "label", "visible"})
 	ul4_type = ul4c.Type("la", "LookupItem", "An option in a lookup control/field")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -7890,7 +7955,7 @@ class ViewLookupItem(Base):
 		Is this lookup item visible in its view?
 	"""
 
-	ul4_attrs = {"id", "key", "label", "visible"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "key", "label", "visible"})
 	ul4_type = ul4c.Type("la", "ViewLookupItem", "View specific information about a lookup item")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -7955,7 +8020,7 @@ class Category(Base):
 		:class:`App`'s :attr:`~App.id`\s.
 	"""
 
-	ul4_attrs = {"id", "identifier", "name", "order", "parent", "children", "apps"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "name", "order", "parent", "children", "apps"})
 	ul4_type = ul4c.Type("la", "Category", "A navigation category")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -8011,7 +8076,7 @@ class TemplateLibrary(Base):
 		The parameters belonging to this library.
 	"""
 
-	ul4_attrs = {"id", "identifier", "description", "templates", "params"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "description", "templates", "params"})
 	ul4_type = ul4c.Type("la", "TemplateLibrary", "A LivingApps template library")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -8157,7 +8222,7 @@ class AppParameter(Base):
 		Who updated this parameter last?
 	"""
 
-	ul4_attrs = {"id", "app", "library", "owner", "parent", "type", "order", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby", "state"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "app", "library", "owner", "parent", "type", "order", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby", "state"})
 	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application or library")
 
 	class Type(misc.Enum):
@@ -8474,7 +8539,7 @@ class MutableAppParameter(AppParameter):
 
 
 @register("menuitem")
-class MenuItem(Base):
+class MenuItem(CustomAttributes):
 	r"""
 	An additional menu item in an app that links to a target page.
 
@@ -8604,7 +8669,7 @@ class MenuItem(Base):
 		Who updated this item last?
 	"""
 
-	ul4_attrs = {"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "accessible", "children", "createdat", "createdby", "updatedat", "updatedby"}
+	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "accessible", "children", "createdat", "createdby", "updatedat", "updatedby"})
 	ul4_type = ul4c.Type("la", "MenuItem", "An additional menu item in an app that links to a target page.")
 
 	template_types = ("menuitem_instance",)
@@ -8675,6 +8740,7 @@ class MenuItem(Base):
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, identifier=None, label=None, app=None, type=None):
+		super().__init__()
 		self.id = id
 		self.identifier = identifier
 		self.label = label
@@ -8906,79 +8972,6 @@ class Panel(MenuItem):
 		return attrs
 
 
-class ChainedLibrary:
-	r"""
-	The result of chaining a library via an app parameter.
-
-	Relevant instance attributes are:
-
-	.. attribute:: identifier
-		:type: str
-
-		Human readable identifier.
-
-	.. attribute:: app
-		:type: App
-
-		The app that defines this chained library.
-
-	.. attribute:: templates
-
-		The UL4 templates belonging to this library.
-	"""
-
-	ul4_attrs = {"identifier", "app", "templates", "params"}
-
-	def __init__(self, identifier, app, templates, params):
-		self.identifier = identifier
-		self.app = app
-		self.templates = templates
-		self.params = params
-
-	def __repr__(self):
-		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.identifier!r} with {len(self.templates):,} templates and {len(self.params):,} params at {id(self):x}>"
-
-	def __getattr__(self, name):
-		try:
-			if name.startswith("t_"):
-				return self.templates[name[2:]]
-			elif name.startswith("p_"):
-				return self.params[name[2:]]
-			elif name.startswith("pv_"):
-				return self.params[name[3:]].value
-		except KeyError:
-			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-
-	def __dir__(self):
-		"""
-		Make keys completeable in IPython.
-		"""
-		attrs = self.ul4_attrs.copy()
-		for identifier in self.templates:
-			attrs.add(f"t_{identifier}")
-		for identifier in self.params:
-			attrs.add(f"p_{identifier}")
-			attrs.add(f"pv_{identifier}")
-		return attrs
-
-	def ul4_hasattr(self, name):
-		if name in self.ul4_attrs:
-			return True
-		elif name.startswith("t_") and name[2:] in self.templates:
-			return True
-		elif name.startswith("p_") and name[2:] in self.params:
-			return True
-		elif name.startswith("pv_") and name[3:] in self.params:
-			return True
-		else:
-			return False
-
-	def ul4_getattr(self, name):
-		if self.ul4_hasattr(name):
-			return getattr(self, name)
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-
-
 class HTTPRequest(Base):
 	r"""
 	An :class:`HTTPRequest` object holds values related to an HTTP request.
@@ -9028,7 +9021,7 @@ class HTTPRequest(Base):
 		:class:`MultipleAppLookupChoiceControl` fields.
 	"""
 
-	ul4_attrs = {"method", "headers", "params", "seq"}
+	ul4_attrs = Base.ul4_attrs.union({"method", "headers", "params", "seq"})
 	ul4_type = ul4c.Type("la", "HTTPRequest", "An HTTP request")
 
 	method = Attr(str, get=True, set=True, repr=True, ul4get=True)

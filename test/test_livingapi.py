@@ -2910,6 +2910,7 @@ def test_globals_dir(handler, config_apps):
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_globals_dir",
 		source=f"""
+			<?code globals.x_gurk = 42?>
 			<?for attrname in sorted(dir(globals))?>
 				<?if not attrname.startswith(["t_", "p_", "pv_"])?>
 					<?print attrname?>=<?print isdefined(getattr(globals, attrname))?>
@@ -2957,6 +2958,7 @@ def test_globals_dir(handler, config_apps):
 		profile_url=True
 		account_url=True
 		logout_url=True
+		x_gurk=True
 	"""
 	assert sorted(lines(output)) == sorted(lines(expected))
 
@@ -2967,6 +2969,7 @@ def test_app_dir(handler, config_apps):
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_globals_dir",
 		source=f"""
+			<?code app.x_gurk = 42?>
 			<?for attrname in sorted(dir(app))?>
 				<?if not attrname.startswith(["t_", "c_", "lc_", "p_", "pv_"])?>
 					<?print attrname?>=<?print isdefined(getattr(app, attrname))?>
@@ -3020,6 +3023,7 @@ def test_app_dir(handler, config_apps):
 		datamanageview_url=True
 		menus=True
 		panels=True
+		x_gurk=True
 	"""
 	assert sorted(lines(output)) == sorted(lines(expected))
 
@@ -3036,6 +3040,7 @@ def test_record_dir(handler, config_apps):
 		identifier="test_livingapi_record_dir",
 		source=f"""
 			<?code record = first(app.records.values())?>
+			<?code record.x_gurk = 42?>
 			<?for attrname in sorted(dir(record))?>
 				<?if not attrname.startswith(["t_", "f_", "v_", "c_"])?>
 					<?print attrname?>=<?print isdefined(getattr(record, attrname))?>
@@ -3075,5 +3080,176 @@ def test_record_dir(handler, config_apps):
 		edit_standalone_url=True
 		edit_url=True
 		custom=True
+		x_gurk=True
+	"""
+	assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_view_dir(handler, config_apps):
+	c = config_apps
+
+	vt = handler.make_viewtemplate(
+		identifier="test_livingapi_view_dir",
+		source=f"""
+			<?code view = first(app.views.values())?>
+			<?code view.x_gurk = 42?>
+			<?for attrname in sorted(dir(view))?>
+				<?if not attrname.startswith(["c_", "lc_"])?>
+					<?print attrname?>=<?print isdefined(getattr(view, attrname))?>
+				<?end if?>
+			<?end for?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		id=True
+		name=True
+		combined_type=True
+		app=True
+		order=True
+		width=True
+		height=True
+		start=True
+		end=True
+		lang=True
+		login_required=True
+		result_page=True
+		use_geo=True
+		controls=True
+		layout_controls=True
+		custom=True
+		x_gurk=True
+	"""
+	assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_control_dir(handler, config_apps):
+	c = config_apps
+
+	vt = handler.make_viewtemplate(
+		identifier="test_livingapi_control_dir",
+		source=f"""
+			<?code control = app.c_firstname?>
+			<?code control.x_gurk = 42?>
+			<?for attrname in sorted(dir(control))?>
+				<?if not attrname.startswith(["t_"])?>
+					<?print attrname?>=<?print isdefined(getattr(control, attrname))?>
+				<?end if?>
+			<?end for?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		id=True
+		identifier=True
+		type=True
+		subtype=True
+		fulltype=True
+		app=True
+		label=True
+		priority=True
+		order=True
+		default=True
+		ininsertprocedure=True
+		inupdateprocedure=True
+		top=True
+		left=True
+		width=True
+		height=True
+		liveupdate=True
+		tabindex=True
+		required=True
+		mode=True
+		labelpos=True
+		labelwidth=True
+		autoalign=True
+		in_active_view=True
+		minlength=True
+		maxlength=True
+		placeholder=True
+		custom=True
+		x_gurk=True
+	"""
+	assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_layoutcontrol_dir(handler, config_apps):
+	c = config_apps
+
+	vt = handler.make_viewtemplate(
+		identifier="test_livingapi_layoutcontrol_dir",
+		source=f"""
+			<?code layoutcontrol = first(app.views.values()).lc_save?>
+			<?code layoutcontrol.x_gurk = 42?>
+			<?for attrname in sorted(dir(layoutcontrol))?>
+				<?if not attrname.startswith(["t_"])?>
+					<?print attrname?>=<?print isdefined(getattr(layoutcontrol, attrname))?>
+				<?end if?>
+			<?end for?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		id=True
+		label=True
+		identifier=True
+		type=True
+		subtype=True
+		fulltype=True
+		view=True
+		top=True
+		left=True
+		width=True
+		height=True
+		z_index=True
+		visible=True
+		custom=True
+		x_gurk=True
+	"""
+	assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_field_dir(handler, config_apps):
+	c = config_apps
+
+	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="persons",
+			app=c.apps.persons,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+		),
+		identifier="test_livingapi_layoutcontrol_dir",
+		source=f"""
+			<?code field = first(app.records.values()).f_firstname?>
+			<?code field.x_gurk = 42?>
+			<?for attrname in sorted(dir(field))?>
+				<?if not attrname.startswith(["t_"])?>
+					<?print attrname?>=<?print isdefined(getattr(field, attrname))?>
+				<?end if?>
+			<?end for?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		control=True
+		record=True
+		label=True
+		value=True
+		is_empty=True
+		is_dirty=True
+		errors=True
+		enabled=True
+		writable=True
+		visible=True
+		has_errors=True
+		add_error=True
+		set_error=True
+		clear_errors=True
+		custom=True
+		x_gurk=True
 	"""
 	assert sorted(lines(output)) == sorted(lines(expected))
