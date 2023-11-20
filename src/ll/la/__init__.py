@@ -2290,6 +2290,8 @@ class Globals(Base):
 			return True
 		elif self.datasources and name.startswith("d_") and name[2:] in self.datasources:
 			return True
+		elif self.externaldatasources and name.startswith("e_") and name[2:] in self.externaldatasources:
+			return True
 		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
 		elif self.app and name.startswith("p_") and name[2:] in self.params:
@@ -2300,7 +2302,7 @@ class Globals(Base):
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		if name.startswith(("d_", "t_", "p_", "pv_")):
+		if name.startswith(("d_", "e", "t_", "p_", "pv_")):
 			return getattr(self, name)
 		else:
 			return super().ul4_getattr(name)
