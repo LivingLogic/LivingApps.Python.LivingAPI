@@ -5516,15 +5516,31 @@ class Record(Base):
 		else:
 			return any(field.has_errors() for field in self.fields.values())
 
+	def has_errors_in_active_view(self):
+		if self.errors:
+			return True
+		elif self._sparsevalues is not None:
+			# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't contain errors
+			return False
+		elif self.app.active_view is not None:
+			for field in self.fields.values():
+				if field.control.identifier in self.app.active_view.controls and field.has_errors():
+					return True
+		else:
+			return False
+
 	def add_error(self, *errors):
 		self.errors.extend(errors)
 
 	def clear_errors(self):
+		self.errors = []
+
+	def clear_all_errors(self):
+		self.clear_errors()
 		# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't contain errors
 		if self._sparsevalues is None:
 			for field in self.fields.values():
 				field.clear_errors()
-		self.errors = []
 
 	def check_errors(self):
 		if self.errors:
