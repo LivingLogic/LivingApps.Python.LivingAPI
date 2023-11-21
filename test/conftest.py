@@ -3,6 +3,8 @@ import sys, os, datetime, subprocess, textwrap, pathlib
 import pytest
 
 from ll import ul4c, url as url_, ul4on, misc
+from ll.xist import xsc, parse, xfind
+from ll.xist.ns import html
 
 from ll import la
 
@@ -318,11 +320,18 @@ def handler(request):
 	return all_handlers[request.param]()
 
 
-@pytest.fixture(scope="module")
-def config_apps():
+@pytest.fixture(scope="session")
+def config_data(tmp_path_factory, worker_id):
 	"""
 	A test fixture that gives us a dictionary with a :class:`la.DBHandler` and
 	the two :class:`la.App` objects.
+
+	A set of test records in the "area of activity" app will be created
+	(after removing all existing records).
+
+	A set of test records in the "persons" app will be created
+	(after removing all existing records).
+
 	"""
 	handler = la.DBHandler(connectstring=connect(), connectstring_postgres=connect_postgres(), uploaddir=uploaddir(), ide_account=user())
 
@@ -332,51 +341,29 @@ def config_apps():
 	fields_app = vars["apps"][fields_app_id()]
 	globals = vars["globals"]
 
-	return attrdict(
-		globals=globals,
-		handler=handler,
-		apps=attrdict(
-			persons=persons_app,
-			fields=fields_app,
-		),
-	)
-
-
-@pytest.fixture(scope="module")
-def config_norecords(config_apps):
-	"""
-	A test fixture that ensures that both test apps contain no records.
-	"""
-	c = config_apps
-
-	identifier = "makerecords"
-
-	c.apps.persons.addtemplate(
+	persons_app.addtemplate(
 		la.ViewTemplateConfig(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=c.apps.persons,
+				app=persons_app,
 			),
 			la.DataSourceConfig(
 				la.DataSourceChildren(
-					control=c.apps.fields.c_parent,
+					control=fields_app.c_parent,
 					identifier="children",
 				),
 				identifier="fields",
-				app=c.apps.fields,
+				app=fields_app,
 			),
-			identifier=identifier,
+			identifier="all_records",
 		)
 	)
-	c.apps.persons.viewtemplates.makerecords.save()
+	persons_app.viewtemplates.all_records.save()
 
-	c.handler.reset()
-	c.handler.commit()
+	handler.reset()
+	handler.commit()
 
-	vars = c.handler.viewtemplate_data(person_app_id(), template=identifier)
-
-	persons_app = vars.datasources.persons.app
-	fields_app = vars.datasources.fields.app
+	vars = handler.viewtemplate_data(persons_app.id, template="all_records")
 
 	# Remove all persons
 	for r in persons_app.records.values():
@@ -392,81 +379,70 @@ def config_norecords(config_apps):
 		if r.v_parent is None:
 			removeaa(r)
 
-	c.handler.reset()
-	c.handler.commit()
+	handler.reset()
+	handler.commit()
 
-	# Replace both :class:`la.App` objects with ones that have records.
-	c.apps.persons = persons_app
-	c.apps.fields = fields_app
+	# Create records in the "areas of activity" app
 
-	return c
-
-
-@pytest.fixture(scope="module")
-def config_fields(config_norecords):
-	"""
-	A fixture that creates the records in the "area of activity" app (after
-	removing all existing records).
-	"""
-	c = config_norecords
-
-	fields_app = c.apps.fields
-
-	c.areas = attrdict()
+	areas = attrdict()
 
 	def aa(**values):
 		aa = fields_app(**values)
 		aa.save()
+		fields_app.records[aa.id] = aa
 		return aa
 
-	c.areas.science = aa(name="Science")
-	c.areas.mathematics = aa(name="Mathematics", parent=c.areas.science)
-	c.areas.physics = aa(name="Physics", parent=c.areas.science)
-	c.areas.computerscience = aa(name="Computer science", parent=c.areas.science)
-	c.areas.art = aa(name="Art")
-	c.areas.film = aa(name="Film", parent=c.areas.art)
-	c.areas.music = aa(name="Music", parent=c.areas.art)
-	c.areas.literature = aa(name="Literature", parent=c.areas.art)
-	c.areas.politics = aa(name="Politics")
-	c.areas.industry = aa(name="Industry")
-	c.areas.sport = aa(name="Sport")
+	areas.science = aa(name="Science")
+	areas.mathematics = aa(name="Mathematics", parent=areas.science)
+	areas.physics = aa(name="Physics", parent=areas.science)
+	areas.computerscience = aa(name="Computer science", parent=areas.science)
+	areas.art = aa(name="Art")
+	areas.film = aa(name="Film", parent=areas.art)
+	areas.music = aa(name="Music", parent=areas.art)
+	areas.literature = aa(name="Literature", parent=areas.art)
+	areas.politics = aa(name="Politics")
+	areas.industry = aa(name="Industry")
+	areas.sport = aa(name="Sport")
 
-	c.handler.reset()
-	c.handler.commit()
+	handler.reset()
+	handler.commit()
 
-	return c
+	# Create records in the "persons" app
 
-
-@pytest.fixture(scope="module")
-def config_persons(config_fields):
-	"""
-	A fixture that creates the records in the "persons" app (after making sure
-	we have records in the "area of activity" app).
-	"""
-	c = config_fields
-
-	personen_app = c.apps.persons
-
-	c.persons = attrdict()
+	persons = attrdict()
 
 	def p(**values):
-		p = personen_app(**values)
+		p = persons_app(**values)
+		if "url" in values:
+			page_url = values["url"]
+			e = parse.tree(
+				parse.URL(page_url),
+				parse.Tidy(),
+				parse.NS(html),
+				parse.Node(pool=xsc.Pool(html)),
+			)
+			selector = xfind.hasclass('mw-parser-output') / html.p
+			notes = misc.first(e.walknodes(selector))
+			notes = notes.mapped(lambda n, c: xsc.Null if isinstance(n, html.sup) else n)
+			p.v_notes = notes.string()
+
 		if p.v_portrait is not None and p.v_portrait.id is None:
 			p.v_portrait.save()
 		p.save()
+		persons_app.records[p.id] = p
 		return p
 
 	def u(u):
-		return c.globals.file(url_.URL(u))
+		return globals.file(url_.URL(u))
 
 	def g(lat=None, long=None, info=None):
-		return c.globals.geo(lat, long, info)
+		return globals.geo(lat, long, info)
 
-	c.persons.ae = p(
+	persons.ae = p(
 		firstname="Albert",
 		lastname="Einstein",
-		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[c.areas.physics],
+		sex=persons_app.c_sex.lookupdata.male,
+		field_of_activity=[areas.physics],
 		country_of_birth="germany",
 		date_of_birth=datetime.date(1879, 3, 14),
 		date_of_death=datetime.date(1955, 4, 15),
@@ -476,11 +452,11 @@ def config_persons(config_fields):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Einstein_1921_portrait2.jpg/330px-Einstein_1921_portrait2.jpg"),
 	)
 
-	c.persons.mc = p(
+	persons.mc = p(
 		firstname="Marie",
 		lastname="Curie",
-		sex=personen_app.c_sex.lookupdata.female,
-		field_of_activity=[c.areas.physics],
+		sex=persons_app.c_sex.lookupdata.female,
+		field_of_activity=[areas.physics],
 		country_of_birth="poland",
 		date_of_birth=datetime.date(1867, 11, 7),
 		date_of_death=datetime.date(1934, 7, 4),
@@ -490,11 +466,11 @@ def config_persons(config_fields):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
 	)
 
-	c.persons.ma = p(
+	persons.ma = p(
 		firstname="Muhammad",
 		lastname="Ali",
-		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[c.areas.sport],
+		sex=persons_app.c_sex.lookupdata.male,
+		field_of_activity=[areas.sport],
 		country_of_birth="usa",
 		date_of_birth=datetime.date(1942, 1, 17),
 		date_of_death=datetime.date(2016, 6, 3),
@@ -504,11 +480,11 @@ def config_persons(config_fields):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Muhammad_Ali_NYWTS.jpg/200px-Muhammad_Ali_NYWTS.jpg"),
 	)
 
-	c.persons.mm = p(
+	persons.mm = p(
 		firstname="Marilyn",
 		lastname="Monroe",
-		sex=personen_app.c_sex.lookupdata.female,
-		field_of_activity=[c.areas.film],
+		sex=persons_app.c_sex.lookupdata.female,
+		field_of_activity=[areas.film],
 		country_of_birth="usa",
 		date_of_birth=datetime.date(1926, 6, 1),
 		date_of_death=datetime.date(1962, 8, 4),
@@ -518,11 +494,11 @@ def config_persons(config_fields):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg/220px-Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg"),
 	)
 
-	c.persons.ep = p(
+	persons.ep = p(
 		firstname="Elvis",
 		lastname="Presley",
-		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[c.areas.music],
+		sex=persons_app.c_sex.lookupdata.male,
+		field_of_activity=[areas.music],
 		country_of_birth="usa",
 		date_of_birth=datetime.date(1935, 1, 8),
 		date_of_death=datetime.date(1977, 8, 16),
@@ -532,11 +508,11 @@ def config_persons(config_fields):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
 	)
 
-	c.persons.br = p(
+	persons.br = p(
 		firstname="Bernhard",
 		lastname="Riemann",
-		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[c.areas.mathematics],
+		sex=persons_app.c_sex.lookupdata.male,
+		field_of_activity=[areas.mathematics],
 		country_of_birth="germany",
 		date_of_birth=datetime.date(1826, 6, 17),
 		date_of_death=datetime.date(1866, 6, 20),
@@ -546,11 +522,11 @@ def config_persons(config_fields):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/BernhardRiemannAWeger.jpg/330px-BernhardRiemannAWeger.jpg"),
 	)
 
-	c.persons.cfg = p(
+	persons.cfg = p(
 		firstname="Carl Friedrich",
 		lastname="Gauß",
-		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[c.areas.mathematics],
+		sex=persons_app.c_sex.lookupdata.male,
+		field_of_activity=[areas.mathematics],
 		country_of_birth="germany",
 		date_of_birth=datetime.date(1777, 4, 30),
 		date_of_death=datetime.date(1855, 2, 23),
@@ -560,22 +536,22 @@ def config_persons(config_fields):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carl_Friedrich_Gauss.jpg/255px-Carl_Friedrich_Gauss.jpg"),
 	)
 
-	c.persons.dk = p(
+	persons.dk = p(
 		firstname="Donald",
 		lastname="Knuth",
-		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[c.areas.computerscience],
+		sex=persons_app.c_sex.lookupdata.male,
+		field_of_activity=[areas.computerscience],
 		country_of_birth="usa",
 		date_of_birth=datetime.date(1938, 1, 10),
 		url="https://de.wikipedia.org/wiki/Donald_E._Knuth",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/KnuthAtOpenContentAlliance.jpg/255px-KnuthAtOpenContentAlliance.jpg"),
 	)
 
-	c.persons.rr = p(
+	persons.rr = p(
 		firstname="Ronald",
 		lastname="Reagan",
-		sex=personen_app.c_sex.lookupdata.male,
-		field_of_activity=[c.areas.film, c.areas.politics],
+		sex=persons_app.c_sex.lookupdata.male,
+		field_of_activity=[areas.film, areas.politics],
 		country_of_birth="usa",
 		date_of_birth=datetime.date(1911, 2, 6),
 		date_of_death=datetime.date(2004, 6, 5),
@@ -585,20 +561,30 @@ def config_persons(config_fields):
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
 	)
 
-	c.persons.am = p(
+	persons.am = p(
 		firstname="Angela",
 		lastname="Merkel",
-		sex=personen_app.c_sex.lookupdata.female,
-		field_of_activity=[c.areas.politics],
+		sex=persons_app.c_sex.lookupdata.female,
+		field_of_activity=[areas.politics],
 		country_of_birth="germany",
 		date_of_birth=datetime.date(1954, 6, 17),
 		date_of_death=None,
 		grave=None,
 		nobel_prize=False,
+		url="https://de.wikipedia.org/wiki/Angela_Merkel",
 		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg/220px-2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg"),
 	)
 
-	c.handler.reset()
-	c.handler.commit()
+	handler.reset()
+	handler.commit()
 
-	return c
+	return attrdict(
+		globals=globals,
+		handler=handler,
+		apps=attrdict(
+			persons=persons_app,
+			fields=fields_app,
+		),
+		areas=areas,
+		persons=persons,
+	)

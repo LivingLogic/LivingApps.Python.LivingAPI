@@ -61,7 +61,7 @@ def test_global_hostname(handler):
 	assert lines(output) == lines(expected)
 
 
-def test_global_mode(handler, config_persons):
+def test_global_mode(handler, config_data):
 	"""
 	Check that ``globals.mode`` behaves correctly.
 	"""
@@ -83,7 +83,7 @@ def test_global_mode(handler, config_persons):
 		type=la.ViewTemplateConfig.Type.DETAIL,
 	)
 
-	output = handler.renders(person_app_id(), config_persons.persons.ae.id, template=vt_detail.identifier)
+	output = handler.renders(person_app_id(), config_data.persons.ae.id, template=vt_detail.identifier)
 	assert output == "view/detail"
 
 	vt_support = handler.make_viewtemplate(
@@ -96,11 +96,11 @@ def test_global_mode(handler, config_persons):
 	assert output == "view/support"
 
 
-def test_global_datasources(handler, config_apps):
+def test_global_datasources(handler, config_data):
 	"""
 	Check that ``globals.datasources`` works.
 	"""
-	c = config_apps
+	c = config_data
 
 	# Check that the logged in user is the user we've used to log in
 	vt = handler.make_viewtemplate(
@@ -197,12 +197,12 @@ def test_file_attributes(handler):
 	assert lines(output) == lines(expected)
 
 
-def test_datasources(handler, config_apps):
+def test_datasources(handler, config_data):
 	"""
 	Check that the datasources have the identifiers we expect.
 	"""
 
-	c = config_apps
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -229,14 +229,14 @@ def test_datasources(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_output_all_records(handler, config_persons):
+def test_output_all_records(handler, config_data):
 	"""
 	Output all records from all datasources.
 
 	This checks that we don't get any exceptions.
 	"""
 
-	c = config_persons
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -294,7 +294,7 @@ def test_output_all_controls(handler):
 	handler.renders(person_app_id(), template=vt.identifier)
 
 
-def test_detail(handler, config_persons):
+def test_detail(handler, config_data):
 	"""
 	Test that detail templates work.
 	"""
@@ -310,23 +310,23 @@ def test_detail(handler, config_persons):
 
 	output = handler.renders(
 		person_app_id(),
-		config_persons.persons.ae.id,
+		config_data.persons.ae.id,
 		template=vt.identifier,
 	)
 	expected = f"""
-		{config_persons.persons.ae.id}
+		{config_data.persons.ae.id}
 		Albert
 		Einstein
 	"""
 	assert lines(output) == lines(expected)
 
 
-def test_sort_default_order_is_newest_first(handler, config_persons):
+def test_sort_default_order_is_newest_first(handler, config_data):
 	"""
 	Check that the default sort order for records is descending by creation date.
 	"""
 
-	c = config_persons
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -348,12 +348,12 @@ def test_sort_default_order_is_newest_first(handler, config_persons):
 	assert not lines(handler.renders(person_app_id(), template=vt.identifier))
 
 
-def test_record_extended_attributes(handler, config_persons):
+def test_record_extended_attributes(handler, config_data):
 	"""
 	Check that extended attributes (i.e. ``x_foo``) for ``Record`` objects work.
 	"""
 
-	c = config_persons
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -377,12 +377,12 @@ def test_record_extended_attributes(handler, config_persons):
 	assert lines(output) == lines(expected)
 
 
-def test_record_shortcuts(handler, config_persons):
+def test_record_shortcuts(handler, config_data):
 	"""
 	Check that shortcut attributes for ``Record`` objects work.
 	"""
 
-	c = config_persons
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -409,12 +409,12 @@ def test_record_shortcuts(handler, config_persons):
 	assert lines(output) == lines(expected)
 
 
-def test_app_extended_attributes(handler, config_apps):
+def test_app_extended_attributes(handler, config_data):
 	"""
 	Check that extended attributes (i.e. ``x_foo``) for ``App`` objects work.
 	"""
 
-	c = config_apps
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_app_extended_attributes",
@@ -433,12 +433,12 @@ def test_app_extended_attributes(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_app_shortcuts(handler, config_persons):
+def test_app_shortcuts(handler, config_data):
 	"""
 	Check that shortcut attributes for ``App`` objects work.
 	"""
 
-	c = config_persons
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -474,12 +474,12 @@ def test_app_shortcuts(handler, config_persons):
 	assert lines(output) == lines(expected)
 
 
-def test_insert_record(handler, config_apps):
+def test_insert_record(handler, config_data):
 	"""
 	Insert a record into the person app via the method ``App.insert()``.
 	"""
 
-	c = config_apps
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_insert_record",
@@ -650,14 +650,14 @@ def test_app_parameters_on_demand(handler):
 		assert lines(output) == lines(expected)
 
 
-def test_appparams(handler, config_apps):
+def test_appparams(handler, config_data):
 	"""
 	Check all app parameter types.
 
 	We don'd load the app parameters on demand (this is done by another test).
 	"""
 
-	c = config_apps
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -792,8 +792,8 @@ def test_appparams(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_view_control_overwrite_string(handler, config_apps):
-	c = config_apps
+def test_view_control_overwrite_string(handler, config_data):
+	c = config_data
 
 	source_print = """
 	lang=<?print repr(app.active_view.lang if app.active_view else None)?>
@@ -887,8 +887,8 @@ def test_view_control_overwrite_string(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
-	c = config_apps
+def test_view_control_overwrite_lookup_noneoption(handler, config_data):
+	c = config_data
 
 	source_print = """
 	lang=<?print repr(app.active_view.lang if app.active_view else None)?>
@@ -966,8 +966,8 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_globals_extended_attributes(handler, config_apps):
-	c = config_apps
+def test_globals_extended_attributes(handler, config_data):
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_globals_extended_attributes",
@@ -986,8 +986,8 @@ def test_globals_extended_attributes(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_globals_shortcuts(handler, config_apps):
-	c = config_apps
+def test_globals_shortcuts(handler, config_data):
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -1017,7 +1017,7 @@ def test_globals_shortcuts(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_globals_template_shortcuts(handler, config_apps):
+def test_globals_template_shortcuts(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
 		handler.make_internaltemplate(identifier="test_livingapi_globals_template_shortcuts_internal", source="")
 
@@ -1037,7 +1037,7 @@ def test_globals_template_shortcuts(handler, config_apps):
 		assert lines(output) == lines(expected)
 
 
-def test_view_defaultedfields_default(handler, config_apps):
+def test_view_defaultedfields_default(handler, config_data):
 	testoptions = dict(
 		withview=dict(
 			activateview="<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>",
@@ -1070,7 +1070,7 @@ def test_view_defaultedfields_default(handler, config_apps):
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=config_apps.apps.persons,
+				app=config_data.apps.persons,
 				includeviews=True
 			),
 			identifier=f"test_view_defaultedfields_default_{name}",
@@ -1093,7 +1093,7 @@ def test_view_defaultedfields_default(handler, config_apps):
 		assert lines(output) == lines(expected)
 
 
-def test_numbercontrol_attributes(handler, config_apps):
+def test_numbercontrol_attributes(handler, config_data):
 	vt = handler.make_viewtemplate(
 		identifier=f"test_numbercontrol_attributes",
 		source="""
@@ -1122,11 +1122,11 @@ def test_numbercontrol_attributes(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_changeapi_dirty(handler, config_persons):
+def test_changeapi_dirty(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_persons.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier=f"test_changeapi_dirty",
@@ -1162,11 +1162,11 @@ def test_changeapi_dirty(handler, config_persons):
 	assert lines(output) == lines(expected)
 
 
-def test_changeapi_has_errors(handler, config_apps):
+def test_changeapi_has_errors(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier=f"test_changeapi_has_errors",
@@ -1182,16 +1182,16 @@ def test_changeapi_has_errors(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def check_field(handler, config_apps, identifier, field, value, expected, isre=False):
+def check_field(handler, config_data, identifier, field, value, expected, isre=False):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 		),
 		la.DataSourceConfig(
 			identifier="fields",
-			app=config_apps.apps.fields,
+			app=config_data.apps.fields,
 			includeviews=True,
 		),
 		identifier=identifier,
@@ -1224,12 +1224,12 @@ def check_field(handler, config_apps, identifier, field, value, expected, isre=F
 		assert output == expected
 
 
-def test_changeapi_fieldvalue_bool_string(handler, config_apps):
+def test_changeapi_fieldvalue_bool_string(handler, config_data):
 	type = "<java.lang.String>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "str"
 
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_bool_string",
 		"nobel_prize",
 		"'Gurk'",
@@ -1246,10 +1246,10 @@ def test_changeapi_fieldvalue_bool_string(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_bool_none(handler, config_apps):
+def test_changeapi_fieldvalue_bool_none(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_bool_none",
 		"nobel_prize",
 		"None",
@@ -1262,10 +1262,10 @@ def test_changeapi_fieldvalue_bool_none(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_bool_true(handler, config_apps):
+def test_changeapi_fieldvalue_bool_true(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_bool_true",
 		"nobel_prize",
 		"True",
@@ -1278,10 +1278,10 @@ def test_changeapi_fieldvalue_bool_true(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_str_required(handler, config_apps):
+def test_changeapi_fieldvalue_str_required(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_str_required",
 		"firstname",
 		"None",
@@ -1298,10 +1298,10 @@ def test_changeapi_fieldvalue_str_required(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_str_limited_tooshort(handler, config_apps):
+def test_changeapi_fieldvalue_str_limited_tooshort(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_str_limited_tooshort",
 		"firstname",
 		"'?'",
@@ -1318,11 +1318,11 @@ def test_changeapi_fieldvalue_str_limited_tooshort(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_str_limited_toolong(handler, config_apps):
+def test_changeapi_fieldvalue_str_limited_toolong(handler, config_data):
 	result = "?" * 31
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_str_limited_toolong",
 		"firstname",
 		"'?' * 31",
@@ -1339,10 +1339,10 @@ def test_changeapi_fieldvalue_str_limited_toolong(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_str_ok(handler, config_apps):
+def test_changeapi_fieldvalue_str_ok(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_str_ok",
 		"firstname",
 		"'Gurk'",
@@ -1355,11 +1355,11 @@ def test_changeapi_fieldvalue_str_ok(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_str_unlimited_toolong(handler, config_apps):
+def test_changeapi_fieldvalue_str_unlimited_toolong(handler, config_data):
 	result = "?"*4001
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_str_unlimited_toolong",
 		"lastname",
 		"'?'*4001",
@@ -1376,12 +1376,12 @@ def test_changeapi_fieldvalue_str_unlimited_toolong(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_geo_color(handler, config_apps):
+def test_changeapi_fieldvalue_geo_color(handler, config_data):
 	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_geo_color",
 		"grave",
 		"#000",
@@ -1398,10 +1398,10 @@ def test_changeapi_fieldvalue_geo_color(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_geo_none(handler, config_apps):
+def test_changeapi_fieldvalue_geo_none(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_geo_none",
 		"grave",
 		"None",
@@ -1414,12 +1414,12 @@ def test_changeapi_fieldvalue_geo_none(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_date_color(handler, config_apps):
+def test_changeapi_fieldvalue_date_color(handler, config_data):
 	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_color",
 		"date_of_birth",
 		"#000",
@@ -1436,10 +1436,10 @@ def test_changeapi_fieldvalue_date_color(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_date_str_wrongformat(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_wrongformat(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_wrongformat",
 		"date_of_birth",
 		"'Gurk'",
@@ -1456,10 +1456,10 @@ def test_changeapi_fieldvalue_date_str_wrongformat(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datestring(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datestring(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datestring",
 		"date_of_birth",
 		"'2000-02-29'",
@@ -1472,10 +1472,10 @@ def test_changeapi_fieldvalue_date_str_ok_datestring(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datestring_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datestring_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datestring_de",
 		"date_of_birth",
 		"'29.02.2000'",
@@ -1489,10 +1489,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datestring_de(handler, config_apps
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datestring_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datestring_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datestring_en",
 		"date_of_birth",
 		"'02/29/2000'",
@@ -1508,10 +1508,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datestring_en(handler, config_apps
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes",
 		"date_of_birth",
 		"'2000-02-29T12:34'",
@@ -1524,10 +1524,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes(handler, config
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_de",
 		"date_of_birth",
 		"'29.02.2000 12:34'",
@@ -1541,10 +1541,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_de(handler,
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_en",
 		"date_of_birth",
 		"'02/29/2000 12:34'",
@@ -1560,10 +1560,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_en(handler,
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds",
 		"date_of_birth",
 		"'2000-02-29T12:34:56'",
@@ -1576,10 +1576,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds(handler, config
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_de",
 		"date_of_birth",
 		"'29.02.2000 12:34:56'",
@@ -1593,10 +1593,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_de(handler,
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_en",
 		"date_of_birth",
 		"'02/29/2000 12:34:56'",
@@ -1612,10 +1612,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_en(handler,
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds",
 		"date_of_birth",
 		"'2000-02-29T12:34:56.987654'",
@@ -1628,10 +1628,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds(handler, c
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_de",
 		"date_of_birth",
 		"'29.02.2000 12:34:56.987654'",
@@ -1645,10 +1645,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_de(han
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_en",
 		"date_of_birth",
 		"'02/29/2000 12:34:56.987654'",
@@ -1664,10 +1664,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_en(han
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz",
 		"date_of_birth",
 		"'2000-02-29T12:34+01:00'",
@@ -1680,10 +1680,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz(handler
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_de",
 		"date_of_birth",
 		"'29.02.2000 12:34+01:00'",
@@ -1697,10 +1697,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_de(
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_en",
 		"date_of_birth",
 		"'02/29/2000 12:34+01:00'",
@@ -1716,10 +1716,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_en(
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz",
 		"date_of_birth",
 		"'2000-02-29T12:34:56+01:00'",
@@ -1732,10 +1732,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz(handler
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_de",
 		"date_of_birth",
 		"'29.02.2000 12:34:56+01:00'",
@@ -1749,10 +1749,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_de(
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_en",
 		"date_of_birth",
 		"'02/29/2000 12:34:56+01:00'",
@@ -1768,10 +1768,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_en(
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz",
 		"date_of_birth",
 		"'2000-02-29T12:34:56.987654+01:00'",
@@ -1784,10 +1784,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz(ha
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_de",
 		"date_of_birth",
 		"'29.02.2000 12:34:56.987654+01:00'",
@@ -1801,10 +1801,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_t
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_en",
 		"date_of_birth",
 		"'02/29/2000 12:34:56.987654+01:00'",
@@ -1820,10 +1820,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_t
 	)
 
 
-def test_changeapi_fieldvalue_date_none(handler, config_apps):
+def test_changeapi_fieldvalue_date_none(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_none",
 		"date_of_birth",
 		"None",
@@ -1840,12 +1840,12 @@ def test_changeapi_fieldvalue_date_none(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_color(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_color(handler, config_data):
 	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_color",
 		"sex",
 		"#000",
@@ -1862,10 +1862,10 @@ def test_changeapi_fieldvalue_lookup_color(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_unknown(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_unknown(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_unknown",
 		"sex",
 		"'nix'",
@@ -1882,10 +1882,10 @@ def test_changeapi_fieldvalue_lookup_unknown(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_foreign(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_foreign(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_foreign",
 		"sex",
 		"app.c_country_of_birth.lookupdata.usa",
@@ -1903,10 +1903,10 @@ def test_changeapi_fieldvalue_lookup_foreign(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_str(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_str(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_str",
 		"sex",
 		"'male'",
@@ -1920,10 +1920,10 @@ def test_changeapi_fieldvalue_lookup_str(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_lookupitem(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_lookupitem(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_lookupitem",
 		"sex",
 		"app.c_sex.lookupdata.male",
@@ -1937,10 +1937,10 @@ def test_changeapi_fieldvalue_lookup_lookupitem(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_none(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_none(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_none",
 		"sex",
 		"None",
@@ -1953,12 +1953,12 @@ def test_changeapi_fieldvalue_lookup_none(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_color(handler, config_apps):
+def test_changeapi_fieldvalue_multipleapplookup_color(handler, config_data):
 	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_color",
 		"field_of_activity",
 		"#000",
@@ -2248,7 +2248,7 @@ def test_changeapi_fieldvalue_bool_required_true(handler, config_fields):
 	)
 
 
-def test_view_attributes(handler, config_apps):
+def test_view_attributes(handler, config_data):
 	"""
 	Check the ``View`` attributes ``login_required``, ``result_page`` and ``use_geo``
 	(which are new in version 124).
@@ -2256,7 +2256,7 @@ def test_view_attributes(handler, config_apps):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier=f"test_view_attributes",
@@ -2277,11 +2277,11 @@ def test_view_attributes(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_view_specific_lookups(handler, config_apps):
+def test_view_specific_lookups(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier=f"test_view_specific_lookups",
@@ -2310,11 +2310,11 @@ def test_view_specific_lookups(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_app_with_wrong_fields(handler, config_apps):
+def test_app_with_wrong_fields(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier=f"test_app_with_wrong_fields",
@@ -2327,12 +2327,12 @@ def test_app_with_wrong_fields(handler, config_apps):
 	#output = handler.renders(person_app_id(), template=vt.identifier)
 
 
-def test_record_save_with_sync(handler, config_apps):
+def test_record_save_with_sync(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=config_apps.apps.persons,
+				app=config_data.apps.persons,
 				includeviews=True
 			),
 			identifier=f"test_record_save_with_sync",
@@ -2356,7 +2356,7 @@ def test_record_save_with_sync(handler, config_apps):
 		assert lines(output) == lines(expected)
 
 
-def test_globals_seq(handler, config_apps):
+def test_globals_seq(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_globals_seq",
@@ -2607,11 +2607,11 @@ def test_assign_to_children_shortcut_attribute_wrong_type(handler):
 			assert "expected exception not raised" == ''
 
 
-def test_view_controls(handler, config_apps):
+def test_view_controls(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier="test_livingapi_view_controls",
@@ -2643,11 +2643,11 @@ def test_view_controls(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_view_layout_controls(handler, config_apps):
+def test_view_layout_controls(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL_LAYOUT,
 		),
@@ -2750,11 +2750,11 @@ def test_file_signature(handler):
 	assert lines(output) == lines(expected)
 
 
-def test_app_datasource(handler, config_apps):
+def test_app_datasource(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier="test_livingapi_app_datasource",
@@ -2806,9 +2806,9 @@ def test_parameter_array(handler):
 	assert lines(output) == lines(expected)
 
 
-def test_record_attachments_on_demand(handler, config_apps):
+def test_record_attachments_on_demand(handler, config_data):
 	if isinstance(handler, (PythonDB, JavaDB, GatewayHTTP)):
-		c = config_apps
+		c = config_data
 
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
@@ -2833,7 +2833,7 @@ def test_record_attachments_on_demand(handler, config_apps):
 		assert lines(output) == lines(expected)
 
 
-def test_app_templates_on_demand(handler, config_persons):
+def test_app_templates_on_demand(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
 		handler.make_internaltemplate(
 			identifier="test_livingapi_app_template_on_demand_internal",
@@ -2904,8 +2904,8 @@ def test_library_parameters(handler):
 		assert lines(output) == lines(expected)
 
 
-def test_globals_dir(handler, config_apps):
-	c = config_apps
+def test_globals_dir(handler, config_data):
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_globals_dir",
@@ -2963,8 +2963,8 @@ def test_globals_dir(handler, config_apps):
 	assert sorted(lines(output)) == sorted(lines(expected))
 
 
-def test_app_dir(handler, config_apps):
-	c = config_apps
+def test_app_dir(handler, config_data):
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_globals_dir",
@@ -3028,8 +3028,8 @@ def test_app_dir(handler, config_apps):
 	assert sorted(lines(output)) == sorted(lines(expected))
 
 
-def test_record_dir(handler, config_apps):
-	c = config_apps
+def test_record_dir(handler, config_data):
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
@@ -3085,8 +3085,8 @@ def test_record_dir(handler, config_apps):
 	assert sorted(lines(output)) == sorted(lines(expected))
 
 
-def test_view_dir(handler, config_apps):
-	c = config_apps
+def test_view_dir(handler, config_data):
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_view_dir",
@@ -3124,8 +3124,8 @@ def test_view_dir(handler, config_apps):
 	assert sorted(lines(output)) == sorted(lines(expected))
 
 
-def test_control_dir(handler, config_apps):
-	c = config_apps
+def test_control_dir(handler, config_data):
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_control_dir",
@@ -3175,8 +3175,8 @@ def test_control_dir(handler, config_apps):
 	assert sorted(lines(output)) == sorted(lines(expected))
 
 
-def test_layoutcontrol_dir(handler, config_apps):
-	c = config_apps
+def test_layoutcontrol_dir(handler, config_data):
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_layoutcontrol_dir",
@@ -3212,8 +3212,8 @@ def test_layoutcontrol_dir(handler, config_apps):
 	assert sorted(lines(output)) == sorted(lines(expected))
 
 
-def test_field_dir(handler, config_apps):
-	c = config_apps
+def test_field_dir(handler, config_data):
+	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
