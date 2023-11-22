@@ -2321,24 +2321,29 @@ class Globals(CustomAttributes):
 		return vsql.FieldRefAST.make_root(cls.vsqlsearchfield)
 
 	def __getattr__(self, name):
-		try:
-			if self.datasources and name.startswith("d_"):
-				return self.datasources[name[2:]]
-			elif self.externaldatasources and name.startswith("e_"):
-				return self.externaldatasources[name[2:]]
-			elif name.startswith("t_") and self.app:
-				template = self.app._fetch_template(self.app, name[2:])
+		if name.startswith("d_"):
+			identifier = name[2:]
+			if self.datasources and identifier in self.datasources:
+				return self.datasources[identifier]
+		elif name.startswith("e_"):
+			identifier = name[2:]
+			if self.externaldatasources and identifier in self.externaldatasources:
+				return self.externaldatasources[identifier]
+		elif name.startswith("t_"):
+			if self.app:
+				identifier = name[2:]
+				template = self.app._fetch_template(self.app, identifier)
 				if template is not None:
 					return template
-			elif name.startswith("l_"):
-				return self.libs[name[2:]]
-			elif self.app and name.startswith("p_"):
-				return self.params[name[2:]]
-			elif self.app and name.startswith("pv_"):
-				return self.params[name[3:]].value
-		except KeyError:
-			pass
-		return super().__getattr__(name)
+		elif name.startswith("p_"):
+			identifier = name[2:]
+			if self.app and identifier in self.params:
+				return self.params[identifier]
+		elif name.startswith("pv_"):
+			identifier = name[3:]
+			if self.app and identifier in self.params:
+				return self.params[identifier].value
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __dir__(self):
 		"""
@@ -2848,22 +2853,28 @@ class App(CustomAttributes):
 		return f"/_id_36_.htm?uuid={self.id}&dId={self.id}&resetInfo=true&templateIdentifier=created_{self.id}_datamanage_master_{identifier}"
 
 	def __getattr__(self, name):
-		try:
-			if name.startswith("c_"):
-				return self.controls[name[2:]]
-			elif name.startswith("t_"):
-				template = self._fetch_template(self, name[2:])
-				if template is not None:
-					return template
-			elif name.startswith("lc_") and self.layout_controls:
-				return self.layout_controls[name[3:]]
-			elif name.startswith("p_") and self.params:
-				return self.params[name[2:]]
-			elif name.startswith("pv_") and self.params:
-				return self.params[name[3:]].value
-		except KeyError:
-			pass
-		return super().__getattr__(name)
+		if name.startswith("c_"):
+			identifier = name[2:]
+			if self.controls and identifier in self.controls:
+				return self.controls[identifier]
+		elif name.startswith("t_"):
+			identifier = name[2:]
+			template = self._fetch_template(self, identifier)
+			if template is not None:
+				return template
+		elif name.startswith("lc_"):
+			identifier = name[3:]
+			if self.layout_controls and identifier in self.layout_controls:
+				return self.layout_controls[identifier]
+		elif name.startswith("p_"):
+			identifier = name[2:]
+			if self.params and identifier in self.params:
+				return self.params[identifier]
+		elif name.startswith("pv_"):
+			identifier = name[3:]
+			if self.params and identifier in self.params:
+				return self.params[identifier].value
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __dir__(self):
 		"""
@@ -5441,24 +5452,24 @@ class Record(CustomAttributes):
 				p.text(suffix)
 
 	def __getattr__(self, name):
-		try:
-			if name.startswith("v_"):
-				return self.values[name[2:]]
-			elif name.startswith("f_"):
-				return self.fields[name[2:]]
-			elif name.startswith("c_"):
-				return self.children[name[2:]]
-			elif name.startswith("t_"):
-				template = self.app._fetch_template(self, name[2:])
-				if template is not None:
-					return template
-			elif name in self.__class__.__dict__:
-				attr = getattr(self.__class__, name)
-				if isinstance(attr, Attr):
-					return attr.get(self)
-		except KeyError:
-			pass
-		return super().__getattr__(name)
+		if name.startswith("v_"):
+			identifier = name[2:]
+			if identifier in self.fields:
+				return self.fields[identifier].value
+		elif name.startswith("f_"):
+			identifier = name[2:]
+			if identifier in self.fields:
+				return self.fields[identifier]
+		elif name.startswith("c_"):
+			identifier = name[2:]
+			if identifier in self.children:
+				return self.children[identifier]
+		elif name.startswith("t_"):
+			identifier = name[2:]
+			template = self.app._fetch_template(self, identifier)
+			if template is not None:
+				return template
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __dir__(self):
 		"""
@@ -7684,15 +7695,15 @@ class View(CustomAttributes):
 		self.use_use = not value
 
 	def __getattr__(self, name):
-		try:
-			if name.startswith("c_"):
-				return self.controls[name[2:]]
-			elif name.startswith("lc_"):
-				return self.layout_controls[name[3:]]
-			else:
-				return super().__getattr__(name)
-		except KeyError:
-			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		if name.startswith("c_"):
+			identifier = name[2:]
+			if identifier in self.controls:
+				return self.controls[identifier]
+		elif name.startswith("lc_"):
+			identifier = name[3:]
+			if identifier in self.layout_controls:
+				return self.layout_controls[identifier]
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __dir__(self):
 		"""
@@ -8097,16 +8108,19 @@ class TemplateLibrary(Base):
 		return self.id
 
 	def __getattr__(self, name):
-		try:
-			if name.startswith("t_"):
-				return self.templates[name[2:]]
-			if name.startswith("p_"):
-				return self.params[name[2:]]
-			if name.startswith("pv_"):
-				return self.params[name[3:]].value
-		except KeyError:
-			raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-		return super().__getattr__(name)
+		if name.startswith("t_"):
+			identifier = name[2:]
+			if identifier in self.templates:
+				return self.templates[identifier]
+		elif name.startswith("p_"):
+			identifier = name[2:]
+			if identifier in self.params:
+				return self.params[identifier]
+		elif name.startswith("pv_"):
+			identifier = name[3:]
+			if identifier in self.params:
+				return self.params[identifier].value
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __dir__(self):
 		"""
@@ -8771,13 +8785,13 @@ class MenuItem(CustomAttributes):
 		return self.id
 
 	def __getattr__(self, name):
-		try:
-			if name.startswith("c_"):
-				return self.children[name[2:]]
-		except KeyError:
-			pass
-		if name.startswith("t_"):
-			template = self.app._fetch_template(self, name[2:])
+		if name.startswith("c_"):
+			identifier = name[2:]
+			if identifier in self.children:
+				return self.children[identifier]
+		elif name.startswith("t_"):
+			identifier = name[2:]
+			template = self.app._fetch_template(self, identifier)
 			if template is not None:
 				return template
 		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
