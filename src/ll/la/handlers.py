@@ -156,7 +156,7 @@ class Handler:
 	def record_attachments_incremental_data(self, id):
 		return None
 
-	def meta_data(self, *appids):
+	def meta_data(self, *appids, records=False):
 		raise NotImplementedError
 
 	def _geofrominfo(self, info:str) -> la.Geo:
@@ -862,16 +862,17 @@ class DBHandler(Handler):
 		dump = self._loaddump(dump)
 		return dump
 
-	def meta_data(self, *appids):
+	def meta_data(self, *appids, records=False):
 		cursor = self.cursor()
 		tpl_uuids = self.varchars(appids)
 		cursor.execute(
-			"select livingapi_pkg.metadata_ful4on(c_user=>:ide_id, p_tpl_uuids=>:tpl_uuids) from dual",
+			"select livingapi_pkg.metadata_ful4on(c_user=>:ide_id, p_tpl_uuids=>:tpl_uuids, p_records=>:records) from dual",
 			ide_id=self.ide_id,
 			tpl_uuids=tpl_uuids,
+			records=int(bool(records))
 		)
-		r = cursor.fetchone()
-		dump = r[0].decode("utf-8")
+		dump = cursor.fetchone()[0]
+		dump = dump.decode("utf-8")
 		dump = self._loaddump(dump)
 		return dump
 
@@ -1628,7 +1629,7 @@ class FileHandler(Handler):
 			basepath = pathlib.Path()
 		self.basepath = pathlib.Path(basepath)
 
-	def meta_data(self, *appids):
+	def meta_data(self, *appids, records=False):
 		apps = {}
 		for childpath in self.basepath.iterdir():
 			if childpath.is_dir() and childpath.name.endswith(")") and " (" in childpath.name:
