@@ -1,4 +1,4 @@
-import sys, os, datetime, subprocess, textwrap, pathlib
+import sys, os, datetime, subprocess, textwrap, pathlib, filelock
 
 import pytest
 
@@ -63,8 +63,8 @@ def fields_app_id():
 	return os.environ["LA_LIVINGAPI_TEST_FIELDAPP"]
 
 
-def check_vsql(config_persons, code, result=None):
-	c = config_persons
+def check_vsql(config_data, code, result=None):
+	c = config_data
 
 	# Use the name of the calling function (without "test_")
 	# as the name of the view template.
@@ -320,64 +320,22 @@ def handler(request):
 	return all_handlers[request.param]()
 
 
-@pytest.fixture(scope="session")
-def config_data(tmp_path_factory, worker_id):
-	"""
-	A test fixture that gives us a dictionary with a :class:`la.DBHandler` and
-	the two :class:`la.App` objects.
-
-	A set of test records in the "area of activity" app will be created
-	(after removing all existing records).
-
-	A set of test records in the "persons" app will be created
-	(after removing all existing records).
-
-	"""
+def create_data():
 	handler = la.DBHandler(connectstring=connect(), connectstring_postgres=connect_postgres(), uploaddir=uploaddir(), ide_account=user())
 
-	vars = handler.meta_data(person_app_id(), fields_app_id())
+	vars = handler.meta_data(person_app_id(), fields_app_id(), records=True)
 
 	persons_app = vars["apps"][person_app_id()]
 	fields_app = vars["apps"][fields_app_id()]
 	globals = vars["globals"]
 
-	persons_app.addtemplate(
-		la.ViewTemplateConfig(
-			la.DataSourceConfig(
-				identifier="persons",
-				app=persons_app,
-			),
-			la.DataSourceConfig(
-				la.DataSourceChildren(
-					control=fields_app.c_parent,
-					identifier="children",
-				),
-				identifier="fields",
-				app=fields_app,
-			),
-			identifier="all_records",
-		)
-	)
-	persons_app.viewtemplates.all_records.save()
-
-	handler.reset()
-	handler.commit()
-
-	vars = handler.viewtemplate_data(persons_app.id, template="all_records")
-
 	# Remove all persons
 	for r in persons_app.records.values():
 		r.delete()
 
-	# Recursively remove areas of activity
-	def removeaa(r):
-		for r2 in r.c_children.values():
-			removeaa(r2)
-		r.delete()
-
+	# Remove all areas of activity
 	for r in fields_app.records.values():
-		if r.v_parent is None:
-			removeaa(r)
+		r.delete()
 
 	handler.reset()
 	handler.commit()
@@ -586,5 +544,68 @@ def config_data(tmp_path_factory, worker_id):
 			fields=fields_app,
 		),
 		areas=areas,
-		persons=persons,
+		persons=persons
 	)
+
+
+def fetch_data():
+	handler = la.DBHandler(connectstring=connect(), connectstring_postgres=connect_postgres(), uploaddir=uploaddir(), ide_account=user())
+
+	vars = handler.meta_data(person_app_id(), fields_app_id(), records=True)
+
+	persons_app = vars["apps"][person_app_id()]
+	fields_app = vars["apps"][fields_app_id()]
+	globals = vars["globals"]
+
+	return attrdict(
+		globals=globals,
+		handler=handler,
+		apps=attrdict(
+			persons=persons_app,
+			fields=fields_app,
+		),
+		areas=attrdict({a.v_name.replace(" ", "").lower() : a for a in fields_app.records.values()}),
+		persons=attrdict({"".join(name[:1].lower() for name in f"{p.v_firstname} {p.v_lastname}".split()) : p for p in persons_app.records.values()}),
+	)
+
+
+@pytest.fixture(scope="session")
+def config_data(tmp_path_factory, worker_id):
+	"""
+	A test fixture that gives us a dictionary with a :class:`la.DBHandler` and
+	the two :class:`la.App` objects.
+
+	A set of test records in the "area of activity" app will be created
+	(after removing all existing records) and stored in the ``areas`` attribute.
+
+	A set of test records in the "persons" app will be created
+	(after removing all existing records) and stored in the ``persons`` attribute.
+
+	"""
+
+	# This uses the logic documented here:
+	# https://pytest-xdist.readthedocs.io/en/latest/how-to.html#making-session-scoped-fixtures-execute-only-once
+	# to support running under ``pytest-xdist``
+
+	if worker_id == "master":
+		return create_data()
+
+	# get the temp directory shared by all workers
+	root_tmp_dir = tmp_path_factory.getbasetemp().parent
+
+	# File that signals that test data has been created in the database
+	fn = root_tmp_dir / "init.dummy"
+
+	# Lock file for prevention concurrent checks
+	ln = root_tmp_dir / "init.lock"
+
+	with filelock.FileLock(ln):
+		if fn.is_file():
+			# Test data has alread been created => simply fetch it
+			data = fetch_data()
+		else:
+			# Create test data
+			data = create_data()
+			# Record that test data has been created
+			fn.write_text("done")
+	return data

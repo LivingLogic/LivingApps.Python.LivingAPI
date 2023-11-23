@@ -1975,7 +1975,7 @@ def test_changeapi_fieldvalue_multipleapplookup_color(handler, config_data):
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_fields):
+def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_data):
 	type_color = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
 	find_physics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Physics')";
@@ -1984,7 +1984,7 @@ def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_
 
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok",
 		"field_of_activity",
 		f"[#000, None, '', r.f_field_of_activity.control.none_key, r, {find_physics}]",
@@ -2006,14 +2006,14 @@ def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_record_ok(handler, config_fields):
+def test_changeapi_fieldvalue_multipleapplookup_record_ok(handler, config_data):
 	find_physics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Physics')";
 
 	record = "<.*.Record id='.*' v_name='Physics' v_parent=<.*.Record id='.*' v_name='Science' state=SAVED.*> state=SAVED.*>"
 
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_record_ok",
 		"field_of_activity",
 		f"[{find_physics}]",
@@ -2027,10 +2027,10 @@ def test_changeapi_fieldvalue_multipleapplookup_record_ok(handler, config_fields
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_emptylist_ok(handler, config_fields):
+def test_changeapi_fieldvalue_multipleapplookup_emptylist_ok(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_emptylist_ok",
 		"field_of_activity",
 		"[None, '', r.f_field_of_activity.control.none_key]",
@@ -2043,10 +2043,10 @@ def test_changeapi_fieldvalue_multipleapplookup_emptylist_ok(handler, config_fie
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_none_ok(handler, config_fields):
+def test_changeapi_fieldvalue_multipleapplookup_none_ok(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_none_ok",
 		"field_of_activity",
 		"None",
@@ -2059,7 +2059,7 @@ def test_changeapi_fieldvalue_multipleapplookup_none_ok(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_multiple_records(handler, config_fields):
+def test_changeapi_fieldvalue_multipleapplookup_multiple_records(handler, config_data):
 	find_physics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Physics')";
 	find_mathematics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Mathematics')";
 
@@ -2068,7 +2068,7 @@ def test_changeapi_fieldvalue_multipleapplookup_multiple_records(handler, config
 
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_multiple_records",
 		"field_of_activity",
 		f"[{find_physics}, {find_mathematics}]",
@@ -2082,10 +2082,10 @@ def test_changeapi_fieldvalue_multipleapplookup_multiple_records(handler, config
 	)
 
 
-def test_changeapi_fieldvalue_email_format(handler, config_fields):
+def test_changeapi_fieldvalue_email_format(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_email_format",
 		"email2",
 		f"'foo'",
@@ -2102,10 +2102,10 @@ def test_changeapi_fieldvalue_email_format(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_email_ok(handler, config_fields):
+def test_changeapi_fieldvalue_email_ok(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_email_ok",
 		"email2",
 		f"'livingapps@example.org'",
@@ -2118,10 +2118,10 @@ def test_changeapi_fieldvalue_email_ok(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_phone_format(handler, config_fields):
+def test_changeapi_fieldvalue_phone_format(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_phone_format",
 		"phone",
 		f"'foo'",
@@ -2138,10 +2138,10 @@ def test_changeapi_fieldvalue_phone_format(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_phone_ok(handler, config_fields):
+def test_changeapi_fieldvalue_phone_ok(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_phone_ok",
 		"phone",
 		f"'+49 (0) 9876/54321'",
@@ -2154,10 +2154,10 @@ def test_changeapi_fieldvalue_phone_ok(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_url_format(handler, config_fields):
+def test_changeapi_fieldvalue_url_format(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_url_format",
 		"url",
 		f"'foo://bar'",
@@ -2174,12 +2174,12 @@ def test_changeapi_fieldvalue_url_format(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_url_ok(handler, config_fields):
+def test_changeapi_fieldvalue_url_ok(handler, config_data):
 	url = "https://www.example.org:80/foo/bar/baz.html?x=y&z=w#frag"
 
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_url_ok",
 		"url",
 		f"'{url}'",
@@ -2192,10 +2192,10 @@ def test_changeapi_fieldvalue_url_ok(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_bool_required_none(handler, config_fields):
+def test_changeapi_fieldvalue_bool_required_none(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_bool_required_none",
 		"consent",
 		"None",
@@ -2212,10 +2212,10 @@ def test_changeapi_fieldvalue_bool_required_none(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_bool_required_false(handler, config_fields):
+def test_changeapi_fieldvalue_bool_required_false(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_bool_required_false",
 		"consent",
 		"False",
@@ -2232,10 +2232,10 @@ def test_changeapi_fieldvalue_bool_required_false(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_bool_required_true(handler, config_fields):
+def test_changeapi_fieldvalue_bool_required_true(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_bool_required_true",
 		"consent",
 		"True",
