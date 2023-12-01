@@ -132,6 +132,9 @@ class Handler:
 	def viewtemplate_data(self, *path, **params):
 		raise NotImplementedError
 
+	def loadinternaltemplates(self, tpl_uuid):
+		raise NotImplementedError
+
 	def viewtemplate_params_incremental_data(self, globals, id):
 		return None
 
@@ -217,6 +220,9 @@ class Handler:
 			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
 
 	def seq(self):
+		raise NotImplementedError
+
+	def appseq(self, app):
 		raise NotImplementedError
 
 	def save_record(self, record):
@@ -359,6 +365,7 @@ class DBHandler(Handler):
 		self.proc_init = orasql.Procedure("LIVINGAPI_PKG.INIT")
 		self.proc_clear_all = orasql.Procedure("LIVINGAPI_PKG.CLEAR_ALL")
 		self.func_seq = orasql.Function("LIVINGAPI_PKG.SEQ")
+		self.func_template_seq = orasql.Function("LIVINGAPI_PKG.TEMPLATE_SEQ_BY_TPL_UUID")
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
@@ -439,7 +446,12 @@ class DBHandler(Handler):
 	def seq(self):
 		c = self.cursor()
 		(value, r) = self.func_seq(c)
-		return value
+		return int(value)
+
+	def appseq(self, app):
+		c = self.cursor()
+		(value, r) = self.func_template_seq(c, app.id)
+		return int(value)
 
 	def save_app(self, app, recursive=True):
 		# FIXME: Save the app itself
@@ -1130,8 +1142,15 @@ class DBHandler(Handler):
 					for (i, part) in enumerate(parts):
 						if i % 2:
 							if field:
-								identifier = controls_by_field[field].identifier
-								record.fields[identifier].add_error(part)
+								if field not in controls_by_field:
+									record.add_error(f"{field}: {part}")
+								else:
+									control = controls_by_field[field]
+									identifier = control.identifier
+									if app.active_view is not None and identifier not in app.active_view.controls:
+										record.add_error(f"{identifier}: {part}")
+									else:
+										record.fields[identifier].add_error(part)
 							else:
 								record.add_error(part)
 						else:
@@ -1338,7 +1357,7 @@ class DBHandler(Handler):
 			self.custom_procs[procname] = proc
 			return proc
 
-	def _loadinternaltemplates(self, tpl_uuid):
+	def loadinternaltemplates(self, tpl_uuid):
 		if tpl_uuid in self.internaltemplates:
 			return self.internaltemplates[tpl_uuid]
 		c = self.cursor_pg()
@@ -1365,11 +1384,11 @@ class DBHandler(Handler):
 
 	def fetch_templates(self, app):
 		if app.superid is None:
-			return self._loadinternaltemplates(app.id)
+			return self.loadinternaltemplates(app.id)
 		else:
 			return {
-				**self._loadinternaltemplates(app.superid),
-				**self._loadinternaltemplates(app.id),
+				**self.loadinternaltemplates(app.superid),
+				**self.loadinternaltemplates(app.id),
 			}
 
 	def fetch_viewtemplate_params(self, globals):
@@ -1639,7 +1658,7 @@ class FileHandler(Handler):
 				app = la.App(name=name)
 				app.id = id
 				self._loadcontrols(app)
-				self._loadinternaltemplates(app)
+				self.loadinternaltemplates(app)
 				apps[app.id] = app
 		return attrdict(apps)
 
@@ -1649,7 +1668,7 @@ class FileHandler(Handler):
 			dump = json.loads(path.read_text(encoding="utf-8"))
 
 
-	def _loadinternaltemplates(self, app):
+	def loadinternaltemplates(self, app):
 		dir = self.basepath/f"{app.name} ({app.id})/internaltemplates"
 		if dir.exists():
 			for filepath in dir.iterdir():

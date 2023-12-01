@@ -486,8 +486,16 @@ def error_foreign_view(view:"ll.la.View") -> str:
 	return f"View {view!r} belongs to the wrong app."
 
 
-def error_view_not_found(viewid:str) -> str:
-	return f"View with id {viewid!r} can't be found."
+def error_foreign_control(control:"ll.la.Control") -> str:
+	return f"Control {control!r} belongs to the wrong app."
+
+
+def error_foreign_control(control:"ll.la.Control") -> str:
+	return f"Control {control!r} belongs to the wrong app."
+
+
+def error_control_not_in_view(control:"ll.la.Control", view:"ll.la.View") -> str:
+	return f"Control {control!r} is not in view {view!r}."
 
 
 def _resolve_type(t:Union[Type, Callable[[], Type]]) -> Type:
@@ -2640,6 +2648,7 @@ class App(CustomAttributes):
 		"datamanagement_config_url",
 		"permissions_url",
 		"datamanageview_url",
+		"seq",
 	})
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
@@ -2780,7 +2789,7 @@ class App(CustomAttributes):
 
 	def _fetch_owntemplates(self):
 		if self._owntemplates is None:
-			self._owntemplates = self.globals.handler._loadinternaltemplates(self.id)
+			self._owntemplates = self.globals.handler.loadinternaltemplates(self.id)
 		return self._owntemplates
 
 	def _template_candidates(self):
@@ -2789,7 +2798,7 @@ class App(CustomAttributes):
 			yield from self.ownparams["la"]._template_candidates()
 		else:
 			if self.superid is not None:
-				yield self.globals.handler._loadinternaltemplates(self.superid)
+				yield self.globals.handler.loadinternaltemplates(self.superid)
 			yield self.globals.handler.fetch_librarytemplates()
 
 	def _templates_get(self):
@@ -2851,6 +2860,9 @@ class App(CustomAttributes):
 
 	def datamanageview_url(self, identifier):
 		return f"/_id_36_.htm?uuid={self.id}&dId={self.id}&resetInfo=true&templateIdentifier=created_{self.id}_datamanage_master_{identifier}"
+
+	def seq(self) -> int:
+			return self.globals.handler.appseq(self)
 
 	def __getattr__(self, name):
 		if name.startswith("c_"):
@@ -3291,7 +3303,7 @@ class Control(CustomAttributes):
 
 	_type = None
 	_subtype = None
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "identifier", "type", "subtype", "fulltype", "app", "label", "priority", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "required", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "ininsertprocedure", "inupdateprocedure"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "identifier", "type", "subtype", "fulltype", "app", "label", "priority", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "required", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure"})
 	ul4_type = ul4c.Type("la", "Control", "Metainformation about a field in a LivingApps application")
 
 	class Mode(misc.Enum):
@@ -3329,7 +3341,6 @@ class Control(CustomAttributes):
 	labelpos = EnumAttr(LabelPos, get="", ul4get="")
 	labelwidth = Attr(int, get="", ul4get="_labelwidth_get")
 	autoalign = BoolAttr(get="", ul4get="_autoalign_get")
-	in_active_view = BoolAttr(get="", ul4get="_in_active_view_get")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None):
@@ -3459,9 +3470,13 @@ class Control(CustomAttributes):
 			return vc.autoalign
 		return None
 
-	def _in_active_view_get(self):
+	def in_active_view(self):
 		vc = self._get_viewcontrol()
 		return vc is not None
+
+	def is_focused(self):
+		active_view = self.app.active_view
+		return active_view is not None and self is active_view.focus_control
 
 	def _default_get(self):
 		return None
@@ -7627,9 +7642,14 @@ class View(CustomAttributes):
 		:type: View.UseGeo
 
 		Should the input form use the geo location of the user?
+
+	.. attribute:: focus_control
+		:type: Control
+
+		Which control to focus in the form
 	"""
 
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "name", "combined_type", "app", "order", "width", "height", "start", "end", "lang", "login_required", "result_page", "use_geo", "controls", "layout_controls"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "name", "combined_type", "app", "order", "width", "height", "start", "end", "lang", "login_required", "result_page", "use_geo", "controls", "layout_controls", "focus_control", "focus_first_control"})
 	ul4_type = ul4c.Type("la", "View", "An input form for a LivingApps application")
 
 	template_types = ()
@@ -7666,6 +7686,7 @@ class View(CustomAttributes):
 	login_required = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	result_page = BoolAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset="")
 	use_geo = EnumAttr(UseGeo, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	focus_control = Attr(Control, get=True, set="", ul4get=True, ul4set="_focus_control_set")
 
 	def __init__(self, id=None, name=None, app=None, order=None, width=None, height=None, start=None, end=None, lang=None, login_required=False, result_page=True, use_geo="no"):
 		super().__init__()
@@ -7683,6 +7704,7 @@ class View(CustomAttributes):
 		self.login_required = login_required
 		self.result_page = result_page
 		self.use_geo = use_geo
+		self.__dict__["focus_control"] = None
 
 	@property
 	def ul4onid(self) -> str:
@@ -7693,6 +7715,21 @@ class View(CustomAttributes):
 
 	def _result_page_ul4onset(self, value):
 		self.use_use = not value
+
+	def _focus_control_set(self, control):
+		if control is not None:
+			if not isinstance(control, Control):
+				raise TypeError(f"focus_control must be be a Control not {misc.format_class(control)}")
+			if control.app is not self.app:
+				raise ValueError(error_foreign_control(control))
+			if control.identifier not in self.controls:
+				raise ValueError(error_control_not_in_view(control, self))
+		self.__dict__["focus_control"] = control
+
+	def focus_first_control(self):
+		first_view_control = min((c for c in self.controls.values() if c.tabindex is not None), key=operator.attrgetter("tabindex"))
+		if first_view_control is not None:
+			self.focus_control = first_view_control.control
 
 	def __getattr__(self, name):
 		if name.startswith("c_"):
@@ -8520,7 +8557,7 @@ class MutableAppParameter(AppParameter):
 
 	def append_param(self, *, type=None, description=None, value=None):
 		if self.type is not self.Type.LIST:
-			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
+			raise TypeError(f"Can't append parameter to parameter of type {self.type}")
 		if self.value is None:
 			self.__dict__["value"] = []
 		if type is None and value is None:
@@ -8531,7 +8568,7 @@ class MutableAppParameter(AppParameter):
 
 	def add_param(self, identifier, *, type=None, description=None, value=None):
 		if self.type is not self.Type.DICT:
-			raise TypeError(f"Can't append parameter to paramter of type {self.type}")
+			raise TypeError(f"Can't append parameter to parameter of type {self.type}")
 		if self.value is None:
 			self.__dict__["value"] = {}
 		if type is None and value is None:

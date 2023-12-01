@@ -25,6 +25,20 @@ HEAD (2023-??-??)
 	``profile_url()``, ``account_url()`` and ``logout_url()`` to class :class:`Globals` which
 	return the relative urls for the respective menus.
 
+*	Added attribute ``View.focus_control``.
+
+*	Added method ``Control.is_focused()``.
+
+*	Add field errors to the record if we have an active view and the field
+	is not in the active view. This avoids problems with invisible errors in the
+	form.
+
+*	``Control.in_active_view()`` is a method now.
+
+*	Added method ``View.focus_first_control()``.
+
+*	Added method ``App.seq()``.
+
 
 0.23.2 (2023-04-03)
 -------------------
