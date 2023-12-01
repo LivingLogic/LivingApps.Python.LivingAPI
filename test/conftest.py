@@ -321,252 +321,248 @@ def handler(request):
 
 
 def create_data():
-	handler = la.DBHandler(connectstring=connect(), connectstring_postgres=connect_postgres(), uploaddir=uploaddir(), ide_account=user())
+	with la.DBHandler(connectstring=connect(), connectstring_postgres=connect_postgres(), uploaddir=uploaddir(), ide_account=user()) as handler:
+		vars = handler.meta_data(person_app_id(), fields_app_id(), records=True)
 
-	vars = handler.meta_data(person_app_id(), fields_app_id(), records=True)
+		persons_app = vars["apps"][person_app_id()]
+		fields_app = vars["apps"][fields_app_id()]
+		globals = vars["globals"]
 
-	persons_app = vars["apps"][person_app_id()]
-	fields_app = vars["apps"][fields_app_id()]
-	globals = vars["globals"]
+		# Remove all persons
+		for r in persons_app.records.values():
+			r.delete()
 
-	# Remove all persons
-	for r in persons_app.records.values():
-		r.delete()
+		# Remove all areas of activity
+		for r in fields_app.records.values():
+			r.delete()
 
-	# Remove all areas of activity
-	for r in fields_app.records.values():
-		r.delete()
+		handler.reset()
+		handler.commit()
 
-	handler.reset()
-	handler.commit()
+		# Create records in the "areas of activity" app
 
-	# Create records in the "areas of activity" app
+		areas = attrdict()
 
-	areas = attrdict()
+		def aa(**values):
+			aa = fields_app(**values)
+			aa.save()
+			fields_app.records[aa.id] = aa
+			return aa
 
-	def aa(**values):
-		aa = fields_app(**values)
-		aa.save()
-		fields_app.records[aa.id] = aa
-		return aa
+		areas.science = aa(name="Science")
+		areas.mathematics = aa(name="Mathematics", parent=areas.science)
+		areas.physics = aa(name="Physics", parent=areas.science)
+		areas.computerscience = aa(name="Computer science", parent=areas.science)
+		areas.art = aa(name="Art")
+		areas.film = aa(name="Film", parent=areas.art)
+		areas.music = aa(name="Music", parent=areas.art)
+		areas.literature = aa(name="Literature", parent=areas.art)
+		areas.politics = aa(name="Politics")
+		areas.industry = aa(name="Industry")
+		areas.sport = aa(name="Sport")
 
-	areas.science = aa(name="Science")
-	areas.mathematics = aa(name="Mathematics", parent=areas.science)
-	areas.physics = aa(name="Physics", parent=areas.science)
-	areas.computerscience = aa(name="Computer science", parent=areas.science)
-	areas.art = aa(name="Art")
-	areas.film = aa(name="Film", parent=areas.art)
-	areas.music = aa(name="Music", parent=areas.art)
-	areas.literature = aa(name="Literature", parent=areas.art)
-	areas.politics = aa(name="Politics")
-	areas.industry = aa(name="Industry")
-	areas.sport = aa(name="Sport")
+		handler.reset()
+		handler.commit()
 
-	handler.reset()
-	handler.commit()
+		# Create records in the "persons" app
 
-	# Create records in the "persons" app
+		persons = attrdict()
 
-	persons = attrdict()
+		def p(**values):
+			p = persons_app(**values)
+			if "url" in values:
+				page_url = values["url"]
+				e = parse.tree(
+					parse.URL(page_url),
+					parse.Tidy(),
+					parse.NS(html),
+					parse.Node(pool=xsc.Pool(html)),
+				)
+				selector = xfind.hasclass('mw-parser-output') / html.p
+				notes = misc.first(e.walknodes(selector))
+				notes = notes.mapped(lambda n, c: xsc.Null if isinstance(n, html.sup) else n)
+				p.v_notes = notes.string()
 
-	def p(**values):
-		p = persons_app(**values)
-		if "url" in values:
-			page_url = values["url"]
-			e = parse.tree(
-				parse.URL(page_url),
-				parse.Tidy(),
-				parse.NS(html),
-				parse.Node(pool=xsc.Pool(html)),
-			)
-			selector = xfind.hasclass('mw-parser-output') / html.p
-			notes = misc.first(e.walknodes(selector))
-			notes = notes.mapped(lambda n, c: xsc.Null if isinstance(n, html.sup) else n)
-			p.v_notes = notes.string()
+			if p.v_portrait is not None and p.v_portrait.id is None:
+				p.v_portrait.save()
+			p.save()
+			persons_app.records[p.id] = p
+			return p
 
-		if p.v_portrait is not None and p.v_portrait.id is None:
-			p.v_portrait.save()
-		p.save()
-		persons_app.records[p.id] = p
-		return p
+		def u(u):
+			return globals.file(url_.URL(u))
 
-	def u(u):
-		return globals.file(url_.URL(u))
+		def g(lat=None, long=None, info=None):
+			return globals.geo(lat, long, info)
 
-	def g(lat=None, long=None, info=None):
-		return globals.geo(lat, long, info)
+		persons.ae = p(
+			firstname="Albert",
+			lastname="Einstein",
+			sex=persons_app.c_sex.lookupdata.male,
+			field_of_activity=[areas.physics],
+			country_of_birth="germany",
+			date_of_birth=datetime.date(1879, 3, 14),
+			date_of_death=datetime.date(1955, 4, 15),
+			grave=g(40.216085, -74.7917151),
+			nobel_prize=False,
+			url="https://de.wikipedia.org/wiki/Albert_Einstein",
+			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Einstein_1921_portrait2.jpg/330px-Einstein_1921_portrait2.jpg"),
+		)
 
-	persons.ae = p(
-		firstname="Albert",
-		lastname="Einstein",
-		sex=persons_app.c_sex.lookupdata.male,
-		field_of_activity=[areas.physics],
-		country_of_birth="germany",
-		date_of_birth=datetime.date(1879, 3, 14),
-		date_of_death=datetime.date(1955, 4, 15),
-		grave=g(40.216085, -74.7917151),
-		nobel_prize=False,
-		url="https://de.wikipedia.org/wiki/Albert_Einstein",
-		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Einstein_1921_portrait2.jpg/330px-Einstein_1921_portrait2.jpg"),
-	)
+		persons.mc = p(
+			firstname="Marie",
+			lastname="Curie",
+			sex=persons_app.c_sex.lookupdata.female,
+			field_of_activity=[areas.physics],
+			country_of_birth="poland",
+			date_of_birth=datetime.date(1867, 11, 7),
+			date_of_death=datetime.date(1934, 7, 4),
+			grave=g(48.84672, 2.34631),
+			nobel_prize=True,
+			url="https://de.wikipedia.org/wiki/Marie_Curie",
+			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
+		)
 
-	persons.mc = p(
-		firstname="Marie",
-		lastname="Curie",
-		sex=persons_app.c_sex.lookupdata.female,
-		field_of_activity=[areas.physics],
-		country_of_birth="poland",
-		date_of_birth=datetime.date(1867, 11, 7),
-		date_of_death=datetime.date(1934, 7, 4),
-		grave=g(48.84672, 2.34631),
-		nobel_prize=True,
-		url="https://de.wikipedia.org/wiki/Marie_Curie",
-		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
-	)
+		persons.ma = p(
+			firstname="Muhammad",
+			lastname="Ali",
+			sex=persons_app.c_sex.lookupdata.male,
+			field_of_activity=[areas.sport],
+			country_of_birth="usa",
+			date_of_birth=datetime.date(1942, 1, 17),
+			date_of_death=datetime.date(2016, 6, 3),
+			grave=g(38.2454051, -85.7170115),
+			nobel_prize=False,
+			url="https://de.wikipedia.org/wiki/Muhammad_Ali",
+			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Muhammad_Ali_NYWTS.jpg/200px-Muhammad_Ali_NYWTS.jpg"),
+		)
 
-	persons.ma = p(
-		firstname="Muhammad",
-		lastname="Ali",
-		sex=persons_app.c_sex.lookupdata.male,
-		field_of_activity=[areas.sport],
-		country_of_birth="usa",
-		date_of_birth=datetime.date(1942, 1, 17),
-		date_of_death=datetime.date(2016, 6, 3),
-		grave=g(38.2454051, -85.7170115),
-		nobel_prize=False,
-		url="https://de.wikipedia.org/wiki/Muhammad_Ali",
-		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Muhammad_Ali_NYWTS.jpg/200px-Muhammad_Ali_NYWTS.jpg"),
-	)
+		persons.mm = p(
+			firstname="Marilyn",
+			lastname="Monroe",
+			sex=persons_app.c_sex.lookupdata.female,
+			field_of_activity=[areas.film],
+			country_of_birth="usa",
+			date_of_birth=datetime.date(1926, 6, 1),
+			date_of_death=datetime.date(1962, 8, 4),
+			grave=g(34.05827, -118.44096),
+			nobel_prize=False,
+			url="https://de.wikipedia.org/wiki/Marilyn_Monroe",
+			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg/220px-Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg"),
+		)
 
-	persons.mm = p(
-		firstname="Marilyn",
-		lastname="Monroe",
-		sex=persons_app.c_sex.lookupdata.female,
-		field_of_activity=[areas.film],
-		country_of_birth="usa",
-		date_of_birth=datetime.date(1926, 6, 1),
-		date_of_death=datetime.date(1962, 8, 4),
-		grave=g(34.05827, -118.44096),
-		nobel_prize=False,
-		url="https://de.wikipedia.org/wiki/Marilyn_Monroe",
-		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg/220px-Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg"),
-	)
+		persons.ep = p(
+			firstname="Elvis",
+			lastname="Presley",
+			sex=persons_app.c_sex.lookupdata.male,
+			field_of_activity=[areas.music],
+			country_of_birth="usa",
+			date_of_birth=datetime.date(1935, 1, 8),
+			date_of_death=datetime.date(1977, 8, 16),
+			grave=g(35.04522870295311, -90.02283096313477),
+			nobel_prize=False,
+			url="https://de.wikipedia.org/wiki/Elvis_Presley",
+			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
+		)
 
-	persons.ep = p(
-		firstname="Elvis",
-		lastname="Presley",
-		sex=persons_app.c_sex.lookupdata.male,
-		field_of_activity=[areas.music],
-		country_of_birth="usa",
-		date_of_birth=datetime.date(1935, 1, 8),
-		date_of_death=datetime.date(1977, 8, 16),
-		grave=g(35.04522870295311, -90.02283096313477),
-		nobel_prize=False,
-		url="https://de.wikipedia.org/wiki/Elvis_Presley",
-		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
-	)
+		persons.br = p(
+			firstname="Bernhard",
+			lastname="Riemann",
+			sex=persons_app.c_sex.lookupdata.male,
+			field_of_activity=[areas.mathematics],
+			country_of_birth="germany",
+			date_of_birth=datetime.date(1826, 6, 17),
+			date_of_death=datetime.date(1866, 6, 20),
+			grave=g(45.942127, 8.5870263),
+			nobel_prize=False,
+			url="https://de.wikipedia.org/wiki/Bernhard_Riemann",
+			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/BernhardRiemannAWeger.jpg/330px-BernhardRiemannAWeger.jpg"),
+		)
 
-	persons.br = p(
-		firstname="Bernhard",
-		lastname="Riemann",
-		sex=persons_app.c_sex.lookupdata.male,
-		field_of_activity=[areas.mathematics],
-		country_of_birth="germany",
-		date_of_birth=datetime.date(1826, 6, 17),
-		date_of_death=datetime.date(1866, 6, 20),
-		grave=g(45.942127, 8.5870263),
-		nobel_prize=False,
-		url="https://de.wikipedia.org/wiki/Bernhard_Riemann",
-		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/BernhardRiemannAWeger.jpg/330px-BernhardRiemannAWeger.jpg"),
-	)
+		persons.cfg = p(
+			firstname="Carl Friedrich",
+			lastname="Gauß",
+			sex=persons_app.c_sex.lookupdata.male,
+			field_of_activity=[areas.mathematics],
+			country_of_birth="germany",
+			date_of_birth=datetime.date(1777, 4, 30),
+			date_of_death=datetime.date(1855, 2, 23),
+			grave=g(51.53157404627684, 9.94189739227295),
+			nobel_prize=False,
+			url="https://de.wikipedia.org/wiki/Carl_Friedrich_Gau%C3%9F",
+			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carl_Friedrich_Gauss.jpg/255px-Carl_Friedrich_Gauss.jpg"),
+		)
 
-	persons.cfg = p(
-		firstname="Carl Friedrich",
-		lastname="Gauß",
-		sex=persons_app.c_sex.lookupdata.male,
-		field_of_activity=[areas.mathematics],
-		country_of_birth="germany",
-		date_of_birth=datetime.date(1777, 4, 30),
-		date_of_death=datetime.date(1855, 2, 23),
-		grave=g(51.53157404627684, 9.94189739227295),
-		nobel_prize=False,
-		url="https://de.wikipedia.org/wiki/Carl_Friedrich_Gau%C3%9F",
-		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carl_Friedrich_Gauss.jpg/255px-Carl_Friedrich_Gauss.jpg"),
-	)
+		persons.dk = p(
+			firstname="Donald",
+			lastname="Knuth",
+			sex=persons_app.c_sex.lookupdata.male,
+			field_of_activity=[areas.computerscience],
+			country_of_birth="usa",
+			date_of_birth=datetime.date(1938, 1, 10),
+			url="https://de.wikipedia.org/wiki/Donald_E._Knuth",
+			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/KnuthAtOpenContentAlliance.jpg/255px-KnuthAtOpenContentAlliance.jpg"),
+		)
 
-	persons.dk = p(
-		firstname="Donald",
-		lastname="Knuth",
-		sex=persons_app.c_sex.lookupdata.male,
-		field_of_activity=[areas.computerscience],
-		country_of_birth="usa",
-		date_of_birth=datetime.date(1938, 1, 10),
-		url="https://de.wikipedia.org/wiki/Donald_E._Knuth",
-		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/KnuthAtOpenContentAlliance.jpg/255px-KnuthAtOpenContentAlliance.jpg"),
-	)
+		persons.rr = p(
+			firstname="Ronald",
+			lastname="Reagan",
+			sex=persons_app.c_sex.lookupdata.male,
+			field_of_activity=[areas.film, areas.politics],
+			country_of_birth="usa",
+			date_of_birth=datetime.date(1911, 2, 6),
+			date_of_death=datetime.date(2004, 6, 5),
+			grave=g(34.2590025, -118.8226249),
+			nobel_prize=False,
+			url="https://de.wikipedia.org/wiki/Ronald_Reagan",
+			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
+		)
 
-	persons.rr = p(
-		firstname="Ronald",
-		lastname="Reagan",
-		sex=persons_app.c_sex.lookupdata.male,
-		field_of_activity=[areas.film, areas.politics],
-		country_of_birth="usa",
-		date_of_birth=datetime.date(1911, 2, 6),
-		date_of_death=datetime.date(2004, 6, 5),
-		grave=g(34.2590025, -118.8226249),
-		nobel_prize=False,
-		url="https://de.wikipedia.org/wiki/Ronald_Reagan",
-		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
-	)
+		persons.am = p(
+			firstname="Angela",
+			lastname="Merkel",
+			sex=persons_app.c_sex.lookupdata.female,
+			field_of_activity=[areas.politics],
+			country_of_birth="germany",
+			date_of_birth=datetime.date(1954, 6, 17),
+			date_of_death=None,
+			grave=None,
+			nobel_prize=False,
+			url="https://de.wikipedia.org/wiki/Angela_Merkel",
+			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg/220px-2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg"),
+		)
 
-	persons.am = p(
-		firstname="Angela",
-		lastname="Merkel",
-		sex=persons_app.c_sex.lookupdata.female,
-		field_of_activity=[areas.politics],
-		country_of_birth="germany",
-		date_of_birth=datetime.date(1954, 6, 17),
-		date_of_death=None,
-		grave=None,
-		nobel_prize=False,
-		url="https://de.wikipedia.org/wiki/Angela_Merkel",
-		portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg/220px-2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg"),
-	)
+		handler.reset()
+		handler.commit()
 
-	handler.reset()
-	handler.commit()
-
-	return attrdict(
-		globals=globals,
-		handler=handler,
-		apps=attrdict(
-			persons=persons_app,
-			fields=fields_app,
-		),
-		areas=areas,
-		persons=persons
-	)
+		return attrdict(
+			globals=globals,
+			apps=attrdict(
+				persons=persons_app,
+				fields=fields_app,
+			),
+			areas=areas,
+			persons=persons
+		)
 
 
 def fetch_data():
-	handler = la.DBHandler(connectstring=connect(), connectstring_postgres=connect_postgres(), uploaddir=uploaddir(), ide_account=user())
+	with la.DBHandler(connectstring=connect(), connectstring_postgres=connect_postgres(), uploaddir=uploaddir(), ide_account=user()) as handler:
+		vars = handler.meta_data(person_app_id(), fields_app_id(), records=True)
 
-	vars = handler.meta_data(person_app_id(), fields_app_id(), records=True)
+		persons_app = vars["apps"][person_app_id()]
+		fields_app = vars["apps"][fields_app_id()]
+		globals = vars["globals"]
 
-	persons_app = vars["apps"][person_app_id()]
-	fields_app = vars["apps"][fields_app_id()]
-	globals = vars["globals"]
-
-	return attrdict(
-		globals=globals,
-		handler=handler,
-		apps=attrdict(
-			persons=persons_app,
-			fields=fields_app,
-		),
-		areas=attrdict({a.v_name.replace(" ", "").lower() : a for a in fields_app.records.values()}),
-		persons=attrdict({"".join(name[:1].lower() for name in f"{p.v_firstname} {p.v_lastname}".split()) : p for p in persons_app.records.values()}),
-	)
+		return attrdict(
+			globals=globals,
+			apps=attrdict(
+				persons=persons_app,
+				fields=fields_app,
+			),
+			areas=attrdict({a.v_name.replace(" ", "").lower() : a for a in fields_app.records.values()}),
+			persons=attrdict({"".join(name[:1].lower() for name in f"{p.v_firstname} {p.v_lastname}".split()) : p for p in persons_app.records.values()}),
+		)
 
 
 @pytest.fixture(scope="session")
