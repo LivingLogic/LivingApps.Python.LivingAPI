@@ -1026,13 +1026,17 @@ def test_globals_template_shortcuts(handler, config_data):
 			source="""
 				<?print globals.t_test_livingapi_globals_template_shortcuts_internal.name?>
 				<?print app.t_test_livingapi_globals_template_shortcuts_internal.name?>
+				<?print globals.t_test_livingapi_globals_template_shortcuts_internal.fullname?>
+				<?print app.t_test_livingapi_globals_template_shortcuts_internal.fullname?>
 			""",
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
-		expected = """
+		expected = f"""
 			test_livingapi_globals_template_shortcuts_internal
 			test_livingapi_globals_template_shortcuts_internal
+			app_{person_app_id()}.internaltemplates.test_livingapi_globals_template_shortcuts_internal
+			app_{person_app_id()}.internaltemplates.test_livingapi_globals_template_shortcuts_internal
 		"""
 		assert lines(output) == lines(expected)
 
