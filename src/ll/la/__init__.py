@@ -2862,7 +2862,7 @@ class App(CustomAttributes):
 		return f"/_id_36_.htm?uuid={self.id}&dId={self.id}&resetInfo=true&templateIdentifier=created_{self.id}_datamanage_master_{identifier}"
 
 	def seq(self) -> int:
-			return self.globals.handler.appseq(self)
+		return self.globals.handler.appseq(self)
 
 	def __getattr__(self, name):
 		if name.startswith("c_"):
