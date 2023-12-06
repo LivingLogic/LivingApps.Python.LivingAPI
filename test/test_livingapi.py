@@ -100,17 +100,16 @@ def test_global_datasources(handler, config_data):
 	"""
 	Check that ``globals.datasources`` works.
 	"""
-	c = config_data
 
 	# Check that the logged in user is the user we've used to log in
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 		),
 		la.DataSourceConfig(
 			identifier="fieldsofactivity",
-			app=c.apps.fields,
+			app=config_data.apps.fields,
 		),
 		identifier="test_livingapi_global_datasources",
 		source="""
@@ -202,17 +201,16 @@ def test_datasources(handler, config_data):
 	Check that the datasources have the identifiers we expect.
 	"""
 
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 		),
 		la.DataSourceConfig(
 			identifier="fieldsofactivity",
-			app=c.apps.fields,
+			app=config_data.apps.fields,
 		),
 		identifier="test_livingapi_datasources",
 		source="""
@@ -236,16 +234,15 @@ def test_output_all_records(handler, config_data):
 	This checks that we don't get any exceptions.
 	"""
 
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 		),
 		la.DataSourceConfig(
 			identifier="fieldsofactivity",
-			app=c.apps.fields,
+			app=config_data.apps.fields,
 		),
 		identifier="test_livingapi_output_all_records",
 		source="""
@@ -326,12 +323,11 @@ def test_sort_default_order_is_newest_first(handler, config_data):
 	Check that the default sort order for records is descending by creation date.
 	"""
 
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includecontrols=0,
 		),
 		identifier="test_livingapi_sort_default_order_is_newest_first",
@@ -353,12 +349,11 @@ def test_record_extended_attributes(handler, config_data):
 	Check that extended attributes (i.e. ``x_foo``) for ``Record`` objects work.
 	"""
 
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 		),
 		identifier="test_livingapi_record_extended_attributes",
 		source="""
@@ -382,12 +377,11 @@ def test_record_shortcuts(handler, config_data):
 	Check that shortcut attributes for ``Record`` objects work.
 	"""
 
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 		),
 		identifier="test_livingapi_record_shortcuts",
 		source="""
@@ -414,7 +408,6 @@ def test_app_extended_attributes(handler, config_data):
 	Check that extended attributes (i.e. ``x_foo``) for ``App`` objects work.
 	"""
 
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_app_extended_attributes",
@@ -438,12 +431,11 @@ def test_app_shortcuts(handler, config_data):
 	Check that shortcut attributes for ``App`` objects work.
 	"""
 
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL_LAYOUT,
 			includeviews=True,
 			includeparams=True,
@@ -479,7 +471,6 @@ def test_insert_record(handler, config_data):
 	Insert a record into the person app via the method ``App.insert()``.
 	"""
 
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_insert_record",
@@ -503,7 +494,7 @@ def test_insert_record(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 		),
 		identifier="test_livingapi_insert_record_check_result",
 		source=f"""
@@ -657,12 +648,11 @@ def test_appparams(handler, config_data):
 	We don'd load the app parameters on demand (this is done by another test).
 	"""
 
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_bool",
@@ -793,7 +783,6 @@ def test_appparams(handler, config_data):
 
 
 def test_view_control_overwrite_string(handler, config_data):
-	c = config_data
 
 	source_print = """
 	lang=<?print repr(app.active_view.lang if app.active_view else None)?>
@@ -811,7 +800,7 @@ def test_view_control_overwrite_string(handler, config_data):
 	vt_no_view = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includerecords=la.DataSourceConfig.IncludeRecords.CONTROLS,
 		),
 		identifier="test_livingapi_view_control_overwrite_string_noview",
@@ -835,7 +824,7 @@ def test_view_control_overwrite_string(handler, config_data):
 	vt_view_en = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
 			includerecords=la.DataSourceConfig.IncludeRecords.CONTROLS,
@@ -862,7 +851,7 @@ def test_view_control_overwrite_string(handler, config_data):
 	vt_view_de = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
 			includerecords=la.DataSourceConfig.IncludeRecords.CONTROLS,
@@ -888,7 +877,6 @@ def test_view_control_overwrite_string(handler, config_data):
 
 
 def test_view_control_overwrite_lookup_noneoption(handler, config_data):
-	c = config_data
 
 	source_print = """
 	lang=<?print repr(app.active_view.lang if app.active_view else None)?>
@@ -902,7 +890,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_data):
 	vt_no_view = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 		),
 		identifier="test_livingapi_view_control_overwrite_lookup_noview",
@@ -922,7 +910,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_data):
 	vt_view_en = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
 			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
@@ -945,7 +933,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_data):
 	vt_view_de = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
 			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
@@ -967,7 +955,6 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_data):
 
 
 def test_globals_extended_attributes(handler, config_data):
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_globals_extended_attributes",
@@ -987,12 +974,11 @@ def test_globals_extended_attributes(handler, config_data):
 
 
 def test_globals_shortcuts(handler, config_data):
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 			includeparams=True, # Do this so that ``PythonHTTP`` works too.
 		),
@@ -2833,12 +2819,11 @@ def test_parameter_array(handler):
 
 def test_record_attachments_on_demand(handler, config_data):
 	if isinstance(handler, (PythonDB, JavaDB, GatewayHTTP)):
-		c = config_data
 
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=c.apps.persons,
+				app=config_data.apps.persons,
 				includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 			),
 			identifier="test_livingapi_record_attachments_on_demand",
@@ -3040,7 +3025,6 @@ def test_record_urls(handler, config_data):
 
 def test_globals_dir(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
-		c = config_data
 
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_globals_dir",
@@ -3100,7 +3084,6 @@ def test_globals_dir(handler, config_data):
 
 def test_app_dir(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
-		c = config_data
 
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_globals_dir",
@@ -3167,12 +3150,11 @@ def test_app_dir(handler, config_data):
 
 def test_record_dir(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
-		c = config_data
 
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=c.apps.persons,
+				app=config_data.apps.persons,
 				includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 			),
 			identifier="test_livingapi_record_dir",
@@ -3225,7 +3207,6 @@ def test_record_dir(handler, config_data):
 
 def test_view_dir(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
-		c = config_data
 
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_view_dir",
@@ -3267,7 +3248,6 @@ def test_view_dir(handler, config_data):
 
 def test_control_dir(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
-		c = config_data
 
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_control_dir",
@@ -3320,7 +3300,6 @@ def test_control_dir(handler, config_data):
 
 def test_layoutcontrol_dir(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
-		c = config_data
 
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_layoutcontrol_dir",
@@ -3358,12 +3337,11 @@ def test_layoutcontrol_dir(handler, config_data):
 
 def test_field_dir(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
-		c = config_data
 
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=c.apps.persons,
+				app=config_data.apps.persons,
 				includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 			),
 			identifier="test_livingapi_field_dir",
@@ -3426,12 +3404,11 @@ def test_field_dir(handler, config_data):
 
 
 def test_focus_control(handler, config_data):
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=c.apps.persons,
+				app=config_data.apps.persons,
 				includeviews=True,
 			),
 		identifier="test_livingapi_focus_control",
@@ -3468,12 +3445,11 @@ def test_focus_control(handler, config_data):
 
 
 def test_focus_first_control(handler, config_data):
-	c = config_data
 
 	vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=c.apps.persons,
+				app=config_data.apps.persons,
 				includeviews=True,
 			),
 		identifier="test_livingapi_focus_control",
@@ -3506,13 +3482,12 @@ def test_globals_pv_attributes_settable(handler, config_data):
 	# Setting attributes in this way only works if we have the attribute
 	# (or can get them to be loaded incrementally)
 	if not isinstance(handler, PythonHTTP):
-		c = config_data
 
 		vt = handler.make_viewtemplate(
-				la.DataSourceConfig(
-					identifier="persons",
-					app=c.apps.persons,
-				),
+			la.DataSourceConfig(
+				identifier="persons",
+				app=config_data.apps.persons,
+			),
 			identifier="test_livingapi_pv_attributes_settable",
 			source=f"""
 				<?code globals.pv_int_value = 17?>
@@ -3531,13 +3506,12 @@ def test_app_pv_attributes_settable(handler, config_data):
 	# Setting attributes in this way only works if we have the attribute
 	# (or can get them to be loaded incrementally)
 	if not isinstance(handler, PythonHTTP):
-		c = config_data
 
 		vt = handler.make_viewtemplate(
-				la.DataSourceConfig(
-					identifier="persons",
-					app=c.apps.persons,
-				),
+			la.DataSourceConfig(
+				identifier="persons",
+				app=config_data.apps.persons,
+			),
 			identifier="test_livingapi_pv_attributes_settable",
 			source=f"""
 				<?code app.pv_int_value = 17?>
