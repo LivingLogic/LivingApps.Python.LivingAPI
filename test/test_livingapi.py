@@ -3048,6 +3048,7 @@ def test_app_dir(handler, config_data):
 			datamanagement_config_url=True
 			permissions_url=True
 			datamanageview_url=True
+			seq=True
 			menus=True
 			panels=True
 			x_gurk=True
@@ -3147,6 +3148,8 @@ def test_view_dir(handler, config_data):
 			use_geo=True
 			controls=True
 			layout_controls=True
+			focus_control=True
+			focus_first_control=True
 			custom=True
 			x_gurk=True
 		"""
@@ -3196,6 +3199,7 @@ def test_control_dir(handler, config_data):
 			labelwidth=True
 			autoalign=True
 			in_active_view=True
+			is_focused=True
 			minlength=True
 			maxlength=True
 			placeholder=True
@@ -3253,55 +3257,62 @@ def test_field_dir(handler, config_data):
 				app=c.apps.persons,
 				includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 			),
-			identifier="test_livingapi_layoutcontrol_dir",
+			identifier="test_livingapi_field_dir",
 			source=f"""
 				<?code field = first(app.records.values()).f_firstname?>
 				<?code field.x_gurk = 42?>
 				<?for attrname in sorted(dir(field))?>
 					<?if not attrname.startswith(["t_"])?>
-						<?print attrname?>=<?print isdefined(getattr(field, attrname))?>
+						app.f_firstname.<?print attrname?>=<?print isdefined(getattr(field, attrname))?>
+					<?end if?>
+				<?end for?>
+				<?code field = first(app.records.values()).f_field_of_activity?>
+				<?code field.x_gurk = 42?>
+				<?for attrname in sorted(dir(field))?>
+					<?if not attrname.startswith(["t_"])?>
+						app.f_field_of_activity.<?print attrname?>=<?print isdefined(getattr(field, attrname))?>
 					<?end if?>
 				<?end for?>
 			""",
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
-		expected1 = """
-			control=True
-			record=True
-			label=True
-			value=True
-			is_empty=True
-			is_dirty=True
-			errors=True
-			enabled=True
-			writable=True
-			visible=True
-			has_errors=True
-			add_error=True
-			set_error=True
-			clear_errors=True
-			custom=True
-			x_gurk=True
+		expected = """
+			app.f_firstname.control=True
+			app.f_firstname.record=True
+			app.f_firstname.label=True
+			app.f_firstname.value=True
+			app.f_firstname.is_empty=True
+			app.f_firstname.is_dirty=True
+			app.f_firstname.errors=True
+			app.f_firstname.enabled=True
+			app.f_firstname.writable=True
+			app.f_firstname.visible=True
+			app.f_firstname.has_errors=True
+			app.f_firstname.add_error=True
+			app.f_firstname.set_error=True
+			app.f_firstname.clear_errors=True
+			app.f_firstname.custom=True
+			app.f_firstname.x_gurk=True
+			app.f_field_of_activity.control=True
+			app.f_field_of_activity.record=True
+			app.f_field_of_activity.label=True
+			app.f_field_of_activity.value=True
+			app.f_field_of_activity.is_empty=True
+			app.f_field_of_activity.is_dirty=True
+			app.f_field_of_activity.errors=True
+			app.f_field_of_activity.enabled=True
+			app.f_field_of_activity.writable=True
+			app.f_field_of_activity.visible=True
+			app.f_field_of_activity.has_errors=True
+			app.f_field_of_activity.add_error=True
+			app.f_field_of_activity.set_error=True
+			app.f_field_of_activity.clear_errors=True
+			app.f_field_of_activity.lookupdata=True
+			app.f_field_of_activity.has_custom_lookupdata=True
+			app.f_field_of_activity.custom=True
+			app.f_field_of_activity.x_gurk=True
 		"""
-		expected2 = """
-			control=True
-			record=True
-			label=True
-			value=True
-			is_empty=True
-			is_dirty=True
-			errors=True
-			enabled=True
-			writable=True
-			visible=True
-			has_errors=True
-			add_error=True
-			set_error=True
-			clear_errors=True
-			has_custom_lookupdata=True
-			lookupdata=True
-			custom=True
-			x_gurk=True
-		"""
-		assert sorted(lines(output)) == sorted(lines(expected1)) or sorted(lines(output)) == sorted(lines(expected2))
+		assert sorted(lines(output)) == sorted(lines(expected))
+
+
