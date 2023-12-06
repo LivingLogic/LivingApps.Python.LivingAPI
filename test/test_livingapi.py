@@ -3500,3 +3500,53 @@ def test_focus_first_control(handler, config_data):
 		False
 	"""
 	assert lines(output) == lines(expected)
+
+
+def test_globals_pv_attributes_settable(handler, config_data):
+	# Setting attributes in this way only works if we have the attribute
+	# (or can get them to be loaded incrementally)
+	if not isinstance(handler, PythonHTTP):
+		c = config_data
+
+		vt = handler.make_viewtemplate(
+				la.DataSourceConfig(
+					identifier="persons",
+					app=c.apps.persons,
+				),
+			identifier="test_livingapi_pv_attributes_settable",
+			source=f"""
+				<?code globals.pv_int_value = 17?>
+				<?print globals.pv_int_value?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			17
+		"""
+		assert lines(output) == lines(expected)
+
+
+def test_app_pv_attributes_settable(handler, config_data):
+	# Setting attributes in this way only works if we have the attribute
+	# (or can get them to be loaded incrementally)
+	if not isinstance(handler, PythonHTTP):
+		c = config_data
+
+		vt = handler.make_viewtemplate(
+				la.DataSourceConfig(
+					identifier="persons",
+					app=c.apps.persons,
+				),
+			identifier="test_livingapi_pv_attributes_settable",
+			source=f"""
+				<?code app.pv_int_value = 17?>
+				<?print app.pv_int_value?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			17
+		"""
+		assert lines(output) == lines(expected)

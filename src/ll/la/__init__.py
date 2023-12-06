@@ -2395,6 +2395,8 @@ class Globals(CustomAttributes):
 	def ul4_setattr(self, name, value):
 		if name == "lang":
 			self.lang = value
+		elif name.startswith("pv_") and self.app:
+			setattr(self.app, name, value)
 		else:
 			super().ul4_setattr(name, value)
 
@@ -2888,6 +2890,16 @@ class App(CustomAttributes):
 				return self.params[identifier].value
 		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
+	def __setattr__(self, name, value):
+		if name.startswith("pv_"):
+			identifier = name[3:]
+			if identifier in self.params:
+				self.params[identifier].value = value
+			else:
+				self.addparam(None, identifier, None, value)
+			return
+		super().__setattr__(name, value)
+
 	def __dir__(self):
 		"""
 		Make keys completeable in IPython.
@@ -2926,6 +2938,12 @@ class App(CustomAttributes):
 			return getattr(self, name)
 		elif self.ul4_hasattr(name):
 			return super().ul4_getattr(name)
+
+	def ul4_setattr(self, name, value):
+		if name.startswith("pv_"):
+			setattr(self, name, value)
+		else:
+			super().ul4_setattr(name, value)
 
 	def _gethandler(self):
 		if self.handler is not None:
