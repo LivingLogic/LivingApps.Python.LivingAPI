@@ -2929,6 +2929,88 @@ def test_library_parameters(handler):
 		assert lines(output) == lines(expected)
 
 
+def test_app_urls(handler, config_data):
+	ae = config_data.persons.ae
+
+	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="persons",
+			app=config_data.apps.persons,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+			recordfilter=f"r.id == '{ae.id}'",
+		),
+		identifier="test_livingapi_app_urls",
+		source=f"""
+			<?code ae = first(app.records.values())?>
+			<?print app.template_url('gurk')?>
+			<?print app.template_url('gurk', ae)?>
+			<?print app.template_url('gurk', foo='bar')?>
+			<?print app.template_url('gurk', foo=['bar', 'baz'])?>
+			<?print app.template_url('gurk', foo=['gürk', 42])?>
+			<?print app.template_url('gurk', gurk='hurz', hinz='kunz')?>
+			<?print app.new_embedded_url(foo=42)?>
+			<?print app.new_standalone_url(foo=42)?>
+			<?print app.home_url()?>
+			<?print app.datamanagement_url()?>
+			<?print app.import_url()?>
+			<?print app.tasks_url()?>
+			<?print app.datamanagement_config_url()?>
+			<?print app.permissions_url()?>
+			<?print app.datamanageview_url('gurk')?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = f"""
+		/gateway/apps/{config_data.apps.persons.id}?template=gurk
+		/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk
+		/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=bar
+		/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=bar&foo=baz
+		/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=g%C3%BCrk&foo=42
+		/gateway/apps/{config_data.apps.persons.id}?template=gurk&gurk=hurz&hinz=kunz
+		/dateneingabe/{config_data.apps.persons.id}/new?foo=42
+		/gateway/apps/{config_data.apps.persons.id}/new?foo=42
+		/apps/{config_data.apps.persons.id}.htm
+		/_id_36_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_{config_data.apps.persons.id}
+		/import-export/{config_data.apps.persons.id}.htm
+		/_id_1073_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&p_tpl_uuid={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_task_{config_data.apps.persons.id}
+		/datenmanagement-konfigurieren/{config_data.apps.persons.id}.htm
+		/_id_833_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true
+		/_id_36_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_{config_data.apps.persons.id}_datamanage_master_gurk
+	"""
+	assert lines(output) == lines(expected)
+
+
+def test_record_urls(handler, config_data):
+	ae = config_data.persons.ae
+
+	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="persons",
+			app=config_data.apps.persons,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+			recordfilter=f"r.id == '{ae.id}'",
+		),
+		identifier="test_livingapi_record_urls",
+		source=f"""
+			<?code ae = first(app.records.values())?>
+			<?print ae.template_url('gurk')?>
+			<?print ae.template_url('gurk', foo='bar')?>
+			<?print ae.edit_embedded_url(foo='bar')?>
+			<?print ae.edit_standalone_url(foo='bar')?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = f"""
+		/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk
+		/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk&foo=bar
+		/dateneingabe/{config_data.apps.persons.id}/{ae.id}/edit?foo=bar
+		/gateway/apps/{config_data.apps.persons.id}/{ae.id}/edit?foo=bar
+	"""
+	assert lines(output) == lines(expected)
+
+
 def test_globals_dir(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
 		c = config_data
