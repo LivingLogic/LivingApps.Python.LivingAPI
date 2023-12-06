@@ -2874,10 +2874,10 @@ def test_template_libraries(handler):
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
 		expected = """
-			<script src="/static/ul4/1.16.0/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.16.0/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.16.0/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.16.0/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
 		"""
 		assert lines(output) == lines(expected)
 
