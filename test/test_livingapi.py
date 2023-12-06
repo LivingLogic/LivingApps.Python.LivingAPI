@@ -3524,3 +3524,77 @@ def test_app_pv_attributes_settable(handler, config_data):
 			17
 		"""
 		assert lines(output) == lines(expected)
+
+
+def test_custom_attributes(handler, config_data):
+	ae = config_data.persons.ae
+
+	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="persons",
+			app=config_data.apps.persons,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+			includecontrols=la.DataSourceConfig.IncludeControls.ALL_LAYOUT,
+			includeviews=True,
+			recordfilter=f"r.id == '{ae.id}'",
+		),
+		identifier="test_livingapi_app_urls",
+		source=f"""
+			<?code record = first(app.records.values())?>
+			<?code view = first(app.views.values())?>
+
+			<?code globals.custom = 42?>
+			globals.custom=<?print globals.custom?>
+			<?code globals.x_foo = 42?>
+			globals.x_foo=<?print globals.x_foo?>
+
+			<?code app.custom = 42?>
+			app.custom=<?print app.custom?>
+			<?code app.x_foo = 42?>
+			app.x_foo=<?print app.x_foo?>
+
+			<?code record.custom = 42?>
+			record.custom=<?print record.custom?>
+			<?code record.x_foo = 42?>
+			record.x_foo=<?print record.x_foo?>
+
+			<?code app.c_firstname.custom = 42?>
+			app.c_firstname.custom=<?print app.c_firstname.custom?>
+			<?code app.c_firstname.x_foo = 42?>
+			app.c_firstname.x_foo=<?print app.c_firstname.x_foo?>
+
+			<?code record.f_firstname.custom = 42?>
+			record.f_firstname.custom=<?print record.f_firstname.custom?>
+			<?code record.f_firstname.x_foo = 42?>
+			record.f_firstname.x_foo=<?print record.f_firstname.x_foo?>
+
+			<?code view.custom = 42?>
+			view.custom=<?print view.custom?>
+			<?code view.x_foo = 42?>
+			view.x_foo=<?print view.x_foo?>
+
+			<?code view.lc_save.custom = 42?>
+			view.lc_save.custom=<?print view.lc_save.custom?>
+			<?code view.lc_save.x_foo = 42?>
+			view.lc_save.x_foo=<?print view.x_foo?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = f"""
+		globals.custom=42
+		globals.x_foo=42
+		app.custom=42
+		app.x_foo=42
+		record.custom=42
+		record.x_foo=42
+		app.c_firstname.custom=42
+		app.c_firstname.x_foo=42
+		record.f_firstname.custom=42
+		record.f_firstname.x_foo=42
+		view.custom=42
+		view.x_foo=42
+		view.lc_save.custom=42
+		view.lc_save.x_foo=42
+	"""
+	assert lines(output) == lines(expected)
