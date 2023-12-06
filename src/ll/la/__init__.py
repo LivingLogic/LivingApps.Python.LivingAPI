@@ -6747,6 +6747,9 @@ class DataSourceConfig(Base):
 
 		``ALL``
 			Include all controls.
+
+		``ALL_LAYOUT``
+			Include all controls and layout controls.
 		"""
 
 		NONE = 0
