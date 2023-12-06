@@ -2929,6 +2929,33 @@ def test_library_parameters(handler):
 		assert lines(output) == lines(expected)
 
 
+def test_globals_urls(handler, config_data):
+	vt = handler.make_viewtemplate(
+		identifier="test_livingapi_globals_urls",
+		source=f"""
+			<?print globals.my_apps_url()?>
+			<?print globals.my_tasks_url()?>
+			<?print globals.catalog_url()?>
+			<?print globals.chats_url()?>
+			<?print globals.profile_url()?>
+			<?print globals.account_url()?>
+			<?print globals.logout_url()?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = f"""
+		/apps.htm
+		/xist4c/web/aufgaben_id_393_.htm
+		/katalog/home.htm
+		/chats.htm
+		/profil/index.htm
+		/account.htm
+		/login.htm?logout=standardCug
+	"""
+	assert lines(output) == lines(expected)
+
+
 def test_app_urls(handler, config_data):
 	ae = config_data.persons.ae
 
