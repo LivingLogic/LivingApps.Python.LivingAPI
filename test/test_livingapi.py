@@ -3316,3 +3316,78 @@ def test_field_dir(handler, config_data):
 		assert sorted(lines(output)) == sorted(lines(expected))
 
 
+def test_focus_control(handler, config_data):
+	c = config_data
+
+	vt = handler.make_viewtemplate(
+			la.DataSourceConfig(
+				identifier="persons",
+				app=c.apps.persons,
+				includeviews=True,
+			),
+		identifier="test_livingapi_focus_control",
+		source=f"""
+			<?code v = first(app.views.values())?>
+			<?code app.active_view = v?>
+			<?print v.focus_control.identifier or "None"?>
+			<?print app.c_firstname.is_focused()?>
+			<?print app.c_lastname.is_focused()?>
+			<?code v.focus_control = app.c_firstname?>
+			<?print v.focus_control.identifier or "None"?>
+			<?print app.c_firstname.is_focused()?>
+			<?print app.c_lastname.is_focused()?>
+			<?code v.focus_control = app.c_lastname?>
+			<?print v.focus_control.identifier or "None"?>
+			<?print app.c_firstname.is_focused()?>
+			<?print app.c_lastname.is_focused()?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		None
+		False
+		False
+		firstname
+		True
+		False
+		lastname
+		False
+		True
+	"""
+	assert lines(output) == lines(expected)
+
+
+def test_focus_first_control(handler, config_data):
+	c = config_data
+
+	vt = handler.make_viewtemplate(
+			la.DataSourceConfig(
+				identifier="persons",
+				app=c.apps.persons,
+				includeviews=True,
+			),
+		identifier="test_livingapi_focus_control",
+		source=f"""
+			<?code v = first(app.views.values())?>
+			<?code app.active_view = v?>
+			<?print v.focus_control.identifier or "None"?>
+			<?print app.c_firstname.is_focused()?>
+			<?print app.c_lastname.is_focused()?>
+			<?code v.focus_first_control()?>
+			<?print v.focus_control.identifier or "None"?>
+			<?print app.c_firstname.is_focused()?>
+			<?print app.c_lastname.is_focused()?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		None
+		False
+		False
+		firstname
+		True
+		False
+	"""
+	assert lines(output) == lines(expected)
