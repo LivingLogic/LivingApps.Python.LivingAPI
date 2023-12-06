@@ -41,6 +41,8 @@ HEAD (2023-??-??)
 
 *	Added ``Field`` subclasses (one for each control type).
 
+*	Allow setting the attributes ``Globals.pv_*`` and ``App.pv_*``.
+
 
 0.23.2 (2023-04-03)
 -------------------
