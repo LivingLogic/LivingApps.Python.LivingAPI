@@ -3175,6 +3175,414 @@ class App(CustomAttributes):
 		return result
 
 
+class Field(CustomAttributes):
+	r"""
+	A :class:`!Field` object contains the value of a certain field (i.e. a
+	:class:`Control`) for a certain :class:`Record`.
+
+	Relevant instance attributes are:
+
+	.. attribute:: control
+		:type: Control
+
+		The :class:`Control` for which this :class:`!Field` holds a value.
+
+	.. attribute:: record
+		:type: Record
+
+		The :class:`Record` for which this :class:`!Field` holds a value.
+
+	.. attribute:: label
+		:type: str
+
+		A field specific label. Setting the label to ``None`` reset the value
+		back to the label of the :class:`Control`.
+
+	.. attribute:: value
+
+		The field value. The type of the value depends on the type of the
+		:class:`Control` this field belongs to.
+
+	.. attribute:: dirty
+		:type: bool
+
+		Has this field been changed since the record was loaded from the
+		database?
+
+	.. attribute:: errors
+		:type: list[str]
+
+		List of error messages for this field.
+
+	.. attribute:: enabled
+		:type: bool
+
+		Should the input for this field be enabled in the input form?
+		Disabling the input usually means to add the HTML attribute ``disabled``.
+		In this case the field value will not be submitted when submitting the
+		form.
+
+	.. attribute:: writable
+		:type: bool
+
+		Should the input for this field be writable in the input form?
+		Setting the input the read-only usually means to add the HTML attribute
+		``readonly``. In this case the user cant change the input, but the field
+		value will still be submitted when submitting the form.
+
+	.. attribute:: visible
+		:type: bool
+
+		Should the input for this field be visible or invisible in the input form?
+	"""
+
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible"})
+	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
+
+	template_types = ("field_instance",)
+
+	def __init__(self, control, record, value):
+		super().__init__()
+		self.control = control
+		self.record = record
+		self._label = None
+		self._lookupdata = None
+		self._value = None
+		self._dirty = False
+		self.errors = []
+		self.enabled = True
+		self.writable = True
+		self.visible = True
+		control._set_value(self, value)
+		self._dirty = False
+
+	def _template_candidates(self):
+		yield from self.record._template_candidates()
+
+	@property
+	def label(self):
+		return self._label if self._label is not None else self.control.label
+
+	@label.setter
+	def label(self, label):
+		self._label = label
+
+	@property
+	def value(self):
+		return self._value
+
+	@value.setter
+	def value(self, value):
+		oldvalue = self._value
+		self.clear_errors()
+		self.control._set_value(self, value)
+		if value != oldvalue:
+			self.record.values[self.control.identifier] = self._value
+			self._dirty = True
+
+	def is_empty(self):
+		return self._value is None or (isinstance(self._value, list) and not self._value)
+
+	def is_dirty(self):
+		return self._dirty
+
+	def has_errors(self):
+		return bool(self.errors)
+
+	def add_error(self, *errors):
+		self.errors.extend(errors)
+
+	def set_error(self, error):
+		if error is None:
+			self.errors = []
+		else:
+			self.errors = [error]
+
+	def clear_errors(self):
+		self.errors = []
+
+	def check_errors(self):
+		if self.errors:
+			raise FieldValidationError(self, self.errors[0])
+
+	def _asjson(self, handler):
+		return self.control._asjson(handler, self)
+
+	def _asdbarg(self, handler):
+		return self.control._asdbarg(handler, self)
+
+	def __repr__(self):
+		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self._value!r}"
+		if self._dirty:
+			s += " is_dirty()=True"
+		if self.errors:
+			s += " has_errors()=True"
+		s += f" at {id(self):#x}>"
+		return s
+
+	def ul4ondump(self, encoder):
+		encoder.dump(self.control)
+		encoder.dump(self.record)
+		encoder.dump(self.label)
+		encoder.dump(self.lookupdata)
+		encoder.dump(self.value)
+		encoder.dump(self.errors)
+		encoder.dump(self.enabled)
+		encoder.dump(self.writable)
+		encoder.dump(self.visible)
+
+	def ul4onload(self, decoder):
+		self.control = decoder.load()
+		self.record = decoder.load()
+		self.label = decoder.load()
+		self.lookupdata = decoder.load()
+		self.value = decoder.load()
+		self.errors = decoder.load()
+		self.enabled = decoder.load()
+		self.writable = decoder.load()
+		self.visible = decoder.load()
+
+
+class BoolField(Field):
+	template_types = ("field_bool_instance", "field_instance")
+
+
+class IntField(Field):
+	template_types = ("field_int_instance", "field_instance")
+
+
+class NumberField(Field):
+	template_types = ("field_number_instance", "field_instance")
+
+
+class StringField(Field):
+	template_types = ("field_string_instance", "field_instance")
+
+
+class TextField(StringField):
+	pass
+
+
+class URLField(StringField):
+	pass
+
+
+class EmailField(StringField):
+	pass
+
+
+class TelField(StringField):
+	pass
+
+
+class PasswordField(StringField):
+	pass
+
+
+class TextAreaField(StringField):
+	pass
+
+
+class HTMLField(StringField):
+	pass
+
+
+class DateField(Field):
+	template_types = ("field_date_instance", "field_instance")
+
+
+class DatetimeMinuteField(DateField):
+	pass
+
+
+class DatetimeSecondField(DateField):
+	pass
+
+
+class FileField(Field):
+	template_types = ("field_file_instance", "field_instance")
+
+
+class FileSignatureField(FileField):
+	pass
+
+
+class GeoField(Field):
+	template_types = ("field_geo_instance", "field_instance")
+
+
+class LookupField(Field):
+	r"""
+	Adds the following attribute to instances:
+
+	.. attribute:: lookupdata
+		:type: dict[str, Union[str, LookupItem]]
+
+		Custom lookup data for this field.
+
+		The dictionary keys should be the ``key`` attribute of
+		:class:`LookupItem`\s and the values should be :class:`LookupItem` or
+		:class:`str` objects.
+
+		Using :class:`str` as the values makes it possible to use custom labels
+		in input forms.
+	"""
+
+	ul4_attrs = Field.ul4_attrs.union({"lookupdata", "has_custom_lookupdata"})
+
+	template_types = ("field_lookup_instance", "field_instance")
+
+	def __init__(self, control, record, value):
+		super().__init__(control, record, value)
+		self._lookupdata = None
+
+	@property
+	def lookupdata(self):
+		return self._lookupdata if self._lookupdata is not None else self.control.lookupdata
+
+	@lookupdata.setter
+	def lookupdata(self, lookupdata):
+		control = self.control
+		if lookupdata is None:
+			lookupdata = []
+		elif isinstance(lookupdata, (str, LookupItem)):
+			lookupdata = [lookupdata]
+		elif isinstance(lookupdata, dict):
+			lookupdata = lookupdata.values()
+		items = []
+		for v in lookupdata:
+			if isinstance(v, str):
+				if v not in control.lookupdata:
+					raise ValueError(error_lookupitem_unknown(self, v))
+				items.append(control.lookupdata[v])
+			elif isinstance(v, LookupItem):
+				if control.lookupdata.get(v.key, None) is not v:
+					raise ValueError(error_lookupitem_foreign(self, v))
+				items.append(v)
+			elif v is not None:
+				raise ValueError(error_wrong_type(self, v))
+		self._lookupdata = attrdict({r.key : r for r in items})
+
+	def has_custom_lookupdata(self):
+		return self._lookupdata is not None
+
+
+class LookupSelectField(LookupField):
+	pass
+
+
+class LookupRadioField(LookupField):
+	pass
+
+
+class LookupChoiceField(LookupField):
+	pass
+
+
+class AppLookupField(Field):
+	r"""
+	Adds the following attribute to instances:
+
+	.. attribute:: lookupdata
+		:type: dict[str, Union[str, Record]]
+
+		Custom lookup data for this field. 
+
+		The dictionary keys should be the ``id`` attribute of :class:`Record`
+		objects and the values should be :class:`Record` or :class:`str` objects.
+
+		Using :class:`str` as the values makes it possible to use custom labels
+		in input forms.
+	"""
+
+	ul4_attrs = Field.ul4_attrs.union({"lookupdata", "has_custom_lookupdata"})
+
+	template_types = ("field_applookup_instance", "field_instance")
+
+	@property
+	def lookupdata(self):
+		lookupdata = self._lookupdata
+		if lookupdata is None:
+			lookupdata = self.control.lookupapp.records
+		if lookupdata is None:
+			lookupdata = {}
+		return lookupdata
+
+	@lookupdata.setter
+	def lookupdata(self, lookupdata):
+		control = self.control
+		self._lookupdata = lookupdata
+		if lookupdata is None:
+			lookupdata = []
+		elif isinstance(lookupdata, str):
+			lookupdata = [lookupdata]
+		elif isinstance(lookupdata, dict):
+			lookupdata = lookupdata.values()
+		records = []
+		fetched = self.control.app.globals.handler.records_sync_data([v for v in lookupdata if isinstance(v, str)])
+		for v in lookupdata:
+			if isinstance(v, str):
+				record = fetched.get(v, None)
+				if record is None:
+					raise ValueError(error_applookuprecord_unknown(v))
+				v = record
+			if isinstance(v, Record):
+				if v.app is not control.lookup_app:
+					raise ValueError(error_applookuprecord_foreign(self, v))
+				else:
+					records.append(v)
+			elif v is not None:
+				raise ValueError(error_wrong_type(self, v))
+		self._lookupdata = {r.id : r for r in records}
+
+	def has_custom_lookupdata(self):
+		return self._lookupdata is not None
+
+
+class AppLookupSelectField(AppLookupField):
+	pass
+
+
+class AppLookupRadioField(AppLookupField):
+	pass
+
+
+class AppLookupChoiceField(AppLookupField):
+	pass
+
+
+class MultipleLookupField(LookupField):
+	template_types = ("field_multiplelookup_instance", "field_instance")
+
+
+class MultipleLookupSelectField(MultipleLookupField):
+	pass
+
+
+class MultipleLookupCheckboxField(MultipleLookupField):
+	pass
+
+
+class MultipleLookupChoiceField(MultipleLookupField):
+	pass
+
+
+class MultipleAppLookupField(AppLookupField):
+	template_types = ("field_multipleapplookup_instance", "field_instance")
+
+
+class MultipleAppLookupSelectField(MultipleAppLookupField):
+	pass
+
+
+class MultipleAppLookupCheckboxField(MultipleAppLookupField):
+	pass
+
+
+class MultipleAppLookupChoiceField(MultipleAppLookupField):
+	pass
+
+
 class Control(CustomAttributes):
 	"""
 	Describes a field in a LivingApp.
@@ -3528,6 +3936,8 @@ class StringControl(Control):
 	maxlength = Attr(int, get="", ul4get="_maxlength_get")
 	placeholder = Attr(str, get="", ul4get="_placeholder_get")
 
+	fieldtype = StringField
+
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
@@ -3651,6 +4061,8 @@ class TextControl(StringControl):
 	_fulltype = f"{StringControl._type}/{_subtype}"
 	ul4_type = ul4c.Type("la", "TextControl", "A LivingApps text field (type 'string/text')")
 
+	fieldtype = TextField
+
 
 @register("urlcontrol")
 class URLControl(StringControl):
@@ -3661,6 +4073,8 @@ class URLControl(StringControl):
 	_subtype = "url"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 	ul4_type = ul4c.Type("la", "URLControl", "A LivingApps URL field (type 'string/url')")
+
+	fieldtype = URLField
 
 	def _set_value(self, field, value):
 		if isinstance(value, str) and value:
@@ -3678,6 +4092,8 @@ class EmailControl(StringControl):
 	_subtype = "email"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 	ul4_type = ul4c.Type("la", "EmailControl", "A LivingApps email field (type 'string/email')")
+
+	fieldtype = EmailField
 
 	_pattern = re.compile("^[a-zA-Z0-9_#$%&’*+/=?^.-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$")
 
@@ -3702,6 +4118,8 @@ class PasswordControl(StringControl):
 	_fulltype = f"{StringControl._type}/{_subtype}"
 	ul4_type = ul4c.Type("la", "PasswordControl", "A LivingApps email field (type 'string/email')")
 
+	fieldtype = PasswordField
+
 
 @register("telcontrol")
 class TelControl(StringControl):
@@ -3712,6 +4130,8 @@ class TelControl(StringControl):
 	_subtype = "tel"
 	_fulltype = f"{StringControl._type}/{_subtype}"
 	ul4_type = ul4c.Type("la", "TelControl", "A LivingApps phone number field (type 'string/tel')")
+
+	fieldtype = TelField
 
 	_pattern = re.compile("^\\+?[0-9 /()-]+$")
 
@@ -3752,6 +4172,8 @@ class TextAreaControl(StringControl):
 
 	encrypted = IntEnumAttr(EncryptionType, get=True, set=True, default=EncryptionType.NONE, ul4get=True, ul4onget=True, ul4onset=True)
 
+	fieldtype = TextAreaField
+
 	def _maxlength_get(self):
 		vc = self._get_viewcontrol()
 		if vc is not None:
@@ -3776,6 +4198,8 @@ class HTMLControl(StringControl):
 
 	ul4_type = ul4c.Type("la", "HTMLControl", "A LivingApps HTML field (type 'string/html')")
 
+	fieldtype = HTMLField
+
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
@@ -3793,6 +4217,8 @@ class IntControl(Control):
 	_fulltype = _type
 
 	ul4_type = ul4c.Type("la", "IntControl", "A LivingApps integer field (type 'int')")
+
+	fieldtype = IntField
 
 	def _set_value(self, field, value):
 		if value is None or value == "":
@@ -3844,6 +4270,8 @@ class NumberControl(Control):
 	precision = Attr(int, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	minimum = FloatAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	maximum = FloatAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+
+	fieldtype = NumberField
 
 	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None):
 		super().__init__(id=id, identifier=identifier, fieldname=fieldname, label=label, priority=priority, order=order)
@@ -3924,6 +4352,8 @@ class DateControl(Control):
 	ul4_type = ul4c.Type("la", "DateControl", "A LivingApps date field (type 'date/date')")
 
 	format = Attr(str, get="", ul4get="_format_get")
+
+	fieldtype = DateField
 
 	_suffixes = [
 		"",
@@ -4031,6 +4461,8 @@ class DatetimeMinuteControl(DateControl):
 
 	ul4_type = ul4c.Type("la", "DatetimeMinuteControl", "A LivingApps date field (type 'date/datetimeminute')")
 
+	fieldtype = DatetimeMinuteField
+
 	def _convert(self, value):
 		if isinstance(value, datetime.datetime):
 			value = value.replace(second=0, microsecond=0)
@@ -4079,6 +4511,8 @@ class DatetimeSecondControl(DateControl):
 
 	ul4_type = ul4c.Type("la", "DatetimeSecondControl", "A LivingApps date field (type 'date/datetimesecond')")
 
+	fieldtype = DatetimeSecondField
+
 	def _convert(self, value):
 		if isinstance(value, datetime.datetime):
 			value = value.replace(microsecond=0)
@@ -4126,6 +4560,8 @@ class BoolControl(Control):
 	_fulltype = _type
 
 	ul4_type = ul4c.Type("la", "BoolControl", "A LivingApps boolean field (type 'bool')")
+
+	fieldtype = BoolField
 
 	def _set_value(self, field, value):
 		if value is None or value == "":
@@ -4214,6 +4650,8 @@ class LookupControl(Control):
 	none_key = Attr(str, get="", ul4get="_none_key_get")
 	none_label = Attr(str, get="", ul4get="_none_label_get")
 	autoexpandable = BoolAttr(get="", ul4get="_autoexpandable_get")
+
+	fieldtype = LookupField
 
 	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None, lookupdata=None, autoexpandable=False):
 		super().__init__(id=id, identifier=identifier, fieldname=fieldname, label=label, priority=priority, order=order)
@@ -4314,6 +4752,8 @@ class LookupSelectControl(LookupControl):
 
 	ul4_type = ul4c.Type("la", "LookupSelectControl", "A LivingApps lookup field (type 'lookup/select')")
 
+	fieldtype = LookupSelectField
+
 
 @register("lookupradiocontrol")
 class LookupRadioControl(LookupControl):
@@ -4326,6 +4766,9 @@ class LookupRadioControl(LookupControl):
 
 	ul4_type = ul4c.Type("la", "LookupRadioControl", "A LivingApps lookup field (type 'lookup/radio')")
 
+	fieldtype = LookupRadioField
+
+
 
 @register("lookupchoicecontrol")
 class LookupChoiceControl(LookupControl):
@@ -4337,6 +4780,8 @@ class LookupChoiceControl(LookupControl):
 	_fulltype = f"{LookupControl._type}/{_subtype}"
 
 	ul4_type = ul4c.Type("la", "LookupChoiceControl", "A LivingApps lookup field (type 'lookup/choice')")
+
+	fieldtype = LookupChoiceField
 
 
 class AppLookupControl(Control):
@@ -4392,6 +4837,8 @@ class AppLookupControl(Control):
 	remote_master_control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	none_key = Attr(str, get="", ul4get="_none_key_get")
 	none_label = Attr(str, get="", ul4get="_none_label_get")
+
+	fieldtype = AppLookupField
 
 	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None):
 		super().__init__(id=id, identifier=identifier, fieldname=fieldname, label=label, priority=priority, order=order)
@@ -4489,6 +4936,8 @@ class AppLookupSelectControl(AppLookupControl):
 
 	ul4_type = ul4c.Type("la", "AppLookupSelectControl", "A LivingApps applookup field (type 'applookup/select')")
 
+	fieldtype = AppLookupSelectField
+
 
 @register("applookupradiocontrol")
 class AppLookupRadioControl(AppLookupControl):
@@ -4500,6 +4949,8 @@ class AppLookupRadioControl(AppLookupControl):
 	_fulltype = f"{AppLookupControl._type}/{_subtype}"
 
 	ul4_type = ul4c.Type("la", "AppLookupRadioControl", "A LivingApps applookup field (type 'applookup/radio')")
+
+	fieldtype = AppLookupRadioField
 
 
 @register("applookupchoicecontrol")
@@ -4513,6 +4964,8 @@ class AppLookupChoiceControl(AppLookupControl):
 
 	ul4_type = ul4c.Type("la", "AppLookupChoiceControl", "A LivingApps applookup field (type 'applookup/choice')")
 
+	fieldtype = AppLookupRadioField
+
 
 class MultipleLookupControl(LookupControl):
 	"""
@@ -4522,6 +4975,8 @@ class MultipleLookupControl(LookupControl):
 	_type = "multiplelookup"
 
 	ul4_type = ul4c.Type("la", "MultipleLookupControl", "A LivingApps multiplelookup field")
+
+	fieldtype = MultipleLookupField
 
 	def _default_get(self):
 		vc = self._get_viewcontrol()
@@ -4583,6 +5038,8 @@ class MultipleLookupSelectControl(MultipleLookupControl):
 
 	ul4_type = ul4c.Type("la", "MultipleLookupSelectControl", "A LivingApps multiplelookup field (type 'multiplelookup/select')")
 
+	fieldtype = MultipleLookupSelectField
+
 
 @register("multiplelookupcheckboxcontrol")
 class MultipleLookupCheckboxControl(MultipleLookupControl):
@@ -4594,6 +5051,8 @@ class MultipleLookupCheckboxControl(MultipleLookupControl):
 	_fulltype = f"{MultipleLookupControl._type}/{_subtype}"
 
 	ul4_type = ul4c.Type("la", "MultipleLookupCheckboxControl", "A LivingApps multiplelookup field (type 'multiplelookup/checkbox')")
+
+	fieldtype = MultipleLookupCheckboxField
 
 
 @register("multiplelookupchoicecontrol")
@@ -4607,6 +5066,8 @@ class MultipleLookupChoiceControl(MultipleLookupControl):
 
 	ul4_type = ul4c.Type("la", "MultipleLookupChoiceControl", "A LivingApps multiplelookup field (type 'multiplelookup/choice')")
 
+	fieldtype = MultipleLookupChoiceField
+
 
 class MultipleAppLookupControl(AppLookupControl):
 	"""
@@ -4616,6 +5077,8 @@ class MultipleAppLookupControl(AppLookupControl):
 	_type = "multipleapplookup"
 
 	ul4_type = ul4c.Type("la", "MultipleAppLookupControl", "A LivingApps multiple applookup field")
+
+	fieldtype = MultipleAppLookupField
 
 	def _set_value(self, field, value):
 		if value is None or value == "" or value == self.none_key:
@@ -4692,6 +5155,8 @@ class MultipleAppLookupSelectControl(MultipleAppLookupControl):
 
 	ul4_type = ul4c.Type("la", "MultipleAppLookupSelectControl", "A LivingApps multiple applookup field (type 'multipleapplookup/select')")
 
+	fieldtype = MultipleAppLookupSelectField
+
 
 @register("multipleapplookupcheckboxcontrol")
 class MultipleAppLookupCheckboxControl(MultipleAppLookupControl):
@@ -4703,6 +5168,8 @@ class MultipleAppLookupCheckboxControl(MultipleAppLookupControl):
 	_fulltype = f"{MultipleAppLookupControl._type}/{_subtype}"
 
 	ul4_type = ul4c.Type("la", "MultipleAppLookupCheckboxControl", "A LivingApps multiple applookup field (type 'multipleapplookup/checkbox')")
+
+	fieldtype = MultipleAppLookupCheckboxField
 
 
 @register("multipleapplookupchoicecontrol")
@@ -4716,6 +5183,8 @@ class MultipleAppLookupChoiceControl(MultipleAppLookupControl):
 
 	ul4_type = ul4c.Type("la", "MultipleAppLookupChoiceControl", "A LivingApps multiple applookup field (type 'multipleapplookup/choice')")
 
+	fieldtype = MultipleAppLookupChoiceField
+
 
 @register("filecontrol")
 class FileControl(Control):
@@ -4727,6 +5196,8 @@ class FileControl(Control):
 	_fulltype = _type
 
 	ul4_type = ul4c.Type("la", "FileControl", "A LivingApps upload field (type 'file')")
+
+	fieldtype = FileField
 
 	def _set_value(self, field, value):
 		if value is None or value == "":
@@ -4792,6 +5263,8 @@ class FileSignatureControl(FileControl):
 
 	ul4_type = ul4c.Type("la", "FileSignatureControl", "A LivingApps signature image field (type 'file/signature')")
 
+	fieldtype = FileSignatureField
+
 	def _set_value(self, field, value):
 		if isinstance(value, str) and value:
 			pos_slash = value.find("/")
@@ -4844,6 +5317,8 @@ class GeoControl(Control):
 	_fulltype = _type
 
 	ul4_type = ul4c.Type("la", "GeoControl", "A LivingApps geo field (type 'geo')")
+
+	fieldtype = GeoField
 
 	def _set_value(self, field, value):
 		if value is None or value == "":
@@ -5315,7 +5790,7 @@ class Record(CustomAttributes):
 				value = values[identifier]
 			elif use_defaults:
 				value = control.default
-			field = Field(control, self, value)
+			field = control.fieldtype(control, self, value)
 			fields[identifier] = field
 		self.__dict__["fields"] = fields
 		self._sparsevalues = None
@@ -5661,260 +6136,6 @@ class Record(CustomAttributes):
 
 	def is_new(self):
 		return self._new
-
-
-class Field(CustomAttributes):
-	r"""
-	A :class:`!Field` object contains the value of a certain field (i.e. a
-	:class:`Control`) for a certain :class:`Record`.
-
-	Relevant instance attributes are:
-
-	.. attribute:: control
-		:type: Control
-
-		The :class:`Control` for which this :class:`!Field` holds a value.
-
-	.. attribute:: record
-		:type: Record
-
-		The :class:`Record` for which this :class:`!Field` holds a value.
-
-	.. attribute:: label
-		:type: str
-
-		A field specific label. Setting the label to ``None`` reset the value
-		back to the label of the :class:`Control`.
-
-	.. attribute:: lookupdata
-		:type: dict[str, Union[str, LookupItem, Record]]
-
-		Custom lookup data for this field. 
-
-		For fields belonging to :class:`LookupControl` or
-		:class:`MultipleLookupControl` objects the dictionary keys should be the
-		``key`` attribute of :class:`LookupItem`\s and the values should be
-		:class:`LookupItem` or :class:`str` objects.
-
-		For fields belonging to :class:`AppLookupControl` or
-		:class:`MultipleAppLookupControl` objects the dictionary keys should be
-		the ``id`` attribute of :class:`Record` objects and the values should be
-		:class:`Record` or :class:`str` objects.
-
-		Using :class:`str` as the values makes it possible to use custom labels
-		in input forms.
-
-	.. attribute:: value
-
-		The field value. The type of the value depends on the type of the
-		:class:`Control` this field belongs to.
-
-	.. attribute:: dirty
-		:type: bool
-
-		Has this field been changed since the record was loaded from the
-		database?
-
-	.. attribute:: errors
-		:type: list[str]
-
-		List of error messages for this field.
-
-	.. attribute:: enabled
-		:type: bool
-
-		Should the input for this field be enabled in the input form?
-		Disabling the input usually means to add the HTML attribute ``disabled``.
-		In this case the field value will not be submitted when submitting the
-		form.
-
-	.. attribute:: writable
-		:type: bool
-
-		Should the input for this field be writable in the input form?
-		Setting the input the read-only usually means to add the HTML attribute
-		``readonly``. In this case the user cant change the input, but the field
-		value will still be submitted when submitting the form.
-
-	.. attribute:: visible
-		:type: bool
-
-		Should the input for this field be visible or invisible in the input form?
-	"""
-
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "lookupdata", "value", "is_empty", "is_dirty", "errors", "has_errors", "has_custom_lookupdata", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible"})
-	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
-
-	def __init__(self, control, record, value):
-		super().__init__()
-		self.control = control
-		self.record = record
-		self._label = None
-		self._lookupdata = None
-		self._value = None
-		self._dirty = False
-		self.errors = []
-		self.enabled = True
-		self.writable = True
-		self.visible = True
-		control._set_value(self, value)
-		self._dirty = False
-
-	@property
-	def template_types(self):
-		return (f"field_{self.control.type}_instance", "field_instance")
-
-	def _template_candidates(self):
-		yield from self.record._template_candidates()
-
-	@property
-	def label(self):
-		return self._label if self._label is not None else self.control.label
-
-	@label.setter
-	def label(self, label):
-		self._label = label
-
-	@property
-	def lookupdata(self):
-		if isinstance(self.control, LookupControl):
-			return self._lookupdata if self._lookupdata is not None else self.control.lookupdata
-		elif isinstance(self.control, AppLookupControl):
-			lookupdata = self._lookupdata
-			if lookupdata is None:
-				lookupdata = self.control.lookupapp.records
-			if lookupdata is None:
-				lookupdata = {}
-			return lookupdata
-		else:
-			return None
-
-	@lookupdata.setter
-	def lookupdata(self, lookupdata):
-		control = self.control
-		if isinstance(control, LookupControl):
-			if lookupdata is None:
-				lookupdata = []
-			elif isinstance(lookupdata, (str, LookupItem)):
-				lookupdata = [lookupdata]
-			elif isinstance(lookupdata, dict):
-				lookupdata = lookupdata.values()
-			items = []
-			for v in lookupdata:
-				if isinstance(v, str):
-					if v not in control.lookupdata:
-						raise ValueError(error_lookupitem_unknown(self, v))
-					items.append(control.lookupdata[v])
-				elif isinstance(v, LookupItem):
-					if control.lookupdata.get(v.key, None) is not v:
-						raise ValueError(error_lookupitem_foreign(self, v))
-					items.append(v)
-				elif v is not None:
-					raise ValueError(error_wrong_type(self, v))
-			self._lookupdata = attrdict({r.key : r for r in items})
-		elif isinstance(control, AppLookupControl):
-			self._lookupdata = lookupdata
-			if lookupdata is None:
-				lookupdata = []
-			elif isinstance(lookupdata, (str, LookupItem)):
-				lookupdata = [lookupdata]
-			elif isinstance(lookupdata, dict):
-				lookupdata = lookupdata.values()
-			records = []
-			fetched = self.control.app.globals.handler.records_sync_data([v for v in lookupdata if isinstance(v, str)])
-			for v in lookupdata:
-				if isinstance(v, str):
-					record = fetched.get(v, None)
-					if record is None:
-						raise ValueError(error_applookuprecord_unknown(v))
-					v = record
-				if isinstance(v, Record):
-					if v.app is not control.lookup_app:
-						raise ValueError(error_applookuprecord_foreign(self, v))
-					else:
-						records.append(v)
-				elif v is not None:
-					raise ValueError(error_wrong_type(self, v))
-			self._lookupdata = {r.id : r for r in records}
-		# Ignore assignment for any other control type
-
-	@property
-	def value(self):
-		return self._value
-
-	@value.setter
-	def value(self, value):
-		oldvalue = self._value
-		self.clear_errors()
-		self.control._set_value(self, value)
-		if value != oldvalue:
-			self.record.values[self.control.identifier] = self._value
-			self._dirty = True
-
-	def is_empty(self):
-		return self._value is None or (isinstance(self._value, list) and not self._value)
-
-	def is_dirty(self):
-		return self._dirty
-
-	def has_errors(self):
-		return bool(self.errors)
-
-	def has_custom_lookupdata(self):
-		return self._lookupdata is not None
-
-	def add_error(self, *errors):
-		self.errors.extend(errors)
-
-	def set_error(self, error):
-		if error is None:
-			self.errors = []
-		else:
-			self.errors = [error]
-
-	def clear_errors(self):
-		self.errors = []
-
-	def check_errors(self):
-		if self.errors:
-			raise FieldValidationError(self, self.errors[0])
-
-	def _asjson(self, handler):
-		return self.control._asjson(handler, self)
-
-	def _asdbarg(self, handler):
-		return self.control._asdbarg(handler, self)
-
-	def __repr__(self):
-		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self._value!r}"
-		if self._dirty:
-			s += " is_dirty()=True"
-		if self.errors:
-			s += " has_errors()=True"
-		s += f" at {id(self):#x}>"
-		return s
-
-	def ul4ondump(self, encoder):
-		encoder.dump(self.control)
-		encoder.dump(self.record)
-		encoder.dump(self.label)
-		encoder.dump(self.lookupdata)
-		encoder.dump(self.value)
-		encoder.dump(self.errors)
-		encoder.dump(self.enabled)
-		encoder.dump(self.writable)
-		encoder.dump(self.visible)
-
-	def ul4onload(self, decoder):
-		self.control = decoder.load()
-		self.record = decoder.load()
-		self.label = decoder.load()
-		self.lookupdata = decoder.load()
-		self.value = decoder.load()
-		self.errors = decoder.load()
-		self.enabled = decoder.load()
-		self.writable = decoder.load()
-		self.visible = decoder.load()
 
 
 class Attachment(Base):

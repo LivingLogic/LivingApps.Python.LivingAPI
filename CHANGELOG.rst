@@ -39,6 +39,8 @@ HEAD (2023-??-??)
 
 *	Added method ``App.seq()``.
 
+*	Added ``Field`` subclasses (one for each control type).
+
 
 0.23.2 (2023-04-03)
 -------------------
