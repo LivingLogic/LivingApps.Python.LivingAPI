@@ -2366,11 +2366,15 @@ def test_globals_seq(handler, config_data):
 			identifier="test_livingapi_globals_seq",
 			source="""
 				<?print globals.seq()?>
+				<?print globals.seq()?>
 			"""
 		)
 
-		handler.renders(person_app_id(), template=vt.identifier)
-		# no tests here
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		output = lines(output)
+		assert output[0].isdigit()
+		assert output[1].isdigit()
+		assert int(output[0]) < int(output[1])
 
 
 def test_record_add_error(handler):
