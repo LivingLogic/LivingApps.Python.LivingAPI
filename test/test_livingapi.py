@@ -2377,6 +2377,23 @@ def test_globals_seq(handler, config_data):
 		assert int(output[0]) < int(output[1])
 
 
+def test_app_seq(handler, config_data):
+	if not isinstance(handler, PythonHTTP):
+		vt = handler.make_viewtemplate(
+			identifier="test_livingapi_app_seq",
+			source="""
+				<?print app.seq()?>
+				<?print app.seq()?>
+			"""
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		output = lines(output)
+		assert output[0].isdigit()
+		assert output[1].isdigit()
+		assert int(output[0]) < int(output[1])
+
+
 def test_record_add_error(handler):
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_record_add_error",
