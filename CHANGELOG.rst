@@ -17,15 +17,18 @@ HEAD (2023-??-??)
 
 *	Update upload handling to support a world without ``uploadref``.
 
-*	Add methods ``home_url()``, ``datamanagement_url()``, ``import_url()``, ``tasks_url()``, 
-	``datamanagement_config_url()``, ``permissions_url()`` and ``datamanageview_url()``
-	to class :class:`App` which return the relative urls for the respective menus.
+*	Add methods ``home_url()``, ``datamanagement_url()``, ``import_url()``,
+	``tasks_url()``, ``datamanagement_config_url()``, ``permissions_url()`` and
+	``datamanageview_url()`` to class :class:`App` which return the relative URLs
+	for the respective menus.
 
-*	Add methods ``my_apps_url()``, ``my_tasks_url()``, ``catalog_url()``, ``chats_url()``,
-	``profile_url()``, ``account_url()`` and ``logout_url()`` to class :class:`Globals` which
-	return the relative urls for the respective menus.
+*	Add methods ``my_apps_url()``, ``my_tasks_url()``, ``catalog_url()``,
+	``chats_url()``, ``profile_url()``, ``account_url()`` and ``logout_url()``
+	to class :class:`Globals` which return the relative URLs for the respective
+	menus.
 
-*	Added attribute ``View.focus_control``.
+*	Added attribute ``View.focus_control`` and method
+	``View.focus_first_control()``.
 
 *	Added method ``Control.is_focused()``.
 
@@ -34,8 +37,6 @@ HEAD (2023-??-??)
 	form.
 
 *	``Control.in_active_view()`` is a method now.
-
-*	Added method ``View.focus_first_control()``.
 
 *	Added method ``App.seq()``.
 
