@@ -485,7 +485,7 @@ class DBHandler(Handler):
 			with (self.uploaddir/r.p_upl_name).open("wb", context=self.urlcontext) as f:
 				f.write(file._content)
 			file.context_id = r.p_context_id
-			file.id = r.p_upr_path
+			file.id = f"{r.p_upr_path}/{r.p_upl_id}"
 			file.internal_id = r.p_upl_id
 
 	def file_content(self, file):
