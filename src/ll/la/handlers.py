@@ -97,7 +97,6 @@ class Handler:
 	def __init__(self):
 		self.globals = None
 		registry = {
-			"de.livinglogic.livingapi.file": self._loadfile,
 			"de.livinglogic.livingapi.globals": self._loadglobals,
 		}
 		self.ul4on_decoder = ul4on.Decoder(registry)
@@ -133,6 +132,9 @@ class Handler:
 	def viewtemplate_data(self, *path, **params):
 		raise NotImplementedError
 
+	def loadinternaltemplates(self, tpl_uuid):
+		raise NotImplementedError
+
 	def viewtemplate_params_incremental_data(self, globals, id):
 		return None
 
@@ -157,50 +159,8 @@ class Handler:
 	def record_attachments_incremental_data(self, id):
 		return None
 
-	def meta_data(self, *appids):
+	def meta_data(self, *appids, records=False):
 		raise NotImplementedError
-
-	def file(self, source):
-		"""
-		Create a :class:`~ll.la.File` object from :obj:`source`.
-
-		:obj:`source` can be :class:`pathlib.Path` or :class:`os.PathLike` object,
-		an :class:`~ll.url.URL` object or a stream (i.e. an object with a
-		:meth:`read` method and a :attr:`name` attribute.
-		"""
-		path = None
-		mimetype = None
-		if isinstance(source, pathlib.Path):
-			content = source.read_bytes()
-			filename = source.name
-			path = str(source.resolve())
-		elif isinstance(source, str):
-			with open(source, "rb") as f:
-				content = f.read()
-			filename = os.path.basename(source)
-			path = source
-		elif isinstance(source, os.PathLike):
-			path = source.__fspath__()
-			with open(path, "rb") as f:
-				content = f.read()
-			filename = os.path.basename(path)
-		elif isinstance(source, url.URL):
-			filename = source.file
-			with source.openread() as r:
-				content = r.read()
-		else:
-			content = source.read()
-			if source.name:
-				filename = os.path.basename(source.name)
-			else:
-				filename = "Unnnamed"
-		if mimetype is None:
-			mimetype = mimetypes.guess_type(filename, strict=False)[0]
-			if mimetype is None:
-				mimetype = "application/octet-stream"
-		file = la.File(filename=filename, mimetype=mimetype, content=content)
-		file.handler = self
-		return file
 
 	def _geofrominfo(self, info:str) -> la.Geo:
 		import geocoder # This requires the :mod:`geocoder` module, install with ``pip install geocoder``
@@ -262,6 +222,9 @@ class Handler:
 	def seq(self):
 		raise NotImplementedError
 
+	def appseq(self, app):
+		raise NotImplementedError
+
 	def save_record(self, record):
 		raise NotImplementedError
 
@@ -316,13 +279,8 @@ class Handler:
 	def fetch_emailtemplate_params(self, globals):
 		return la.attrdict()
 
-	def _loadfile(self, id):
-		file = la.File(id=id)
-		file.handler = self
-		return file
-
 	def _loadglobals(self, id=None):
-		globals = la.Globals()
+		globals = la.Globals(id=id)
 		globals.handler = self
 		return globals
 
@@ -407,6 +365,7 @@ class DBHandler(Handler):
 		self.proc_init = orasql.Procedure("LIVINGAPI_PKG.INIT")
 		self.proc_clear_all = orasql.Procedure("LIVINGAPI_PKG.CLEAR_ALL")
 		self.func_seq = orasql.Function("LIVINGAPI_PKG.SEQ")
+		self.func_template_seq = orasql.Function("LIVINGAPI_PKG.TEMPLATE_SEQ_BY_TPL_UUID")
 
 		self.custom_procs = {} # For the insert/update/delete procedures of system templates
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
@@ -487,7 +446,12 @@ class DBHandler(Handler):
 	def seq(self):
 		c = self.cursor()
 		(value, r) = self.func_seq(c)
-		return value
+		return int(value)
+
+	def appseq(self, app):
+		c = self.cursor()
+		(value, r) = self.func_template_seq(c, app.id)
+		return int(value)
 
 	def save_app(self, app, recursive=True):
 		# FIXME: Save the app itself
@@ -503,7 +467,7 @@ class DBHandler(Handler):
 					self.save_parameter(param)
 
 	def save_file(self, file):
-		if file.internalid is None:
+		if file.internal_id is None:
 			if file._content is None:
 				raise ValueError(f"Can't save {file!r} without content!")
 			c = self.cursor()
@@ -520,21 +484,13 @@ class DBHandler(Handler):
 				self.urlcontext = url.Context()
 			with (self.uploaddir/r.p_upl_name).open("wb", context=self.urlcontext) as f:
 				f.write(file._content)
-			file.id = r.p_upr_id
-			file.internalid = r.p_upl_id
+			file.context_id = r.p_context_id
+			file.id = f"{r.p_upr_path}/{r.p_upl_id}"
+			file.internal_id = r.p_upl_id
 
 	def file_content(self, file):
-		upr_id = file.url.rsplit("/")[-1]
-		c = self.cursor()
-		c.execute(
-			"select u.upl_name from upload u, uploadref ur where u.upl_id=ur.upl_id and ur.upr_id = :upr_id",
-			upr_id=upr_id,
-		)
-		r = c.fetchone()
-		if r is None:
-			raise ValueError(f"no such file {file.url!r}")
 		with url.Context():
-			u = self.uploaddir/r.upl_name
+			u = self.uploaddir/file.storagefilename
 			return u.openread().read()
 
 	def _save_vsql_ast(self, vsqlexpr, required_datatype=None, cursor=None, vs_id_super=None, vs_order=None, vss_id=None, pos=None):
@@ -918,16 +874,17 @@ class DBHandler(Handler):
 		dump = self._loaddump(dump)
 		return dump
 
-	def meta_data(self, *appids):
+	def meta_data(self, *appids, records=False):
 		cursor = self.cursor()
 		tpl_uuids = self.varchars(appids)
 		cursor.execute(
-			"select livingapi_pkg.metadata_ful4on(c_user=>:ide_id, p_tpl_uuids=>:tpl_uuids) from dual",
+			"select livingapi_pkg.metadata_ful4on(c_user=>:ide_id, p_tpl_uuids=>:tpl_uuids, p_records=>:records) from dual",
 			ide_id=self.ide_id,
 			tpl_uuids=tpl_uuids,
+			records=int(bool(records))
 		)
-		r = cursor.fetchone()
-		dump = r[0].decode("utf-8")
+		dump = cursor.fetchone()[0]
+		dump = dump.decode("utf-8")
 		dump = self._loaddump(dump)
 		return dump
 
@@ -1185,8 +1142,15 @@ class DBHandler(Handler):
 					for (i, part) in enumerate(parts):
 						if i % 2:
 							if field:
-								identifier = controls_by_field[field].identifier
-								record.fields[identifier].add_error(part)
+								if field not in controls_by_field:
+									record.add_error(f"{field}: {part}")
+								else:
+									control = controls_by_field[field]
+									identifier = control.identifier
+									if app.active_view is not None and identifier not in app.active_view.controls:
+										record.add_error(f"{identifier}: {part}")
+									else:
+										record.fields[identifier].add_error(part)
 							else:
 								record.add_error(part)
 						else:
@@ -1393,33 +1357,38 @@ class DBHandler(Handler):
 			self.custom_procs[procname] = proc
 			return proc
 
-	def _loadinternaltemplates(self, tpl_uuid):
+	def loadinternaltemplates(self, tpl_uuid):
 		if tpl_uuid in self.internaltemplates:
 			return self.internaltemplates[tpl_uuid]
 		c = self.cursor_pg()
 		c.execute("""
 			select
 				it_identifier,
+				tmt_key,
 				utv_source
 			from
 				internaltemplate.internaltemplate_select
 			where
 				app_id=%s
 		""", [tpl_uuid])
-		templates = {}
+		templates = la.attrdict()
 		for r in c:
-			template = ul4c.Template(r[1], name=r[0])
-			templates[template.name] = template
+			(identifier, type, source) = r
+			namespace = f"app_{tpl_uuid}.internaltemplates.{type}" if type else f"app_{tpl_uuid}.internaltemplates"
+			template = ul4c.Template(source, name=identifier, namespace=namespace)
+			if type not in templates:
+				templates[type] = la.attrdict()
+			templates[type][template.name] = template
 		self.internaltemplates[tpl_uuid] = templates
 		return templates
 
 	def fetch_templates(self, app):
 		if app.superid is None:
-			return self._loadinternaltemplates(app.id)
+			return self.loadinternaltemplates(app.id)
 		else:
 			return {
-				**self._loadinternaltemplates(app.superid),
-				**self._loadinternaltemplates(app.id),
+				**self.loadinternaltemplates(app.superid),
+				**self.loadinternaltemplates(app.id),
 			}
 
 	def fetch_viewtemplate_params(self, globals):
@@ -1437,16 +1406,23 @@ class DBHandler(Handler):
 	def fetch_librarytemplates(self):
 		if self.librarytemplates is None:
 			c = self.cursor_pg(row_factory=rows.tuple_row)
-			c.execute("select templatelibrary.librarytemplates_ful4on()")
-			r = c.fetchone()
-			dump = r[0]
-			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
-			# Note that we ignore the problem of persistent objects, since none of the
-			# persistent objects in this dump are in the other dump
-			dump = ul4on.loads(dump)
-			if isinstance(dump, dict):
-				dump = la.attrdict(dump)
-			self.librarytemplates = la.attrdict(dump)
+			c.execute("""
+				select
+					lt_identifier,
+					tmt_key,
+					utv_source
+				from
+					templatelibrary.librarytemplate_select
+			""")
+			templates = la.attrdict()
+			for r in c:
+				(identifier, type, source) = r
+				namespace = f"templatelibrary.{type}" if type else f"templatelibrary"
+				template = ul4c.Template(source, name=identifier, namespace=namespace)
+				if type not in templates:
+					templates[type] = la.attrdict()
+				templates[type][template.name] = template
+			self.librarytemplates = templates
 		return self.librarytemplates
 
 	def fetch_libraryparams(self):
@@ -1672,7 +1648,7 @@ class FileHandler(Handler):
 			basepath = pathlib.Path()
 		self.basepath = pathlib.Path(basepath)
 
-	def meta_data(self, *appids):
+	def meta_data(self, *appids, records=False):
 		apps = {}
 		for childpath in self.basepath.iterdir():
 			if childpath.is_dir() and childpath.name.endswith(")") and " (" in childpath.name:
@@ -1682,7 +1658,7 @@ class FileHandler(Handler):
 				app = la.App(name=name)
 				app.id = id
 				self._loadcontrols(app)
-				self._loadinternaltemplates(app)
+				self.loadinternaltemplates(app)
 				apps[app.id] = app
 		return attrdict(apps)
 
@@ -1692,7 +1668,7 @@ class FileHandler(Handler):
 			dump = json.loads(path.read_text(encoding="utf-8"))
 
 
-	def _loadinternaltemplates(self, app):
+	def loadinternaltemplates(self, app):
 		dir = self.basepath/f"{app.name} ({app.id})/internaltemplates"
 		if dir.exists():
 			for filepath in dir.iterdir():

@@ -1,3 +1,58 @@
+HEAD (2023-??-??)
+-------------------
+
+*	Merged attributes ``iconsmall`` and ``iconlarge`` of :class:`App` objects
+	into ``image``.
+
+*	Merged attributes ``avatarsmall`` and ``avatarlarge`` of :class:`User`
+	objects into ``image``.
+
+*	Merged attributes ``original`` and ``scaled`` of :class:`ImageLayoutControl`
+	objects into ``image``.
+
+*	Added attribute ``z_index`` to ``Control``, ``ViewControl`` and
+	``LayoutControl``.
+
+*	Added attribute ``MenuItem.accessible``.
+
+*	Update upload handling to support a world without ``uploadref``.
+
+*	Add methods ``home_url()``, ``datamanagement_url()``, ``import_url()``,
+	``tasks_url()``, ``datamanagement_config_url()``, ``permissions_url()`` and
+	``datamanageview_url()`` to class :class:`App` which return the relative URLs
+	for the respective menus.
+
+*	Add methods ``my_apps_url()``, ``my_tasks_url()``, ``catalog_url()``,
+	``chats_url()``, ``profile_url()``, ``account_url()`` and ``logout_url()``
+	to class :class:`Globals` which return the relative URLs for the respective
+	menus.
+
+*	Added attribute ``View.focus_control`` and method
+	``View.focus_first_control()``.
+
+*	Added method ``Control.is_focused()``.
+
+*	Add field errors to the record if we have an active view and the field
+	is not in the active view. This avoids problems with invisible errors in the
+	form.
+
+*	``Control.in_active_view()`` is a method now.
+
+*	Added method ``App.seq()``.
+
+*	Added ``Field`` subclasses (one for each control type).
+
+*	Allow setting the attributes ``Globals.pv_*`` and ``App.pv_*``.
+
+
+0.23.2 (2023-04-03)
+-------------------
+
+*	Removed shortcut attributes from :class:`DataSource`.
+
+*	Added ``APPSTART`` to :class:`MenuItem.Type`.
+
+
 0.23.1 (2023-03-17)
 -------------------
 
