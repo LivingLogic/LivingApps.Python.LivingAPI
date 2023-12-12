@@ -1,7 +1,13 @@
+0.24.2 (2023-12-12)
+-------------------
+
+*	Fixed saving files via the :class:`HTTPHandler`.
+
+
 0.24.1 (2023-12-12)
 -------------------
 
-*	Fixed invalid uses of `File.internal_id`.
+*	Fixed invalid uses of ``File.internal_id``.
 
 
 0.24.0 (2023-12-07)
