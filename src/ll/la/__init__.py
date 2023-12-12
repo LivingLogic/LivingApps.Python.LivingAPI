@@ -1336,7 +1336,7 @@ class File(Base):
 
 		Height in pixels if this file is an image.
 
-	.. attribute:: internalid
+	.. attribute:: internal_id
 		:type: str
 
 		Internal database id.

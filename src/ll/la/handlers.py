@@ -1246,9 +1246,9 @@ class DBHandler(Handler):
 			elif parameter.type is parameter.Type.MONTHDELTA:
 				p_ap_value_other = str(parameter.value.months())
 			elif parameter.type is parameter.Type.UPLOAD:
-				if parameter.value.internalid is None:
+				if parameter.value.internal_id is None:
 					raise la.ValueError(error_object_unsaved(parameter.value))
-				p_upl_id = parameter.value.internalid
+				p_upl_id = parameter.value.internal_id
 			elif parameter.type is parameter.Type.APP:
 				p_tpl_uuid_value = parameter.value.id
 			elif parameter.type is parameter.Type.CONTROL:
@@ -1483,7 +1483,7 @@ class HTTPHandler(Handler):
 			kwargs["headers"]["X-La-Auth-Token"] = self.auth_token
 
 	def save_file(self, file):
-		if file.internalid is None:
+		if file.internal_id is None:
 			if file._content is None:
 				raise ValueError(f"Can't save {file!r} without content!")
 			kwargs = {
@@ -1504,7 +1504,7 @@ class HTTPHandler(Handler):
 			file.height = result["height"]
 			file.size = result["size"]
 			file.mimetype = result["mimetype"]
-			file.internalid = result["upl_id"]
+			file.internal_id = result["upl_id"]
 			file.url = f"/gateway/files/{file.id}"
 
 	def file_content(self, file):

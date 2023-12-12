@@ -1,4 +1,10 @@
-HEAD (2023-??-??)
+0.24.1 (2023-12-12)
+-------------------
+
+*	Fixed invalid uses of `File.internal_id`.
+
+
+0.24.0 (2023-12-07)
 -------------------
 
 *	Merged attributes ``iconsmall`` and ``iconlarge`` of :class:`App` objects
