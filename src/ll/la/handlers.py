@@ -1498,14 +1498,15 @@ class HTTPHandler(Handler):
 			)
 			r.raise_for_status()
 			result = r.json()[0]
+			print(result)
 			file.name = result["orgname"]
-			file.id = result["upr_id"]
+			file.context_id = result["url"].split("/")[2]
+			file.id = result["upr_id"] + "/" + result["upl_id"]
 			file.width = result["width"]
 			file.height = result["height"]
 			file.size = result["size"]
 			file.mimetype = result["mimetype"]
 			file.internal_id = result["upl_id"]
-			file.url = f"/gateway/files/{file.id}"
 
 	def file_content(self, file):
 		kwargs = {}
