@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # cython: language_level=3, always_allow_keywords=True
 
-## Copyright 2016-2021 by LivingLogic AG, Bayreuth/Germany
+## Copyright 2016-2024 by LivingLogic AG, Bayreuth/Germany
 ##
 ## All Rights Reserved
 

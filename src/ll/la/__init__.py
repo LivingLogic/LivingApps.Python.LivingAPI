@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # cython: language_level=3, always_allow_keywords=True
 
-## Copyright 2016-2021 by LivingLogic AG, Bayreuth/Germany
+## Copyright 2016-2024 by LivingLogic AG, Bayreuth/Germany
 ##
 ## All Rights Reserved
 
@@ -2796,8 +2796,8 @@ class App(CustomAttributes):
 
 	def _template_candidates(self):
 		yield self._fetch_owntemplates()
-		if "la" in self.ownparams and isinstance(self.ownparams["la"], App):
-			yield from self.ownparams["la"]._template_candidates()
+		if "la" in self.ownparams and isinstance(self.ownparams["la"].value, App):
+			yield from self.ownparams["la"].value._template_candidates()
 		else:
 			if self.superid is not None:
 				yield self.globals.handler.loadinternaltemplates(self.superid)
