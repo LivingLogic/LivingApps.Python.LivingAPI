@@ -381,6 +381,38 @@ def error_applookuprecord_foreign(field:"Field", value:"ll.la.Record") -> str:
 		return f'The referenced record in "{field.label}" is from the wrong app.'
 
 
+def error_applookup_notargetapp(control:"Control") -> str:
+	"""
+	Return an error message for an applookup without a target app.
+
+	This can happen, when the target app gets deleted.
+	"""
+	lang = control.app.globals.lang
+	if lang == "de":
+		return 'Ziel-App nicht vorhanden'
+	elif lang == "fr":
+		return 'No target app'
+	elif lang == "it":
+		return 'No target app'
+	else:
+		return 'No target app'
+
+
+def error_applookup_norecords(control:"Control") -> str:
+	"""
+	Return an error message for an applookup target app without records.
+	"""
+	lang = control.app.globals.lang
+	if lang == "de":
+		return 'Keine Datensätze in Ziel-App'
+	elif lang == "fr":
+		return 'No records in target app'
+	elif lang == "it":
+		return 'No records in target app'
+	else:
+		return 'No records in target app'
+
+
 def error_email_format(field:"Field", value:str) -> str:
 	"""
 	Return an error message for malformed email address.
@@ -3521,14 +3553,17 @@ class AppLookupField(Field):
 	def lookupdata(self):
 		lookupdata = self._lookupdata
 		if lookupdata is None:
-			lookupdata = self.control.lookupapp.records
+			if self.control.lookupapp is not None:
+				lookupdata = self.control.lookupapp.records
+			else:
+				lookupdata = {"nolookupapp": error_applookup_notargetapp(self.control)}
 		if lookupdata is None:
+			lookupdata = {"norecords": error_applookup_norecords(self.control)}
 			lookupdata = {}
 		return lookupdata
 
 	@lookupdata.setter
 	def lookupdata(self, lookupdata):
-		control = self.control
 		self._lookupdata = lookupdata
 		if lookupdata is None:
 			lookupdata = []
@@ -3545,7 +3580,7 @@ class AppLookupField(Field):
 					raise ValueError(error_applookuprecord_unknown(v))
 				v = record
 			if isinstance(v, Record):
-				if v.app is not control.lookup_app:
+				if v.app is not self.control.lookup_app:
 					raise ValueError(error_applookuprecord_foreign(self, v))
 				else:
 					records.append(v)
@@ -4868,9 +4903,10 @@ class AppLookupControl(Control):
 
 	def _find_lookup_record(self, field, value) -> Tuple[Optional["Record"], T_opt_str]:
 		if isinstance(value, str):
-			value = self.app.globals.handler.record_sync_data(value)
-			if value is None:
+			record = self.app.globals.handler.record_sync_data(value)
+			if record is None:
 				return (None, error_applookuprecord_unknown(value))
+			value = record
 		if isinstance(value, Record):
 			if self.lookup_app is not None and value.app is not self.lookup_app:
 				return (None, error_applookuprecord_foreign(field, value))
