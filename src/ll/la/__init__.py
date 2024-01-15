@@ -2954,8 +2954,8 @@ class App(CustomAttributes):
 
 	def _params_inheritance_chain(self):
 		yield self._ownparams_get()
-		if "la" in self.ownparams and isinstance(self._ownparams["la"], App):
-			yield from self.ownparams["la"]._params_inheritance_chain()
+		if "la" in self.ownparams and isinstance(self._ownparams["la"].value, App):
+			yield from self.ownparams["la"].value._params_inheritance_chain()
 		else:
 			yield self.globals.handler.fetch_libraryparams()
 
