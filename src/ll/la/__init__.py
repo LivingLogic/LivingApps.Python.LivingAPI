@@ -3559,7 +3559,6 @@ class AppLookupField(Field):
 				lookupdata = {"nolookupapp": error_applookup_notargetapp(self.control)}
 		if lookupdata is None:
 			lookupdata = {"norecords": error_applookup_norecords(self.control)}
-			lookupdata = {}
 		return lookupdata
 
 	@lookupdata.setter
