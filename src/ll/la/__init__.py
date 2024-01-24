@@ -2494,6 +2494,11 @@ class App(CustomAttributes):
 
 		App icon.
 
+	.. attribute:: private_uploads
+		:type: bool
+
+		Flag to indicate if uploaded files can only be accessed by authorized users.
+
 	.. attribute:: createdby
 		:type: User
 
@@ -2638,6 +2643,7 @@ class App(CustomAttributes):
 		"image",
 		"iconlarge",
 		"iconsmall",
+		"private_uploads",
 		"createdat",
 		"createdby",
 		"updatedat",
@@ -2697,6 +2703,7 @@ class App(CustomAttributes):
 	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	iconlarge = Attr(File, get="_image_get", ul4get="_image_get")
 	iconsmall = Attr(File, get="_image_get", ul4get="_image_get")
+	private_uploads = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	layout_controls = AttrDictAttr(get="", ul4get="_layout_controls_get")
@@ -2730,7 +2737,7 @@ class App(CustomAttributes):
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
-	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, datamanagement_identifier=None):
+	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, private_uploads=False, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, datamanagement_identifier=None):
 		super().__init__()
 		self.id = id
 		self.superid = None
@@ -2741,6 +2748,7 @@ class App(CustomAttributes):
 		self.lang = lang
 		self.startlink = startlink
 		self.image = image
+		self.private_uploads = private_uploads
 		self.createdat = createdat
 		self.createdby = createdby
 		self.updatedat = updatedat
