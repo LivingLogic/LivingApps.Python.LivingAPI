@@ -1,7 +1,7 @@
 0.??.? (2024-??-??)
 -------------------
 
-Add attribute `App.private_uploads`.
+Add attribute ``App.private_uploads``.
 
 
 0.24.5 (2024-01-15)
