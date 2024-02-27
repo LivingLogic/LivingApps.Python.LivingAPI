@@ -1,7 +1,7 @@
 0.25.0 (2024-02-27)
 -------------------
 
-*	All URLs that the LivingAPI now user are always absolute (i.e. the
+*	All URLs that the LivingAPI now uses are always absolute (i.e. the
 	return values of ``Globals.scaled_url()``, ``App.template_url()``,
 	``Record.edit_url()``, etc. and the attributes ``File.url`` and
 	``File.archive_url``).
