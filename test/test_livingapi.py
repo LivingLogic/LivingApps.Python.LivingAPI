@@ -2930,13 +2930,13 @@ def test_globals_urls(handler, config_data):
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = f"""
-		/apps.htm
-		/xist4c/web/aufgaben_id_393_.htm
-		/katalog/home.htm
-		/chats.htm
-		/profil/index.htm
-		/account.htm
-		/login.htm?logout=standardCug
+		https://{hostname()}/apps.htm
+		https://{hostname()}/xist4c/web/aufgaben_id_393_.htm
+		https://{hostname()}/katalog/home.htm
+		https://{hostname()}/chats.htm
+		https://{hostname()}/profil/index.htm
+		https://{hostname()}/account.htm
+		https://{hostname()}/login.htm?logout=standardCug
 	"""
 	assert lines(output) == lines(expected)
 
@@ -2974,21 +2974,21 @@ def test_app_urls(handler, config_data):
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = f"""
-		/gateway/apps/{config_data.apps.persons.id}?template=gurk
-		/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk
-		/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=bar
-		/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=bar&foo=baz
-		/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=g%C3%BCrk&foo=42
-		/gateway/apps/{config_data.apps.persons.id}?template=gurk&gurk=hurz&hinz=kunz
-		/dateneingabe/{config_data.apps.persons.id}/new?foo=42
-		/gateway/apps/{config_data.apps.persons.id}/new?foo=42
-		/apps/{config_data.apps.persons.id}.htm
-		/_id_36_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_{config_data.apps.persons.id}
-		/import-export/{config_data.apps.persons.id}.htm
-		/_id_1073_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&p_tpl_uuid={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_task_{config_data.apps.persons.id}
-		/datenmanagement-konfigurieren/{config_data.apps.persons.id}.htm
-		/_id_833_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true
-		/_id_36_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_{config_data.apps.persons.id}_datamanage_master_gurk
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}?template=gurk
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=bar
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=bar&foo=baz
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=g%C3%BCrk&foo=42
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}?template=gurk&gurk=hurz&hinz=kunz
+		https://{hostname()}/dateneingabe/{config_data.apps.persons.id}/new?foo=42
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}/new?foo=42
+		https://{hostname()}/apps/{config_data.apps.persons.id}.htm
+		https://{hostname()}/_id_36_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_{config_data.apps.persons.id}
+		https://{hostname()}/import-export/{config_data.apps.persons.id}.htm
+		https://{hostname()}/_id_1073_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&p_tpl_uuid={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_task_{config_data.apps.persons.id}
+		https://{hostname()}/datenmanagement-konfigurieren/{config_data.apps.persons.id}.htm
+		https://{hostname()}/_id_833_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true
+		https://{hostname()}/_id_36_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_{config_data.apps.persons.id}_datamanage_master_gurk
 	"""
 	assert lines(output) == lines(expected)
 
@@ -3015,10 +3015,10 @@ def test_record_urls(handler, config_data):
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = f"""
-		/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk
-		/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk&foo=bar
-		/dateneingabe/{config_data.apps.persons.id}/{ae.id}/edit?foo=bar
-		/gateway/apps/{config_data.apps.persons.id}/{ae.id}/edit?foo=bar
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk&foo=bar
+		https://{hostname()}/dateneingabe/{config_data.apps.persons.id}/{ae.id}/edit?foo=bar
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}/{ae.id}/edit?foo=bar
 	"""
 	assert lines(output) == lines(expected)
 
