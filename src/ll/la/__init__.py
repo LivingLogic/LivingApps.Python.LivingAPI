@@ -1454,7 +1454,10 @@ class File(Base):
 
 	def _url_get(self) -> str:
 		if self.context_id is not None and self.id is not None:
-			return f"/files/{self.context_id}/{self.id}"
+			if self.globals is None:
+				return f"/files/{self.context_id}/{self.id}"
+			else:
+				return f"https://{self.globals.hostname}/files/{self.context_id}/{self.id}"
 		else:
 			return None
 
@@ -2265,11 +2268,11 @@ class Globals(CustomAttributes):
 			have to be rescaled on each request. Otherwise return an URL that
 			rescales the image on each request.
 		"""
-		v = []
+		v = [f"https://{self.hostname}/"]
 		if cache:
-			v.append("/imgproxycache/insecure")
+			v.append("imgproxycache/insecure")
 		else:
-			v.append("/imgproxy/insecure")
+			v.append("imgproxy/insecure")
 
 		v.append(f"/rt:{type}")
 		if width and width > 0:
@@ -2295,7 +2298,7 @@ class Globals(CustomAttributes):
 			encoded_filename = urlparse.quote(filename)
 			if encoded_filename == filename:
 				v.append(f"/fn:{encoded_filename}")
-			v.append(f"/plain/https://{self.hostname}{image.url}")
+			v.append(f"/plain/{image.url}")
 		else:
 			v.append(f"/plain/{urlparse.quote(image)}")
 		return "".join(v)
@@ -2433,25 +2436,25 @@ class Globals(CustomAttributes):
 			super().ul4_setattr(name, value)
 
 	def my_apps_url(self):
-		return "/apps.htm"
+		return f"https://{self.hostname}/apps.htm"
 
 	def my_tasks_url(self):
-		return "/xist4c/web/aufgaben_id_393_.htm"
+		return f"https://{self.hostname}/xist4c/web/aufgaben_id_393_.htm"
 
 	def catalog_url(self):
-		return "/katalog/home.htm"
+		return f"https://{self.hostname}/katalog/home.htm"
 
 	def chats_url(self):
-		return "/chats.htm"
+		return f"https://{self.hostname}/chats.htm"
 
 	def profile_url(self):
-		return "/profil/index.htm"
+		return f"https://{self.hostname}/profil/index.htm"
 
 	def account_url(self):
-		return "/account.htm"
+		return f"https://{self.hostname}/account.htm"
 
 	def logout_url(self):
-		return "/login.htm?logout=standardCug"
+		return f"https://{self.hostname}/login.htm?logout=standardCug"
 
 
 @register("app")
@@ -2845,18 +2848,18 @@ class App(CustomAttributes):
 		return self._templates
 
 	def template_url(self, identifier, record=None, /, **params):
-		url = f"/gateway/apps/{self.id}"
+		url = f"https://{self.globals.hostname}/gateway/apps/{self.id}"
 		if record is not None:
 			url += f"/{record.id}"
 		url += f"?template={identifier}"
 		return url_with_params(url, False, params)
 
 	def new_embedded_url(self, **params):
-		url = f"/dateneingabe/{self.id}/new"
+		url = f"https://{self.globals.hostname}/dateneingabe/{self.id}/new"
 		return url_with_params(url, True, params)
 
 	def new_standalone_url(self, **params):
-		url = f"/gateway/apps/{self.id}/new"
+		url = f"https://{self.globals.hostname}/gateway/apps/{self.id}/new"
 		return url_with_params(url, True, params)
 
 	def new_url(self, **params):
@@ -2866,34 +2869,34 @@ class App(CustomAttributes):
 			return self.new_embedded_url(**params)
 
 	def home_url(self):
-		return f"/apps/{self.id}.htm"
+		return f"https://{self.globals.hostname}/apps/{self.id}.htm"
 
 	def datamanagement_url(self):
-		return f"/_id_36_.htm?uuid={self.id}&dId={self.id}&resetInfo=true&templateIdentifier=created_{self.id}"
+		return f"https://{self.globals.hostname}/_id_36_.htm?uuid={self.id}&dId={self.id}&resetInfo=true&templateIdentifier=created_{self.id}"
 
 	def import_url(self):
-		return f"/import-export/{self.id}.htm"
+		return f"https://{self.globals.hostname}/import-export/{self.id}.htm"
 
 	def tasks_url(self):
-		return f"/_id_1073_.htm?uuid={self.id}&dId={self.id}&p_tpl_uuid={self.id}&resetInfo=true&templateIdentifier=created_task_{self.id}"
+		return f"https://{self.globals.hostname}/_id_1073_.htm?uuid={self.id}&dId={self.id}&p_tpl_uuid={self.id}&resetInfo=true&templateIdentifier=created_task_{self.id}"
 
 	# def formbuilder_url(self):
 	# 	lang = self.globals.lang
 	# 	if not lang:
 	# 		lang = "de"
-	# 	return f"/formbuilder/index.html?lang={lang}&searchDescription={tpl_id}&p_tpl_uuid={self.id}&p_cl_id={cl_id}"
+	# 	return f"https://{self.globals.hostname}/formbuilder/index.html?lang={lang}&searchDescription={tpl_id}&p_tpl_uuid={self.id}&p_cl_id={cl_id}"
 
 	# def tasks_config_url(self):
-	# 	return f"/konfiguration/aufgaben.htm?com.livinglogic.cms.apps.search.model.SearchState.search_submit=true&searchDescription={tpl_id}&dId={self.id}"
+	# 	return f"https://{self.globals.hostname}/konfiguration/aufgaben.htm?com.livinglogic.cms.apps.search.model.SearchState.search_submit=true&searchDescription={tpl_id}&dId={self.id}"
 
 	def datamanagement_config_url(self):
-		return f"/datenmanagement-konfigurieren/{self.id}.htm"
+		return f"https://{self.globals.hostname}/datenmanagement-konfigurieren/{self.id}.htm"
 
 	def permissions_url(self):
-		return f"/_id_833_.htm?uuid={self.id}&dId={self.id}&resetInfo=true"
+		return f"https://{self.globals.hostname}/_id_833_.htm?uuid={self.id}&dId={self.id}&resetInfo=true"
 
 	def datamanageview_url(self, identifier):
-		return f"/_id_36_.htm?uuid={self.id}&dId={self.id}&resetInfo=true&templateIdentifier=created_{self.id}_datamanage_master_{identifier}"
+		return f"https://{self.globals.hostname}/_id_36_.htm?uuid={self.id}&dId={self.id}&resetInfo=true&templateIdentifier=created_{self.id}_datamanage_master_{identifier}"
 
 	def seq(self) -> int:
 		return self.globals.handler.appseq(self)
@@ -6115,15 +6118,15 @@ class Record(CustomAttributes):
 		return self.save(force=force, sync=sync)
 
 	def template_url(self, identifier, /, **params):
-		url = f"/gateway/apps/{self.app.id}/{self.id}?template={identifier}"
+		url = f"https://{self.app.globals.hostname}/gateway/apps/{self.app.id}/{self.id}?template={identifier}"
 		return url_with_params(url, False, params)
 
 	def edit_embedded_url(self, **params):
-		url = f"/dateneingabe/{self.app.id}/{self.id}/edit"
+		url = f"https://{self.app.globals.hostname}/dateneingabe/{self.app.id}/{self.id}/edit"
 		return url_with_params(url, True, params)
 
 	def edit_standalone_url(self, **params):
-		url = f"/gateway/apps/{self.app.id}/{self.id}/edit"
+		url = f"https://{self.app.globals.hostname}/gateway/apps/{self.app.id}/{self.id}/edit"
 		return url_with_params(url, True, params)
 
 	def edit_url(self, **params):
