@@ -1,3 +1,10 @@
+0.26.0 (2024-02-28)
+-------------------
+
+*	``User`` now has an attribute ``globals`` and supports "member templates"
+	(i.e. bound templates that can be called and rendered like normal methods).
+
+
 0.25.0 (2024-02-27)
 -------------------
 
@@ -41,13 +48,13 @@ in case of missing target app or target app records.
 0.24.0 (2023-12-07)
 -------------------
 
-*	Merged attributes ``iconsmall`` and ``iconlarge`` of :class:`App` objects
+*	Merged attributes ``iconsmall`` and ``iconlarge`` of ``App`` objects
 	into ``image``.
 
-*	Merged attributes ``avatarsmall`` and ``avatarlarge`` of :class:`User`
+*	Merged attributes ``avatarsmall`` and ``avatarlarge`` of ``User``
 	objects into ``image``.
 
-*	Merged attributes ``original`` and ``scaled`` of :class:`ImageLayoutControl`
+*	Merged attributes ``original`` and ``scaled`` of ``ImageLayoutControl``
 	objects into ``image``.
 
 *	Added attribute ``z_index`` to ``Control``, ``ViewControl`` and
@@ -64,7 +71,7 @@ in case of missing target app or target app records.
 
 *	Add methods ``my_apps_url()``, ``my_tasks_url()``, ``catalog_url()``,
 	``chats_url()``, ``profile_url()``, ``account_url()`` and ``logout_url()``
-	to class :class:`Globals` which return the relative URLs for the respective
+	to class ``Globals`` which return the relative URLs for the respective
 	menus.
 
 *	Added attribute ``View.focus_control`` and method

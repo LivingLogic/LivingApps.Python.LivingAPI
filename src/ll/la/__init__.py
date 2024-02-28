@@ -1559,7 +1559,7 @@ class Geo(Base):
 
 
 @register("user")
-class User(Base):
+class User(CustomAttributes):
 	r"""
 	A LivingApps user account.
 
@@ -1569,6 +1569,11 @@ class User(Base):
 		:type: str
 
 		Unique database id
+
+	.. attribute:: globals
+		:type: Globals
+
+		The :class:`Globals` objects.
 
 	.. attribute:: publicid
 		:type: str
@@ -1679,13 +1684,15 @@ class User(Base):
 		The :class:`KeyView`\s of this user (only when it is the logged in user)
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({
-		"id", "gender", "title", "firstname", "surname", "initials", "email",
+	ul4_attrs = CustomAttributes.ul4_attrs.union({
+		"id", "globals", "gender", "title", "firstname", "surname", "initials", "email",
 		"lang", "image", "avatar_small", "avatar_large", "streetname", "streetnumber",
 		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
 		"company_website", "company", "position", "department", "keyviews"
 	})
 	ul4_type = ul4c.Type("la", "User", "A LivingApps user/account")
+
+	template_types = ("user_instance",)
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	publicid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1713,6 +1720,7 @@ class User(Base):
 	position = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	department = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	keyviews = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self,
 		id=None, gender=None, title=None, firstname=None, surname=None,
@@ -1754,6 +1762,17 @@ class User(Base):
 
 	def _image_get(self) -> File:
 		return self.image
+
+	def _template_candidates(self):
+		yield from self.globals._template_candidates()
+
+	def __getattr__(self, name):
+		if name.startswith("t_"):
+			identifier = name[2:]
+			template = self.globals._fetch_template(self, identifier)
+			if template is not None:
+				return template
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	@classmethod
 	def vsqlfield(cls, ul4var="user", sqlvar="livingapi_pkg.global_user"):
