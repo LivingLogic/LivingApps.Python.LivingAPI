@@ -6175,11 +6175,10 @@ class Record(CustomAttributes):
 		return url_with_params(url, params)
 
 	def edit_standalone_url(self, view=None, /, **params):
-		url = f"{self.app.url}/r-{self.id}"
+		url = f"{self.app.url}/r-{self.id}/e"
 		view = params.pop("view", view)
 		if view is not None:
 			url += f"-{view.id if isinstance(view, View) else view}"
-		url += "/e"
 		return url_with_params(url, params)
 
 	def edit_url(self, view=None, **params):
