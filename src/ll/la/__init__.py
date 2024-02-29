@@ -68,15 +68,11 @@ def register(name):
 	return registration
 
 
-def url_with_params(url, first, params):
+def url_with_params(url, params):
 	"""
 	Appends a query string to an url.
 
-	``url`` is the base URL.
-
-	``first`` specifies if the parameters in ``params`` are the first
-	parameters (if ``first`` is true) or the URL already contains parameters
-	(if ``first`` is false).
+	``url`` is the base URL (which may not include parameters itself).
 
 	``params`` must be a dictionary. Values can be:
 
@@ -94,21 +90,19 @@ def url_with_params(url, first, params):
 
 	For example::
 
-		>>> la.url_with_params('/url', True, {})
+		>>> la.url_with_params('/url', {})
 		'/url'
-		>>> la.url_with_params('/url?foo=bar', False, {'foo': 'bar?'})
-		'/url?foo=bar&foo=bar%3F'
-		>>> la.url_with_params('/url', True, {'foo': 'bar?'})
+		>>> la.url_with_params('/url', {'foo': 'bar?'})
 		'/url?foo=bar%3F'
-		>>> la.url_with_params('/url', True, {'foo': 'bar?'})
+		>>> la.url_with_params('/url', {'foo': 'bar?'})
 		'/url?foo=bar%3F'
-		>>> la.url_with_params('/url', True, {'foo': 'bar?'})
+		>>> la.url_with_params('/url', {'foo': 'bar?'})
 		'/url?foo=bar%3F'
-		>>> la.url_with_params('/url', True, {'foo': ['bar', 42]})
+		>>> la.url_with_params('/url', {'foo': ['bar', 42]})
 		'/url?foo=bar&foo=42'
-		>>> la.url_with_params('/url', True, {'foo': ['bar', 42], 'baz': None})
+		>>> la.url_with_params('/url', {'foo': ['bar', 42], 'baz': None})
 		'/url?foo=bar&foo=42'
-		>>> la.url_with_params('/url', True, {'foo': datetime.datetime.now()})
+		>>> la.url_with_params('/url', {'foo': datetime.datetime.now()})
 		'/url?foo=2022-10-28%2013%3A26%3A42.643636'
 	"""
 	def flatten_param(name, value):
@@ -122,7 +116,7 @@ def url_with_params(url, first, params):
 
 	params = "&".join(f"{urlparse.quote(n)}={urlparse.quote(v)}" for (name, value) in params.items() for (n, v) in flatten_param(name, value))
 	if params:
-		url += "&?"[bool(first)] + params
+		url += f"?{params}"
 	return url
 
 
@@ -1395,6 +1389,8 @@ class File(Base):
 	mimetype = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	width = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	height = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	hostname = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	context = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	internal_id = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	size = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1404,9 +1400,8 @@ class File(Base):
 	archive = Attr(lambda: File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	url = Attr(str, get="", ul4get="_url_get", repr="_url_repr")
 	archive_url = Attr(str, get=True, ul4get=True)
-	context_id = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, storagefilename=None, archive=None, internal_id=None, createdat=None, content=None):
+	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, storagefilename=None, archive=None, createdat=None, content=None):
 		self.id = id
 		self.globals = None
 		self.filename = filename
@@ -1417,9 +1412,10 @@ class File(Base):
 		self.duration = duration
 		self.geo = geo
 		self.storagefilename = storagefilename
-		self.internal_id = internal_id
 		self.createdat = createdat
-		self.context_id = None
+		self.hostname = None
+		self.context = None
+		self.internal_id = None
 		self._content = content
 		if content is not None and mimetype.startswith("image/") and width is None and height is None:
 			from PIL import Image # This requires :mod:`Pillow`, which you can install with ``pip install pillow``
@@ -1453,13 +1449,12 @@ class File(Base):
 		return self.id
 
 	def _url_get(self) -> str:
-		if self.context_id is not None and self.id is not None:
-			if self.globals is None:
-				return f"/files/{self.context_id}/{self.id}"
-			else:
-				return f"https://{self.globals.hostname}/files/{self.context_id}/{self.id}"
-		else:
+		if self.hostname is None or self.id is None or self.internal_id is None or self.globals is None:
 			return None
+		url = f"https://{self.hostname}"
+		if self.context is not None:
+			url += f"/{self.context}"
+		return url + f"/f/{self.id}/u-{self.internal_id}"
 
 	def _url_repr(self) -> str:
 		return f"url={self.url!r}"
@@ -1925,7 +1920,15 @@ class Globals(CustomAttributes):
 	.. attribute:: hostname
 		:type: str
 
-		The host name we're running on (can be used to recreate URLs).
+		The default host name (but only for "global" URLs, app related stuff
+		uses different host names).
+
+	.. attribute:: domain
+		:type: str
+
+		The domain we're running on (e.g. ``living-apps.de`` etc.).
+
+		This will be used internally to create app related URLs.
 
 	.. attribute:: app
 		:type: App
@@ -1968,6 +1971,7 @@ class Globals(CustomAttributes):
 		"id",
 		"version",
 		"hostname",
+		"domain",
 		"platform",
 		"mode",
 		"app",
@@ -2041,6 +2045,7 @@ class Globals(CustomAttributes):
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	datasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	hostname = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	domain = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	templates = Attr(get="", ul4get="_templates_get")
@@ -2053,11 +2058,12 @@ class Globals(CustomAttributes):
 	params = AttrDictAttr(get="", ul4get="_params_get")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
-	def __init__(self, id=None, version=None, hostname=None, platform=None, mode=None):
+	def __init__(self, id=None, version=None, hostname=None, domain=None, platform=None, mode=None):
 		super().__init__()
 		self.id = id
 		self.version = version
 		self.hostname = hostname
+		self.domain = domain
 		self.platform = platform
 		self.app = None
 		self.record = None
@@ -2516,6 +2522,11 @@ class App(CustomAttributes):
 
 		App icon.
 
+	.. attribute:: url
+		:type: str
+
+		The base URL for the app.
+
 	.. attribute:: createdby
 		:type: User
 
@@ -2660,6 +2671,7 @@ class App(CustomAttributes):
 		"image",
 		"iconlarge",
 		"iconsmall",
+		"url",
 		"createdat",
 		"createdby",
 		"updatedat",
@@ -2717,6 +2729,7 @@ class App(CustomAttributes):
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	startlink = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	url = Attr(str, get=True, ul4get=True)
 	iconlarge = Attr(File, get="_image_get", ul4get="_image_get")
 	iconsmall = Attr(File, get="_image_get", ul4get="_image_get")
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2803,6 +2816,10 @@ class App(CustomAttributes):
 	def ul4onid(self) -> str:
 		return self.id
 
+	@property
+	def url(self) -> str:
+		return f"https://a-{self.id}.{self.globals.domain}"
+
 	def addparam(self, *params):
 		for param in params:
 			param.owner = self
@@ -2866,26 +2883,33 @@ class App(CustomAttributes):
 						self._templates.update(templates[type])
 		return self._templates
 
-	def template_url(self, identifier, record=None, /, **params):
-		url = f"https://{self.globals.hostname}/gateway/apps/{self.id}"
+	def template_url(self, identifier=None, record=None, /, **params):
+		url = f"{self.url}/v"
+		if identifier is not None:
+			url += f"-{identifier}"
 		if record is not None:
-			url += f"/{record.id}"
-		url += f"?template={identifier}"
-		return url_with_params(url, False, params)
+			url += f"/r-{record.id}"
+		return url_with_params(url, params)
 
-	def new_embedded_url(self, **params):
+	def new_embedded_url(self, view=None, **params):
 		url = f"https://{self.globals.hostname}/dateneingabe/{self.id}/new"
-		return url_with_params(url, True, params)
+		view = params.pop("view", view)
+		if view is not None:
+			params = {**params, "view": view.id if isinstance(view, View) else view}
+		return url_with_params(url, params)
 
-	def new_standalone_url(self, **params):
-		url = f"https://{self.globals.hostname}/gateway/apps/{self.id}/new"
-		return url_with_params(url, True, params)
+	def new_standalone_url(self, view=None, **params):
+		url = f"{self.url}/n"
+		view = params.pop("view", view)
+		if view is not None:
+			url += f"-{view.id if isinstance(view, View) else view}"
+		return url_with_params(url, params)
 
-	def new_url(self, **params):
+	def new_url(self, view=None, **params):
 		if self.ownparams["la_default_form_variant"] == "standalone":
-			return self.new_standalone_url(**params)
+			return self.new_standalone_url(view, **params)
 		else:
-			return self.new_embedded_url(**params)
+			return self.new_embedded_url(view, **params)
 
 	def home_url(self):
 		return f"https://{self.globals.hostname}/apps/{self.id}.htm"
@@ -6137,22 +6161,32 @@ class Record(CustomAttributes):
 		return self.save(force=force, sync=sync)
 
 	def template_url(self, identifier, /, **params):
-		url = f"https://{self.app.globals.hostname}/gateway/apps/{self.app.id}/{self.id}?template={identifier}"
-		return url_with_params(url, False, params)
+		url = f"{self.app.url}/v"
+		if identifier is not None:
+			url += f"-{identifier}"
+		url += f"/r-{self.id}"
+		return url_with_params(url, params)
 
-	def edit_embedded_url(self, **params):
+	def edit_embedded_url(self, view=None, **params):
 		url = f"https://{self.app.globals.hostname}/dateneingabe/{self.app.id}/{self.id}/edit"
-		return url_with_params(url, True, params)
+		view = params.pop("view", view)
+		if view is not None:
+			params = {**params, "view": view.id if isinstance(view, View) else view}
+		return url_with_params(url, params)
 
-	def edit_standalone_url(self, **params):
-		url = f"https://{self.app.globals.hostname}/gateway/apps/{self.app.id}/{self.id}/edit"
-		return url_with_params(url, True, params)
+	def edit_standalone_url(self, view=None, /, **params):
+		url = f"{self.app.url}/r-{self.id}"
+		view = params.pop("view", view)
+		if view is not None:
+			url += f"-{view.id if isinstance(view, View) else view}"
+		url += "/e"
+		return url_with_params(url, params)
 
-	def edit_url(self, **params):
+	def edit_url(self, view=None, **params):
 		if self.app.ownparams["la_default_form_variant"] == "standalone":
-			return self.edit_standalone_url(**params)
+			return self.edit_standalone_url(view, **params)
 		else:
-			return self.edit_embedded_url(**params)
+			return self.edit_embedded_url(view, **params)
 
 	def has_errors(self):
 		if self.errors:
