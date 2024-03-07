@@ -1994,6 +1994,7 @@ class Globals(CustomAttributes):
 		"geo",
 		"scaled_url",
 		"seq",
+		"localseq",
 		"flash_info",
 		"flash_notice",
 		"flash_warning",
@@ -5830,6 +5831,9 @@ class Record(CustomAttributes):
 		"edit_embedded_url",
 		"edit_standalone_url",
 		"edit_url",
+		"display_embedded_url",
+		"display_standalone_url",
+		"display_url",
 	})
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
@@ -6186,6 +6190,26 @@ class Record(CustomAttributes):
 			return self.edit_standalone_url(view, **params)
 		else:
 			return self.edit_embedded_url(view, **params)
+
+	def display_embedded_url(self, view=None, **params):
+		url = f"https://{self.app.globals.hostname}/dateneingabe/{self.app.id}/{self.id}/display"
+		view = params.pop("view", view)
+		if view is not None:
+			params = {**params, "view": view.id if isinstance(view, View) else view}
+		return url_with_params(url, params)
+
+	def display_standalone_url(self, view=None, /, **params):
+		url = f"{self.app.url}/r-{self.id}/d"
+		view = params.pop("view", view)
+		if view is not None:
+			url += f"-{view.id if isinstance(view, View) else view}"
+		return url_with_params(url, params)
+
+	def display_url(self, view=None, **params):
+		if self.app.ownparams["la_default_form_variant"] == "standalone":
+			return self.display_standalone_url(view, **params)
+		else:
+			return self.display_embedded_url(view, **params)
 
 	def has_errors(self):
 		if self.errors:

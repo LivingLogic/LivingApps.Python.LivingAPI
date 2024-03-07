@@ -1,12 +1,19 @@
-0.26.0 (2024-02-28)
--------------------
+``HEAD`` (2024-??-??)
+---------------------
+
+*	Use new URLs for view templates and forms. These URLs use different hostnames
+	for different apps.
+
+
+``0.26.0`` (2024-02-28)
+-----------------------
 
 *	``User`` now has an attribute ``globals`` and supports "member templates"
 	(i.e. bound templates that can be called and rendered like normal methods).
 
 
-0.25.0 (2024-02-27)
--------------------
+``0.25.0`` (2024-02-27)
+-----------------------
 
 *	All URLs that the LivingAPI now uses are always absolute (i.e. the
 	return values of ``Globals.scaled_url()``, ``App.template_url()``,
@@ -14,39 +21,39 @@
 	``File.archive_url``).
 
 
-0.24.5 (2024-01-15)
--------------------
+``0.24.5`` (2024-01-15)
+-----------------------
 
 ``AppLookupField.lookupdata`` now returns fake data with error hints
 in case of missing target app or target app records.
 
 
-0.24.4 (2024-01-15)
--------------------
+``0.24.4`` (2024-01-15)
+-----------------------
 
 *	Fixed parameter inheritance via the parameter ``la``.
 
 
-0.24.3 (2024-01-09)
--------------------
+``0.24.3`` (2024-01-09)
+-----------------------
 
 *	Fixed template inheritance via the parameter ``la``.
 
 
-0.24.2 (2023-12-12)
--------------------
+``0.24.2`` (2023-12-12)
+-----------------------
 
 *	Fixed saving files via the :class:`HTTPHandler`.
 
 
-0.24.1 (2023-12-12)
--------------------
+``0.24.1`` (2023-12-12)
+-----------------------
 
 *	Fixed invalid uses of ``File.internal_id``.
 
 
-0.24.0 (2023-12-07)
--------------------
+``0.24.0`` (2023-12-07)
+-----------------------
 
 *	Merged attributes ``iconsmall`` and ``iconlarge`` of ``App`` objects
 	into ``image``.
@@ -92,23 +99,23 @@ in case of missing target app or target app records.
 *	Allow setting the attributes ``Globals.pv_*`` and ``App.pv_*``.
 
 
-0.23.2 (2023-04-03)
--------------------
+``0.23.2`` (2023-04-03)
+-----------------------
 
 *	Removed shortcut attributes from :class:`DataSource`.
 
 *	Added ``APPSTART`` to :class:`MenuItem.Type`.
 
 
-0.23.1 (2023-03-17)
--------------------
+``0.23.1`` (2023-03-17)
+-----------------------
 
 *	Added the new :class:`Panel` attributes to ``Panel.ul4_attrs`` to make them
 	accessible for UL4.
 
 
-0.23 (2023-03-17)
------------------
+``0.23`` (2023-03-17)
+---------------------
 
 *	Added :class:`Panel` attributes :attr:`header_type`,
 	:attr:`header_background`, :attr:`text_color`, :attr:`background_color1`
@@ -118,14 +125,14 @@ in case of missing target app or target app records.
 	objects.
 
 
-0.22.1 (2023-03-13)
--------------------
+``0.22.1`` (2023-03-13)
+-----------------------
 
 *	Fixed version number in ``setup.py``.
 
 
-0.22 (2023-03-13)
------------------
+``0.22`` (2023-03-13)
+---------------------
 
 *	Added incremental loading of layout controls.
 
@@ -152,44 +159,44 @@ in case of missing target app or target app records.
 *	Fixed parameter save logic to use the WAF procedures.
 
 
-0.21 (2022-11-29)
------------------
+``0.21`` (2022-11-29)
+---------------------
 
 *	Added :meth:`Field.set_error`.
 
 *	Added ``LayoutControl.visible``.
 
 
-0.20 (2022-11-15)
------------------
+``0.20`` (2022-11-15)
+---------------------
 
 *	Fixed :meth:`ul4_getattr` implementation to honor UL4 logic in descriptors.
 
 *	The Postgres database connection is now optional.
 
 
-0.19.1 (2022-11-11)
--------------------
+``0.19.1`` (2022-11-11)
+-----------------------
 
 *	Add missing ``ul4onid`` property to :class:`Installation`.
 
 
-0.19 (2022-11-11)
------------------
+``0.19`` (2022-11-11)
+---------------------
 
 *	:meth:`DBHandler.reset` now calls ``LIVINGAPI_PKG.CLEAR_ALL()`` instead
 	of ``LIVINGAPI_PKG.CLEAR_OUTPUTANDBACKREFS()`` to completely reset the
 	server side state.
 
 
-0.18.2 (2022-11-11)
--------------------
+``0.18.2`` (2022-11-11)
+-----------------------
 
 *	Fixed optional dependency on :mod:`psycopg`.
 
 
-0.18.1 (2022-11-11)
--------------------
+``0.18.1`` (2022-11-11)
+-----------------------
 
 *	Updated required XIST version.
 
@@ -197,8 +204,8 @@ in case of missing target app or target app records.
 	when :class:`DBHandler` is used).
 
 
-0.18 (2022-11-04)
------------------
+``0.18`` (2022-11-04)
+---------------------
 
 *	Add support for hierarchical parameters and parameters attached to
 	view and email templates.
@@ -219,30 +226,30 @@ in case of missing target app or target app records.
 	the database and the :class:`DBHandler`.
 
 
-0.17 (2022-08-16)
------------------
+``0.17`` (2022-08-16)
+---------------------
 
 *	Add support for template library parameters.
 
 *	Add support for external data sources.
 
 
-0.16.1 (2022-07-08)
--------------------
+``0.16.1`` (2022-07-08)
+-----------------------
 
 *	Ensure that our internal Postgres queries use ``tuple_row`` as the
 	``row_factory``. This makes us independent from the Postgres connection
 	we might have been given in the call to the ``DBHandler`` constructor.
 
 
-0.16 (2022-07-07)
------------------
+``0.16`` (2022-07-07)
+---------------------
 
 *	Add support for template libraries and template library chains.
 
 
-0.15 (2022-06-15)
------------------
+``0.15`` (2022-06-15)
+---------------------
 
 *	Add support for custom attributes (whose name starts with ``x_``).
 
@@ -286,28 +293,28 @@ in case of missing target app or target app records.
 	to ``DataSourceConfig``, ``DataSourceData`` to ``DataSource``.
 
 
-0.14.3 (2022-01-10)
--------------------
+``0.14.3`` (2022-01-10)
+-----------------------
 
 *	Use :meth:`object_named` in :class:`DBHandler._getproc` instead of the
 	deprecated (and broken) :meth:`getobject`.
 
 
-0.14.2 (2021-12-14)
--------------------
+``0.14.2`` (2021-12-14)
+-----------------------
 
 *	Make :class:`KeyView` objects persistent.
 
 
-0.14.1 (2021-12-14)
--------------------
+``0.14.1`` (2021-12-14)
+-----------------------
 
 *	Fixed setting a value for ``Fields``\s of ``IntControl`` and
 	``NumberControl`` objects.
 
 
-0.14 (2021-12-08)
------------------
+``0.14`` (2021-12-08)
+---------------------
 
 *	Renamed ``AppLookupControl.lookupapp`` to ``lookup_app`` and
 	``AppLookupControl.lookupcontrols`` to ``lookup_controls``.
@@ -371,8 +378,8 @@ in case of missing target app or target app records.
 *	Implemented field value validation and support for field default values.
 
 
-0.13 (2020-09-17)
------------------
+``0.13`` (2020-09-17)
+---------------------
 
 *	Add support for "deferred" types in :class:`Attr`. This makes it possible
 	to have cyclic references in attribute "declarations".
@@ -389,20 +396,20 @@ in case of missing target app or target app records.
 *	Added :class:`FileSignatureControl` and :class:`HTMLControl`.
 
 
-0.12.4 (2021-02-15)
--------------------
+``0.12.4`` (2021-02-15)
+-----------------------
 
 *	Fixed order of type checks in :meth:`DatetimeSecondControl._asjson`.
 
 
-0.12.3 (2020-04-24)
--------------------
+``0.12.3`` (2020-04-24)
+-----------------------
 
 *	Remove debug prints.
 
 
-0.12.2 (2020-04-24)
--------------------
+``0.12.2`` (2020-04-24)
+-----------------------
 
 *	Pass the handler to the fields when creating JSON for the
 	:class:`HTTPHandler` or procedure arguments for the :class:`DBHandler`.
@@ -413,14 +420,14 @@ in case of missing target app or target app records.
 	list value has to be wrapped in a ``VARCHARS`` object).
 
 
-0.12.1 (2020-02-18)
--------------------
+``0.12.1`` (2020-02-18)
+-----------------------
 
 *	Fixed field validation for multiple lookup fields.
 
 
-0.12 (2020-01-16)
------------------
+``0.12`` (2020-01-16)
+---------------------
 
 *	Removed debug code from ``DBHandler.meta_data``.
 
@@ -455,8 +462,8 @@ in case of missing target app or target app records.
 *	When uploading files via the :class:`HTTPHandler` pass along the MIME type.
 
 
-0.11 (2019-08-15)
------------------
+``0.11`` (2019-08-15)
+---------------------
 
 *	The ``HTTPHandler`` now delays logging into LivingApps until the first real
 	request. Furthermore it automatically appends ``gateway/`` to the base URL
@@ -483,23 +490,23 @@ in case of missing target app or target app records.
 	automatically from the data (using :mod:`Pillow`).
 
 
-0.10 (2019-07-24)
------------------
+``0.10`` (2019-07-24)
+---------------------
 
 *	Added support for saving uploads via the ``HTTPHandler``.
 
 *	Added support for the attribute ``Globals.hostname``.
 
 
-0.9 (2019-06-26)
-----------------
+``0.9`` (2019-06-26)
+--------------------
 
 *	Fixed shortcut attributes for the ``Globals`` object.
 
 *	First Cheeseshop release.
 
 
-0.8.2 (2019-06-13)
-------------------
+``0.8.2`` (2019-06-13)
+----------------------
 
 *	Expose the method ``Field.is_empty()`` to UL4.
