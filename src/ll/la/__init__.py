@@ -577,6 +577,20 @@ class FieldValidationError(ValueError):
 		return f"Validation for {self.field!r} failed: {self.message}"
 
 
+class VersionMismatchError(ValueError):
+	"""
+	Exception that is raised when we get the wrong version for
+	``Globals.version``.
+	"""
+
+	def __init__(self, encountered_version:str, expected_version:str):
+		self.encountered_version = encountered_version
+		self.expected_version = expected_version
+
+	def __str__(self) -> str:
+		return f"invalid LivingAPI version: expected {self.expected_version!r}, got {self.encountered_version!r}"
+
+
 ###
 ### Data descriptors
 ###
@@ -1630,7 +1644,7 @@ class User(CustomAttributes):
 	.. attribute:: fax
 		:type: str
 
-		The user's fax number
+		The users fax number
 
 	.. attribute:: lang
 		:type: str
@@ -1682,6 +1696,11 @@ class User(CustomAttributes):
 		:type: Optional[dict[str, KeyView]]
 
 		The :class:`KeyView`\s of this user (only when it is the logged in user)
+
+	Note that the following attributes will always be ``None`` for users that
+	are not the logged in user: ``street``, ``streetnumber``, ``zip``, ``city``,
+	``phone``, ``fax``, ``summary``, ``interests``, ``personal_website``,
+	``company_website``, ``company``, ``position``, ``department``.
 	"""
 
 	ul4_attrs = CustomAttributes.ul4_attrs.union({
@@ -1989,6 +2008,7 @@ class Globals(CustomAttributes):
 		"log_error",
 		"geo",
 		"scaled_url",
+		"qrcode_url",
 		"seq",
 		"flash_info",
 		"flash_notice",
@@ -2006,6 +2026,8 @@ class Globals(CustomAttributes):
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
 	template_types = ("app_instance", None)
+
+	supported_version = "129"
 
 	class Mode(misc.Enum):
 		"""
@@ -2080,6 +2102,10 @@ class Globals(CustomAttributes):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def ul4onload_end(self, decoder:ul4on.Decoder) -> None:
+		if self.version != self.supported_version:
+			raise VersionMismatchError(self.version, self.supported_version)
 
 	def _gethandler(self):
 		if self.handler is None:
@@ -2321,6 +2347,32 @@ class Globals(CustomAttributes):
 		else:
 			v.append(f"/plain/{urlparse.quote(image)}")
 		return "".join(v)
+
+	def qrcode_url(self, /, data:str, size:int) -> str:
+		"""
+		Return an URL for a QR code.
+
+		Arguments are:
+
+		``data`` : :class:`str`
+			The text encoded by the QR code (usually an URL itself)
+
+		``size`` : :class:`int`
+			The width and height of the resulting image
+
+		For example:
+
+		.. sourcecode:: ul4
+
+			<?print globals.qrcode_url("https://my.living-apps.de". 200)?>
+
+		prints
+
+		.. sourcecode:: text
+
+			https://my.living-apps.de/qr/generate?data=https%3A%2F%2Fmy.living-apps.de%2F&size=200
+		"""
+		return f"https://{self.hostname}/qr/generate?data={urlparse.quote(data, safe='')}&size={size}"
 
 	def log_debug(self, *args):
 		pass

@@ -2918,6 +2918,7 @@ def test_globals_urls(handler, config_data):
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_globals_urls",
 		source=f"""
+			<?print globals.qrcode_url('https://my.living-apps.de/', 200)?>
 			<?print globals.my_apps_url()?>
 			<?print globals.my_tasks_url()?>
 			<?print globals.catalog_url()?>
@@ -2930,6 +2931,7 @@ def test_globals_urls(handler, config_data):
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = f"""
+		https://{hostname()}/qr/generate?data=https%3A%2F%2Fmy.living-apps.de%2F&size=200
 		https://{hostname()}/apps.htm
 		https://{hostname()}/xist4c/web/aufgaben_id_393_.htm
 		https://{hostname()}/katalog/home.htm
@@ -3070,6 +3072,7 @@ def test_globals_dir(handler, config_data):
 			log_warning=True
 			log_error=True
 			scaled_url=True
+			qrcode_url=True
 			my_apps_url=True
 			my_tasks_url=True
 			catalog_url=True
