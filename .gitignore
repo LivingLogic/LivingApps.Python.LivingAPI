@@ -8,3 +8,4 @@ dist
 src/*.egg-info
 report.html
 docs/download/LivingAPI.pdf
+docs/sphinx_ll_theme/static/fontawesome-pro-6.5.1-web

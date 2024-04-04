@@ -240,6 +240,16 @@ kbd,
 samp
 {
 	font-family: "Source Code Pro", "Courier New", Courier, monospace;
+	background-color: #0001;
+	border-radius: 0.5em;
+}
+
+code,
+.rst-content code,
+kbd,
+samp
+{
+	padding: 1px 0.3em;
 }
 
 pre
@@ -278,14 +288,14 @@ sub
 	bottom: -0.25em;
 }
 
-figcaption .headerlink
-{
-	padding-left: 0.5em;
-}
-
 .navigation
 {
 	border-bottom: 1px solid #ddd;
+}
+
+figcaption .headerlink
+{
+	padding-left: 0.5em;
 }
 
 nav
@@ -295,6 +305,7 @@ nav
 main p,
 main ul,
 main ol,
+main dl,
 main li,
 main dl,
 main dt,
@@ -324,14 +335,17 @@ main li
 
 main dl dt
 {
-	margin: {{theme_vertical_spacing}} 0 0 0;
 	font-weight: 600;
 }
 
 main dl dt .classifier:before
 {
-	content: ":";
-	padding-right: 0.6em;
+	content: "(";
+}
+
+main dl dt .classifier:after
+{
+	content: ")";
 }
 
 main dl dt .classifier
@@ -644,6 +658,8 @@ textarea,
 .clearfix{*zoom:1}
 .clearfix:before,.clearfix:after{display:table;content:""}
 .clearfix:after{clear:both}
+
+
 
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);border:0}
 .sr-only-focusable:active,.sr-only-focusable:focus{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto}
@@ -979,7 +995,21 @@ colgroup
 {
 	display: none;
 }
-.wy-table caption,.rst-content table.docutils caption,.rst-content table.field-list caption{color:#000;font:italic 85%/1 arial,sans-serif;padding:1em 0;text-align:center}
+.wy-table caption,
+.rst-content table.docutils caption,
+.rst-content table.field-list caption
+{
+	font-style: italic;
+	font-size: 85%;
+	line-height: 100%;
+	padding: 1em 0;
+	text-align: center;
+}
+.caption-text
+{
+	padding-right: 0.5em;
+}
+
 .wy-table td,.rst-content table.docutils td,.rst-content table.field-list td,.wy-table th,.rst-content table.docutils th,.rst-content table.field-list th{font-size:90%;margin:0;overflow:visible;padding:8px 16px}
 .wy-table td:first-child,.rst-content table.docutils td:first-child,.rst-content table.field-list td:first-child,.wy-table th:first-child,.rst-content table.docutils th:first-child,.rst-content table.field-list th:first-child{border-left-width:0}
 .wy-table thead,.rst-content table.docutils thead,.rst-content table.field-list thead{text-align:left;vertical-align:bottom;white-space:nowrap}
@@ -1515,8 +1545,11 @@ aside .breadcrumbs
 		display: flex;
 	}
 
-	nav.ll-main
+	nav.ll-main.shift
 	{
+		display: block;
+	}
+	nav.ll-main {
 		display: none;
 	}
 
@@ -1611,7 +1644,7 @@ aside .breadcrumbs
 {
 	border: 1px solid var(--rule-color-fg);
 	overflow-x: auto;
-	margin: {{theme_vertical_spacing}} 0;
+	margin: 0.7em 0;
 	border-radius: 0.5rem;
 	background-color: rgba(255, 255, 255, 0.66);
 }
@@ -1702,6 +1735,7 @@ main div[class^='highlight'] pre .hll
 		white-space: pre-wrap;
 	}
 }
+
 .rst-content .note .last,.rst-content .attention .last,.rst-content .caution .last,.rst-content .danger .last,.rst-content .error .last,.rst-content .hint .last,.rst-content .important .last,.rst-content .tip .last,.rst-content .warning .last,.rst-content .seealso .last,.rst-content .admonition-todo .last,.rst-content .admonition .last{margin-bottom:0}
 .rst-content .admonition table{border-color:rgba(0,0,0,0.1)}
 .rst-content .admonition table td,.rst-content .admonition table th{background:transparent !important;border-color:rgba(0,0,0,0.1) !important}
@@ -1716,7 +1750,7 @@ main div[class^='highlight'] pre .hll
 .rst-content .align-right{float:right;margin:0px 0px 24px 24px}
 .rst-content .align-left{float:left;margin:0px 24px 24px 0px}
 .rst-content .align-center{text-align: center;}
-.rst-content .align-center:not(table){display:block}
+.rst-content .align-center:not(table){display:block;}
 
 main dl:not(.docutils) > dt > .headerlink,
 main h1 > .headerlink,
@@ -1776,8 +1810,8 @@ main .viewcode-block:hover .viewcode-back
 {
 	background: #F1C40F;
 	display: inline-block;
-	border-radius: 0.4em;
-	padding: 0 6px;
+	border-radius: 0.2rem;
+	padding: 0 0.65em;
 }
 .rst-content .footnote-reference,.rst-content .citation-reference{vertical-align:baseline;position:relative;top:-0.4em;line-height:0;font-size:90%}
 .rst-content table.docutils.citation,.rst-content table.docutils.footnote{background:none;border:none;color:gray}
@@ -1809,11 +1843,10 @@ main .viewcode-block:hover .viewcode-back
 .rst-content .guilabel,
 .rst-content .menuselection
 {
-	border: 1px solid #7fbbe3;
-	background: #e7f2fa;
-	font-size: 90%;
-	border-radius: 0.5rem;
-	padding: 0.1em 0.6em;
+	border: 1px solid #0002;
+	background-color: #0001;
+	border-radius: 0.5em;
+	padding: 0.1em 0.4em;
 	margin: auto 2px;
 }
 .rst-content .versionmodified{font-style:italic}
@@ -1864,7 +1897,13 @@ main dl.function,
 main dl.method,
 main dl.classmethod,
 main dl.exception,
-main dl.attribute
+main dl.attribute,
+main dl:not(.docutils) dl.class,
+main dl:not(.docutils) dl.function,
+main dl:not(.docutils) dl.method,
+main dl:not(.docutils) dl.classmethod,
+main dl:not(.docutils) dl.exception,
+main dl:not(.docutils) dl.attribute
 {
 	border: 1px solid var(--rule-color-fg);
 	border-radius: 0.5rem;
@@ -1876,9 +1915,17 @@ main dl.function > dt,
 main dl.method > dt,
 main dl.classmethod > dt,
 main dl.exception > dt,
-main dl.attribute > dt
+main dl.attribute > dt,
+main dl:not(.docutils) dl.class > dt,
+main dl:not(.docutils) dl.function > dt,
+main dl:not(.docutils) dl.method > dt,
+main dl:not(.docutils) dl.classmethod > dt,
+main dl:not(.docutils) dl.exception > dt,
+main dl:not(.docutils) dl.attribute > dt
 {
+	margin: {{theme_vertical_spacing}} 0;
 	font-family: "Source Code Pro", monospace;
+	line-height: {{theme_line_height}};
 }
 
 main dt .viewcode-link
@@ -1892,15 +1939,19 @@ main dt:hover .viewcode-link
 	visibility: visible;
 }
 
-main dl dl.class,
-main dl dl.function,
-main dl dl.method,
-main dl dl.classmethod,
-main dl dl.exception,
-main dl dl.attribute
+main dl.class > dd,
+main dl.function > dd,
+main dl.method > dd,
+main dl.classmethod > dd,
+main dl.exception > dd,
+main dl.attribute > dd,
+main dl:not(.docutils) dl.class > dd,
+main dl:not(.docutils) dl.function > dd,
+main dl:not(.docutils) dl.method > dd,
+main dl:not(.docutils) dl.exception > dd,
+main dl:not(.docutils) dl.attribute > dd
 {
-	border: 0;
-	padding: 0;
+	margin: {{theme_vertical_spacing}} 0;
 }
 
 .wy-alert,
@@ -2051,7 +2102,7 @@ dt em
 	.rst-content .menuselection
 	{
 		border-color: #000;
-		background: #0094;
+		background: #fff1;
 		color: #ddf;
 	}
 
@@ -2073,11 +2124,21 @@ dt em
 		background-color: #cc61;
 	}
 
+	pre,
+	code,
+	.rst-content tt,
+	.rst-content code,
+	kbd,
+	samp
+	{
+		background-color: #0006;
+	}
+
 	.rst-content pre.literal-block,
 	.rst-content div[class^="highlight"]
 	{
 		border-color: var(--rule-color-fg);
-		background-color: #ffffff03;
+		background-color: #0006;
 	}
 
 	main dl dt .classifier
@@ -2093,5 +2154,15 @@ dt em
 	img
 	{
 		filter: invert(80%);
+	}
+
+	figure.screenshot img
+	{
+		filter: brightness(80%);
+	}
+
+	.rst-content .highlighted
+	{
+		color: #467584;
 	}
 }

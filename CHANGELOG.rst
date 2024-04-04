@@ -1,3 +1,11 @@
+0.27.0 (2024-04-04)
+-------------------
+
+*	Add method ``Globals.qrcode_url()``.
+
+*	Updated documentation theme.
+
+
 0.26.0 (2024-02-28)
 -------------------
 
