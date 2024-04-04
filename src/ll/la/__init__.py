@@ -577,6 +577,20 @@ class FieldValidationError(ValueError):
 		return f"Validation for {self.field!r} failed: {self.message}"
 
 
+class VersionMismatchError(ValueError):
+	"""
+	Exception that is raised when we get the wrong version for
+	``Globals.version``.
+	"""
+
+	def __init__(self, encountered_version:str, expected_version:str):
+		self.encountered_version = encountered_version
+		self.expected_version = expected_version
+
+	def __str__(self) -> str:
+		return f"invalid LivingAPI version: expected {self.expected_version!r}, got {self.encountered_version!r}"
+
+
 ###
 ### Data descriptors
 ###
@@ -2013,6 +2027,8 @@ class Globals(CustomAttributes):
 
 	template_types = ("app_instance", None)
 
+	supported_version = "129"
+
 	class Mode(misc.Enum):
 		"""
 		The type of template we're running.
@@ -2086,6 +2102,10 @@ class Globals(CustomAttributes):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def ul4onload_end(self, decoder:ul4on.Decoder) -> None:
+		if self.version != self.supported_version:
+			raise VersionMismatchError(self.version, self.supported_version)
 
 	def _gethandler(self):
 		if self.handler is None:
