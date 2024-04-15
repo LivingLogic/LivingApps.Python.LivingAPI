@@ -2364,7 +2364,7 @@ class Globals(CustomAttributes):
 
 		.. sourcecode:: ul4
 
-			<?print globals.qrcode_url("https://my.living-apps.de". 200)?>
+			<?print globals.qrcode_url("https://my.living-apps.de", 200)?>
 
 		prints
 
