@@ -61,7 +61,7 @@ def test_global_hostname(handler):
 	assert lines(output) == lines(expected)
 
 
-def test_global_mode(handler, config_persons):
+def test_global_mode(handler, config_data):
 	"""
 	Check that ``globals.mode`` behaves correctly.
 	"""
@@ -83,7 +83,7 @@ def test_global_mode(handler, config_persons):
 		type=la.ViewTemplateConfig.Type.DETAIL,
 	)
 
-	output = handler.renders(person_app_id(), config_persons.persons.ae.id, template=vt_detail.identifier)
+	output = handler.renders(person_app_id(), config_data.persons.ae.id, template=vt_detail.identifier)
 	assert output == "view/detail"
 
 	vt_support = handler.make_viewtemplate(
@@ -96,21 +96,20 @@ def test_global_mode(handler, config_persons):
 	assert output == "view/support"
 
 
-def test_global_datasources(handler, config_apps):
+def test_global_datasources(handler, config_data):
 	"""
 	Check that ``globals.datasources`` works.
 	"""
-	c = config_apps
 
 	# Check that the logged in user is the user we've used to log in
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 		),
 		la.DataSourceConfig(
 			identifier="fieldsofactivity",
-			app=c.apps.fields,
+			app=config_data.apps.fields,
 		),
 		identifier="test_livingapi_global_datasources",
 		source="""
@@ -163,7 +162,7 @@ def test_file_attributes(handler):
 			<?code icon = app.iconlarge or app.iconsmall?>
 			id=<?print isinstance(icon.id, str)?>
 			internalid=<?print isinstance(icon.internalid, str)?>
-			url=<?print icon.url.startswith("/gateway/files/")?>
+			url=<?print icon.url.startswith("/files/")?>
 			filename=<?print icon.filename.endswith([".gif", ".png", ".jpg", ".jpeg"])?>
 			mimetype=<?print icon.mimetype in {"image/gif", "image/png", "image/jpeg"}?>
 			width=<?print icon.width > 0?>
@@ -197,22 +196,21 @@ def test_file_attributes(handler):
 	assert lines(output) == lines(expected)
 
 
-def test_datasources(handler, config_apps):
+def test_datasources(handler, config_data):
 	"""
 	Check that the datasources have the identifiers we expect.
 	"""
 
-	c = config_apps
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 		),
 		la.DataSourceConfig(
 			identifier="fieldsofactivity",
-			app=c.apps.fields,
+			app=config_data.apps.fields,
 		),
 		identifier="test_livingapi_datasources",
 		source="""
@@ -229,23 +227,22 @@ def test_datasources(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_output_all_records(handler, config_persons):
+def test_output_all_records(handler, config_data):
 	"""
 	Output all records from all datasources.
 
 	This checks that we don't get any exceptions.
 	"""
 
-	c = config_persons
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 		),
 		la.DataSourceConfig(
 			identifier="fieldsofactivity",
-			app=c.apps.fields,
+			app=config_data.apps.fields,
 		),
 		identifier="test_livingapi_output_all_records",
 		source="""
@@ -294,7 +291,7 @@ def test_output_all_controls(handler):
 	handler.renders(person_app_id(), template=vt.identifier)
 
 
-def test_detail(handler, config_persons):
+def test_detail(handler, config_data):
 	"""
 	Test that detail templates work.
 	"""
@@ -310,28 +307,27 @@ def test_detail(handler, config_persons):
 
 	output = handler.renders(
 		person_app_id(),
-		config_persons.persons.ae.id,
+		config_data.persons.ae.id,
 		template=vt.identifier,
 	)
 	expected = f"""
-		{config_persons.persons.ae.id}
+		{config_data.persons.ae.id}
 		Albert
 		Einstein
 	"""
 	assert lines(output) == lines(expected)
 
 
-def test_sort_default_order_is_newest_first(handler, config_persons):
+def test_sort_default_order_is_newest_first(handler, config_data):
 	"""
 	Check that the default sort order for records is descending by creation date.
 	"""
 
-	c = config_persons
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includecontrols=0,
 		),
 		identifier="test_livingapi_sort_default_order_is_newest_first",
@@ -348,17 +344,16 @@ def test_sort_default_order_is_newest_first(handler, config_persons):
 	assert not lines(handler.renders(person_app_id(), template=vt.identifier))
 
 
-def test_record_extended_attributes(handler, config_persons):
+def test_record_extended_attributes(handler, config_data):
 	"""
 	Check that extended attributes (i.e. ``x_foo``) for ``Record`` objects work.
 	"""
 
-	c = config_persons
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 		),
 		identifier="test_livingapi_record_extended_attributes",
 		source="""
@@ -377,17 +372,16 @@ def test_record_extended_attributes(handler, config_persons):
 	assert lines(output) == lines(expected)
 
 
-def test_record_shortcuts(handler, config_persons):
+def test_record_shortcuts(handler, config_data):
 	"""
 	Check that shortcut attributes for ``Record`` objects work.
 	"""
 
-	c = config_persons
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 		),
 		identifier="test_livingapi_record_shortcuts",
 		source="""
@@ -409,12 +403,11 @@ def test_record_shortcuts(handler, config_persons):
 	assert lines(output) == lines(expected)
 
 
-def test_app_extended_attributes(handler, config_apps):
+def test_app_extended_attributes(handler, config_data):
 	"""
 	Check that extended attributes (i.e. ``x_foo``) for ``App`` objects work.
 	"""
 
-	c = config_apps
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_app_extended_attributes",
@@ -433,17 +426,16 @@ def test_app_extended_attributes(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_app_shortcuts(handler, config_persons):
+def test_app_shortcuts(handler, config_data):
 	"""
 	Check that shortcut attributes for ``App`` objects work.
 	"""
 
-	c = config_persons
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL_LAYOUT,
 			includeviews=True,
 			includeparams=True,
@@ -474,12 +466,11 @@ def test_app_shortcuts(handler, config_persons):
 	assert lines(output) == lines(expected)
 
 
-def test_insert_record(handler, config_apps):
+def test_insert_record(handler, config_data):
 	"""
 	Insert a record into the person app via the method ``App.insert()``.
 	"""
 
-	c = config_apps
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_insert_record",
@@ -503,7 +494,7 @@ def test_insert_record(handler, config_apps):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 		),
 		identifier="test_livingapi_insert_record_check_result",
 		source=f"""
@@ -650,19 +641,18 @@ def test_app_parameters_on_demand(handler):
 		assert lines(output) == lines(expected)
 
 
-def test_appparams(handler, config_apps):
+def test_appparams(handler, config_data):
 	"""
 	Check all app parameter types.
 
 	We don'd load the app parameters on demand (this is done by another test).
 	"""
 
-	c = config_apps
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeparams=True,
 		),
 		identifier="test_livingapi_appparam_bool",
@@ -792,8 +782,7 @@ def test_appparams(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_view_control_overwrite_string(handler, config_apps):
-	c = config_apps
+def test_view_control_overwrite_string(handler, config_data):
 
 	source_print = """
 	lang=<?print repr(app.active_view.lang if app.active_view else None)?>
@@ -811,7 +800,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 	vt_no_view = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includerecords=la.DataSourceConfig.IncludeRecords.CONTROLS,
 		),
 		identifier="test_livingapi_view_control_overwrite_string_noview",
@@ -835,7 +824,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 	vt_view_en = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
 			includerecords=la.DataSourceConfig.IncludeRecords.CONTROLS,
@@ -862,7 +851,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 	vt_view_de = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
 			includerecords=la.DataSourceConfig.IncludeRecords.CONTROLS,
@@ -887,8 +876,7 @@ def test_view_control_overwrite_string(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
-	c = config_apps
+def test_view_control_overwrite_lookup_noneoption(handler, config_data):
 
 	source_print = """
 	lang=<?print repr(app.active_view.lang if app.active_view else None)?>
@@ -902,7 +890,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 	vt_no_view = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 		),
 		identifier="test_livingapi_view_control_overwrite_lookup_noview",
@@ -922,7 +910,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 	vt_view_en = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
 			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
@@ -945,7 +933,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 	vt_view_de = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL,
 			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
@@ -966,8 +954,7 @@ def test_view_control_overwrite_lookup_noneoption(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_globals_extended_attributes(handler, config_apps):
-	c = config_apps
+def test_globals_extended_attributes(handler, config_data):
 
 	vt = handler.make_viewtemplate(
 		identifier="test_livingapi_globals_extended_attributes",
@@ -986,13 +973,12 @@ def test_globals_extended_attributes(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_globals_shortcuts(handler, config_apps):
-	c = config_apps
+def test_globals_shortcuts(handler, config_data):
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=c.apps.persons,
+			app=config_data.apps.persons,
 			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 			includeparams=True, # Do this so that ``PythonHTTP`` works too.
 		),
@@ -1017,7 +1003,7 @@ def test_globals_shortcuts(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_globals_template_shortcuts(handler, config_apps):
+def test_globals_template_shortcuts(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
 		handler.make_internaltemplate(identifier="test_livingapi_globals_template_shortcuts_internal", source="")
 
@@ -1026,18 +1012,22 @@ def test_globals_template_shortcuts(handler, config_apps):
 			source="""
 				<?print globals.t_test_livingapi_globals_template_shortcuts_internal.name?>
 				<?print app.t_test_livingapi_globals_template_shortcuts_internal.name?>
+				<?print globals.t_test_livingapi_globals_template_shortcuts_internal.fullname?>
+				<?print app.t_test_livingapi_globals_template_shortcuts_internal.fullname?>
 			""",
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
-		expected = """
+		expected = f"""
 			test_livingapi_globals_template_shortcuts_internal
 			test_livingapi_globals_template_shortcuts_internal
+			app_{person_app_id()}.internaltemplates.test_livingapi_globals_template_shortcuts_internal
+			app_{person_app_id()}.internaltemplates.test_livingapi_globals_template_shortcuts_internal
 		"""
 		assert lines(output) == lines(expected)
 
 
-def test_view_defaultedfields_default(handler, config_apps):
+def test_view_defaultedfields_default(handler, config_data):
 	testoptions = dict(
 		withview=dict(
 			activateview="<?code app.active_view = first(v for v in app.views.values() if v.lang == 'en')?>",
@@ -1070,7 +1060,7 @@ def test_view_defaultedfields_default(handler, config_apps):
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=config_apps.apps.persons,
+				app=config_data.apps.persons,
 				includeviews=True
 			),
 			identifier=f"test_view_defaultedfields_default_{name}",
@@ -1093,7 +1083,7 @@ def test_view_defaultedfields_default(handler, config_apps):
 		assert lines(output) == lines(expected)
 
 
-def test_numbercontrol_attributes(handler, config_apps):
+def test_numbercontrol_attributes(handler, config_data):
 	vt = handler.make_viewtemplate(
 		identifier=f"test_numbercontrol_attributes",
 		source="""
@@ -1122,11 +1112,11 @@ def test_numbercontrol_attributes(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_changeapi_dirty(handler, config_persons):
+def test_changeapi_dirty(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_persons.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier=f"test_changeapi_dirty",
@@ -1162,11 +1152,11 @@ def test_changeapi_dirty(handler, config_persons):
 	assert lines(output) == lines(expected)
 
 
-def test_changeapi_has_errors(handler, config_apps):
+def test_changeapi_has_errors(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier=f"test_changeapi_has_errors",
@@ -1182,16 +1172,16 @@ def test_changeapi_has_errors(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def check_field(handler, config_apps, identifier, field, value, expected, isre=False):
+def check_field(handler, config_data, identifier, field, value, expected, isre=False):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 		),
 		la.DataSourceConfig(
 			identifier="fields",
-			app=config_apps.apps.fields,
+			app=config_data.apps.fields,
 			includeviews=True,
 		),
 		identifier=identifier,
@@ -1224,12 +1214,12 @@ def check_field(handler, config_apps, identifier, field, value, expected, isre=F
 		assert output == expected
 
 
-def test_changeapi_fieldvalue_bool_string(handler, config_apps):
+def test_changeapi_fieldvalue_bool_string(handler, config_data):
 	type = "<java.lang.String>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "str"
 
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_bool_string",
 		"nobel_prize",
 		"'Gurk'",
@@ -1246,10 +1236,10 @@ def test_changeapi_fieldvalue_bool_string(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_bool_none(handler, config_apps):
+def test_changeapi_fieldvalue_bool_none(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_bool_none",
 		"nobel_prize",
 		"None",
@@ -1262,10 +1252,10 @@ def test_changeapi_fieldvalue_bool_none(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_bool_true(handler, config_apps):
+def test_changeapi_fieldvalue_bool_true(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_bool_true",
 		"nobel_prize",
 		"True",
@@ -1278,10 +1268,10 @@ def test_changeapi_fieldvalue_bool_true(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_str_required(handler, config_apps):
+def test_changeapi_fieldvalue_str_required(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_str_required",
 		"firstname",
 		"None",
@@ -1298,10 +1288,10 @@ def test_changeapi_fieldvalue_str_required(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_str_limited_tooshort(handler, config_apps):
+def test_changeapi_fieldvalue_str_limited_tooshort(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_str_limited_tooshort",
 		"firstname",
 		"'?'",
@@ -1318,11 +1308,11 @@ def test_changeapi_fieldvalue_str_limited_tooshort(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_str_limited_toolong(handler, config_apps):
+def test_changeapi_fieldvalue_str_limited_toolong(handler, config_data):
 	result = "?" * 31
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_str_limited_toolong",
 		"firstname",
 		"'?' * 31",
@@ -1339,10 +1329,10 @@ def test_changeapi_fieldvalue_str_limited_toolong(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_str_ok(handler, config_apps):
+def test_changeapi_fieldvalue_str_ok(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_str_ok",
 		"firstname",
 		"'Gurk'",
@@ -1355,11 +1345,11 @@ def test_changeapi_fieldvalue_str_ok(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_str_unlimited_toolong(handler, config_apps):
+def test_changeapi_fieldvalue_str_unlimited_toolong(handler, config_data):
 	result = "?"*4001
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_str_unlimited_toolong",
 		"lastname",
 		"'?'*4001",
@@ -1376,12 +1366,12 @@ def test_changeapi_fieldvalue_str_unlimited_toolong(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_geo_color(handler, config_apps):
+def test_changeapi_fieldvalue_geo_color(handler, config_data):
 	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_geo_color",
 		"grave",
 		"#000",
@@ -1398,10 +1388,10 @@ def test_changeapi_fieldvalue_geo_color(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_geo_none(handler, config_apps):
+def test_changeapi_fieldvalue_geo_none(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_geo_none",
 		"grave",
 		"None",
@@ -1414,12 +1404,12 @@ def test_changeapi_fieldvalue_geo_none(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_date_color(handler, config_apps):
+def test_changeapi_fieldvalue_date_color(handler, config_data):
 	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_color",
 		"date_of_birth",
 		"#000",
@@ -1436,10 +1426,10 @@ def test_changeapi_fieldvalue_date_color(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_date_str_wrongformat(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_wrongformat(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_wrongformat",
 		"date_of_birth",
 		"'Gurk'",
@@ -1456,10 +1446,10 @@ def test_changeapi_fieldvalue_date_str_wrongformat(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datestring(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datestring(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datestring",
 		"date_of_birth",
 		"'2000-02-29'",
@@ -1472,10 +1462,10 @@ def test_changeapi_fieldvalue_date_str_ok_datestring(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datestring_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datestring_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datestring_de",
 		"date_of_birth",
 		"'29.02.2000'",
@@ -1489,10 +1479,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datestring_de(handler, config_apps
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datestring_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datestring_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datestring_en",
 		"date_of_birth",
 		"'02/29/2000'",
@@ -1508,10 +1498,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datestring_en(handler, config_apps
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes",
 		"date_of_birth",
 		"'2000-02-29T12:34'",
@@ -1524,10 +1514,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes(handler, config
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_de",
 		"date_of_birth",
 		"'29.02.2000 12:34'",
@@ -1541,10 +1531,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_de(handler,
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_en",
 		"date_of_birth",
 		"'02/29/2000 12:34'",
@@ -1560,10 +1550,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_en(handler,
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds",
 		"date_of_birth",
 		"'2000-02-29T12:34:56'",
@@ -1576,10 +1566,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds(handler, config
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_de",
 		"date_of_birth",
 		"'29.02.2000 12:34:56'",
@@ -1593,10 +1583,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_de(handler,
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_en",
 		"date_of_birth",
 		"'02/29/2000 12:34:56'",
@@ -1612,10 +1602,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_en(handler,
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds",
 		"date_of_birth",
 		"'2000-02-29T12:34:56.987654'",
@@ -1628,10 +1618,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds(handler, c
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_de",
 		"date_of_birth",
 		"'29.02.2000 12:34:56.987654'",
@@ -1645,10 +1635,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_de(han
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_en",
 		"date_of_birth",
 		"'02/29/2000 12:34:56.987654'",
@@ -1664,10 +1654,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_en(han
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz",
 		"date_of_birth",
 		"'2000-02-29T12:34+01:00'",
@@ -1680,10 +1670,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_minutes_with_tz(handler
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_de",
 		"date_of_birth",
 		"'29.02.2000 12:34+01:00'",
@@ -1697,10 +1687,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_de(
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_en",
 		"date_of_birth",
 		"'02/29/2000 12:34+01:00'",
@@ -1716,10 +1706,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_minutes_with_tz_en(
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz",
 		"date_of_birth",
 		"'2000-02-29T12:34:56+01:00'",
@@ -1732,10 +1722,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_seconds_with_tz(handler
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_de",
 		"date_of_birth",
 		"'29.02.2000 12:34:56+01:00'",
@@ -1749,10 +1739,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_de(
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_en",
 		"date_of_birth",
 		"'02/29/2000 12:34:56+01:00'",
@@ -1768,10 +1758,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_seconds_with_tz_en(
 	)
 
 
-def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz",
 		"date_of_birth",
 		"'2000-02-29T12:34:56.987654+01:00'",
@@ -1784,10 +1774,10 @@ def test_changeapi_fieldvalue_date_str_ok_datetimestring_milliseconds_with_tz(ha
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_de(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_de(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_de",
 		"date_of_birth",
 		"'29.02.2000 12:34:56.987654+01:00'",
@@ -1801,10 +1791,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_t
 	)
 
 
-def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_en(handler, config_apps):
+def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_en(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_tz_en",
 		"date_of_birth",
 		"'02/29/2000 12:34:56.987654+01:00'",
@@ -1820,10 +1810,10 @@ def test_changeapi_fieldvalue_date_str_semiok_datetimestring_milliseconds_with_t
 	)
 
 
-def test_changeapi_fieldvalue_date_none(handler, config_apps):
+def test_changeapi_fieldvalue_date_none(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_date_none",
 		"date_of_birth",
 		"None",
@@ -1840,12 +1830,12 @@ def test_changeapi_fieldvalue_date_none(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_color(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_color(handler, config_data):
 	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_color",
 		"sex",
 		"#000",
@@ -1862,10 +1852,10 @@ def test_changeapi_fieldvalue_lookup_color(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_unknown(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_unknown(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_unknown",
 		"sex",
 		"'nix'",
@@ -1882,10 +1872,10 @@ def test_changeapi_fieldvalue_lookup_unknown(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_foreign(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_foreign(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_foreign",
 		"sex",
 		"app.c_country_of_birth.lookupdata.usa",
@@ -1903,10 +1893,10 @@ def test_changeapi_fieldvalue_lookup_foreign(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_str(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_str(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_str",
 		"sex",
 		"'male'",
@@ -1920,10 +1910,10 @@ def test_changeapi_fieldvalue_lookup_str(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_lookupitem(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_lookupitem(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_lookupitem",
 		"sex",
 		"app.c_sex.lookupdata.male",
@@ -1937,10 +1927,10 @@ def test_changeapi_fieldvalue_lookup_lookupitem(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_lookup_none(handler, config_apps):
+def test_changeapi_fieldvalue_lookup_none(handler, config_data):
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_lookup_none",
 		"sex",
 		"None",
@@ -1953,12 +1943,12 @@ def test_changeapi_fieldvalue_lookup_none(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_color(handler, config_apps):
+def test_changeapi_fieldvalue_multipleapplookup_color(handler, config_data):
 	type = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
 	check_field(
 		handler,
-		config_apps,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_color",
 		"field_of_activity",
 		"#000",
@@ -1975,7 +1965,7 @@ def test_changeapi_fieldvalue_multipleapplookup_color(handler, config_apps):
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_fields):
+def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_data):
 	type_color = "<com.livinglogic.ul4.Color>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "ll.color.Color"
 
 	find_physics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Physics')";
@@ -1984,7 +1974,7 @@ def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_
 
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok",
 		"field_of_activity",
 		f"[#000, None, '', r.f_field_of_activity.control.none_key, r, {find_physics}]",
@@ -2006,14 +1996,14 @@ def test_changeapi_fieldvalue_multipleapplookup_type_foreign_ok(handler, config_
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_record_ok(handler, config_fields):
+def test_changeapi_fieldvalue_multipleapplookup_record_ok(handler, config_data):
 	find_physics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Physics')";
 
 	record = "<.*.Record id='.*' v_name='Physics' v_parent=<.*.Record id='.*' v_name='Science' state=SAVED.*> state=SAVED.*>"
 
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_record_ok",
 		"field_of_activity",
 		f"[{find_physics}]",
@@ -2027,10 +2017,10 @@ def test_changeapi_fieldvalue_multipleapplookup_record_ok(handler, config_fields
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_emptylist_ok(handler, config_fields):
+def test_changeapi_fieldvalue_multipleapplookup_emptylist_ok(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_emptylist_ok",
 		"field_of_activity",
 		"[None, '', r.f_field_of_activity.control.none_key]",
@@ -2043,10 +2033,10 @@ def test_changeapi_fieldvalue_multipleapplookup_emptylist_ok(handler, config_fie
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_none_ok(handler, config_fields):
+def test_changeapi_fieldvalue_multipleapplookup_none_ok(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_none_ok",
 		"field_of_activity",
 		"None",
@@ -2059,7 +2049,7 @@ def test_changeapi_fieldvalue_multipleapplookup_none_ok(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_multipleapplookup_multiple_records(handler, config_fields):
+def test_changeapi_fieldvalue_multipleapplookup_multiple_records(handler, config_data):
 	find_physics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Physics')";
 	find_mathematics = "first(r2 for r2 in globals.d_fields.app.records.values() if r2.v_name == 'Mathematics')";
 
@@ -2068,7 +2058,7 @@ def test_changeapi_fieldvalue_multipleapplookup_multiple_records(handler, config
 
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_multipleapplookup_multiple_records",
 		"field_of_activity",
 		f"[{find_physics}, {find_mathematics}]",
@@ -2082,10 +2072,10 @@ def test_changeapi_fieldvalue_multipleapplookup_multiple_records(handler, config
 	)
 
 
-def test_changeapi_fieldvalue_email_format(handler, config_fields):
+def test_changeapi_fieldvalue_email_format(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_email_format",
 		"email2",
 		f"'foo'",
@@ -2102,10 +2092,10 @@ def test_changeapi_fieldvalue_email_format(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_email_ok(handler, config_fields):
+def test_changeapi_fieldvalue_email_ok(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_email_ok",
 		"email2",
 		f"'livingapps@example.org'",
@@ -2118,10 +2108,10 @@ def test_changeapi_fieldvalue_email_ok(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_phone_format(handler, config_fields):
+def test_changeapi_fieldvalue_phone_format(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_phone_format",
 		"phone",
 		f"'foo'",
@@ -2138,10 +2128,10 @@ def test_changeapi_fieldvalue_phone_format(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_phone_ok(handler, config_fields):
+def test_changeapi_fieldvalue_phone_ok(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_phone_ok",
 		"phone",
 		f"'+49 (0) 9876/54321'",
@@ -2154,10 +2144,10 @@ def test_changeapi_fieldvalue_phone_ok(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_url_format(handler, config_fields):
+def test_changeapi_fieldvalue_url_format(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_url_format",
 		"url",
 		f"'foo://bar'",
@@ -2174,12 +2164,12 @@ def test_changeapi_fieldvalue_url_format(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_url_ok(handler, config_fields):
+def test_changeapi_fieldvalue_url_ok(handler, config_data):
 	url = "https://www.example.org:80/foo/bar/baz.html?x=y&z=w#frag"
 
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_url_ok",
 		"url",
 		f"'{url}'",
@@ -2192,10 +2182,10 @@ def test_changeapi_fieldvalue_url_ok(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_bool_required_none(handler, config_fields):
+def test_changeapi_fieldvalue_bool_required_none(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_bool_required_none",
 		"consent",
 		"None",
@@ -2212,10 +2202,10 @@ def test_changeapi_fieldvalue_bool_required_none(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_bool_required_false(handler, config_fields):
+def test_changeapi_fieldvalue_bool_required_false(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_bool_required_false",
 		"consent",
 		"False",
@@ -2232,10 +2222,10 @@ def test_changeapi_fieldvalue_bool_required_false(handler, config_fields):
 	)
 
 
-def test_changeapi_fieldvalue_bool_required_true(handler, config_fields):
+def test_changeapi_fieldvalue_bool_required_true(handler, config_data):
 	check_field(
 		handler,
-		config_fields,
+		config_data,
 		"test_changeapi_fieldvalue_bool_required_true",
 		"consent",
 		"True",
@@ -2248,7 +2238,7 @@ def test_changeapi_fieldvalue_bool_required_true(handler, config_fields):
 	)
 
 
-def test_view_attributes(handler, config_apps):
+def test_view_attributes(handler, config_data):
 	"""
 	Check the ``View`` attributes ``login_required``, ``result_page`` and ``use_geo``
 	(which are new in version 124).
@@ -2256,7 +2246,7 @@ def test_view_attributes(handler, config_apps):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier=f"test_view_attributes",
@@ -2277,11 +2267,11 @@ def test_view_attributes(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_view_specific_lookups(handler, config_apps):
+def test_view_specific_lookups(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier=f"test_view_specific_lookups",
@@ -2310,11 +2300,11 @@ def test_view_specific_lookups(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_app_with_wrong_fields(handler, config_apps):
+def test_app_with_wrong_fields(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier=f"test_app_with_wrong_fields",
@@ -2327,12 +2317,12 @@ def test_app_with_wrong_fields(handler, config_apps):
 	#output = handler.renders(person_app_id(), template=vt.identifier)
 
 
-def test_record_save_with_sync(handler, config_apps):
+def test_record_save_with_sync(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=config_apps.apps.persons,
+				app=config_data.apps.persons,
 				includeviews=True
 			),
 			identifier=f"test_record_save_with_sync",
@@ -2356,17 +2346,38 @@ def test_record_save_with_sync(handler, config_apps):
 		assert lines(output) == lines(expected)
 
 
-def test_globals_seq(handler, config_apps):
+def test_globals_seq(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_globals_seq",
 			source="""
 				<?print globals.seq()?>
+				<?print globals.seq()?>
 			"""
 		)
 
-		handler.renders(person_app_id(), template=vt.identifier)
-		# no tests here
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		output = lines(output)
+		assert output[0].isdigit()
+		assert output[1].isdigit()
+		assert int(output[0]) < int(output[1])
+
+
+def test_app_seq(handler, config_data):
+	if not isinstance(handler, PythonHTTP):
+		vt = handler.make_viewtemplate(
+			identifier="test_livingapi_app_seq",
+			source="""
+				<?print app.seq()?>
+				<?print app.seq()?>
+			"""
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		output = lines(output)
+		assert output[0].isdigit()
+		assert output[1].isdigit()
+		assert int(output[0]) < int(output[1])
 
 
 def test_record_add_error(handler):
@@ -2607,11 +2618,11 @@ def test_assign_to_children_shortcut_attribute_wrong_type(handler):
 			assert "expected exception not raised" == ''
 
 
-def test_view_controls(handler, config_apps):
+def test_view_controls(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier="test_livingapi_view_controls",
@@ -2643,11 +2654,11 @@ def test_view_controls(handler, config_apps):
 	assert lines(output) == lines(expected)
 
 
-def test_view_layout_controls(handler, config_apps):
+def test_view_layout_controls(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True,
 			includecontrols=la.DataSourceConfig.IncludeControls.ALL_LAYOUT,
 		),
@@ -2656,12 +2667,14 @@ def test_view_layout_controls(handler, config_apps):
 			<?code papp = globals.d_persons.app?>
 			<?code pview = first(app.views.values())?>
 			<?print "save" in pview.layout_controls?>
-			<?print isinstance(first(pview.layout_controls.values()), la.ButtonLayoutControl)?>
+			<?print isinstance(pview.layout_controls.save, la.ButtonLayoutControl)?>
+			<?print isinstance(pview.lc_save, la.ButtonLayoutControl)?>
 		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = """
+		True
 		True
 		True
 	"""
@@ -2748,11 +2761,11 @@ def test_file_signature(handler):
 	assert lines(output) == lines(expected)
 
 
-def test_app_datasource(handler, config_apps):
+def test_app_datasource(handler, config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="persons",
-			app=config_apps.apps.persons,
+			app=config_data.apps.persons,
 			includeviews=True
 		),
 		identifier="test_livingapi_app_datasource",
@@ -2804,14 +2817,13 @@ def test_parameter_array(handler):
 	assert lines(output) == lines(expected)
 
 
-def test_record_attachments_on_demand(handler, config_apps):
+def test_record_attachments_on_demand(handler, config_data):
 	if isinstance(handler, (PythonDB, JavaDB, GatewayHTTP)):
-		c = config_apps
 
 		vt = handler.make_viewtemplate(
 			la.DataSourceConfig(
 				identifier="persons",
-				app=c.apps.persons,
+				app=config_data.apps.persons,
 				includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
 			),
 			identifier="test_livingapi_record_attachments_on_demand",
@@ -2831,7 +2843,7 @@ def test_record_attachments_on_demand(handler, config_apps):
 		assert lines(output) == lines(expected)
 
 
-def test_app_templates_on_demand(handler, config_persons):
+def test_app_templates_on_demand(handler, config_data):
 	if not isinstance(handler, PythonHTTP):
 		handler.make_internaltemplate(
 			identifier="test_livingapi_app_template_on_demand_internal",
@@ -2859,48 +2871,759 @@ def test_template_libraries(handler):
 		vt = handler.make_viewtemplate(
 			identifier="template_libraries",
 			source="""
-				<?render globals.libs.la_static.templates.la_static_ul4()?>
-				<?render globals.libs.la_static.t_la_static_ul4()?>
-				<?render globals.l_la_static.templates.la_static_ul4()?>
-				<?render globals.l_la_static.t_la_static_ul4()?>
+				<?render globals.templates.la_static_ul4()?>
+				<?render globals.t_la_static_ul4()?>
+				<?render globals.app.templates.la_static_ul4()?>
+				<?render globals.app.t_la_static_ul4()?>
 			"""
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
 		expected = """
-			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
-			<script src="/static/ul4/1.13.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
+			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
 		"""
 		assert lines(output) == lines(expected)
 
 
-def test_chained_template_library(handler):
+def test_library_parameters(handler):
 	if not isinstance(handler, PythonHTTP):
 		vt = handler.make_viewtemplate(
-			identifier="chained_template_library",
+			identifier="library_parameters",
 			source="""
-				<?render globals.app.cl_la_static.templates.la_static_ul4()?>
-				<?render globals.app.cl_la_static.t_la_static_ul4()?>
-				<?render globals.cl_la_static.templates.la_static_ul4()?>
-				<?render globals.cl_la_static.t_la_static_ul4()?>
-				<?print globals.app.cl_foo.identifier?>
-				<?print globals.cl_foo.identifier?>
-				<?print globals.app.cl_foo.app is globals.app?>
-				<?print globals.cl_foo.app is globals.app?>
+				<?print globals.params.la_css_active_color.value?>
+				<?print globals.p_la_css_active_color.value?>
+				<?print globals.pv_la_css_active_color?>
+				<?print globals.app.params.la_css_active_color.value?>
+				<?print globals.app.p_la_css_active_color.value?>
+				<?print globals.app.pv_la_css_active_color?>
 			"""
 		)
 
 		output = handler.renders(person_app_id(), template=vt.identifier)
 		expected = """
-			<script src="nosource"></script>
-			<script src="nosource"></script>
-			<script src="nosource"></script>
-			<script src="nosource"></script>
-			foo
-			foo
-			True
-			True
+			#008bd2
+			#008bd2
+			#008bd2
+			#008bd2
+			#008bd2
+			#008bd2
 		"""
 		assert lines(output) == lines(expected)
+
+
+def test_globals_urls(handler, config_data):
+	vt = handler.make_viewtemplate(
+		identifier="test_livingapi_globals_urls",
+		source=f"""
+			<?print globals.qrcode_url('https://my.living-apps.de/', 200)?>
+			<?print globals.my_apps_url()?>
+			<?print globals.my_tasks_url()?>
+			<?print globals.catalog_url()?>
+			<?print globals.chats_url()?>
+			<?print globals.profile_url()?>
+			<?print globals.account_url()?>
+			<?print globals.logout_url()?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = f"""
+		https://{hostname()}/qr/generate?data=https%3A%2F%2Fmy.living-apps.de%2F&size=200
+		https://{hostname()}/apps.htm
+		https://{hostname()}/xist4c/web/aufgaben_id_393_.htm
+		https://{hostname()}/katalog/home.htm
+		https://{hostname()}/chats.htm
+		https://{hostname()}/profil/index.htm
+		https://{hostname()}/account.htm
+		https://{hostname()}/login.htm?logout=standardCug
+	"""
+	assert lines(output) == lines(expected)
+
+
+def test_app_urls(handler, config_data):
+	ae = config_data.persons.ae
+
+	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="persons",
+			app=config_data.apps.persons,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+			recordfilter=f"r.id == '{ae.id}'",
+		),
+		identifier="test_livingapi_app_urls",
+		source=f"""
+			<?code ae = first(app.records.values())?>
+			<?print app.template_url('gurk')?>
+			<?print app.template_url('gurk', ae)?>
+			<?print app.template_url('gurk', foo='bar')?>
+			<?print app.template_url('gurk', foo=['bar', 'baz'])?>
+			<?print app.template_url('gurk', foo=['gürk', 42])?>
+			<?print app.template_url('gurk', gurk='hurz', hinz='kunz')?>
+			<?print app.new_embedded_url(foo=42)?>
+			<?print app.new_standalone_url(foo=42)?>
+			<?print app.home_url()?>
+			<?print app.datamanagement_url()?>
+			<?print app.import_url()?>
+			<?print app.tasks_url()?>
+			<?print app.datamanagement_config_url()?>
+			<?print app.permissions_url()?>
+			<?print app.datamanageview_url('gurk')?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = f"""
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}?template=gurk
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=bar
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=bar&foo=baz
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}?template=gurk&foo=g%C3%BCrk&foo=42
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}?template=gurk&gurk=hurz&hinz=kunz
+		https://{hostname()}/dateneingabe/{config_data.apps.persons.id}/new?foo=42
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}/new?foo=42
+		https://{hostname()}/apps/{config_data.apps.persons.id}.htm
+		https://{hostname()}/_id_36_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_{config_data.apps.persons.id}
+		https://{hostname()}/import-export/{config_data.apps.persons.id}.htm
+		https://{hostname()}/_id_1073_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&p_tpl_uuid={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_task_{config_data.apps.persons.id}
+		https://{hostname()}/datenmanagement-konfigurieren/{config_data.apps.persons.id}.htm
+		https://{hostname()}/_id_833_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true
+		https://{hostname()}/_id_36_.htm?uuid={config_data.apps.persons.id}&dId={config_data.apps.persons.id}&resetInfo=true&templateIdentifier=created_{config_data.apps.persons.id}_datamanage_master_gurk
+	"""
+	assert lines(output) == lines(expected)
+
+
+def test_record_urls(handler, config_data):
+	ae = config_data.persons.ae
+
+	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="persons",
+			app=config_data.apps.persons,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+			recordfilter=f"r.id == '{ae.id}'",
+		),
+		identifier="test_livingapi_record_urls",
+		source=f"""
+			<?code ae = first(app.records.values())?>
+			<?print ae.template_url('gurk')?>
+			<?print ae.template_url('gurk', foo='bar')?>
+			<?print ae.edit_embedded_url(foo='bar')?>
+			<?print ae.edit_standalone_url(foo='bar')?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = f"""
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}/{ae.id}?template=gurk&foo=bar
+		https://{hostname()}/dateneingabe/{config_data.apps.persons.id}/{ae.id}/edit?foo=bar
+		https://{hostname()}/gateway/apps/{config_data.apps.persons.id}/{ae.id}/edit?foo=bar
+	"""
+	assert lines(output) == lines(expected)
+
+
+def test_globals_dir(handler, config_data):
+	if not isinstance(handler, PythonHTTP):
+
+		vt = handler.make_viewtemplate(
+			identifier="test_livingapi_globals_dir",
+			source=f"""
+				<?code globals.x_gurk = 42?>
+				<?for attrname in sorted(dir(globals))?>
+					<?if not attrname.startswith(["t_", "p_", "pv_"])?>
+						<?print attrname?>=<?print isdefined(getattr(globals, attrname))?>
+					<?end if?>
+				<?end for?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			id=True
+			version=True
+			hostname=True
+			platform=True
+			mode=True
+			app=True
+			record=True
+			datasources=True
+			externaldatasources=True
+			user=True
+			lang=True
+			templates=True
+			params=True
+			request=True
+			response=True
+			custom=True
+			geo=True
+			dist=True
+			seq=True
+			flashes=True
+			flash_info=True
+			flash_notice=True
+			flash_warning=True
+			flash_error=True
+			log_debug=True
+			log_info=True
+			log_notice=True
+			log_warning=True
+			log_error=True
+			scaled_url=True
+			qrcode_url=True
+			my_apps_url=True
+			my_tasks_url=True
+			catalog_url=True
+			chats_url=True
+			profile_url=True
+			account_url=True
+			logout_url=True
+			x_gurk=True
+		"""
+		assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_app_dir(handler, config_data):
+	if not isinstance(handler, PythonHTTP):
+
+		vt = handler.make_viewtemplate(
+			identifier="test_livingapi_globals_dir",
+			source=f"""
+				<?code app.x_gurk = 42?>
+				<?for attrname in sorted(dir(app))?>
+					<?if not attrname.startswith(["t_", "c_", "lc_", "p_", "pv_"])?>
+						<?print attrname?>=<?print isdefined(getattr(app, attrname))?>
+					<?end if?>
+				<?end for?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			id=True
+			globals=True
+			name=True
+			description=True
+			lang=True
+			startlink=True
+			image=True
+			iconlarge=True
+			iconsmall=True
+			createdat=True
+			createdby=True
+			updatedat=True
+			updatedby=True
+			templates=True
+			controls=True
+			layout_controls=True
+			child_controls=True
+			records=True
+			recordcount=True
+			installation=True
+			categories=True
+			params=True
+			views=True
+			active_view=True
+			datasource=True
+			datamanagement_identifier=True
+			custom=True
+			favorite=True
+			insert=True
+			add_param=True
+			new_embedded_url=True
+			new_standalone_url=True
+			new_url=True
+			template_url=True
+			home_url=True
+			datamanagement_url=True
+			import_url=True
+			tasks_url=True
+			datamanagement_config_url=True
+			permissions_url=True
+			datamanageview_url=True
+			seq=True
+			menus=True
+			panels=True
+			x_gurk=True
+		"""
+		assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_record_dir(handler, config_data):
+	if not isinstance(handler, PythonHTTP):
+
+		vt = handler.make_viewtemplate(
+			la.DataSourceConfig(
+				identifier="persons",
+				app=config_data.apps.persons,
+				includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+			),
+			identifier="test_livingapi_record_dir",
+			source=f"""
+				<?code record = first(app.records.values())?>
+				<?code record.x_gurk = 42?>
+				<?for attrname in sorted(dir(record))?>
+					<?if not attrname.startswith(["t_", "f_", "v_", "c_"])?>
+						<?print attrname?>=<?print isdefined(getattr(record, attrname))?>
+					<?end if?>
+				<?end for?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			id=True
+			app=True
+			createdat=True
+			createdby=True
+			updatedat=True
+			updatedby=True
+			updatecount=True
+			fields=True
+			values=True
+			children=True
+			attachments=True
+			errors=True
+			has_errors=True
+			has_errors_in_active_view=True
+			add_error=True
+			clear_errors=True
+			clear_all_errors=True
+			is_deleted=True
+			is_dirty=True
+			save=True
+			update=True
+			delete=True
+			executeaction=True
+			state=True
+			template_url=True
+			edit_embedded_url=True
+			edit_standalone_url=True
+			edit_url=True
+			custom=True
+			x_gurk=True
+		"""
+		assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_view_dir(handler, config_data):
+	if not isinstance(handler, PythonHTTP):
+
+		vt = handler.make_viewtemplate(
+			identifier="test_livingapi_view_dir",
+			source=f"""
+				<?code view = first(app.views.values())?>
+				<?code view.x_gurk = 42?>
+				<?for attrname in sorted(dir(view))?>
+					<?if not attrname.startswith(["c_", "lc_"])?>
+						<?print attrname?>=<?print isdefined(getattr(view, attrname))?>
+					<?end if?>
+				<?end for?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			id=True
+			name=True
+			combined_type=True
+			app=True
+			order=True
+			width=True
+			height=True
+			start=True
+			end=True
+			lang=True
+			login_required=True
+			result_page=True
+			use_geo=True
+			controls=True
+			layout_controls=True
+			focus_control=True
+			focus_first_control=True
+			custom=True
+			x_gurk=True
+		"""
+		assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_control_dir(handler, config_data):
+	if not isinstance(handler, PythonHTTP):
+
+		vt = handler.make_viewtemplate(
+			identifier="test_livingapi_control_dir",
+			source=f"""
+				<?code control = app.c_firstname?>
+				<?code control.x_gurk = 42?>
+				<?for attrname in sorted(dir(control))?>
+					<?if not attrname.startswith(["t_"])?>
+						<?print attrname?>=<?print isdefined(getattr(control, attrname))?>
+					<?end if?>
+				<?end for?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			id=True
+			identifier=True
+			type=True
+			subtype=True
+			fulltype=True
+			app=True
+			label=True
+			priority=True
+			order=True
+			default=True
+			ininsertprocedure=True
+			inupdateprocedure=True
+			top=True
+			left=True
+			width=True
+			height=True
+			liveupdate=True
+			tabindex=True
+			required=True
+			mode=True
+			labelpos=True
+			labelwidth=True
+			autoalign=True
+			in_active_view=True
+			is_focused=True
+			minlength=True
+			maxlength=True
+			placeholder=True
+			custom=True
+			x_gurk=True
+		"""
+		assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_layoutcontrol_dir(handler, config_data):
+	if not isinstance(handler, PythonHTTP):
+
+		vt = handler.make_viewtemplate(
+			identifier="test_livingapi_layoutcontrol_dir",
+			source=f"""
+				<?code layoutcontrol = first(app.views.values()).lc_save?>
+				<?code layoutcontrol.x_gurk = 42?>
+				<?for attrname in sorted(dir(layoutcontrol))?>
+					<?if not attrname.startswith(["t_"])?>
+						<?print attrname?>=<?print isdefined(getattr(layoutcontrol, attrname))?>
+					<?end if?>
+				<?end for?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			id=True
+			label=True
+			identifier=True
+			type=True
+			subtype=True
+			fulltype=True
+			view=True
+			top=True
+			left=True
+			width=True
+			height=True
+			z_index=True
+			visible=True
+			custom=True
+			x_gurk=True
+		"""
+		assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_field_dir(handler, config_data):
+	if not isinstance(handler, PythonHTTP):
+
+		vt = handler.make_viewtemplate(
+			la.DataSourceConfig(
+				identifier="persons",
+				app=config_data.apps.persons,
+				includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+			),
+			identifier="test_livingapi_field_dir",
+			source=f"""
+				<?code field = first(app.records.values()).f_firstname?>
+				<?code field.x_gurk = 42?>
+				<?for attrname in sorted(dir(field))?>
+					<?if not attrname.startswith(["t_"])?>
+						app.f_firstname.<?print attrname?>=<?print isdefined(getattr(field, attrname))?>
+					<?end if?>
+				<?end for?>
+				<?code field = first(app.records.values()).f_field_of_activity?>
+				<?code field.x_gurk = 42?>
+				<?for attrname in sorted(dir(field))?>
+					<?if not attrname.startswith(["t_"])?>
+						app.f_field_of_activity.<?print attrname?>=<?print isdefined(getattr(field, attrname))?>
+					<?end if?>
+				<?end for?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			app.f_firstname.control=True
+			app.f_firstname.record=True
+			app.f_firstname.label=True
+			app.f_firstname.value=True
+			app.f_firstname.is_empty=True
+			app.f_firstname.is_dirty=True
+			app.f_firstname.errors=True
+			app.f_firstname.enabled=True
+			app.f_firstname.writable=True
+			app.f_firstname.visible=True
+			app.f_firstname.has_errors=True
+			app.f_firstname.add_error=True
+			app.f_firstname.set_error=True
+			app.f_firstname.clear_errors=True
+			app.f_firstname.custom=True
+			app.f_firstname.x_gurk=True
+			app.f_field_of_activity.control=True
+			app.f_field_of_activity.record=True
+			app.f_field_of_activity.label=True
+			app.f_field_of_activity.value=True
+			app.f_field_of_activity.is_empty=True
+			app.f_field_of_activity.is_dirty=True
+			app.f_field_of_activity.errors=True
+			app.f_field_of_activity.enabled=True
+			app.f_field_of_activity.writable=True
+			app.f_field_of_activity.visible=True
+			app.f_field_of_activity.has_errors=True
+			app.f_field_of_activity.add_error=True
+			app.f_field_of_activity.set_error=True
+			app.f_field_of_activity.clear_errors=True
+			app.f_field_of_activity.lookupdata=True
+			app.f_field_of_activity.has_custom_lookupdata=True
+			app.f_field_of_activity.custom=True
+			app.f_field_of_activity.x_gurk=True
+		"""
+		assert sorted(lines(output)) == sorted(lines(expected))
+
+
+def test_focus_control(handler, config_data):
+
+	vt = handler.make_viewtemplate(
+			la.DataSourceConfig(
+				identifier="persons",
+				app=config_data.apps.persons,
+				includeviews=True,
+			),
+		identifier="test_livingapi_focus_control",
+		source=f"""
+			<?code v = first(app.views.values())?>
+			<?code app.active_view = v?>
+			<?print v.focus_control.identifier or "None"?>
+			<?print app.c_firstname.is_focused()?>
+			<?print app.c_lastname.is_focused()?>
+			<?code v.focus_control = app.c_firstname?>
+			<?print v.focus_control.identifier or "None"?>
+			<?print app.c_firstname.is_focused()?>
+			<?print app.c_lastname.is_focused()?>
+			<?code v.focus_control = app.c_lastname?>
+			<?print v.focus_control.identifier or "None"?>
+			<?print app.c_firstname.is_focused()?>
+			<?print app.c_lastname.is_focused()?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		None
+		False
+		False
+		firstname
+		True
+		False
+		lastname
+		False
+		True
+	"""
+	assert lines(output) == lines(expected)
+
+
+def test_focus_first_control(handler, config_data):
+
+	vt = handler.make_viewtemplate(
+			la.DataSourceConfig(
+				identifier="persons",
+				app=config_data.apps.persons,
+				includeviews=True,
+			),
+		identifier="test_livingapi_focus_control",
+		source=f"""
+			<?code v = first(app.views.values())?>
+			<?code app.active_view = v?>
+			<?print v.focus_control.identifier or "None"?>
+			<?print app.c_firstname.is_focused()?>
+			<?print app.c_lastname.is_focused()?>
+			<?code v.focus_first_control()?>
+			<?print v.focus_control.identifier or "None"?>
+			<?print app.c_firstname.is_focused()?>
+			<?print app.c_lastname.is_focused()?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		None
+		False
+		False
+		firstname
+		True
+		False
+	"""
+	assert lines(output) == lines(expected)
+
+
+def test_globals_pv_attributes_settable(handler, config_data):
+	# Setting attributes in this way only works if we have the attribute
+	# (or can get them to be loaded incrementally)
+	if not isinstance(handler, PythonHTTP):
+
+		vt = handler.make_viewtemplate(
+			la.DataSourceConfig(
+				identifier="persons",
+				app=config_data.apps.persons,
+			),
+			identifier="test_livingapi_pv_attributes_settable",
+			source=f"""
+				<?code globals.pv_int_value = 17?>
+				<?print globals.pv_int_value?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			17
+		"""
+		assert lines(output) == lines(expected)
+
+
+def test_app_pv_attributes_settable(handler, config_data):
+	# Setting attributes in this way only works if we have the attribute
+	# (or can get them to be loaded incrementally)
+	if not isinstance(handler, PythonHTTP):
+
+		vt = handler.make_viewtemplate(
+			la.DataSourceConfig(
+				identifier="persons",
+				app=config_data.apps.persons,
+			),
+			identifier="test_livingapi_pv_attributes_settable",
+			source=f"""
+				<?code app.pv_int_value = 17?>
+				<?print app.pv_int_value?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			17
+		"""
+		assert lines(output) == lines(expected)
+
+
+def test_custom_attributes(handler, config_data):
+	ae = config_data.persons.ae
+
+	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="persons",
+			app=config_data.apps.persons,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+			includecontrols=la.DataSourceConfig.IncludeControls.ALL_LAYOUT,
+			includeviews=True,
+			recordfilter=f"r.id == '{ae.id}'",
+		),
+		identifier="test_livingapi_app_urls",
+		source=f"""
+			<?code record = first(app.records.values())?>
+			<?code view = first(app.views.values())?>
+
+			<?code globals.custom = 42?>
+			globals.custom=<?print globals.custom?>
+			<?code globals.x_foo = 42?>
+			globals.x_foo=<?print globals.x_foo?>
+
+			<?code app.custom = 42?>
+			app.custom=<?print app.custom?>
+			<?code app.x_foo = 42?>
+			app.x_foo=<?print app.x_foo?>
+
+			<?code record.custom = 42?>
+			record.custom=<?print record.custom?>
+			<?code record.x_foo = 42?>
+			record.x_foo=<?print record.x_foo?>
+
+			<?code app.c_firstname.custom = 42?>
+			app.c_firstname.custom=<?print app.c_firstname.custom?>
+			<?code app.c_firstname.x_foo = 42?>
+			app.c_firstname.x_foo=<?print app.c_firstname.x_foo?>
+
+			<?code record.f_firstname.custom = 42?>
+			record.f_firstname.custom=<?print record.f_firstname.custom?>
+			<?code record.f_firstname.x_foo = 42?>
+			record.f_firstname.x_foo=<?print record.f_firstname.x_foo?>
+
+			<?code view.custom = 42?>
+			view.custom=<?print view.custom?>
+			<?code view.x_foo = 42?>
+			view.x_foo=<?print view.x_foo?>
+
+			<?code view.lc_save.custom = 42?>
+			view.lc_save.custom=<?print view.lc_save.custom?>
+			<?code view.lc_save.x_foo = 42?>
+			view.lc_save.x_foo=<?print view.x_foo?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = f"""
+		globals.custom=42
+		globals.x_foo=42
+		app.custom=42
+		app.x_foo=42
+		record.custom=42
+		record.x_foo=42
+		app.c_firstname.custom=42
+		app.c_firstname.x_foo=42
+		record.f_firstname.custom=42
+		record.f_firstname.x_foo=42
+		view.custom=42
+		view.x_foo=42
+		view.lc_save.custom=42
+		view.lc_save.x_foo=42
+	"""
+	assert lines(output) == lines(expected)
+
+
+def test_user_change(handler, config_data):
+	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="persons",
+			app=config_data.apps.persons,
+		),
+		identifier="test_user_change",
+		source=f"""
+			<?print repr(globals.user.change("est123!", None, "nix@livinglogic.de"))?>
+			<?print repr(globals.user.change("Test123!", None, "nix@livinglogic.de"))?>
+			<?print globals.user.email?>
+			<?print repr(globals.user.change("Test123!", None, "xyz"))?>
+			<?code globals.user.change("Test123!", None, "walter@livinglogic.de")?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		['Das alte Passwort ist falsch!']
+		[]
+		nix@livinglogic.de
+		['\"email\" muss eine gültige E-Mail-Adresse sein.']
+	"""
+	assert lines(output) == lines(expected)

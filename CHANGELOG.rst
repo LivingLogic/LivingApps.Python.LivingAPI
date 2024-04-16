@@ -1,3 +1,122 @@
+0.28.0 (2024-04-16)
+-------------------
+
+*	Add method ``User.change()``.
+
+
+0.27.0 (2024-04-04)
+-------------------
+
+*	Add method ``Globals.qrcode_url()``.
+
+*	Updated documentation theme.
+
+*	``Globals.version`` is now checked against the expected version when loading
+	an UL4ON dump.
+
+
+0.26.0 (2024-02-28)
+-------------------
+
+*	``User`` now has an attribute ``globals`` and supports "member templates"
+	(i.e. bound templates that can be called and rendered like normal methods).
+
+
+0.25.0 (2024-02-27)
+-------------------
+
+*	All URLs that the LivingAPI now uses are always absolute (i.e. the
+	return values of ``Globals.scaled_url()``, ``App.template_url()``,
+	``Record.edit_url()``, etc. and the attributes ``File.url`` and
+	``File.archive_url``).
+
+
+0.24.5 (2024-01-15)
+-------------------
+
+``AppLookupField.lookupdata`` now returns fake data with error hints
+in case of missing target app or target app records.
+
+
+0.24.4 (2024-01-15)
+-------------------
+
+*	Fixed parameter inheritance via the parameter ``la``.
+
+
+0.24.3 (2024-01-09)
+-------------------
+
+*	Fixed template inheritance via the parameter ``la``.
+
+
+0.24.2 (2023-12-12)
+-------------------
+
+*	Fixed saving files via the :class:`HTTPHandler`.
+
+
+0.24.1 (2023-12-12)
+-------------------
+
+*	Fixed invalid uses of ``File.internal_id``.
+
+
+0.24.0 (2023-12-07)
+-------------------
+
+*	Merged attributes ``iconsmall`` and ``iconlarge`` of ``App`` objects
+	into ``image``.
+
+*	Merged attributes ``avatarsmall`` and ``avatarlarge`` of ``User``
+	objects into ``image``.
+
+*	Merged attributes ``original`` and ``scaled`` of ``ImageLayoutControl``
+	objects into ``image``.
+
+*	Added attribute ``z_index`` to ``Control``, ``ViewControl`` and
+	``LayoutControl``.
+
+*	Added attribute ``MenuItem.accessible``.
+
+*	Update upload handling to support a world without ``uploadref``.
+
+*	Add methods ``home_url()``, ``datamanagement_url()``, ``import_url()``,
+	``tasks_url()``, ``datamanagement_config_url()``, ``permissions_url()`` and
+	``datamanageview_url()`` to class :class:`App` which return the relative URLs
+	for the respective menus.
+
+*	Add methods ``my_apps_url()``, ``my_tasks_url()``, ``catalog_url()``,
+	``chats_url()``, ``profile_url()``, ``account_url()`` and ``logout_url()``
+	to class ``Globals`` which return the relative URLs for the respective
+	menus.
+
+*	Added attribute ``View.focus_control`` and method
+	``View.focus_first_control()``.
+
+*	Added method ``Control.is_focused()``.
+
+*	Add field errors to the record if we have an active view and the field
+	is not in the active view. This avoids problems with invisible errors in the
+	form.
+
+*	``Control.in_active_view()`` is a method now.
+
+*	Added method ``App.seq()``.
+
+*	Added ``Field`` subclasses (one for each control type).
+
+*	Allow setting the attributes ``Globals.pv_*`` and ``App.pv_*``.
+
+
+0.23.2 (2023-04-03)
+-------------------
+
+*	Removed shortcut attributes from :class:`DataSource`.
+
+*	Added ``APPSTART`` to :class:`MenuItem.Type`.
+
+
 0.23.1 (2023-03-17)
 -------------------
 

@@ -58,8 +58,8 @@ template_sorted_children = """
 ### Tests
 ###
 
-def test_global_variables(config_persons):
-	c = config_persons
+def test_global_variables(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -112,7 +112,7 @@ def test_global_variables(config_persons):
 	assert expected == lines(output)
 
 
-def test_datasource_appfilter(config_persons):
+def test_datasource_appfilter(config_data):
 	handler = PythonDB()
 
 	source = """
@@ -138,8 +138,8 @@ def test_datasource_appfilter(config_persons):
 	assert f"None;{person_app_id()}" == output
 
 
-def test_datasource_recordfilter(config_persons):
-	c = config_persons
+def test_datasource_recordfilter(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -157,8 +157,8 @@ def test_datasource_recordfilter(config_persons):
 	assert "Albert Einstein" == output
 
 
-def test_datasource_recordfilter_param_str(config_persons):
-	c = config_persons
+def test_datasource_recordfilter_param_str(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -176,8 +176,8 @@ def test_datasource_recordfilter_param_str(config_persons):
 	assert "Marie Curie" == output
 
 
-def test_datasource_recordfilter_param_int(config_persons):
-	c = config_persons
+def test_datasource_recordfilter_param_int(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -195,8 +195,8 @@ def test_datasource_recordfilter_param_int(config_persons):
 	assert "Elvis Presley" == output
 
 
-def test_datasource_recordfilter_param_date(config_persons):
-	c = config_persons
+def test_datasource_recordfilter_param_date(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -214,8 +214,8 @@ def test_datasource_recordfilter_param_date(config_persons):
 	assert "Marilyn Monroe" == output
 
 
-def test_datasource_recordfilter_param_datetime(config_persons):
-	c = config_persons
+def test_datasource_recordfilter_param_datetime(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -233,8 +233,8 @@ def test_datasource_recordfilter_param_datetime(config_persons):
 	assert "Marilyn Monroe" == output
 
 
-def test_datasource_recordfilter_param_strlist(config_persons):
-	c = config_persons
+def test_datasource_recordfilter_param_strlist(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -252,8 +252,8 @@ def test_datasource_recordfilter_param_strlist(config_persons):
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
-def test_datasource_recordfilter_param_intlist(config_persons):
-	c = config_persons
+def test_datasource_recordfilter_param_intlist(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -271,8 +271,8 @@ def test_datasource_recordfilter_param_intlist(config_persons):
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
-def test_datasource_recordfilter_param_datelist(config_persons):
-	c = config_persons
+def test_datasource_recordfilter_param_datelist(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -290,8 +290,8 @@ def test_datasource_recordfilter_param_datelist(config_persons):
 	assert "Carl Friedrich Gauß;Bernhard Riemann" == output
 
 
-def test_datasource_recordfilter_param_datetimelist(config_persons):
-	c = config_persons
+def test_datasource_recordfilter_param_datetimelist(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -309,8 +309,8 @@ def test_datasource_recordfilter_param_datetimelist(config_persons):
 	assert "Carl Friedrich Gauß" == output
 
 
-def test_datasource_recordfilter_appparam_int(config_persons):
-	c = config_persons
+def test_datasource_recordfilter_appparam_int(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -328,8 +328,8 @@ def test_datasource_recordfilter_appparam_int(config_persons):
 	assert "Carl Friedrich Gauß" == output
 
 
-def test_datasource_recordfilter_geo(config_persons):
-	c = config_persons
+def test_datasource_recordfilter_geo(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -355,8 +355,8 @@ def test_datasource_recordfilter_geo(config_persons):
 	assert "Carl Friedrich Gauß;Bernhard Riemann;Marie Curie" == output
 
 
-def test_datasource_sort_asc_nullsfirst(config_persons):
-	c = config_persons
+def test_datasource_sort_asc_nullsfirst(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -375,8 +375,8 @@ def test_datasource_sort_asc_nullsfirst(config_persons):
 	assert "Donald Knuth;Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein" == output
 
 
-def test_datasource_sort_asc_nullslast(config_persons):
-	c = config_persons
+def test_datasource_sort_asc_nullslast(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -396,8 +396,8 @@ def test_datasource_sort_asc_nullslast(config_persons):
 	assert "Carl Friedrich Gauß;Bernhard Riemann;Albert Einstein;Donald Knuth" == output
 
 
-def test_datasource_sort_desc_nullsfirst(config_persons):
-	c = config_persons
+def test_datasource_sort_desc_nullsfirst(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -417,8 +417,8 @@ def test_datasource_sort_desc_nullsfirst(config_persons):
 	assert "Donald Knuth;Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß" == output
 
 
-def test_datasource_sort_desc_nullslast(config_persons):
-	c = config_persons
+def test_datasource_sort_desc_nullslast(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -438,8 +438,8 @@ def test_datasource_sort_desc_nullslast(config_persons):
 	assert "Albert Einstein;Bernhard Riemann;Carl Friedrich Gauß;Donald Knuth" == output
 
 
-def test_datasource_masterdetail_recordfilter(config_persons):
-	c = config_persons
+def test_datasource_masterdetail_recordfilter(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -471,8 +471,8 @@ def test_datasource_masterdetail_recordfilter(config_persons):
 	assert "True;Computer science;Mathematics;Physics;Literature" == output
 
 
-def test_datasource_masterdetail_sort_asc(config_persons):
-	c = config_persons
+def test_datasource_masterdetail_sort_asc(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -504,8 +504,8 @@ def test_datasource_masterdetail_sort_asc(config_persons):
 	assert "True;Computer science;Mathematics;Physics;Film;Literature;Music" == output
 
 
-def test_datasource_masterdetail_sort_desc(config_persons):
-	c = config_persons
+def test_datasource_masterdetail_sort_desc(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -537,8 +537,8 @@ def test_datasource_masterdetail_sort_desc(config_persons):
 	assert "True;Physics;Mathematics;Computer science;Music;Literature;Film" == output
 
 
-def test_color_attributes(config_persons):
-	c = config_persons
+def test_color_attributes(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -562,8 +562,8 @@ def test_color_attributes(config_persons):
 	assert "0" != output
 
 
-def test_color_methods(config_persons):
-	c = config_persons
+def test_color_methods(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -587,8 +587,8 @@ def test_color_methods(config_persons):
 	assert "0" != output
 
 
-def test_repr_color(config_persons):
-	c = config_persons
+def test_repr_color(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -612,8 +612,8 @@ def test_repr_color(config_persons):
 	assert "0" != output
 
 
-def test_geo_attributes(config_persons):
-	c = config_persons
+def test_geo_attributes(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -637,8 +637,8 @@ def test_geo_attributes(config_persons):
 	assert "0" != output
 
 
-def test_datasource_paging(config_persons):
-	c = config_persons
+def test_datasource_paging(config_data):
+	c = config_data
 
 	handler = PythonDB()
 
@@ -662,8 +662,8 @@ def test_datasource_paging(config_persons):
 	assert "Muhammad Ali;Marie Curie" == output
 
 
-def test_datasourcechildren_paging(config_persons):
-	c = config_persons
+def test_datasourcechildren_paging(config_data):
+	c = config_data
 
 	handler = PythonDB()
 

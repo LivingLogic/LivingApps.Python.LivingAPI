@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # cython: language_level=3, always_allow_keywords=True
 
-## Copyright 2016-2020 by LivingLogic AG, Bayreuth/Germany
+## Copyright 2016-2024 by LivingLogic AG, Bayreuth/Germany
 ##
 ## All Rights Reserved
 
@@ -1056,7 +1056,7 @@ class AST(Repr):
 			for (i, type) in enumerate(spec):
 				typeref = cls.typeref(type)
 				if typeref:
-					# Fetch reference type (and correct offset if there's in name in ``spec``)
+					# Fetch reference type (and correct offset if there's a name in ``spec``)
 					type = spec[typeref+1 if namepos and typeref >= namepos else typeref]
 					if cls.typeref(type):
 						raise ValueError("typeref to typeref")
@@ -3325,7 +3325,9 @@ AndAST.add_rules(f"BOOL <- BOOL ? BOOL", "(case when {s1} = 1 then {s2} else 0 e
 AndAST.add_rules(f"INT <- {INTLIKE} ? {INTLIKE}", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
 AndAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {NUMBERLIKE}", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
 AndAST.add_rules(f"STR <- STR ? STR", "nvl2({s1}, {s2}, {s1})")
+AndAST.add_rules(f"CLOB <- STR ? CLOB", "(case when {s1} is not null then {s2} else to_clob({s1}) end)")
 AndAST.add_rules(f"CLOB <- CLOB ? CLOB", "(case when {s1} is not null and length({s1}) != 0 then {s2} else {s1} end)")
+AndAST.add_rules(f"CLOB <- CLOB ? STR", "(case when {s1} is not null and length({s1}) != 0 then to_clob({s2}) else {s1} end)")
 AndAST.add_rules(f"T1 <- DATE_DATETIME ? T1", "nvl2({s1}, {s2}, {s1})")
 AndAST.add_rules(f"T1 <- DATEDELTA_DATETIMEDELTA_MONTHDELTA ? T1", "(case when nvl({s1}, 0) != 0 then {s2} else {s1} end)")
 AndAST.add_rules(f"T1 <- {LIST} ? T1", "(case when nvl(vsqlimpl_pkg.len_{t1}({s1}), 0) != 0 then {s2} else {s1} end)")
@@ -3342,7 +3344,9 @@ OrAST.add_rules(f"BOOL <- BOOL ? BOOL", "(case when {s1} = 1 then 1 else {s2} en
 OrAST.add_rules(f"INT <- {INTLIKE} ? {INTLIKE}", "(case when nvl({s1}, 0) != 0 then {s1} else {s2} end)")
 OrAST.add_rules(f"NUMBER <- {NUMBERLIKE} ? {NUMBERLIKE}", "(case when nvl({s1}, 0) != 0 then {s1} else {s2} end)")
 OrAST.add_rules(f"STR <- STR ? STR", "nvl({s1}, {s2})")
+OrAST.add_rules(f"CLOB <- STR ? CLOB", "(case when {s1} is not null then to_clob({s1}) else {s2} end)")
 OrAST.add_rules(f"CLOB <- CLOB ? CLOB", "(case when {s1} is not null and length({s1}) != 0 then {s1} else {s2} end)")
+OrAST.add_rules(f"CLOB <- CLOB ? STR", "(case when {s1} is not null and length({s1}) != 0 then {s1} else to_clob({s2}) end)")
 OrAST.add_rules(f"T1 <- DATE_DATETIME ? T1", "nvl({s1}, {s2})")
 OrAST.add_rules(f"T1 <- DATEDELTA_DATETIMEDELTA_MONTHDELTA ? T1", "(case when nvl({s1}, 0) != 0 then {s1} else {s2} end)")
 OrAST.add_rules(f"T1 <- {LIST} ? T1", "(case when nvl(vsqlimpl_pkg.len_{t1}({s1}), 0) != 0 then {s1} else {s2} end)")
@@ -3680,7 +3684,7 @@ def main(args:Optional[Tuple[str, ...]]=None) -> None:
 	import argparse
 	p = argparse.ArgumentParser(description="Recreate vSQL type info for the Java and Oracle implementations")
 	p.add_argument("-c", "--connectstring", help="Oracle database where the table VSQLRULE and the procedure VSQLGRAMMAR_MAKE will be created")
-	p.add_argument("-j", "--javapath", dest="javapath", help="Path to the Java implementation of vSQL?", type=pathlib.Path)
+	p.add_argument("-j", "--javapath", dest="javapath", help="Path to the Java implementation of vSQL", type=pathlib.Path)
 	p.add_argument("-v", "--verbose", dest="verbose", help="Give a progress report? (default %(default)s)", default=False, action="store_true")
 
 	args = p.parse_args(args)
