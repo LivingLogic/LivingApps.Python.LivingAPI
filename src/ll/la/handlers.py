@@ -264,6 +264,9 @@ class Handler:
 	def save_datasourcechildren(self, datasourcechildren, recursive=True):
 		raise NotImplementedError
 
+	def change_user(self, lang, oldpassword, newpassword, newemail):
+		raise NotImplementedError
+
 	def fetch_templates(self, app):
 		return la.attrdict()
 
@@ -354,6 +357,7 @@ class DBHandler(Handler):
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
 		self.proc_upload_upr_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_UPR_INSERT")
 		self.proc_appparameter_import_waf = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_IMPORT")
+		self.proc_identity_change = orasql.Procedure("LIVINGAPI_PKG.IDENTITY_CHANGE")
 		self.proc_viewtemplate_import = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_IMPORT")
 		self.proc_viewtemplate_delete = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_DELETE")
 		self.proc_datasource_import = orasql.Procedure("DATASOURCE_PKG.DATASOURCE_IMPORT")
@@ -1311,12 +1315,12 @@ class DBHandler(Handler):
 
 	def delete_parameter(self, parameter):
 		if not parameter._deleted:
-			args = {
-				"c_user": self.ide_id,
-				"p_ap_id": parameter.id,
-			}
 			c = self.cursor()
-			r = self.proc_appparameter_delete(c, **args)
+			r = self.proc_appparameter_delete(
+				c,
+				c_user=self.ide_id,
+				p_ap_id=parameter.id,
+			)
 			if parameter.parent is not None:
 				if parameter.type is parameter.Type.DICT:
 					parameter.parent.value.pop(parameter.identifier)
@@ -1334,6 +1338,19 @@ class DBHandler(Handler):
 		dump = r[0].decode("utf-8")
 		parameter = self._loaddump(dump)
 		return parameter
+	
+	def change_user(self, lang, oldpassword, newpassword, newemail):
+		c = self.cursor()
+		r = self.proc_identity_change(
+			c,
+			c_user=self.ide_id,
+			c_lang=lang,
+			p_oldpassword=oldpassword,
+			p_newpassword=newpassword,
+			p_newemail=newemail,
+		)
+		return r.p_errormessage
+
 
 	def _executeaction(self, record, actionidentifier):
 		c = self.cursor()

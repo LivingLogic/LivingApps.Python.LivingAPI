@@ -3601,3 +3601,29 @@ def test_custom_attributes(handler, config_data):
 		view.lc_save.x_foo=42
 	"""
 	assert lines(output) == lines(expected)
+
+
+def test_user_change(handler, config_data):
+	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="persons",
+			app=config_data.apps.persons,
+		),
+		identifier="test_user_change",
+		source=f"""
+			<?print repr(globals.user.change("est123!", None, "nix@livinglogic.de"))?>
+			<?print repr(globals.user.change("Test123!", None, "nix@livinglogic.de"))?>
+			<?print globals.user.email?>
+			<?print repr(globals.user.change("Test123!", None, "xyz"))?>
+			<?code globals.user.change("Test123!", None, "walter@livinglogic.de")?>
+		""",
+	)
+
+	output = handler.renders(person_app_id(), template=vt.identifier)
+	expected = """
+		['Das alte Passwort ist falsch!']
+		[]
+		nix@livinglogic.de
+		['\"email\" muss eine gültige E-Mail-Adresse sein.']
+	"""
+	assert lines(output) == lines(expected)

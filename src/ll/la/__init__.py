@@ -413,34 +413,32 @@ def error_applookup_norecords(control:"Control") -> str:
 		return 'No records in target app'
 
 
-def error_email_format(field:"Field", value:str) -> str:
+def error_email_format(lang:str, label:str, value:str) -> str:
 	"""
 	Return an error message for malformed email address.
 	"""
-	lang = field.control.app.globals.lang
 	if lang == "de":
-		return f'"{field.label}" muss eine gültige E-Mail-Adresse sein.'
+		return f'"{label}" muss eine gültige E-Mail-Adresse sein.'
 	elif lang == "fr":
-		return f'«{field.label}» doit comporter une adresse e-mail valide.'
+		return f'«{label}» doit comporter une adresse e-mail valide.'
 	elif lang == "it":
-		return f'"{field.label}" deve essere un indirizzo email valido.'
+		return f'"{label}" deve essere un indirizzo email valido.'
 	else:
-		return f'"{field.label}" must be a valid email address.'
+		return f'"{label}" must be a valid email address.'
 
 
-def error_email_badchar(field:"Field", pos:int, value:str) -> str:
+def error_email_badchar(lang:str, label:str, pos:int, value:str) -> str:
 	"""
 	Return an error message for a bad character in an email address.
 	"""
-	lang = field.control.app.globals.lang
 	char = value[pos]
 	charname = unicodedata.name(char, "unassigned character")
 	char = ord(char)
 	char = f"U+{char:08X}" if char > 0xfff else f"U+{char:04X}"
 	if lang == "de":
-		return f'"{field.label}" muss eine gültige E-Mail-Adresse sein, enthält aber das Zeichen {char} ({charname}) an Position {pos+1}.'
+		return f'"{label}" muss eine gültige E-Mail-Adresse sein, enthält aber das Zeichen {char} ({charname}) an Position {pos+1}.'
 	else:
-		return f'"{field.label}" must be a valid email address, but contains the character {char} ({charname}) at position {pos+1}.'
+		return f'"{label}" must be a valid email address, but contains the character {char} ({charname}) at position {pos+1}.'
 
 
 def error_tel_format(field:"Field", value:str) -> str:
@@ -1707,7 +1705,7 @@ class User(CustomAttributes):
 		"id", "globals", "gender", "title", "firstname", "surname", "initials", "email",
 		"lang", "image", "avatar_small", "avatar_large", "streetname", "streetnumber",
 		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
-		"company_website", "company", "position", "department", "keyviews"
+		"company_website", "company", "position", "department", "keyviews", "change"
 	})
 	ul4_type = ul4c.Type("la", "User", "A LivingApps user/account")
 
@@ -1828,6 +1826,30 @@ class User(CustomAttributes):
 		position=(vsql.DataType.STR, "ide_position"),
 		department=(vsql.DataType.STR, "ide_department"),
 	)
+
+	def isvalidemail(self, emailaddress):
+		if not EmailControl._pattern.match(emailaddress):
+			pos = misc.first(i for (i, c) in enumerate(emailaddress) if ord(c) > 0x7f)
+			if pos is not None:
+				return error_email_badchar(self.globals.lang, "email", pos, emailaddress)
+			else:
+				return error_email_format(self.globals.lang, "email", emailaddress)
+		return None
+
+	def change(self, oldpassword, newpassword, newemail):
+		errormessages = []
+		if newpassword is not None or newemail is not None:
+			if newemail is not None:
+				errormessage = self.isvalidemail(newemail)
+				if errormessage is not None:
+					errormessages.append(errormessage)
+			if not errormessages:
+				dberrormessage = self.globals._gethandler().change_user(self.globals.lang, oldpassword, newpassword, newemail)
+				if dberrormessage:
+					errormessages.append(dberrormessage)
+			if not errormessages and newemail is not None:
+				self.email = newemail
+		return errormessages
 
 
 @register("keyview")
@@ -4228,9 +4250,9 @@ class EmailControl(StringControl):
 			# Check if we have any non-ASCII characters
 			pos = misc.first(i for (i, c) in enumerate(value) if ord(c) > 0x7f)
 			if pos is not None:
-				field.add_error(error_email_badchar(field, pos, value))
+				field.add_error(error_email_badchar(self.app.globals.lang, field.label, pos, value))
 			else:
-				field.add_error(error_email_format(field, value))
+				field.add_error(error_email_format(self.app.globals.lang, field.label, value))
 		super()._set_value(field, value)
 
 
