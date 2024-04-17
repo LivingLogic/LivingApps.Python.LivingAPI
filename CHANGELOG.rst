@@ -1,7 +1,7 @@
 0.29.0 (2024-04-17)
 -------------------
 
-*	Removed inheritance of internal template from the base app.
+*	Removed inheritance of internal templates from the base app.
 
 
 0.28.0 (2024-04-16)
