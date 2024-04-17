@@ -1,13 +1,19 @@
+0.29.0 (2024-04-17)
+-------------------
+
+*	Removed inheritance of internal templates from the base app.
+
+
 0.28.0 (2024-04-16)
 -------------------
 
-*	Add method ``User.change()``.
+*	Added method ``User.change()``.
 
 
 0.27.0 (2024-04-04)
 -------------------
 
-*	Add method ``Globals.qrcode_url()``.
+*	Added method ``Globals.qrcode_url()``.
 
 *	Updated documentation theme.
 
@@ -34,8 +40,8 @@
 0.24.5 (2024-01-15)
 -------------------
 
-``AppLookupField.lookupdata`` now returns fake data with error hints
-in case of missing target app or target app records.
+*	``AppLookupField.lookupdata`` now returns fake data with error hints
+	in case of missing target app or target app records.
 
 
 0.24.4 (2024-01-15)
