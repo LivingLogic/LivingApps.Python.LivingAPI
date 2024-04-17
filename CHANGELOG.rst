@@ -34,8 +34,8 @@
 0.24.5 (2024-01-15)
 -------------------
 
-``AppLookupField.lookupdata`` now returns fake data with error hints
-in case of missing target app or target app records.
+*	``AppLookupField.lookupdata`` now returns fake data with error hints
+	in case of missing target app or target app records.
 
 
 0.24.4 (2024-01-15)
