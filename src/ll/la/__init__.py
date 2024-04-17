@@ -2229,11 +2229,11 @@ class Globals(CustomAttributes):
 		def sqsin(x):
 			x = math.sin(x)
 			return x * x
-		
+
 		def sqcos(x):
 			x = math.cos(x)
 			return x * x
-		
+
 		s = sqsin(g) * sqcos(l) + sqcos(f) * sqsin(l)
 		c = sqcos(g) * sqcos(l) + sqsin(f) * sqsin(l)
 
@@ -3632,7 +3632,7 @@ class AppLookupField(Field):
 	.. attribute:: lookupdata
 		:type: dict[str, Union[str, Record]]
 
-		Custom lookup data for this field. 
+		Custom lookup data for this field.
 
 		The dictionary keys should be the ``id`` attribute of :class:`Record`
 		objects and the values should be :class:`Record` or :class:`str` objects.
