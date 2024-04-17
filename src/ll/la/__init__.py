@@ -2927,8 +2927,6 @@ class App(CustomAttributes):
 		if "la" in self.ownparams and isinstance(self.ownparams["la"].value, App):
 			yield from self.ownparams["la"].value._template_candidates()
 		else:
-			if self.superid is not None:
-				yield self.globals.handler.loadinternaltemplates(self.superid)
 			yield self.globals.handler.fetch_librarytemplates()
 
 	def _templates_get(self):
