@@ -1,5 +1,5 @@
-HEAD (2024-05-??)
------------------
+0.30.0 (2024-05-21)
+-------------------
 
 *	Added ``Record`` methods ``display_embedded_url()``,
 	``display_standalone_url()`` and ``display_url()``.
