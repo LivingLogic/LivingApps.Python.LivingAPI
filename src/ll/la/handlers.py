@@ -955,7 +955,7 @@ class DBHandler(Handler):
 				select
 					livingapi_pkg.data_ful4on(
 						c_user => :c_user,
-						p_requestid => :p_requestid,
+						p_reqid => :p_reqid,
 						p_vt_id => :p_vt_id,
 						p_et_id => :p_et_id,
 						p_vw_id => :p_vw_id,
@@ -973,7 +973,7 @@ class DBHandler(Handler):
 				from dual
 			""",
 			c_user=self.ide_id,
-			p_requestid=self.requestid,
+			p_reqid=self.requestid,
 			p_vt_id=vt_id,
 			p_et_id=et_id,
 			p_vw_id=vw_id,
@@ -1263,7 +1263,7 @@ class DBHandler(Handler):
 				c,
 				c_user=self.ide_id,
 				c_lang="de", # FIXME
-				p_requestid=self.requestid,
+				p_reqid=self.requestid,
 				p_ap_id=parameter.id,
 				p_tpl_uuid=app.id,
 				p_vt_id=None,

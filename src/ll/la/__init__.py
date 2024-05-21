@@ -2248,7 +2248,7 @@ class Globals(CustomAttributes):
 			dist *= (1 + flat * h1 * sqsin(f) * sqcos(g) - flat * h2 * sqcos(f) * sqsin(g))
 		return dist
 
-	def scaled_url(self, /, image:Union["File", str], width:T_opt_int, height:T_opt_int, *, type:str="fill", enlarge:bool=True, gravity:str="sm", quality:T_opt_int=None, rotate:int=0, blur:T_opt_float=None, sharpen:T_opt_float=None, format:T_opt_str=None, cache:bool=True) -> str:
+	def scaled_url(self, image:Union["File", str], width:T_opt_int, height:T_opt_int, *, type:str="fill", enlarge:bool=True, gravity:str="sm", quality:T_opt_int=None, rotate:int=0, blur:T_opt_float=None, sharpen:T_opt_float=None, format:T_opt_str=None, cache:bool=True) -> str:
 		"""
 		Return a new URL for a scaled version of an existing image. These images
 		will be scaled by imgproxy__
@@ -5878,6 +5878,9 @@ class Record(CustomAttributes):
 		"edit_embedded_url",
 		"edit_standalone_url",
 		"edit_url",
+		"display_embedded_url",
+		"display_standalone_url",
+		"display_url",
 	})
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
@@ -6225,6 +6228,20 @@ class Record(CustomAttributes):
 			return self.edit_standalone_url(**params)
 		else:
 			return self.edit_embedded_url(**params)
+
+	def display_embedded_url(self, **params):
+		url = f"https://{self.app.globals.hostname}/dateneingabe/{self.app.id}/{self.id}/display"
+		return url_with_params(url, True, params)
+
+	def display_standalone_url(self, **params):
+		url = f"https://{self.app.globals.hostname}/gateway/apps/{self.app.id}/{self.id}/display"
+		return url_with_params(url, True, params)
+
+	def display_url(self, **params):
+		if self.app.ownparams["la_default_form_variant"] == "standalone":
+			return self.display_standalone_url(**params)
+		else:
+			return self.display_embedded_url(**params)
 
 	def has_errors(self):
 		if self.errors:

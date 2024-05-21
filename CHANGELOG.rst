@@ -1,3 +1,12 @@
+0.30.0 (2024-05-21)
+-------------------
+
+*	Added ``Record`` methods ``display_embedded_url()``,
+	``display_standalone_url()`` and ``display_url()``.
+
+*	Renamed database procedure parameter ``p_requestid`` to ``p_reqid``.
+
+
 0.29.0 (2024-04-17)
 -------------------
 
