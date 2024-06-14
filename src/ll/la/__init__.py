@@ -1828,7 +1828,7 @@ class User(CustomAttributes):
 	)
 
 	def isvalidemail(self, emailaddress):
-		if not EmailControl._pattern.match(emailaddress):
+		if not EmailField._pattern.match(emailaddress):
 			pos = misc.first(i for (i, c) in enumerate(emailaddress) if ord(c) > 0x7f)
 			if pos is not None:
 				return error_email_badchar(self.globals.lang, "email", pos, emailaddress)
@@ -3378,9 +3378,15 @@ class Field(CustomAttributes):
 		:type: bool
 
 		Should the input for this field be visible or invisible in the input form?
+
+	.. attribute:: required
+		:type: bool
+
+		Is this field required or not in the input form? Setting the label to ``None``
+		resets the value back to the ``required`` field of the :class:`Control`.
 	"""
 
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible", "required"})
 	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
 
 	template_types = ("field_instance",)
@@ -3397,7 +3403,8 @@ class Field(CustomAttributes):
 		self.enabled = True
 		self.writable = True
 		self.visible = True
-		control._set_value(self, value)
+		self._required = None
+		self._set_value(value)
 		self._dirty = False
 
 	def _template_candidates(self):
@@ -3412,6 +3419,14 @@ class Field(CustomAttributes):
 		self._label = label
 
 	@property
+	def required(self):
+		return self._required if self._required is not None else self.control.required
+
+	@required.setter
+	def required(self, required):
+		self._required = required
+
+	@property
 	def value(self):
 		return self._value
 
@@ -3419,7 +3434,7 @@ class Field(CustomAttributes):
 	def value(self, value):
 		oldvalue = self._value
 		self.clear_errors()
-		self.control._set_value(self, value)
+		self._set_value(value)
 		if value != oldvalue:
 			self.record.values[self.control.identifier] = self._value
 			self._dirty = True
@@ -3474,6 +3489,7 @@ class Field(CustomAttributes):
 		encoder.dump(self.enabled)
 		encoder.dump(self.writable)
 		encoder.dump(self.visible)
+		encoder.dump(self._required)
 
 	def ul4onload(self, decoder):
 		self.control = decoder.load()
@@ -3485,22 +3501,103 @@ class Field(CustomAttributes):
 		self.enabled = decoder.load()
 		self.writable = decoder.load()
 		self.visible = decoder.load()
+		self._required = decoder.load()
 
 
 class BoolField(Field):
 	template_types = ("field_bool_instance", "field_instance")
 
+	def _set_value(self, value):
+		if value is None or value == "":
+			if self.required:
+				self.add_error(error_required(self, value))
+			value = None
+		elif isinstance(value, bool):
+			if not value and self.required:
+				self.add_error(error_truerequired(self, value))
+		else:
+			self.add_error(error_wrong_type(self, value))
+			value = None
+		self._value = value
+
 
 class IntField(Field):
 	template_types = ("field_int_instance", "field_instance")
+
+	def _set_value(self, value):
+		if value is None or value == "":
+			if self.required:
+				self.add_error(error_required(self, value))
+			value = None
+		elif isinstance(value, int):
+			value = int(value) # This converts :class:`bool`\s etc.
+		elif isinstance(value, str):
+			try:
+				value = int(value)
+			except ValueError:
+				self.add_error(error_number_format(self, value))
+		else:
+			self.add_error(error_wrong_type(self, value))
+			value = None
+		self._value = value
 
 
 class NumberField(Field):
 	template_types = ("field_number_instance", "field_instance")
 
+	def _set_value(self, value):
+		if value is None or value == "":
+			if self.required:
+				self.add_error(error_required(self, value))
+			value = None
+		elif isinstance(value, (int, float)):
+			# This converts :class:`bool`\s and :class:`int`\s.
+			value = float(value)
+		elif isinstance(value, str):
+			count_dots = value.count(".")
+			count_commas = value.count(",")
+			if count_commas == 0:
+				format = 1 if count_dots >= 2 else 0
+			elif count_commas == 1:
+				if count_dots != 1:
+					format = 1
+				else:
+					format = 1 if value.find(".") < value.find(",") else 0
+			else: # count_commas >= 2
+				format = 0 if count_dots <= 1 else -1
+			if format == 0:
+				tryvalue = value.replace(",", "")
+			elif format == 1:
+				tryvalue = value.replace(".", "").replace(",", ".")
+			try:
+				value = float(tryvalue)
+			except ValueError:
+				self.add_error(error_number_format(self, value))
+		else:
+			self.add_error(error_wrong_type(self, value))
+			value = None
+		self._value = value
+
 
 class StringField(Field):
 	template_types = ("field_string_instance", "field_instance")
+
+	def _set_value(self, value):
+		if value is None or value == "":
+			if self.required:
+				self.add_error(error_required(self, value))
+			value = None
+		elif isinstance(value, str):
+			minlength = self.control.minlength
+			maxlength = self.control.maxlength
+			if minlength is not None and len(value or "") < minlength:
+				self.add_error(error_string_tooshort(self, minlength, value))
+			if maxlength is not None and len(value or "") > maxlength:
+				self.add_error(error_string_toolong(self, maxlength, value))
+		else:
+			self.add_error(error_wrong_type(self, value))
+			value = None
+		self._value = value
 
 
 class TextField(StringField):
@@ -3508,15 +3605,34 @@ class TextField(StringField):
 
 
 class URLField(StringField):
-	pass
+	def _set_value(self, value):
+		if isinstance(value, str) and value:
+			if not validators.url(value):
+				self.add_error(error_url_format(self, value))
+		super()._set_value(value)
 
 
 class EmailField(StringField):
-	pass
+	_pattern = re.compile("^[a-zA-Z0-9_#$%&’*+/=?^.-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$")
+
+	def _set_value(self, value):
+		if isinstance(value, str) and value and not self._pattern.match(value):
+			# Check if we have any non-ASCII characters
+			pos = misc.first(i for (i, c) in enumerate(value) if ord(c) > 0x7f)
+			if pos is not None:
+				self.add_error(error_email_badchar(self.control.app.globals.lang, self.label, pos, value))
+			else:
+				self.add_error(error_email_format(self.control.app.globals.lang, self.label, value))
+		super()._set_value(value)
 
 
 class TelField(StringField):
-	pass
+	_pattern = re.compile("^\\+?[0-9 /()-]+$")
+
+	def _set_value(self, value):
+		if isinstance(value, str) and value and not self._pattern.match(value):
+			self.add_error(error_tel_format(self, value))
+		super()._set_value(value)
 
 
 class PasswordField(StringField):
@@ -3534,25 +3650,137 @@ class HTMLField(StringField):
 class DateField(Field):
 	template_types = ("field_date_instance", "field_instance")
 
+	def _convert(self, value):
+		if isinstance(value, datetime.datetime):
+			value = value.date()
+		return value
+
+	def _parse_value(self, value):
+		lang = self.control.app.globals.lang
+		if lang in self.control.formats:
+			for format in self.control.formats[lang]:
+				try:
+					return self._convert(datetime.datetime.strptime(value, format))
+				except ValueError:
+					pass
+		try:
+			return self._convert(datetime.datetime.fromisoformat(value))
+		except ValueError:
+			pass
+		return value
+
+	def _set_value(self, value):
+		if value is None or value == "":
+			if self.required:
+				self.add_error(error_required(self, value))
+			value = None
+		elif isinstance(value, datetime.date):
+			value = self._convert(value)
+		elif isinstance(value, str):
+			value = self._parse_value(value)
+			if isinstance(value, str):
+				self.add_error(error_date_format(self, value))
+				# We keep the string value, as a <form> input might want to display it.
+		else:
+			self.add_error(error_wrong_type(self, value))
+			value = None
+		self._value = value
+
 
 class DatetimeMinuteField(DateField):
-	pass
+	def _convert(self, value):
+		if isinstance(value, datetime.datetime):
+			value = value.replace(second=0, microsecond=0)
+		else:
+			value = datetime.datetime.combine(value, datetime.time())
+		return value
 
 
 class DatetimeSecondField(DateField):
-	pass
+	def _convert(self, value):
+		if isinstance(value, datetime.datetime):
+			value = value.replace(microsecond=0)
+		else:
+			value = datetime.datetime.combine(value, datetime.time())
+		return value
 
 
 class FileField(Field):
 	template_types = ("field_file_instance", "field_instance")
 
+	def _set_value(self, value):
+		if value is None or value == "":
+			if self.required:
+				self.add_error(error_required(self, value))
+			value = None
+		elif not isinstance(value, File):
+			self.add_error(error_wrong_type(self, value))
+			value = None
+		self._value = value
+
 
 class FileSignatureField(FileField):
-	pass
+	def _set_value(self, value):
+		if isinstance(value, str) and value:
+			pos_slash = value.find("/")
+			pos_semi = value.find(";")
+			pos_comma = value.find(",")
+			if not value.startswith("data:") or max(pos_semi, pos_comma, pos_slash) < 0 or not (pos_slash < pos_semi < pos_comma):
+				self.add_error(error_file_invaliddataurl(self, value))
+				value = None
+			else:
+				mimetype = value[5:pos_semi]
+				extension = value[pos_slash+1:pos_semi]
+				encoding = value[pos_semi+1:pos_comma]
+				if encoding != "base64":
+					self.add_error(error_file_invaliddataurl(self, value))
+					value = None
+				else:
+					base64str = value[pos_comma+1:] + "=="
+					try:
+						bytes = base64.b64decode(base64str)
+					except Exception:
+						self.add_error(error_file_invaliddataurl(self, value))
+						value = None
+					else:
+						try:
+							img = Image.open(io.BytesIO(bytes))
+						except Exception:
+							self.add_error(error_file_invaliddataurl(self, value))
+							value = None
+						else:
+							value = File(
+								filename=f"{self.control.identifier}.{extension}",
+								mimetype=mimetype,
+								width=img.size[0],
+								height=img.size[1],
+								size=len(bytes),
+								createdat=datetime.datetime.now(),
+								content=bytes,
+							)
+		self._value = value
 
 
 class GeoField(Field):
 	template_types = ("field_geo_instance", "field_instance")
+
+	def _set_value(self, value):
+		if value is None or value == "":
+			if self.required:
+				self.add_error(error_required(self, value))
+			value = None
+		elif isinstance(value, Geo):
+			pass
+		elif isinstance(value, str):
+			tryvalue = self.control.app.globals.handler._geofromstring(value)
+			if tryvalue is None:
+				self.add_error(error_wrong_value(value))
+			else:
+				value = tryvalue
+		elif value is not None and not isinstance(value, Geo):
+			self.add_error(error_wrong_type(self, value))
+			value = None
+		self._value = value
 
 
 class LookupField(Field):
@@ -3610,6 +3838,39 @@ class LookupField(Field):
 	def has_custom_lookupdata(self):
 		return self._lookupdata is not None
 
+	def _find_lookupitem(self, value) -> Tuple[Union[None, "LookupItem", str], T_opt_str]:
+		lookupdata = self.control.lookupdata
+		if isinstance(value, str):
+			if lookupdata is None:
+				return (value, None)
+			if value not in lookupdata:
+				if self.control.autoexpandable:
+					for lookupitem in lookupdata:
+						if value == lookupitem.label:
+							return (lookupitem, None)
+				return (None, error_lookupitem_unknown(self, value))
+			return (lookupdata[value], None)
+		elif isinstance(value, LookupItem):
+			if lookupdata is None:
+				return (value, None)
+			tryvalue = lookupdata.get(value.key, None)
+			if value is not tryvalue:
+				return (None, error_lookupitem_foreign(self, value))
+			return (tryvalue, None)
+		else:
+			return (None, error_wrong_type(self, value))
+
+	def _set_value(self, value):
+		if value is None or value == "" or value == self.control.none_key:
+			if self.required:
+				self.add_error(error_required(self, value))
+			self._value = None
+		else:
+			(value, error) = self._find_lookupitem(value)
+			self._value = value
+			if error is not None:
+				self.add_error(error)
+
 
 class LookupSelectField(LookupField):
 	pass
@@ -3657,13 +3918,12 @@ class AppLookupField(Field):
 
 	@lookupdata.setter
 	def lookupdata(self, lookupdata):
-		self._lookupdata = lookupdata
 		if lookupdata is None:
 			lookupdata = []
 		elif isinstance(lookupdata, str):
 			lookupdata = [lookupdata]
 		elif isinstance(lookupdata, dict):
-			lookupdata = lookupdata.values()
+			lookupdata = [v if isinstance(v, Record) else k for (k, v) in lookupdata.items()]
 		records = []
 		fetched = self.control.app.globals.handler.records_sync_data([v for v in lookupdata if isinstance(v, str)])
 		for v in lookupdata:
@@ -3684,6 +3944,30 @@ class AppLookupField(Field):
 	def has_custom_lookupdata(self):
 		return self._lookupdata is not None
 
+	def _find_lookup_record(self, value) -> Tuple[Optional["Record"], T_opt_str]:
+		if isinstance(value, str):
+			record = self.control.app.globals.handler.record_sync_data(value)
+			if record is None:
+				return (None, error_applookuprecord_unknown(value))
+			value = record
+		if isinstance(value, Record):
+			if self.control.lookup_app is not None and value.app is not self.control.lookup_app:
+				return (None, error_applookuprecord_foreign(self, value))
+		else:
+			return (None, error_wrong_type(self, value))
+		return (value, None)
+
+	def _set_value(self, value):
+		if value is None or value == "" or value == self.control.none_key:
+			if self.required:
+				self.add_error(error_required(self, value))
+			self._value = None
+		else:
+			(value, error) = self._find_lookup_record(value)
+			self._value = value
+			if error is not None:
+				self.add_error(error)
+
 
 class AppLookupSelectField(AppLookupField):
 	pass
@@ -3700,6 +3984,35 @@ class AppLookupChoiceField(AppLookupField):
 class MultipleLookupField(LookupField):
 	template_types = ("field_multiplelookup_instance", "field_instance")
 
+	def _set_value(self, value):
+		if value is None or value == "" or value == self.control.none_key:
+			if self.required:
+				self.add_error(error_required(self, value))
+			self._value = []
+		elif isinstance(value, (str, LookupItem)):
+			self._set_value([value])
+		elif isinstance(value, list):
+			lookupdata = self.control.lookupdata
+			self._value = []
+			for v in value:
+				if v is None or v == "" or v == self.control.none_key:
+					continue
+				if isinstance(v, str):
+					if v in lookupdata:
+						self._value.append(lookupdata[v])
+					else:
+						self.add_error(error_lookupitem_unknown(self, v))
+				elif isinstance(v, LookupItem):
+					if v.key not in lookupdata or lookupdata[v.key] is not v:
+						self.add_error(error_lookupitem_foreign(self, v))
+					else:
+						self._value.append(v)
+			if not self._value and self.required:
+				self.add_error(error_required(self, value))
+		else:
+			self.add_error(error_wrong_type(self, value))
+			self._value = []
+
 
 class MultipleLookupSelectField(MultipleLookupField):
 	pass
@@ -3715,6 +4028,43 @@ class MultipleLookupChoiceField(MultipleLookupField):
 
 class MultipleAppLookupField(AppLookupField):
 	template_types = ("field_multipleapplookup_instance", "field_instance")
+
+	def _set_value(self, value):
+		if value is None or value == "" or value == self.control.none_key:
+			if self.required:
+				self.add_error(error_required(self, value))
+			self._value = []
+		elif isinstance(value, (str, Record)):
+			self._set_value(self, [value])
+		elif isinstance(value, list):
+			self._value = []
+			dat_ids = [v for v in value if isinstance(v, str) and v and v != self.control.none_key]
+			if dat_ids:
+				fetched = self.control.app.globals.handler.records_sync_data(dat_ids)
+			else:
+				fetched = {}
+			for v in value:
+				if v is None or v == "" or v == self.control.none_key:
+					continue
+				if isinstance(v, str):
+					record = fetched.get(v, None)
+					if record is None:
+						self.add_error(error_applookuprecord_unknown(v))
+						v = None
+					else:
+						v = record
+				if isinstance(v, Record):
+					if self.control.lookup_app is not None and v.app is not self.control.lookup_app:
+						self.add_error(error_applookuprecord_foreign(self, v))
+					else:
+						self._value.append(v)
+				elif v is not None:
+					self.add_error(error_wrong_type(self, v))
+			if not self._value and self.required:
+				self.add_error(error_required(self, value))
+		else:
+			self.add_error(error_wrong_type(self, value))
+			self._value = []
 
 
 class MultipleAppLookupSelectField(MultipleAppLookupField):
@@ -4035,9 +4385,6 @@ class Control(CustomAttributes):
 	def _default_get(self):
 		return None
 
-	def _set_value(self, field, value):
-		field._value = value
-
 	def _asdbarg(self, handler, field):
 		return field._value
 
@@ -4179,23 +4526,6 @@ class StringControl(Control):
 			return vc.placeholder
 		return None
 
-	def _set_value(self, field, value):
-		if value is None or value == "":
-			if self.required:
-				field.add_error(error_required(field, value))
-			value = None
-		elif isinstance(value, str):
-			minlength = self.minlength
-			maxlength = self.maxlength
-			if minlength is not None and len(value or "") < minlength:
-				field.add_error(error_string_tooshort(field, minlength, value))
-			if maxlength is not None and len(value or "") > maxlength:
-				field.add_error(error_string_toolong(field, maxlength, value))
-		else:
-			field.add_error(error_wrong_type(field, value))
-			value = None
-		field._value = value
-
 
 @register("textcontrol")
 class TextControl(StringControl):
@@ -4222,12 +4552,6 @@ class URLControl(StringControl):
 
 	fieldtype = URLField
 
-	def _set_value(self, field, value):
-		if isinstance(value, str) and value:
-			if not validators.url(value):
-				field.add_error(error_url_format(field, value))
-		super()._set_value(field, value)
-
 
 @register("emailcontrol")
 class EmailControl(StringControl):
@@ -4240,18 +4564,6 @@ class EmailControl(StringControl):
 	ul4_type = ul4c.Type("la", "EmailControl", "A LivingApps email field (type 'string/email')")
 
 	fieldtype = EmailField
-
-	_pattern = re.compile("^[a-zA-Z0-9_#$%&’*+/=?^.-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$")
-
-	def _set_value(self, field, value):
-		if isinstance(value, str) and value and not self._pattern.match(value):
-			# Check if we have any non-ASCII characters
-			pos = misc.first(i for (i, c) in enumerate(value) if ord(c) > 0x7f)
-			if pos is not None:
-				field.add_error(error_email_badchar(self.app.globals.lang, field.label, pos, value))
-			else:
-				field.add_error(error_email_format(self.app.globals.lang, field.label, value))
-		super()._set_value(field, value)
 
 
 @register("passwordcontrol")
@@ -4278,13 +4590,6 @@ class TelControl(StringControl):
 	ul4_type = ul4c.Type("la", "TelControl", "A LivingApps phone number field (type 'string/tel')")
 
 	fieldtype = TelField
-
-	_pattern = re.compile("^\\+?[0-9 /()-]+$")
-
-	def _set_value(self, field, value):
-		if isinstance(value, str) and value and not self._pattern.match(value):
-			field.add_error(error_tel_format(field, value))
-		super()._set_value(field, value)
 
 
 class EncryptionType(misc.IntEnum):
@@ -4366,23 +4671,6 @@ class IntControl(Control):
 
 	fieldtype = IntField
 
-	def _set_value(self, field, value):
-		if value is None or value == "":
-			if self.required:
-				field.add_error(error_required(field, value))
-			value = None
-		elif isinstance(value, int):
-			value = int(value) # This converts :class:`bool`\s etc.
-		elif isinstance(value, str):
-			try:
-				value = int(value)
-			except ValueError:
-				field.add_error(error_number_format(field, value))
-		else:
-			field.add_error(error_wrong_type(field, value))
-			value = None
-		field._value = value
-
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
@@ -4424,39 +4712,6 @@ class NumberControl(Control):
 		self.precision = None
 		self.minimum = None
 		self.maximum = None
-
-	def _set_value(self, field, value):
-		if value is None or value == "":
-			if self.required:
-				field.add_error(error_required(field, value))
-			value = None
-		elif isinstance(value, (int, float)):
-			# This converts :class:`bool`\s and :class:`int`\s.
-			value = float(value)
-		elif isinstance(value, str):
-			count_dots = value.count(".")
-			count_commas = value.count(",")
-			if count_commas == 0:
-				format = 1 if count_dots >= 2 else 0
-			elif count_commas == 1:
-				if count_dots != 1:
-					format = 1
-				else:
-					format = 1 if value.find(".") < value.find(",") else 0
-			else: # count_commas >= 2
-				format = 0 if count_dots <= 1 else -1
-			if format == 0:
-				tryvalue = value.replace(",", "")
-			elif format == 1:
-				tryvalue = value.replace(".", "").replace(",", ".")
-			try:
-				value = float(tryvalue)
-			except ValueError:
-				field.add_error(error_number_format(field, value))
-		else:
-			field.add_error(error_wrong_type(field, value))
-			value = None
-		field._value = value
 
 	@property
 	def vsqlfield(self):
@@ -4540,42 +4795,6 @@ class DateControl(Control):
 				return datetime.date.today()
 		return None
 
-	def _convert(self, value):
-		if isinstance(value, datetime.datetime):
-			value = value.date()
-		return value
-
-	def _parse_value(self, value):
-		lang = self.app.globals.lang
-		if lang in self.formats:
-			for format in self.formats[lang]:
-				try:
-					return self._convert(datetime.datetime.strptime(value, format))
-				except ValueError:
-					pass
-		try:
-			return self._convert(datetime.datetime.fromisoformat(value))
-		except ValueError:
-			pass
-		return value
-
-	def _set_value(self, field, value):
-		if value is None or value == "":
-			if self.required:
-				field.add_error(error_required(field, value))
-			value = None
-		elif isinstance(value, datetime.date):
-			value = self._convert(value)
-		elif isinstance(value, str):
-			value = self._parse_value(value)
-			if isinstance(value, str):
-				field.add_error(error_date_format(field, value))
-				# We keep the string value, as a <form> input might want to display it.
-		else:
-			field.add_error(error_wrong_type(field, value))
-			value = None
-		field._value = value
-
 	def _asjson(self, handler, field):
 		value = field._value
 		if isinstance(value, datetime.date):
@@ -4608,13 +4827,6 @@ class DatetimeMinuteControl(DateControl):
 	ul4_type = ul4c.Type("la", "DatetimeMinuteControl", "A LivingApps date field (type 'date/datetimeminute')")
 
 	fieldtype = DatetimeMinuteField
-
-	def _convert(self, value):
-		if isinstance(value, datetime.datetime):
-			value = value.replace(second=0, microsecond=0)
-		else:
-			value = datetime.datetime.combine(value, datetime.time())
-		return value
 
 	def _default_get(self):
 		vc = self._get_viewcontrol()
@@ -4659,13 +4871,6 @@ class DatetimeSecondControl(DateControl):
 
 	fieldtype = DatetimeSecondField
 
-	def _convert(self, value):
-		if isinstance(value, datetime.datetime):
-			value = value.replace(microsecond=0)
-		else:
-			value = datetime.datetime.combine(value, datetime.time())
-		return value
-
 	def _default_get(self):
 		vc = self._get_viewcontrol()
 		if vc is not None:
@@ -4708,19 +4913,6 @@ class BoolControl(Control):
 	ul4_type = ul4c.Type("la", "BoolControl", "A LivingApps boolean field (type 'bool')")
 
 	fieldtype = BoolField
-
-	def _set_value(self, field, value):
-		if value is None or value == "":
-			if self.required:
-				field.add_error(error_required(field, value))
-			value = None
-		elif isinstance(value, bool):
-			if not value and self.required:
-				field.add_error(error_truerequired(field, value))
-		else:
-			field.add_error(error_wrong_type(field, value))
-			value = None
-		field._value = value
 
 	def _asdbarg(self, handler, field):
 		value = field._value
@@ -4827,38 +5019,6 @@ class LookupControl(Control):
 		if vc is not None:
 			return vc.autoexpandable
 		return False
-
-	def _find_lookupitem(self, field, value) -> Tuple[Union[None, "LookupItem", str], T_opt_str]:
-		if isinstance(value, str):
-			if self.lookupdata is None:
-				return (value, None)
-			if value not in self.lookupdata:
-				if self.autoexpandable:
-					for lookupitem in self.lookupdata:
-						if value == lookupitem.label:
-							return (lookupitem, None)
-				return (None, error_lookupitem_unknown(field, value))
-			return (self.lookupdata[value], None)
-		elif isinstance(value, LookupItem):
-			if self.lookupdata is None:
-				return (value, None)
-			tryvalue = self.lookupdata.get(value.key, None)
-			if value is not tryvalue:
-				return (None, error_lookupitem_foreign(field, value))
-			return (tryvalue, None)
-		else:
-			return (None, error_wrong_type(field, value))
-
-	def _set_value(self, field, value):
-		if value is None or value == "" or value == self.none_key:
-			if self.required:
-				field.add_error(error_required(field, value))
-			field._value = None
-		else:
-			(value, error) = self._find_lookupitem(field, value)
-			field._value = value
-			if error is not None:
-				field.add_error(error)
 
 	def _asdbarg(self, handler, field):
 		value = field._value
@@ -4994,30 +5154,6 @@ class AppLookupControl(Control):
 		self.local_detail_controls = local_detail_controls
 		self.remote_master_control = remote_master_control
 
-	def _find_lookup_record(self, field, value) -> Tuple[Optional["Record"], T_opt_str]:
-		if isinstance(value, str):
-			record = self.app.globals.handler.record_sync_data(value)
-			if record is None:
-				return (None, error_applookuprecord_unknown(value))
-			value = record
-		if isinstance(value, Record):
-			if self.lookup_app is not None and value.app is not self.lookup_app:
-				return (None, error_applookuprecord_foreign(field, value))
-		else:
-			return (None, error_wrong_type(field, value))
-		return (value, None)
-
-	def _set_value(self, field, value):
-		if value is None or value == "" or value == self.none_key:
-			if self.required:
-				field.add_error(error_required(field, value))
-			field._value = None
-		else:
-			(value, error) = self._find_lookup_record(field, value)
-			field._value = value
-			if error is not None:
-				field.add_error(error)
-
 	def _none_key_get(self):
 		vc = self._get_viewcontrol()
 		if vc is not None:
@@ -5133,34 +5269,6 @@ class MultipleLookupControl(LookupControl):
 				return [value]
 		return None
 
-	def _set_value(self, field, value):
-		if value is None or value == "" or value == self.none_key:
-			if self.required:
-				field.add_error(error_required(field, value))
-			field._value = []
-		elif isinstance(value, (str, LookupItem)):
-			self._set_value(field, [value])
-		elif isinstance(value, list):
-			field._value = []
-			for v in value:
-				if v is None or v == "" or v == self.none_key:
-					continue
-				if isinstance(v, str):
-					if v in self.lookupdata:
-						field._value.append(self.lookupdata[v])
-					else:
-						field.add_error(error_lookupitem_unknown(field, v))
-				elif isinstance(v, LookupItem):
-					if v.key not in self.lookupdata or self.lookupdata[v.key] is not v:
-						field.add_error(error_lookupitem_foreign(field, v))
-					else:
-						field._value.append(v)
-			if not field._value and self.required:
-				field.add_error(error_required(field, value))
-		else:
-			field.add_error(error_wrong_type(field, value))
-			field._value = []
-
 	def _asjson(self, handler, field):
 		return [item.key for item in field._value]
 
@@ -5226,43 +5334,6 @@ class MultipleAppLookupControl(AppLookupControl):
 	ul4_type = ul4c.Type("la", "MultipleAppLookupControl", "A LivingApps multiple applookup field")
 
 	fieldtype = MultipleAppLookupField
-
-	def _set_value(self, field, value):
-		if value is None or value == "" or value == self.none_key:
-			if self.required:
-				field.add_error(error_required(field, value))
-			field._value = []
-		elif isinstance(value, (str, Record)):
-			self._set_value(field, [value])
-		elif isinstance(value, list):
-			field._value = []
-			dat_ids = [v for v in value if isinstance(v, str) and v and v != self.none_key]
-			if dat_ids:
-				fetched = self.app.globals.handler.records_sync_data(dat_ids)
-			else:
-				fetched = {}
-			for v in value:
-				if v is None or v == "" or v == self.none_key:
-					continue
-				if isinstance(v, str):
-					record = fetched.get(v, None)
-					if record is None:
-						field.add_error(error_applookuprecord_unknown(v))
-						v = None
-					else:
-						v = record
-				if isinstance(v, Record):
-					if self.lookup_app is not None and v.app is not self.lookup_app:
-						field.add_error(error_applookuprecord_foreign(field, v))
-					else:
-						field._value.append(v)
-				elif v is not None:
-					field.add_error(error_wrong_type(field, v))
-			if not field._value and self.required:
-				field.add_error(error_required(field, value))
-		else:
-			field.add_error(error_wrong_type(field, value))
-			field._value = []
 
 	def _asjson(self, handler, field):
 		value = []
@@ -5346,16 +5417,6 @@ class FileControl(Control):
 
 	fieldtype = FileField
 
-	def _set_value(self, field, value):
-		if value is None or value == "":
-			if self.required:
-				field.add_error(error_required(field, value))
-			value = None
-		elif not isinstance(value, File):
-			field.add_error(error_wrong_type(field, value))
-			value = None
-		field._value = value
-
 	def _asdbarg(self, handler, field):
 		value = field._value
 		if value is not None:
@@ -5412,47 +5473,6 @@ class FileSignatureControl(FileControl):
 
 	fieldtype = FileSignatureField
 
-	def _set_value(self, field, value):
-		if isinstance(value, str) and value:
-			pos_slash = value.find("/")
-			pos_semi = value.find(";")
-			pos_comma = value.find(",")
-			if not value.startswith("data:") or max(pos_semi, pos_comma, pos_slash) < 0 or not (pos_slash < pos_semi < pos_comma):
-				field.add_error(error_file_invaliddataurl(field, value))
-				value = None
-			else:
-				mimetype = value[5:pos_semi]
-				extension = value[pos_slash+1:pos_semi]
-				encoding = value[pos_semi+1:pos_comma]
-				if encoding != "base64":
-					field.add_error(error_file_invaliddataurl(field, value))
-					value = None
-				else:
-					base64str = value[pos_comma+1:] + "=="
-					try:
-						bytes = base64.b64decode(base64str)
-					except Exception:
-						field.add_error(error_file_invaliddataurl(field, value))
-						value = None
-					else:
-						try:
-							img = Image.open(io.BytesIO(bytes))
-						except Exception:
-							field.add_error(error_file_invaliddataurl(field, value))
-							value = None
-						else:
-							value = File(
-								filename=f"{self.identifier}.{extension}",
-								mimetype=mimetype,
-								width=img.size[0],
-								height=img.size[1],
-								size=len(bytes),
-								createdat=datetime.datetime.now(),
-								content=bytes,
-							)
-							self.handler = self.app.globals.handler
-		field._value = value
-
 
 @register("geocontrol")
 class GeoControl(Control):
@@ -5466,24 +5486,6 @@ class GeoControl(Control):
 	ul4_type = ul4c.Type("la", "GeoControl", "A LivingApps geo field (type 'geo')")
 
 	fieldtype = GeoField
-
-	def _set_value(self, field, value):
-		if value is None or value == "":
-			if self.required:
-				field.add_error(error_required(field, value))
-			value = None
-		elif isinstance(value, Geo):
-			pass
-		elif isinstance(value, str):
-			tryvalue = self.app.globals.handler._geofromstring(value)
-			if tryvalue is None:
-				field.add_error(error_wrong_value(value))
-			else:
-				value = tryvalue
-		elif value is not None and not isinstance(value, Geo):
-			field.add_error(error_wrong_type(field, value))
-			value = None
-		field._value = value
 
 	def _asdbarg(self, handler, field):
 		value = field._value

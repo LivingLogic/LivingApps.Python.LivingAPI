@@ -1,3 +1,11 @@
+HEAD (2024-06-??)
+-----------------
+
+Add field ``required`` in class ``Field``.
+
+Move ``_set_value`` method into ``Field`` subclasses.
+
+
 0.31.0 (2024-05-22)
 -------------------
 

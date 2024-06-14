@@ -1515,7 +1515,6 @@ class HTTPHandler(Handler):
 			)
 			r.raise_for_status()
 			result = r.json()[0]
-			print(result)
 			file.name = result["orgname"]
 			file.context_id = result["url"].split("/")[2]
 			file.id = result["upr_id"] + "/" + result["upl_id"]
