@@ -162,7 +162,7 @@ def test_file_attributes(handler):
 			<?code icon = app.iconlarge or app.iconsmall?>
 			id=<?print isinstance(icon.id, str)?>
 			internalid=<?print isinstance(icon.internalid, str)?>
-			url=<?print icon.url.startswith("/files/")?>
+			url=<?print "/files/" in icon.url?>
 			filename=<?print icon.filename.endswith([".gif", ".png", ".jpg", ".jpeg"])?>
 			mimetype=<?print icon.mimetype in {"image/gif", "image/png", "image/jpeg"}?>
 			width=<?print icon.width > 0?>
@@ -2783,8 +2783,13 @@ def test_app_datasource(handler, config_data):
 	assert lines(output) == lines(expected)
 
 
-def test_has_custom_lookupdata(handler):
+def test_has_custom_lookupdata(handler, config_data):
 	vt = handler.make_viewtemplate(
+		la.DataSourceConfig(
+			identifier="fields",
+			app=config_data.apps.fields,
+			includerecords=la.DataSourceConfig.IncludeRecords.RECORDS,
+		),
 		identifier="test_livingapi_has_custom_lookupdata",
 		source="""
 			<?code r = app()?>
@@ -2893,12 +2898,12 @@ def test_library_parameters(handler):
 		vt = handler.make_viewtemplate(
 			identifier="library_parameters",
 			source="""
-				<?print globals.params.la_css_active_color.value?>
-				<?print globals.p_la_css_active_color.value?>
-				<?print globals.pv_la_css_active_color?>
-				<?print globals.app.params.la_css_active_color.value?>
-				<?print globals.app.p_la_css_active_color.value?>
-				<?print globals.app.pv_la_css_active_color?>
+				<?print globals.params.la_css_active_color_light.value?>
+				<?print globals.p_la_css_active_color_light.value?>
+				<?print globals.pv_la_css_active_color_light?>
+				<?print globals.app.params.la_css_active_color_light.value?>
+				<?print globals.app.p_la_css_active_color_light.value?>
+				<?print globals.app.pv_la_css_active_color_light?>
 			"""
 		)
 
@@ -3199,6 +3204,9 @@ def test_record_dir(handler, config_data):
 			executeaction=True
 			state=True
 			template_url=True
+			display_embedded_url=True
+			display_standalone_url=True
+			display_url=True
 			edit_embedded_url=True
 			edit_standalone_url=True
 			edit_url=True
@@ -3380,6 +3388,7 @@ def test_field_dir(handler, config_data):
 			app.f_firstname.visible=True
 			app.f_firstname.has_errors=True
 			app.f_firstname.add_error=True
+			app.f_firstname.required=True
 			app.f_firstname.set_error=True
 			app.f_firstname.clear_errors=True
 			app.f_firstname.custom=True
@@ -3396,6 +3405,7 @@ def test_field_dir(handler, config_data):
 			app.f_field_of_activity.visible=True
 			app.f_field_of_activity.has_errors=True
 			app.f_field_of_activity.add_error=True
+			app.f_field_of_activity.required=True
 			app.f_field_of_activity.set_error=True
 			app.f_field_of_activity.clear_errors=True
 			app.f_field_of_activity.lookupdata=True
