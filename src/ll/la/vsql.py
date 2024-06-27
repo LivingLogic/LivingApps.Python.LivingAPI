@@ -700,6 +700,7 @@ class Query(Repr):
 class Rule(Repr):
 	_re_specials = re.compile(r"{([st])(\d)}")
 	_re_sep = re.compile(r"\W+")
+	_re_tokenize = re.compile(r"\b[A-Z_0-9]+\b")
 
 	# Mappings of datatypes to other datatypes for creating the SQL source
 	source_aliases = {
@@ -714,22 +715,39 @@ class Rule(Repr):
 		"datetimeset":  "datetimelist",
 	}
 
-	def __init__(self, astcls, result, name, key, signature, source):
+	def __init__(self, astcls, result, name, key, signature, source, vsqltokens):
 		self.astcls = astcls
 		self.result = result
 		self.name = name
 		self.key = key
 		self.signature = signature
 		self.source = self._parse_source(signature, source)
-
+		self.vsqlsource = tuple(part for parts in itertools.zip_longest(signature, vsqltokens) for part in parts if part is not None)
+		if astcls is IfAST:
+			# Replace "?" again with "if" and "else"
+			vsqlsource = list(self.vsqlsource)
+			replace = "if"
+			for (i, p) in enumerate(vsqlsource):
+				if isinstance(p, str) and p.strip() == "?":
+					p = p.replace("?", replace)
+					if replace == "if":
+						replace = "else"
+					elif replace == "else":
+						# This should never be used
+						replace = "?"
+					vsqlsource[i] = p
+			self.vsqlsource = tuple(vsqlsource)
 
 	def _key(self) -> str:
 		key = ", ".join(p.name if isinstance(p, DataType) else repr(p) for p in self.key)
 		return f"({key})"
 
-	def _signature(self):
+	def str_signature(self):
 		signature = ", ".join(p.name for p in self.signature)
 		return f"({signature})"
+
+	def str_vsqlsource(self):
+		return "".join(p if isinstance(p, str) else p.name for p in self.vsqlsource)
 
 	def _ll_repr_(self) -> T_gen(str):
 		yield f"nodetype={self.astcls.nodetype.name}"
@@ -737,8 +755,9 @@ class Rule(Repr):
 		if self.name is not None:
 			yield f"name={self.name!r}"
 		yield f"key={self._key()}"
-		yield f"signature={self._signature()}"
+		yield f"signature={self.str_signature()}"
 		yield f"source={self.source}"
+		yield f"vsqlsource={self.str_vqlsource()}"
 
 	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		p.breakable()
@@ -750,13 +769,16 @@ class Rule(Repr):
 			p.pretty(self.name)
 		p.breakable()
 		p.text("signature=")
-		p.text(self._signature())
+		p.text(self.str_signature())
 		p.breakable()
 		p.text("key=")
 		p.text(self._key())
 		p.breakable()
 		p.text("source=")
 		p.pretty(self.source)
+		p.breakable()
+		p.text("vsqlsource=")
+		p.pretty(self.str_vsqlsource())
 
 	@classmethod
 	def _parse_source(cls, signature:str, source:str) -> Tuple[Union[int, str], ...]:
@@ -1174,6 +1196,9 @@ class AST(Repr):
 				vsqlimpl_pkg.eq_clob_clob(value1, value2)
 		"""
 
+		# Extract non-datatypes from the right hand side
+		vsqltokens = tuple(Rule._re_tokenize.split(spec))[2:]
+
 		# Split on non-names and drop empty parts
 		spec = tuple(filter(None, Rule._re_sep.split(spec)))
 
@@ -1187,7 +1212,7 @@ class AST(Repr):
 				result = spec[0]
 				# Drop name from the signature
 				signature = tuple(p for p in key if isinstance(p, DataType))
-				cls._add_rule(Rule(cls, result, name, key, signature, source))
+				cls._add_rule(Rule(cls, result, name, key, signature, source, vsqltokens))
 
 	def validate(self) -> None:
 		"""

@@ -1,3 +1,10 @@
+HEAD (2024-06-??)
+-----------------
+
+Now each vSQL rule stores the specification it was generated from. A string
+version of that can be retrieved via the method :meth:`str_vsqlsource`.
+
+
 0.32.0 (2024-06-14)
 -------------------
 
