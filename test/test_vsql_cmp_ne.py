@@ -418,7 +418,7 @@ def test_dateset_dateset4(config_data):
 def test_dateset_dateset5(config_data):
 	check_vsql(config_data, "{@(2000-02-29), None} != {@(2000-02-29)}")
 
-def test_dateset_dateset5(config_data):
+def test_dateset_dateset6(config_data):
 	check_vsql(config_data, "not ({@(2000-02-29), None, @(2000-03-01), None, @(2000-03-02)} != {None, @(2000-03-02), @(2000-03-01), @(2000-02-29), None})")
 
 def test_datetimeset_datetimeset1(config_data):
