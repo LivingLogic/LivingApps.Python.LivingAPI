@@ -66,10 +66,21 @@ __all__ = ["Handler", "HTTPHandler", "DBHandler", "FileHandler"]
 
 
 ###
+### Typing stuff
+###
+
+from typing import *
+T_opt_handler = Optional["ll.la.handlers.Handler"]
+T_opt_int = Optional[int]
+T_opt_float = Optional[float]
+T_opt_str = Optional[str]
+T_opt_file = Optional["ll.la.File"]
+
+###
 ### Utility functions and classes
 ###
 
-def uuid():
+def uuid() -> str:
 	now = datetime.datetime.now()
 	return f"{int(now.timestamp()):08x}{now.microsecond & 0xffff:04x}{random.randint(0, (1<<(12*4))-1):012x}"
 
@@ -101,7 +112,7 @@ class Handler:
 		}
 		self.ul4on_decoder = ul4on.Decoder(registry)
 
-	def reset(self):
+	def reset(self) -> None:
 		"""
 		Reset the handler to the initial state.
 
@@ -109,10 +120,10 @@ class Handler:
 		"""
 		self.ul4on_decoder.reset()
 
-	def commit(self):
+	def commit(self) -> None:
 		pass
 
-	def rollback(self):
+	def rollback(self) -> None:
 		pass
 
 	def __enter__(self):
@@ -194,7 +205,7 @@ class Handler:
 				else:
 					return la.Geo(lat, long, parts[2].strip())
 
-	def geo(self, lat=None, long=None, info=None):
+	def geo(self, lat: T_opt_float = None, long: T_opt_float = None, info :T_opt_str = None) -> la.Geo:
 		"""
 		Create a :class:`~ll.la.Geo` object from :obj:`lat`/:obj`long` or :obj:`info`.
 
@@ -219,19 +230,19 @@ class Handler:
 		else:
 			raise TypeError("geo() requires either (lat, long) arguments or a (info) argument")
 
-	def seq(self):
+	def seq(self) -> int:
 		raise NotImplementedError
 
-	def appseq(self, app):
+	def appseq(self, app) -> int:
 		raise NotImplementedError
 
-	def save_record(self, record):
+	def save_record(self, record) -> None:
 		raise NotImplementedError
 
-	def delete_record(self, record):
+	def delete_record(self, record) -> None:
 		raise NotImplementedError
 
-	def _executeaction(self, record, actionidentifier):
+	def _executeaction(self, record, actionidentifier) -> None:
 		raise NotImplementedError
 
 	def file_content(self, file):
@@ -358,6 +369,7 @@ class DBHandler(Handler):
 		self.proc_upload_upr_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_UPR_INSERT")
 		self.proc_appparameter_import_waf = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_IMPORT")
 		self.proc_identity_change = orasql.Procedure("LIVINGAPI_PKG.IDENTITY_CHANGE")
+		self.proc_email_send = orasql.Procedure("LIVINGAPI_PKG.EMAIL_SEND")
 		self.proc_viewtemplate_import = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_IMPORT")
 		self.proc_viewtemplate_delete = orasql.Procedure("VIEWTEMPLATE_PKG.VIEWTEMPLATE_DELETE")
 		self.proc_datasource_import = orasql.Procedure("DATASOURCE_PKG.DATASOURCE_IMPORT")
@@ -392,7 +404,7 @@ class DBHandler(Handler):
 		else:
 			self.ide_id = None
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
 
 	@property
@@ -431,31 +443,50 @@ class DBHandler(Handler):
 			row_factory = rows.tuple_row
 		return self.db_pg.cursor(row_factory=row_factory)
 
-	def commit(self):
+	def commit(self) -> None:
 		if self._db is not None:
 			self.db.commit()
 		if self._db_pg is not None:
 			self.db_pg.commit()
 
-	def rollback(self):
+	def rollback(self) -> None:
 		if self.db is not None:
 			self.db.rollback()
 		if self.db_pg is not None:
 			self.db_pg.rollback()
 
-	def reset(self):
+	def reset(self) -> None:
 		super().reset()
 		self.proc_clear_all(self.cursor())
 
-	def seq(self):
+	def seq(self) -> int:
 		c = self.cursor()
 		(value, r) = self.func_seq(c)
 		return int(value)
 
-	def appseq(self, app):
+	def appseq(self, app) -> int:
 		c = self.cursor()
 		(value, r) = self.func_template_seq(c, app.id)
 		return int(value)
+
+	def send_mail(self, globals: "ll.la.Globals", app: Optional["ll.la.App"], record: Optional["ll.la.Record"], *, from_: T_opt_str = None, reply_to: T_opt_str = None, to: T_opt_str = None, cc: T_opt_str = None, bcc: T_opt_str = None, subject: T_opt_str = None, body_text: T_opt_str = None, body_html: T_opt_str = None, attachments: T_opt_file = None) -> None:
+		c = self.cursor()
+		self.proc_email_send(
+			c,
+			c_user=globals.user.id if globals.user is not None else None,
+			c_lang=globals.lang,
+			p_tpl_uuid=app.id if app is not None else None,
+			p_dat_id=record.id if record is not None else None,
+			p_from=from_,
+			p_replyto=reply_to,
+			p_to=to,
+			p_cc=cc,
+			p_bcc=bcc,
+			p_subject=subject,
+			p_bodytext=body_text,
+			p_bodyhtml=body_html,
+			p_upl_id_attachment=attachments.internal_id if attachments else None,
+		)
 
 	def save_app(self, app, recursive=True):
 		# FIXME: Save the app itself
@@ -1470,7 +1501,7 @@ class HTTPHandler(Handler):
 		self.session = None
 		self.auth_token = auth_token
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} url={self.url!r} username={self.username!r} at {id(self):#x}>"
 
 	def _login(self):
