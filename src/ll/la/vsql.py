@@ -700,6 +700,7 @@ class Query(Repr):
 class Rule(Repr):
 	_re_specials = re.compile(r"{([st])(\d)}")
 	_re_sep = re.compile(r"\W+")
+	_re_tokenize = re.compile(r"\b[A-Z_0-9]+\b")
 
 	# Mappings of datatypes to other datatypes for creating the SQL source
 	source_aliases = {
@@ -714,22 +715,25 @@ class Rule(Repr):
 		"datetimeset":  "datetimelist",
 	}
 
-	def __init__(self, astcls, result, name, key, signature, source):
+	def __init__(self, astcls, result, name, key, signature, source, vsqltokens):
 		self.astcls = astcls
 		self.result = result
 		self.name = name
 		self.key = key
 		self.signature = signature
 		self.source = self._parse_source(signature, source)
-
+		self.vsqlsource = tuple(part for parts in itertools.zip_longest(signature, astcls._vsqltokens(vsqltokens)) for part in parts if part is not None)
 
 	def _key(self) -> str:
 		key = ", ".join(p.name if isinstance(p, DataType) else repr(p) for p in self.key)
 		return f"({key})"
 
-	def _signature(self):
+	def str_signature(self):
 		signature = ", ".join(p.name for p in self.signature)
 		return f"({signature})"
+
+	def str_vsqlsource(self):
+		return "".join(p if isinstance(p, str) else p.name for p in self.vsqlsource)
 
 	def _ll_repr_(self) -> T_gen(str):
 		yield f"nodetype={self.astcls.nodetype.name}"
@@ -737,8 +741,9 @@ class Rule(Repr):
 		if self.name is not None:
 			yield f"name={self.name!r}"
 		yield f"key={self._key()}"
-		yield f"signature={self._signature()}"
+		yield f"signature={self.str_signature()}"
 		yield f"source={self.source}"
+		yield f"vsqlsource={self.str_vsqlsource()}"
 
 	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
 		p.breakable()
@@ -750,13 +755,16 @@ class Rule(Repr):
 			p.pretty(self.name)
 		p.breakable()
 		p.text("signature=")
-		p.text(self._signature())
+		p.text(self.str_signature())
 		p.breakable()
 		p.text("key=")
 		p.text(self._key())
 		p.breakable()
 		p.text("source=")
 		p.pretty(self.source)
+		p.breakable()
+		p.text("vsqlsource=")
+		p.pretty(self.str_vsqlsource())
 
 	@classmethod
 	def _parse_source(cls, signature:str, source:str) -> Tuple[Union[int, str], ...]:
@@ -865,6 +873,7 @@ class AST(Repr):
 
 	datatype = None
 	rules = None
+	_restore_tokens = None
 
 	def __init__(self, *content: T_AST_Content):
 		"""
@@ -1067,6 +1076,19 @@ class AST(Repr):
 			yield (name, newspec)
 
 	@classmethod
+	def _vsqltokens(cls, tokens):
+		if cls._restore_tokens is None:
+			return tokens
+		else:
+			# Replace "?" tokens with their original source
+			tokens = list(tokens)
+			replace = iter(cls._restore_tokens)
+			for (i, p) in enumerate(tokens):
+				if p.strip() == "?":
+					tokens[i] = p.replace("?", next(replace))
+			return tuple(tokens)
+
+	@classmethod
 	def add_rules(cls, spec:str, source:str) -> None:
 		"""
 		Register new syntax rules for this AST class.
@@ -1174,6 +1196,9 @@ class AST(Repr):
 				vsqlimpl_pkg.eq_clob_clob(value1, value2)
 		"""
 
+		# Extract non-datatypes from the right hand side
+		vsqltokens = tuple(Rule._re_tokenize.split(spec))[2:]
+
 		# Split on non-names and drop empty parts
 		spec = tuple(filter(None, Rule._re_sep.split(spec)))
 
@@ -1187,7 +1212,7 @@ class AST(Repr):
 				result = spec[0]
 				# Drop name from the signature
 				signature = tuple(p for p in key if isinstance(p, DataType))
-				cls._add_rule(Rule(cls, result, name, key, signature, source))
+				cls._add_rule(Rule(cls, result, name, key, signature, source, vsqltokens))
 
 	def validate(self) -> None:
 		"""
@@ -2111,6 +2136,7 @@ class AndAST(BinaryAST):
 	nodetype = NodeType.BINOP_AND
 	precedence = 4
 	operator = "and"
+	_restore_tokens = ("and", )
 
 
 @ul4on.register("de.livinglogic.vsql.or")
@@ -2122,6 +2148,7 @@ class OrAST(BinaryAST):
 	nodetype = NodeType.BINOP_OR
 	precedence = 4
 	operator = "or"
+	_restore_tokens = ("or", )
 
 
 @ul4on.register("de.livinglogic.vsql.contains")
@@ -2133,6 +2160,7 @@ class ContainsAST(BinaryAST):
 	nodetype = NodeType.BINOP_CONTAINS
 	precedence = 6
 	operator = "in"
+	_restore_tokens = ("in", )
 
 
 @ul4on.register("de.livinglogic.vsql.notcontains")
@@ -2144,6 +2172,7 @@ class NotContainsAST(BinaryAST):
 	nodetype = NodeType.BINOP_NOTCONTAINS
 	precedence = 6
 	operator = "not in"
+	_restore_tokens = ("not in", )
 
 
 @ul4on.register("de.livinglogic.vsql.is")
@@ -2155,6 +2184,7 @@ class IsAST(BinaryAST):
 	nodetype = NodeType.BINOP_IS
 	precedence = 6
 	operator = "is"
+	_restore_tokens = ("is", )
 
 
 @ul4on.register("de.livinglogic.vsql.isnot")
@@ -2166,6 +2196,7 @@ class IsNotAST(BinaryAST):
 	nodetype = NodeType.BINOP_ISNOT
 	precedence = 6
 	operator = "is not"
+	_restore_tokens = ("is not", )
 
 
 @ul4on.register("de.livinglogic.vsql.item")
@@ -2332,6 +2363,7 @@ class IfAST(AST):
 
 	nodetype = NodeType.TERNOP_IF
 	precedence = 3
+	_restore_tokens = ("if", "else")
 
 	def __init__(self, objif:AST, objcond:AST, objelse:AST, *content:T_AST_Content):
 		super().__init__(*content)

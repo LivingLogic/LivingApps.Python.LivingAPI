@@ -1,9 +1,18 @@
+0.33.0 (2024-07-16)
+-------------------
+
+*	Now each vSQL rule stores the specification it was generated from. A string
+	version of that can be retrieved via the method :meth:`str_vsqlsource`.
+
+*	Added the methods :meth:`App.send_mail` and :meth:`App.send_mail`.
+
+
 0.32.0 (2024-06-14)
 -------------------
 
-Add field ``required`` in class ``Field``.
+*	Add field ``required`` in class ``Field``.
 
-Move ``_set_value`` method into ``Field`` subclasses.
+*	Move ``_set_value`` method into ``Field`` subclasses.
 
 
 0.31.0 (2024-05-22)
