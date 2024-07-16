@@ -521,10 +521,6 @@ def error_foreign_control(control:"ll.la.Control") -> str:
 	return f"Control {control!r} belongs to the wrong app."
 
 
-def error_foreign_control(control:"ll.la.Control") -> str:
-	return f"Control {control!r} belongs to the wrong app."
-
-
 def error_control_not_in_view(control:"ll.la.Control", view:"ll.la.View") -> str:
 	return f"Control {control!r} is not in view {view!r}."
 
