@@ -40,6 +40,7 @@ T_opt_handler = Optional["ll.la.handlers.Handler"]
 T_opt_int = Optional[int]
 T_opt_float = Optional[float]
 T_opt_str = Optional[str]
+T_opt_file = Optional["ll.la.File"]
 
 
 ###
@@ -514,10 +515,6 @@ def error_object_deleted(value:Union["ll.la.File", "ll.la.Record"]) -> str:
 
 def error_foreign_view(view:"ll.la.View") -> str:
 	return f"View {view!r} belongs to the wrong app."
-
-
-def error_foreign_control(control:"ll.la.Control") -> str:
-	return f"Control {control!r} belongs to the wrong app."
 
 
 def error_foreign_control(control:"ll.la.Control") -> str:
@@ -2049,7 +2046,7 @@ class Globals(CustomAttributes):
 
 	template_types = ("app_instance", None)
 
-	supported_version = "130"
+	supported_version = "131"
 
 	class Mode(misc.Enum):
 		"""
@@ -2779,6 +2776,7 @@ class App(CustomAttributes):
 		"permissions_url",
 		"datamanageview_url",
 		"seq",
+		"send_mail",
 	})
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
@@ -2991,6 +2989,22 @@ class App(CustomAttributes):
 
 	def seq(self) -> int:
 		return self.globals.handler.appseq(self)
+
+	def send_mail(self, from_: T_opt_str = None, reply_to: T_opt_str = None, to: T_opt_str = None, cc: T_opt_str = None, bcc: T_opt_str = None, subject: T_opt_str = None, body_text: T_opt_str = None, body_html: T_opt_str = None, attachments: T_opt_file = None) -> None:
+		self.globals.handler.send_mail(
+			globals=self.globals,
+			app=self,
+			record=None,
+			from_=from_,
+			reply_to=reply_to,
+			to=to,
+			cc=cc,
+			bcc=bcc,
+			subject=subject,
+			body_text=body_text,
+			body_html=body_html,
+			attachments=attachments,
+		)
 
 	def __getattr__(self, name):
 		if name.startswith("c_"):
@@ -5883,6 +5897,7 @@ class Record(CustomAttributes):
 		"display_embedded_url",
 		"display_standalone_url",
 		"display_url",
+		"send_mail",
 	})
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
@@ -6244,6 +6259,22 @@ class Record(CustomAttributes):
 			return self.display_standalone_url(**params)
 		else:
 			return self.display_embedded_url(**params)
+
+	def send_mail(self, from_: T_opt_str = None, reply_to: T_opt_str = None, to: T_opt_str = None, cc: T_opt_str = None, bcc: T_opt_str = None, subject: T_opt_str = None, body_text: T_opt_str = None, body_html: T_opt_str = None, attachments: T_opt_file = None) -> None:
+		self.globals.handler.send_mail(
+			globals=self.app.globals,
+			app=self.app,
+			record=self,
+			from_=from_,
+			reply_to=reply_to,
+			to=to,
+			cc=cc,
+			bcc=bcc,
+			subject=subject,
+			body_text=body_text,
+			body_html=body_html,
+			attachments=attachments,
+		)
 
 	def has_errors(self):
 		if self.errors:
@@ -8603,10 +8634,9 @@ class AppParameter(Base):
 		The template library this parameter belong to.
 
 	.. attribute:: owner
-		:type: Union[App, TemplateLibrary]
+		:type: App
 
-		The object this parameter belong to. This is either a :class:`App` or
-		a :class:`TemplatLibrary`.
+		The app this parameter belong to.
 
 	.. attribute:: parent
 		:type: Optional[AppParameter]
@@ -8706,7 +8736,7 @@ class AppParameter(Base):
 		DICT = "dict"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	owner = Attr(App, TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	owner = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	parent = Attr(lambda: AppParameter, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	type = EnumAttr(Type, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	order = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
