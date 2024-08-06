@@ -2046,7 +2046,7 @@ class Globals(CustomAttributes):
 
 	template_types = ("app_instance", None)
 
-	supported_version = "130"
+	supported_version = "131"
 
 	class Mode(misc.Enum):
 		"""
@@ -8634,10 +8634,9 @@ class AppParameter(Base):
 		The template library this parameter belong to.
 
 	.. attribute:: owner
-		:type: Union[App, TemplateLibrary]
+		:type: App
 
-		The object this parameter belong to. This is either a :class:`App` or
-		a :class:`TemplatLibrary`.
+		The app this parameter belong to.
 
 	.. attribute:: parent
 		:type: Optional[AppParameter]
@@ -8737,7 +8736,7 @@ class AppParameter(Base):
 		DICT = "dict"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	owner = Attr(App, TemplateLibrary, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	owner = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	parent = Attr(lambda: AppParameter, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	type = EnumAttr(Type, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	order = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
