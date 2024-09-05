@@ -3333,6 +3333,7 @@ class App(CustomAttributes):
 		return result
 
 
+@register("field")
 class Field(CustomAttributes):
 	r"""
 	A :class:`!Field` object contains the value of a certain field (i.e. a
@@ -3518,6 +3519,7 @@ class Field(CustomAttributes):
 		self._required = decoder.load()
 
 
+@register("boolfield")
 class BoolField(Field):
 	template_types = ("field_bool_instance", "field_instance")
 
@@ -3535,6 +3537,7 @@ class BoolField(Field):
 		self._value = value
 
 
+@register("intfield")
 class IntField(Field):
 	template_types = ("field_int_instance", "field_instance")
 
@@ -3556,6 +3559,7 @@ class IntField(Field):
 		self._value = value
 
 
+@register("numberfield")
 class NumberField(Field):
 	template_types = ("field_number_instance", "field_instance")
 
@@ -3593,6 +3597,7 @@ class NumberField(Field):
 		self._value = value
 
 
+@register("stringfield")
 class StringField(Field):
 	template_types = ("field_string_instance", "field_instance")
 
@@ -3614,10 +3619,12 @@ class StringField(Field):
 		self._value = value
 
 
+@register("textfield")
 class TextField(StringField):
 	pass
 
 
+@register("urlfield")
 class URLField(StringField):
 	def _set_value(self, value):
 		if isinstance(value, str) and value:
@@ -3626,6 +3633,7 @@ class URLField(StringField):
 		super()._set_value(value)
 
 
+@register("emailfield")
 class EmailField(StringField):
 	_pattern = re.compile("^[a-zA-Z0-9_#$%&’*+/=?^.-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$")
 
@@ -3640,6 +3648,7 @@ class EmailField(StringField):
 		super()._set_value(value)
 
 
+@register("telfield")
 class TelField(StringField):
 	_pattern = re.compile("^\\+?[0-9 /()-]+$")
 
@@ -3649,18 +3658,22 @@ class TelField(StringField):
 		super()._set_value(value)
 
 
+@register("passwordfield")
 class PasswordField(StringField):
 	pass
 
 
+@register("textareafield")
 class TextAreaField(StringField):
 	pass
 
 
+@register("htmlfield")
 class HTMLField(StringField):
 	pass
 
 
+@register("datefield")
 class DateField(Field):
 	template_types = ("field_date_instance", "field_instance")
 
@@ -3701,6 +3714,7 @@ class DateField(Field):
 		self._value = value
 
 
+@register("datetimeminutefield")
 class DatetimeMinuteField(DateField):
 	def _convert(self, value):
 		if isinstance(value, datetime.datetime):
@@ -3710,6 +3724,7 @@ class DatetimeMinuteField(DateField):
 		return value
 
 
+@register("datetimesecondfield")
 class DatetimeSecondField(DateField):
 	def _convert(self, value):
 		if isinstance(value, datetime.datetime):
@@ -3719,6 +3734,7 @@ class DatetimeSecondField(DateField):
 		return value
 
 
+@register("filefield")
 class FileField(Field):
 	template_types = ("field_file_instance", "field_instance")
 
@@ -3733,6 +3749,7 @@ class FileField(Field):
 		self._value = value
 
 
+@register("filesignaturefield")
 class FileSignatureField(FileField):
 	def _set_value(self, value):
 		if isinstance(value, str) and value:
@@ -3775,6 +3792,7 @@ class FileSignatureField(FileField):
 		self._value = value
 
 
+@register("geofield")
 class GeoField(Field):
 	template_types = ("field_geo_instance", "field_instance")
 
@@ -3797,6 +3815,7 @@ class GeoField(Field):
 		self._value = value
 
 
+@register("lookupfield")
 class LookupField(Field):
 	r"""
 	Adds the following attribute to instances:
@@ -3886,18 +3905,22 @@ class LookupField(Field):
 				self.add_error(error)
 
 
+@register("lookupselectfield")
 class LookupSelectField(LookupField):
 	pass
 
 
+@register("lookupradiofield")
 class LookupRadioField(LookupField):
 	pass
 
 
+@register("lookupchoicefield")
 class LookupChoiceField(LookupField):
 	pass
 
 
+@register("applookupfield")
 class AppLookupField(Field):
 	r"""
 	Adds the following attribute to instances:
@@ -3917,6 +3940,10 @@ class AppLookupField(Field):
 	ul4_attrs = Field.ul4_attrs.union({"lookupdata", "has_custom_lookupdata"})
 
 	template_types = ("field_applookup_instance", "field_instance")
+
+	def __init__(self, control, record, value):
+		super().__init__(control, record, value)
+		self._lookupdata = None
 
 	@property
 	def lookupdata(self):
@@ -3982,19 +4009,73 @@ class AppLookupField(Field):
 			if error is not None:
 				self.add_error(error)
 
+	def ul4ondump(self, encoder):
+		super().ul4ondump(encoder)
+		encoder.dump(self._lookupdata)
 
+	def ul4onload(self, decoder):
+		super().ul4onload(decoder)
+		self._lookupdata = decoder.load()
+
+
+@register("applookupselectfield")
 class AppLookupSelectField(AppLookupField):
 	pass
 
 
+@register("applookupradiofield")
 class AppLookupRadioField(AppLookupField):
 	pass
 
 
+@register("applookupchoicefield")
 class AppLookupChoiceField(AppLookupField):
-	pass
+	ul4_attrs = AppLookupField.ul4_attrs.union({"search_url", "search_param_name", "target_param_name"})
+ 
+	def __init__(self, control, record, value):
+		super().__init__(control, record, value)
+		self._search_url = None
+		self._search_param_name = None
+		self._target_param_name = None
+                                                
+	@property
+	def search_url(self):
+		return self._search_url if self._search_url is not None else self.control.search_url
+
+	@search_url.setter
+	def search_url(self, search_url):
+		self._search_url = search_url
+
+	@property
+	def search_param_name(self):
+		return self._search_param_name if self._search_param_name is not None else self.control.search_param_name
+
+	@search_param_name.setter
+	def search_param_name(self, search_param_name):
+		self._search_param_name = search_param_name
+
+	@property
+	def target_param_name(self):
+		return self._target_param_name if self._target_param_name is not None else self.control.target_param_name
+
+	@target_param_name.setter
+	def target_param_name(self, target_param_name):
+		self._target_param_name = target_param_name
+
+	def ul4ondump(self, encoder):
+		super().ul4ondump(encoder)
+		encoder.dump(self._search_url)
+		encoder.dump(self._search_param_name)
+		encoder.dump(self._target_param_name)
+
+	def ul4onload(self, decoder):
+		super().ul4onload(decoder)
+		self._search_url = decoder.load()
+		self._search_param_name = decoder.load()
+		self._target_param_name = decoder.load()
 
 
+@register("multiplelookupfield")
 class MultipleLookupField(LookupField):
 	template_types = ("field_multiplelookup_instance", "field_instance")
 
@@ -4028,18 +4109,22 @@ class MultipleLookupField(LookupField):
 			self._value = []
 
 
+@register("multiplelookupselectfield")
 class MultipleLookupSelectField(MultipleLookupField):
 	pass
 
 
+@register("multiplelookupcheckboxfield")
 class MultipleLookupCheckboxField(MultipleLookupField):
 	pass
 
 
+@register("multiplelookupchoicefield")
 class MultipleLookupChoiceField(MultipleLookupField):
 	pass
 
 
+@register("multipleapplookupfield")
 class MultipleAppLookupField(AppLookupField):
 	template_types = ("field_multipleapplookup_instance", "field_instance")
 
@@ -4081,14 +4166,17 @@ class MultipleAppLookupField(AppLookupField):
 			self._value = []
 
 
+@register("multipleapplookupselectfield")
 class MultipleAppLookupSelectField(MultipleAppLookupField):
 	pass
 
 
+@register("multipleapplookupcheckboxfield")
 class MultipleAppLookupCheckboxField(MultipleAppLookupField):
 	pass
 
 
+@register("multipleapplookupchoicefield")
 class MultipleAppLookupChoiceField(MultipleAppLookupField):
 	pass
 
@@ -5259,9 +5347,17 @@ class AppLookupChoiceControl(AppLookupControl):
 	_subtype = "choice"
 	_fulltype = f"{AppLookupControl._type}/{_subtype}"
 
+	ul4_attrs = AppLookupControl.ul4_attrs.union({"search_url", "search_param_name", "target_param_name"})
 	ul4_type = ul4c.Type("la", "AppLookupChoiceControl", "A LivingApps applookup field (type 'applookup/choice')")
 
-	fieldtype = AppLookupRadioField
+	fieldtype = AppLookupChoiceField
+                                                
+	@property
+	def search_url(self):
+		return self.app.template_url(f"field_{self.identifier}_search")
+
+	search_param_name = "q"
+	target_param_name = "target"
 
 
 class MultipleLookupControl(LookupControl):

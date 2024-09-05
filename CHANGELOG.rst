@@ -1,3 +1,10 @@
+HEAD (2024-??-??)
+-------------------
+
+*	Add new UL4 attributes ``search_url``, ``search_param_name`` and ``target_param_name`` in
+	``AppLookupChoiceControl`` and ``AppLookupChoiceField``.
+
+
 0.34.1 (2024-08-06)
 -------------------
 
