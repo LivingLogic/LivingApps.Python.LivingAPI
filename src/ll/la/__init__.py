@@ -3333,7 +3333,6 @@ class App(CustomAttributes):
 		return result
 
 
-@register("field")
 class Field(CustomAttributes):
 	r"""
 	A :class:`!Field` object contains the value of a certain field (i.e. a
@@ -3519,7 +3518,6 @@ class Field(CustomAttributes):
 		self._required = decoder.load()
 
 
-@register("boolfield")
 class BoolField(Field):
 	template_types = ("field_bool_instance", "field_instance")
 
@@ -3537,7 +3535,6 @@ class BoolField(Field):
 		self._value = value
 
 
-@register("intfield")
 class IntField(Field):
 	template_types = ("field_int_instance", "field_instance")
 
@@ -3559,7 +3556,6 @@ class IntField(Field):
 		self._value = value
 
 
-@register("numberfield")
 class NumberField(Field):
 	template_types = ("field_number_instance", "field_instance")
 
@@ -3597,7 +3593,6 @@ class NumberField(Field):
 		self._value = value
 
 
-@register("stringfield")
 class StringField(Field):
 	template_types = ("field_string_instance", "field_instance")
 
@@ -3619,12 +3614,10 @@ class StringField(Field):
 		self._value = value
 
 
-@register("textfield")
 class TextField(StringField):
 	pass
 
 
-@register("urlfield")
 class URLField(StringField):
 	def _set_value(self, value):
 		if isinstance(value, str) and value:
@@ -3633,7 +3626,6 @@ class URLField(StringField):
 		super()._set_value(value)
 
 
-@register("emailfield")
 class EmailField(StringField):
 	_pattern = re.compile("^[a-zA-Z0-9_#$%&’*+/=?^.-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$")
 
@@ -3648,7 +3640,6 @@ class EmailField(StringField):
 		super()._set_value(value)
 
 
-@register("telfield")
 class TelField(StringField):
 	_pattern = re.compile("^\\+?[0-9 /()-]+$")
 
@@ -3658,22 +3649,18 @@ class TelField(StringField):
 		super()._set_value(value)
 
 
-@register("passwordfield")
 class PasswordField(StringField):
 	pass
 
 
-@register("textareafield")
 class TextAreaField(StringField):
 	pass
 
 
-@register("htmlfield")
 class HTMLField(StringField):
 	pass
 
 
-@register("datefield")
 class DateField(Field):
 	template_types = ("field_date_instance", "field_instance")
 
@@ -3714,7 +3701,6 @@ class DateField(Field):
 		self._value = value
 
 
-@register("datetimeminutefield")
 class DatetimeMinuteField(DateField):
 	def _convert(self, value):
 		if isinstance(value, datetime.datetime):
@@ -3724,7 +3710,6 @@ class DatetimeMinuteField(DateField):
 		return value
 
 
-@register("datetimesecondfield")
 class DatetimeSecondField(DateField):
 	def _convert(self, value):
 		if isinstance(value, datetime.datetime):
@@ -3734,7 +3719,6 @@ class DatetimeSecondField(DateField):
 		return value
 
 
-@register("filefield")
 class FileField(Field):
 	template_types = ("field_file_instance", "field_instance")
 
@@ -3749,7 +3733,6 @@ class FileField(Field):
 		self._value = value
 
 
-@register("filesignaturefield")
 class FileSignatureField(FileField):
 	def _set_value(self, value):
 		if isinstance(value, str) and value:
@@ -3792,7 +3775,6 @@ class FileSignatureField(FileField):
 		self._value = value
 
 
-@register("geofield")
 class GeoField(Field):
 	template_types = ("field_geo_instance", "field_instance")
 
@@ -3815,7 +3797,6 @@ class GeoField(Field):
 		self._value = value
 
 
-@register("lookupfield")
 class LookupField(Field):
 	r"""
 	Adds the following attribute to instances:
@@ -3905,22 +3886,18 @@ class LookupField(Field):
 				self.add_error(error)
 
 
-@register("lookupselectfield")
 class LookupSelectField(LookupField):
 	pass
 
 
-@register("lookupradiofield")
 class LookupRadioField(LookupField):
 	pass
 
 
-@register("lookupchoicefield")
 class LookupChoiceField(LookupField):
 	pass
 
 
-@register("applookupfield")
 class AppLookupField(Field):
 	r"""
 	Adds the following attribute to instances:
@@ -4018,17 +3995,14 @@ class AppLookupField(Field):
 		self._lookupdata = decoder.load()
 
 
-@register("applookupselectfield")
 class AppLookupSelectField(AppLookupField):
 	pass
 
 
-@register("applookupradiofield")
 class AppLookupRadioField(AppLookupField):
 	pass
 
 
-@register("applookupchoicefield")
 class AppLookupChoiceField(AppLookupField):
 	ul4_attrs = AppLookupField.ul4_attrs.union({"search_url", "search_param_name", "target_param_name"})
  
@@ -4037,7 +4011,7 @@ class AppLookupChoiceField(AppLookupField):
 		self._search_url = None
 		self._search_param_name = None
 		self._target_param_name = None
-                                                
+
 	@property
 	def search_url(self):
 		return self._search_url if self._search_url is not None else self.control.search_url
@@ -4062,20 +4036,7 @@ class AppLookupChoiceField(AppLookupField):
 	def target_param_name(self, target_param_name):
 		self._target_param_name = target_param_name
 
-	def ul4ondump(self, encoder):
-		super().ul4ondump(encoder)
-		encoder.dump(self._search_url)
-		encoder.dump(self._search_param_name)
-		encoder.dump(self._target_param_name)
 
-	def ul4onload(self, decoder):
-		super().ul4onload(decoder)
-		self._search_url = decoder.load()
-		self._search_param_name = decoder.load()
-		self._target_param_name = decoder.load()
-
-
-@register("multiplelookupfield")
 class MultipleLookupField(LookupField):
 	template_types = ("field_multiplelookup_instance", "field_instance")
 
@@ -4109,22 +4070,18 @@ class MultipleLookupField(LookupField):
 			self._value = []
 
 
-@register("multiplelookupselectfield")
 class MultipleLookupSelectField(MultipleLookupField):
 	pass
 
 
-@register("multiplelookupcheckboxfield")
 class MultipleLookupCheckboxField(MultipleLookupField):
 	pass
 
 
-@register("multiplelookupchoicefield")
 class MultipleLookupChoiceField(MultipleLookupField):
 	pass
 
 
-@register("multipleapplookupfield")
 class MultipleAppLookupField(AppLookupField):
 	template_types = ("field_multipleapplookup_instance", "field_instance")
 
@@ -4166,17 +4123,14 @@ class MultipleAppLookupField(AppLookupField):
 			self._value = []
 
 
-@register("multipleapplookupselectfield")
 class MultipleAppLookupSelectField(MultipleAppLookupField):
 	pass
 
 
-@register("multipleapplookupcheckboxfield")
 class MultipleAppLookupCheckboxField(MultipleAppLookupField):
 	pass
 
 
-@register("multipleapplookupchoicefield")
 class MultipleAppLookupChoiceField(MultipleAppLookupField):
 	pass
 
@@ -6025,9 +5979,12 @@ class Record(CustomAttributes):
 		self.updatedat = updatedat
 		self.updatedby = updatedby
 		self.updatecount = updatecount
-		self._sparsevalues = attrdict()
-		self._sparsefielderrors = attrdict()
-		self._sparselookupdata = attrdict()
+		self._sparse_values = attrdict()
+		self._sparse_fielderrors = attrdict()
+		self._sparse_lookupdata = attrdict()
+		self._sparse_search_url = attrdict()
+		self._sparse_search_param_name = attrdict()
+		self._sparse_target_param_name = attrdict()
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
 		self.children = attrdict()
@@ -6056,16 +6013,16 @@ class Record(CustomAttributes):
 			field = control.fieldtype(control, self, value)
 			fields[identifier] = field
 		self.__dict__["fields"] = fields
-		self._sparsevalues = None
-		self._sparsefielderrors = None
-		self._sparselookupdata = None
+		self._sparse_values = None
+		self._sparse_fielderrors = None
+		self._sparse_lookupdata = None
 
 	def _template_candidates(self):
 		yield from self.app._template_candidates()
 
 	def _fields_get(self):
 		if self.__dict__["fields"] is None:
-			self._make_fields(False, self._sparsevalues, self._sparsefielderrors, self._sparselookupdata)
+			self._make_fields(False, self._sparse_values, self._sparse_fielderrors, self._sparse_lookupdata)
 		return self.__dict__["fields"]
 
 	def _values_get(self):
@@ -6074,18 +6031,18 @@ class Record(CustomAttributes):
 			values = attrdict()
 			for field in self.fields.values():
 				values[field.control.identifier] = field.value
-			self._sparsevalues = None
+			self._sparse_values = None
 			self.__dict__["values"] = values
 		return values
 
 	def _values_ul4onget(self):
-		values = self._sparsevalues
+		values = self._sparse_values
 		if values is None:
 			values = {field.control.identifier: field.value for field in self.fields.values() if not field.is_empty()}
 		return values
 
 	def _values_ul4onset(self, value):
-		self._sparsevalues = value
+		self._sparse_values = value
 		# Set the following attributes via ``__dict__``, as they are "read only".
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
@@ -6108,14 +6065,14 @@ class Record(CustomAttributes):
 		return self._attachments
 
 	def _fielderrors_ul4onget(self):
-		if self._sparsefielderrors is not None:
-			return self._sparsefielderrors
+		if self._sparse_fielderrors is not None:
+			return self._sparse_fielderrors
 
 		result = {field.control.identifier: field.errors for field in self.fields.values() if field.has_errors()}
 		return result or None
 
 	def _fielderrors_ul4onset(self, value):
-		self._sparsefielderrors = value
+		self._sparse_fielderrors = value
 		# Set the following attributes via ``__dict__``, as they are "read only".
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
@@ -6124,7 +6081,7 @@ class Record(CustomAttributes):
 		pass
 
 	def _lookupdata_ul4onset(self, value):
-		self._sparselookupdata = value
+		self._sparse_lookupdata = value
 		# Set the following attributes via ``__dict__``, as they are "read only".
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
@@ -6375,7 +6332,7 @@ class Record(CustomAttributes):
 	def has_errors(self):
 		if self.errors:
 			return True
-		elif self._sparsevalues is not None:
+		elif self._sparse_values is not None:
 			# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't contain errors
 			return False
 		else:
@@ -6384,7 +6341,7 @@ class Record(CustomAttributes):
 	def has_errors_in_active_view(self):
 		if self.errors:
 			return True
-		elif self._sparsevalues is not None:
+		elif self._sparse_values is not None:
 			# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't contain errors
 			return False
 		elif self.app.active_view is not None:
@@ -6403,7 +6360,7 @@ class Record(CustomAttributes):
 	def clear_all_errors(self):
 		self.clear_errors()
 		# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't contain errors
-		if self._sparsevalues is None:
+		if self._sparse_values is None:
 			for field in self.fields.values():
 				field.clear_errors()
 
@@ -6411,14 +6368,14 @@ class Record(CustomAttributes):
 		if self.errors:
 			raise RecordValidationError(self, self.errors[0])
 		# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't contain errors
-		if self._sparsevalues is None:
+		if self._sparse_values is None:
 			for field in self.fields.values():
 				field.check_errors()
 
 	def is_dirty(self):
 		if self.id is None:
 			return True
-		elif self._sparsevalues is not None:
+		elif self._sparse_values is not None:
 			# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't be dirty
 			return False
 		else:
