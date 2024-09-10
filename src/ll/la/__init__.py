@@ -4004,6 +4004,27 @@ class AppLookupRadioField(AppLookupField):
 
 
 class AppLookupChoiceField(AppLookupField):
+	"""
+	:class:`AppLookupChoiceField` has the following additional attributes:
+
+	.. attribute:: search_url
+		:type: str
+
+		The URL to use for the ajax search in view templates. This value is
+		inherited from the control and can be changed.
+
+	.. attribute:: search_param_name
+		:type: str
+
+		The name for the parameter containing the search term. This value is
+		inherited from the control and can be changed.
+
+	.. attribute:: target_param_name
+		:type: str
+
+		The name for the parameter containing css selector for the target html element.
+		This value is inherited from the control and can be changed.
+	"""
 	ul4_attrs = AppLookupField.ul4_attrs.union({"search_url", "search_param_name", "target_param_name"})
  
 	def __init__(self, control, record, value):
@@ -5296,6 +5317,23 @@ class AppLookupRadioControl(AppLookupControl):
 class AppLookupChoiceControl(AppLookupControl):
 	"""
 	Describes a field of type ``applookup``/``choice``.
+ 
+	:class:`AppLookupChoiceControl` has the following additional attributes:
+
+	.. attribute:: search_url
+		:type: str
+
+		The URL to use for the ajax search in view templates.
+
+	.. attribute:: search_param_name
+		:type: str
+
+		The name for the parameter containing the search term.
+
+	.. attribute:: target_param_name
+		:type: str
+
+		The name for the parameter containing css selector for the target html element.
 	"""
 
 	_subtype = "choice"
