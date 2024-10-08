@@ -1,3 +1,10 @@
+0.36.0 (2024-10-08)
+-------------------
+
+*	Add new UL4 attribute ``recordedat`` in class ``File`` which holds the point in time when
+	the file was recorded.
+
+
 0.35.0 (2024-09-10)
 -------------------
 

@@ -1377,6 +1377,26 @@ class File(Base):
 
 		Height in pixels if this file is an image.
 
+	.. attribute:: size
+		:type: int
+
+		The filesize in bytes.
+
+	.. attribute:: duration
+		:type: Optional[int]
+
+		Duration of the audio or video file in milliseconds.
+
+	.. attribute:: geo
+		:type: Optional[Geo]
+
+		Location where the original file was recorded/created (extracted from EXIF).
+
+	.. attribute:: recordedat
+		:type: datetime.datetime
+
+		Point in time when the original file was recorded/created (extracted from EXIF).
+
 	.. attribute:: internal_id
 		:type: str
 
@@ -1386,14 +1406,9 @@ class File(Base):
 		:type: datetime.datetime
 
 		When was this file uploaded?
-
-	.. attribute:: size
-		:type: int
-
-		The filesize in bytes.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "url", "filename", "mimetype", "width", "height", "size", "recordedat", "createdat"})
 	ul4_type = ul4c.Type("la", "File", "An uploaded file")
 
 	template_types = ("file_instance",)
@@ -1409,13 +1424,14 @@ class File(Base):
 	size = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	duration = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	geo = Attr(lambda: Geo, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	recordedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	storagefilename = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	archive = Attr(lambda: File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	url = Attr(str, get="", ul4get="_url_get", repr="_url_repr")
 	archive_url = Attr(str, get=True, ul4get=True)
 	context_id = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, storagefilename=None, archive=None, internal_id=None, createdat=None, content=None):
+	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, recordedat=None, storagefilename=None, archive=None, internal_id=None, createdat=None, content=None):
 		self.id = id
 		self.globals = None
 		self.filename = filename
@@ -1425,6 +1441,7 @@ class File(Base):
 		self.size = size
 		self.duration = duration
 		self.geo = geo
+		self.recordedat = recordedat
 		self.storagefilename = storagefilename
 		self.internal_id = internal_id
 		self.createdat = createdat
@@ -1501,7 +1518,8 @@ class File(Base):
 		height=(vsql.DataType.INT, "upl_height"),
 		size=(vsql.DataType.INT, "upl_size"),
 		duration=(vsql.DataType.INT, "upl_duration"),
-		createdat=(vsql.DataType.DATETIME, "upl_cdate"),
+		recordedat=(vsql.DataType.DATETIME, "upl_recorddate"),
+		createdat=(vsql.DataType.DATETIME, "upl_ctimestamp"),
 	)
 
 
