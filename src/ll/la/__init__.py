@@ -1377,6 +1377,26 @@ class File(Base):
 
 		Height in pixels if this file is an image.
 
+	.. attribute:: size
+		:type: int
+
+		The filesize in bytes.
+
+	.. attribute:: duration
+		:type: Optional[int]
+
+		Duration of the audio or video file in milliseconds.
+
+	.. attribute:: geo
+		:type: Optional[Geo]
+
+		Location where the original file was recorded/created (extracted from EXIF).
+
+	.. attribute:: recordedat
+		:type: datetime.datetime
+
+		Point in time when the original file was recorded/created (extracted from EXIF).
+
 	.. attribute:: internal_id
 		:type: str
 
@@ -1386,14 +1406,9 @@ class File(Base):
 		:type: datetime.datetime
 
 		When was this file uploaded?
-
-	.. attribute:: size
-		:type: int
-
-		The filesize in bytes.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "url", "filename", "mimetype", "width", "height", "size", "createdat"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "url", "filename", "mimetype", "width", "height", "size", "recordedat", "createdat"})
 	ul4_type = ul4c.Type("la", "File", "An uploaded file")
 
 	template_types = ("file_instance",)
@@ -1409,13 +1424,14 @@ class File(Base):
 	size = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	duration = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	geo = Attr(lambda: Geo, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	recordedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	storagefilename = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	archive = Attr(lambda: File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	url = Attr(str, get="", ul4get="_url_get", repr="_url_repr")
 	archive_url = Attr(str, get=True, ul4get=True)
 	context_id = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, storagefilename=None, archive=None, internal_id=None, createdat=None, content=None):
+	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, recordedat=None, storagefilename=None, archive=None, internal_id=None, createdat=None, content=None):
 		self.id = id
 		self.globals = None
 		self.filename = filename
@@ -1425,6 +1441,7 @@ class File(Base):
 		self.size = size
 		self.duration = duration
 		self.geo = geo
+		self.recordedat = recordedat
 		self.storagefilename = storagefilename
 		self.internal_id = internal_id
 		self.createdat = createdat
@@ -1501,7 +1518,8 @@ class File(Base):
 		height=(vsql.DataType.INT, "upl_height"),
 		size=(vsql.DataType.INT, "upl_size"),
 		duration=(vsql.DataType.INT, "upl_duration"),
-		createdat=(vsql.DataType.DATETIME, "upl_cdate"),
+		recordedat=(vsql.DataType.DATETIME, "upl_recorddate"),
+		createdat=(vsql.DataType.DATETIME, "upl_ctimestamp"),
 	)
 
 
@@ -3918,6 +3936,10 @@ class AppLookupField(Field):
 
 	template_types = ("field_applookup_instance", "field_instance")
 
+	def __init__(self, control, record, value):
+		super().__init__(control, record, value)
+		self._lookupdata = None
+
 	@property
 	def lookupdata(self):
 		lookupdata = self._lookupdata
@@ -3982,6 +4004,14 @@ class AppLookupField(Field):
 			if error is not None:
 				self.add_error(error)
 
+	def ul4ondump(self, encoder):
+		super().ul4ondump(encoder)
+		encoder.dump(self._lookupdata)
+
+	def ul4onload(self, decoder):
+		super().ul4onload(decoder)
+		self._lookupdata = decoder.load()
+
 
 class AppLookupSelectField(AppLookupField):
 	pass
@@ -3992,7 +4022,58 @@ class AppLookupRadioField(AppLookupField):
 
 
 class AppLookupChoiceField(AppLookupField):
-	pass
+	"""
+	:class:`AppLookupChoiceField` has the following additional attributes:
+
+	.. attribute:: search_url
+		:type: str
+
+		The URL to use for the ajax search in view templates. This value is
+		inherited from the control and can be changed.
+
+	.. attribute:: search_param_name
+		:type: str
+
+		The name for the parameter containing the search term. This value is
+		inherited from the control and can be changed.
+
+	.. attribute:: target_param_name
+		:type: str
+
+		The name for the parameter containing css selector for the target html element.
+		This value is inherited from the control and can be changed.
+	"""
+	ul4_attrs = AppLookupField.ul4_attrs.union({"search_url", "search_param_name", "target_param_name"})
+ 
+	def __init__(self, control, record, value):
+		super().__init__(control, record, value)
+		self._search_url = None
+		self._search_param_name = None
+		self._target_param_name = None
+
+	@property
+	def search_url(self):
+		return self._search_url if self._search_url is not None else self.control.search_url
+
+	@search_url.setter
+	def search_url(self, search_url):
+		self._search_url = search_url
+
+	@property
+	def search_param_name(self):
+		return self._search_param_name if self._search_param_name is not None else self.control.search_param_name
+
+	@search_param_name.setter
+	def search_param_name(self, search_param_name):
+		self._search_param_name = search_param_name
+
+	@property
+	def target_param_name(self):
+		return self._target_param_name if self._target_param_name is not None else self.control.target_param_name
+
+	@target_param_name.setter
+	def target_param_name(self, target_param_name):
+		self._target_param_name = target_param_name
 
 
 class MultipleLookupField(LookupField):
@@ -5254,14 +5335,39 @@ class AppLookupRadioControl(AppLookupControl):
 class AppLookupChoiceControl(AppLookupControl):
 	"""
 	Describes a field of type ``applookup``/``choice``.
+ 
+	:class:`AppLookupChoiceControl` has the following additional attributes:
+
+	.. attribute:: search_url
+		:type: str
+
+		The URL to use for the ajax search in view templates.
+
+	.. attribute:: search_param_name
+		:type: str
+
+		The name for the parameter containing the search term.
+
+	.. attribute:: target_param_name
+		:type: str
+
+		The name for the parameter containing css selector for the target html element.
 	"""
 
 	_subtype = "choice"
 	_fulltype = f"{AppLookupControl._type}/{_subtype}"
 
+	ul4_attrs = AppLookupControl.ul4_attrs.union({"search_url", "search_param_name", "target_param_name"})
 	ul4_type = ul4c.Type("la", "AppLookupChoiceControl", "A LivingApps applookup field (type 'applookup/choice')")
 
-	fieldtype = AppLookupRadioField
+	fieldtype = AppLookupChoiceField
+                                                
+	@property
+	def search_url(self):
+		return self.app.template_url(f"field_{self.identifier}_search")
+
+	search_param_name = "q"
+	target_param_name = "target"
 
 
 class MultipleLookupControl(LookupControl):
@@ -5929,9 +6035,12 @@ class Record(CustomAttributes):
 		self.updatedat = updatedat
 		self.updatedby = updatedby
 		self.updatecount = updatecount
-		self._sparsevalues = attrdict()
-		self._sparsefielderrors = attrdict()
-		self._sparselookupdata = attrdict()
+		self._sparse_values = attrdict()
+		self._sparse_fielderrors = attrdict()
+		self._sparse_lookupdata = attrdict()
+		self._sparse_search_url = attrdict()
+		self._sparse_search_param_name = attrdict()
+		self._sparse_target_param_name = attrdict()
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
 		self.children = attrdict()
@@ -5960,16 +6069,16 @@ class Record(CustomAttributes):
 			field = control.fieldtype(control, self, value)
 			fields[identifier] = field
 		self.__dict__["fields"] = fields
-		self._sparsevalues = None
-		self._sparsefielderrors = None
-		self._sparselookupdata = None
+		self._sparse_values = None
+		self._sparse_fielderrors = None
+		self._sparse_lookupdata = None
 
 	def _template_candidates(self):
 		yield from self.app._template_candidates()
 
 	def _fields_get(self):
 		if self.__dict__["fields"] is None:
-			self._make_fields(False, self._sparsevalues, self._sparsefielderrors, self._sparselookupdata)
+			self._make_fields(False, self._sparse_values, self._sparse_fielderrors, self._sparse_lookupdata)
 		return self.__dict__["fields"]
 
 	def _values_get(self):
@@ -5978,18 +6087,18 @@ class Record(CustomAttributes):
 			values = attrdict()
 			for field in self.fields.values():
 				values[field.control.identifier] = field.value
-			self._sparsevalues = None
+			self._sparse_values = None
 			self.__dict__["values"] = values
 		return values
 
 	def _values_ul4onget(self):
-		values = self._sparsevalues
+		values = self._sparse_values
 		if values is None:
 			values = {field.control.identifier: field.value for field in self.fields.values() if not field.is_empty()}
 		return values
 
 	def _values_ul4onset(self, value):
-		self._sparsevalues = value
+		self._sparse_values = value
 		# Set the following attributes via ``__dict__``, as they are "read only".
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
@@ -6012,14 +6121,14 @@ class Record(CustomAttributes):
 		return self._attachments
 
 	def _fielderrors_ul4onget(self):
-		if self._sparsefielderrors is not None:
-			return self._sparsefielderrors
+		if self._sparse_fielderrors is not None:
+			return self._sparse_fielderrors
 
 		result = {field.control.identifier: field.errors for field in self.fields.values() if field.has_errors()}
 		return result or None
 
 	def _fielderrors_ul4onset(self, value):
-		self._sparsefielderrors = value
+		self._sparse_fielderrors = value
 		# Set the following attributes via ``__dict__``, as they are "read only".
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
@@ -6028,7 +6137,7 @@ class Record(CustomAttributes):
 		pass
 
 	def _lookupdata_ul4onset(self, value):
-		self._sparselookupdata = value
+		self._sparse_lookupdata = value
 		# Set the following attributes via ``__dict__``, as they are "read only".
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
@@ -6279,7 +6388,7 @@ class Record(CustomAttributes):
 	def has_errors(self):
 		if self.errors:
 			return True
-		elif self._sparsevalues is not None:
+		elif self._sparse_values is not None:
 			# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't contain errors
 			return False
 		else:
@@ -6288,7 +6397,7 @@ class Record(CustomAttributes):
 	def has_errors_in_active_view(self):
 		if self.errors:
 			return True
-		elif self._sparsevalues is not None:
+		elif self._sparse_values is not None:
 			# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't contain errors
 			return False
 		elif self.app.active_view is not None:
@@ -6307,7 +6416,7 @@ class Record(CustomAttributes):
 	def clear_all_errors(self):
 		self.clear_errors()
 		# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't contain errors
-		if self._sparsevalues is None:
+		if self._sparse_values is None:
 			for field in self.fields.values():
 				field.clear_errors()
 
@@ -6315,14 +6424,14 @@ class Record(CustomAttributes):
 		if self.errors:
 			raise RecordValidationError(self, self.errors[0])
 		# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't contain errors
-		if self._sparsevalues is None:
+		if self._sparse_values is None:
 			for field in self.fields.values():
 				field.check_errors()
 
 	def is_dirty(self):
 		if self.id is None:
 			return True
-		elif self._sparsevalues is not None:
+		elif self._sparse_values is not None:
 			# Shortcut: If we haven't constructed the :class:`Field` objects yet, they can't be dirty
 			return False
 		else:

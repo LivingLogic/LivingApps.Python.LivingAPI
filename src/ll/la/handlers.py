@@ -514,7 +514,25 @@ class DBHandler(Handler):
 				p_upl_mimetype=file.mimetype,
 				p_upl_width=file.width,
 				p_upl_height=file.height,
+				p_upl_latitude=file.geo.lat if file.geo is not None else None,
+				p_upl_longitude=file.geo.long if file.geo is not None else None,
+				p_upl_recorddate=file.recordedat,
 			)
+			# "c_user=>", userIdP, ", ",
+			# "p_upl_id=>", uplIdP, ", ",
+			# "p_upl_id_super=>", uplIdSuperP, ", ",
+			# "p_upl_name=>", nameP, ", ",
+			# "p_upl_orgname=>", orgNameP, ", ",
+			# "p_upl_size=>", sizeP, ", ",
+			# "p_upl_mimetype=>", mimetypeP, ", ",
+			# "p_upl_width=>", widthP, ", ",
+			# "p_upl_height=>", heightP, ", ",
+			# "p_upl_latitude=>", latitudeP, ", ",
+			# "p_upl_longitude=>", longitudeP, ", ",
+			# "p_upl_recorddate=>", recordedAtP, ", ",
+			# "p_upr_path=>", uprPathP, ", ",
+			# "p_context_id=>", contextIdP,
+   
 			if self.urlcontext is None:
 				self.urlcontext = url.Context()
 			with (self.uploaddir/r.p_upl_name).open("wb", context=self.urlcontext) as f:

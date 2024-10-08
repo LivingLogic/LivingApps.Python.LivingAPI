@@ -1,3 +1,17 @@
+0.36.0 (2024-10-08)
+-------------------
+
+*	Add new UL4 attribute ``recordedat`` in class ``File`` which holds the point in time when
+	the file was recorded.
+
+
+0.35.0 (2024-09-10)
+-------------------
+
+*	Add new UL4 attributes ``search_url``, ``search_param_name`` and ``target_param_name`` in
+	``AppLookupChoiceControl`` and ``AppLookupChoiceField``.
+
+
 0.34.1 (2024-08-06)
 -------------------
 
@@ -18,7 +32,7 @@
 *	Now each vSQL rule stores the specification it was generated from. A string
 	version of that can be retrieved via the method :meth:`str_vsqlsource`.
 
-*	Added the methods :meth:`App.send_mail` and :meth:`App.send_mail`.
+*	Added the methods :meth:`App.send_mail` and :meth:`Record.send_mail`.
 
 
 0.32.0 (2024-06-14)
