@@ -1400,7 +1400,6 @@ class DBHandler(Handler):
 		)
 		return r.p_errormessage
 
-
 	def _executeaction(self, record, actionidentifier):
 		c = self.cursor()
 		r = self.proc_dataaction_execute(
@@ -1429,6 +1428,7 @@ class DBHandler(Handler):
 		c = self.cursor_pg()
 		c.execute("""
 			select
+				ctl_id,
 				it_identifier,
 				tmt_key,
 				utv_source
@@ -1439,12 +1439,17 @@ class DBHandler(Handler):
 		""", [tpl_uuid])
 		templates = la.attrdict()
 		for r in c:
-			(identifier, type, source) = r
-			namespace = f"app_{tpl_uuid}.internaltemplates.{type}" if type else f"app_{tpl_uuid}.internaltemplates"
+			(control_id, identifier, type, source) = r
+			namespace = f"app_{tpl_uuid}.internaltemplates"
+			if type:
+				namespace += f".{type}"
+			if control_id:
+				namespace += f".{control_id}"
 			template = ul4c.Template(source, name=identifier, namespace=namespace)
-			if type not in templates:
-				templates[type] = la.attrdict()
-			templates[type][template.name] = template
+			key = (control_id, type)
+			if key not in templates:
+				templates[key] = la.attrdict()
+			templates[key][template.name] = template
 		self.internaltemplates[tpl_uuid] = templates
 		return templates
 
@@ -1485,9 +1490,10 @@ class DBHandler(Handler):
 				(identifier, type, source) = r
 				namespace = f"templatelibrary.{type}" if type else f"templatelibrary"
 				template = ul4c.Template(source, name=identifier, namespace=namespace)
-				if type not in templates:
-					templates[type] = la.attrdict()
-				templates[type][template.name] = template
+				key = (None, type)
+				if key not in templates:
+					templates[key] = la.attrdict()
+				templates[key][template.name] = template
 			self.librarytemplates = templates
 		return self.librarytemplates
 

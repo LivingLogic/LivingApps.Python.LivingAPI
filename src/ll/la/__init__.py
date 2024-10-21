@@ -1222,10 +1222,10 @@ class CustomAttributes(Base):
 
 	def _fetch_template(self, instance, identifier):
 		for templates in self._template_candidates():
-			for type in instance.template_types:
-				if type in templates and identifier in templates[type]:
-					template = templates[type][identifier]
-					if type is not None:
+			for key in instance.template_types:
+				if key in templates and identifier in templates[key]:
+					template = templates[key][identifier]
+					if key[1] is not None:
 						template = ul4c.BoundTemplate(instance, template)
 					return template
 		return None
@@ -1239,9 +1239,9 @@ class CustomAttributes(Base):
 			if attrname.startswith("x_"):
 				attrs.add(attrname)
 		for templates in self._template_candidates():
-			for type in self.template_types:
-				if type in templates:
-					for identifier in templates:
+			for key in self.template_types:
+				if key in templates:
+					for identifier in templates[key]:
 						attrs.add(f"t_{identifier}")
 		return attrs
 
@@ -1255,8 +1255,8 @@ class CustomAttributes(Base):
 			return name in self.__dict__
 		elif name.startswith("t_"):
 			for templates in self._template_candidates():
-				for type in self.template_types:
-					if type in templates and name[2:] in templates[type]:
+				for key in self.template_types:
+					if key in templates and name[2:] in templates[key]:
 						return True
 			return False
 		else:
@@ -1411,7 +1411,7 @@ class File(Base):
 	ul4_attrs = Base.ul4_attrs.union({"id", "url", "filename", "mimetype", "width", "height", "size", "recordedat", "createdat"})
 	ul4_type = ul4c.Type("la", "File", "An uploaded file")
 
-	template_types = ("file_instance",)
+	template_types = ((None, "file_instance"),)
 
 	id = Attr(str, get=True, set=True, ul4get=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1554,7 +1554,7 @@ class Geo(Base):
 	ul4_attrs = Base.ul4_attrs.union({"lat", "long", "info"})
 	ul4_type = ul4c.Type("la", "Geo", "Geographical coordinates and location information")
 
-	template_types = ("geo_instance",)
+	template_types = ((None, "geo_instance"),)
 
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lat = FloatAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1724,7 +1724,7 @@ class User(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "User", "A LivingApps user/account")
 
-	template_types = ("user_instance",)
+	template_types = ((None, "user_instance"),)
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	publicid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2062,7 +2062,7 @@ class Globals(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
-	template_types = ("app_instance", None)
+	template_types = ((None, "app_instance"), (None, None))
 
 	supported_version = "131"
 
@@ -2798,7 +2798,7 @@ class App(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
-	template_types = ("app_instance", None)
+	template_types = ((None, "app_instance"), (None, None))
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2949,9 +2949,17 @@ class App(CustomAttributes):
 		if self._templates is None:
 			self._templates = attrdict()
 			for templates in reversed(list(self._template_candidates())):
-				for type in self.template_types:
-					if type in templates:
-						self._templates.update(templates[type])
+				for (key, template) in templates.items():
+					for type in self.template_types:
+						identifier = None
+						if type is None:
+							if key is None:
+								identifier = key
+						else:
+							if key is not None and key.startswith(type):
+								identifier = key.rpartition(".")[-1]
+						if identifier is not None:
+							self._templates[identifier] = template
 		return self._templates
 
 	def template_url(self, identifier, record=None, /, **params):
@@ -3421,7 +3429,13 @@ class Field(CustomAttributes):
 	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible", "required"})
 	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
 
-	template_types = ("field_instance",)
+	@property
+	def template_types(self):
+		return (
+			(self.control.id, "field_instance"),
+			(None, f"field_{self.control.type}_instance"),
+			(None, "field_instance"),
+		)
 
 	def __init__(self, control, record, value):
 		super().__init__()
@@ -3511,6 +3525,14 @@ class Field(CustomAttributes):
 		s += f" at {id(self):#x}>"
 		return s
 
+	def __getattr__(self, name):
+		if name.startswith("t_"):
+			identifier = name[2:]
+			template = self.control._fetch_template(self, identifier)
+			if template is not None:
+				return template
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
 	def ul4ondump(self, encoder):
 		encoder.dump(self.control)
 		encoder.dump(self.record)
@@ -3537,8 +3559,6 @@ class Field(CustomAttributes):
 
 
 class BoolField(Field):
-	template_types = ("field_bool_instance", "field_instance")
-
 	def _set_value(self, value):
 		if value is None or value == "":
 			if self.required:
@@ -3554,8 +3574,6 @@ class BoolField(Field):
 
 
 class IntField(Field):
-	template_types = ("field_int_instance", "field_instance")
-
 	def _set_value(self, value):
 		if value is None or value == "":
 			if self.required:
@@ -3575,8 +3593,6 @@ class IntField(Field):
 
 
 class NumberField(Field):
-	template_types = ("field_number_instance", "field_instance")
-
 	def _set_value(self, value):
 		if value is None or value == "":
 			if self.required:
@@ -3612,8 +3628,6 @@ class NumberField(Field):
 
 
 class StringField(Field):
-	template_types = ("field_string_instance", "field_instance")
-
 	def _set_value(self, value):
 		if value is None or value == "":
 			if self.required:
@@ -3680,8 +3694,6 @@ class HTMLField(StringField):
 
 
 class DateField(Field):
-	template_types = ("field_date_instance", "field_instance")
-
 	def _convert(self, value):
 		if isinstance(value, datetime.datetime):
 			value = value.date()
@@ -3738,8 +3750,6 @@ class DatetimeSecondField(DateField):
 
 
 class FileField(Field):
-	template_types = ("field_file_instance", "field_instance")
-
 	def _set_value(self, value):
 		if value is None or value == "":
 			if self.required:
@@ -3794,8 +3804,6 @@ class FileSignatureField(FileField):
 
 
 class GeoField(Field):
-	template_types = ("field_geo_instance", "field_instance")
-
 	def _set_value(self, value):
 		if value is None or value == "":
 			if self.required:
@@ -3833,8 +3841,6 @@ class LookupField(Field):
 	"""
 
 	ul4_attrs = Field.ul4_attrs.union({"lookupdata", "has_custom_lookupdata"})
-
-	template_types = ("field_lookup_instance", "field_instance")
 
 	def __init__(self, control, record, value):
 		super().__init__(control, record, value)
@@ -3933,8 +3939,6 @@ class AppLookupField(Field):
 	"""
 
 	ul4_attrs = Field.ul4_attrs.union({"lookupdata", "has_custom_lookupdata"})
-
-	template_types = ("field_applookup_instance", "field_instance")
 
 	def __init__(self, control, record, value):
 		super().__init__(control, record, value)
@@ -4077,8 +4081,6 @@ class AppLookupChoiceField(AppLookupField):
 
 
 class MultipleLookupField(LookupField):
-	template_types = ("field_multiplelookup_instance", "field_instance")
-
 	def _set_value(self, value):
 		if value is None or value == "" or value == self.control.none_key:
 			if self.required:
@@ -4122,8 +4124,6 @@ class MultipleLookupChoiceField(MultipleLookupField):
 
 
 class MultipleAppLookupField(AppLookupField):
-	template_types = ("field_multipleapplookup_instance", "field_instance")
-
 	def _set_value(self, value):
 		if value is None or value == "" or value == self.control.none_key:
 			if self.required:
@@ -4355,7 +4355,11 @@ class Control(CustomAttributes):
 
 	@property
 	def template_types(self):
-		return (f"control_{self.type}_instance", "control_instance")
+		return (
+			(self.id, "control_instance"),
+			(None, f"control_{self.type}_instance"),
+			(None, "control_instance"),
+		)
 
 	def _template_candidates(self):
 		yield from self.app._template_candidates()
@@ -6007,7 +6011,7 @@ class Record(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
-	template_types = ("record_instance",)
+	template_types = ((None, "record_instance"),)
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	state = EnumAttr(State, get="", required=True, repr=True, ul4get="")
@@ -8007,7 +8011,10 @@ class LayoutControl(CustomAttributes):
 
 	@property
 	def template_types(self):
-		return (f"layoutcontrol_{self.type}_instance", "layoutcontrol_instance")
+		return (
+			(None, f"layoutcontrol_{self.type}_instance"),
+			(None, "layoutcontrol_instance"),
+		)
 
 	def _template_candidates(self):
 		yield from self.view.app._template_candidates()
@@ -9252,7 +9259,7 @@ class MenuItem(CustomAttributes):
 	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "accessible", "children", "createdat", "createdby", "updatedat", "updatedby"})
 	ul4_type = ul4c.Type("la", "MenuItem", "An additional menu item in an app that links to a target page.")
 
-	template_types = ("menuitem_instance",)
+	template_types = ((None, "menuitem_instance"),)
 
 	class Type(misc.Enum):
 		"""
@@ -9462,7 +9469,7 @@ class Panel(MenuItem):
 	ul4_attrs = MenuItem.ul4_attrs.union({"description", "description_url", "image", "row", "column", "width", "height", "header_type", "header_background", "text_color", "background_color1", "background_color2"})
 	ul4_type = ul4c.Type("la", "Panel", "An additional panel in an app that is displayed on various LivingApps pages and links to a target page.")
 
-	template_types = ("panel_instance", "menuitem_instance")
+	template_types = ((None, "panel_instance"), (None, "menuitem_instance"))
 
 	class HeaderType(misc.Enum):
 		"""
