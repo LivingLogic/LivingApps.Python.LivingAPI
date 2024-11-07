@@ -1,3 +1,9 @@
+0.37.0 (2024-11-07)
+-------------------
+
+*	Setting a ``BoolField`` to an empty string now sets the value to ``False``.
+
+
 0.36.0 (2024-10-08)
 -------------------
 
