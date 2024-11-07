@@ -3560,10 +3560,17 @@ class Field(CustomAttributes):
 
 class BoolField(Field):
 	def _set_value(self, value):
-		if value is None or value == "":
+		if value is None:
 			if self.required:
 				self.add_error(error_required(self, value))
 			value = None
+		elif isinstance(value, str):
+			if not value:
+				if self.required:
+					self.add_error(error_required(self, value))
+				value = False
+			else:
+				value = True
 		elif isinstance(value, bool):
 			if not value and self.required:
 				self.add_error(error_truerequired(self, value))
