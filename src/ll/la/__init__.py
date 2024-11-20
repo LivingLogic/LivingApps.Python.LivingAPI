@@ -87,7 +87,7 @@ def url_with_params(url, first, params):
 	:class:`str`
 		Those will be output as is
 
-	:class:`list`
+	:class:`list` or :class:`set`
 		Those will be output recursively as multiple parameters
 
 	Anything else
@@ -113,7 +113,7 @@ def url_with_params(url, first, params):
 		'/url?foo=2022-10-28%2013%3A26%3A42.643636'
 	"""
 	def flatten_param(name, value):
-		if isinstance(value, list):
+		if isinstance(value, (list, set)):
 			for v in value:
 				yield from flatten_param(name, v)
 		elif isinstance(value, str):
@@ -486,6 +486,21 @@ def error_file_invaliddataurl(field:"Field", value:str) -> str:
 		return f'Data-URL ist ungültig.'
 	else:
 		return f'Data URL is invalid.'
+
+
+def error_file_unknown(field:"Field", value:str) -> str:
+	"""
+	Return an error message for an invalid ``data`` URL fir a ``file/signature`` field.
+	"""
+	lang = field.control.app.globals.lang
+	if lang == "de":
+			return f'Die Datei {value} für "{field.label}" wurde nicht gefunden.'
+	elif lang == "fr":
+			return f'Le fichier {value} pour «{field.label}» n\'a pas été trouvé.'
+	elif lang == "it":
+			return f'Il file {value} per "{field.label}" non è stato trovato.'
+	else:
+			return f'The file {value} for "{field.label}" could not be found.'
 
 
 def error_number_format(field:"Field", value:str) -> str:
@@ -2745,6 +2760,15 @@ class App(CustomAttributes):
 		"name",
 		"description",
 		"lang",
+		"gramgen",
+		"typename_nom_sin",
+		"typename_gen_sin",
+		"typename_dat_sin",
+		"typename_acc_sin",
+		"typename_nom_plu",
+		"typename_gen_plu",
+		"typename_dat_plu",
+		"typename_acc_plu",
 		"startlink",
 		"image",
 		"iconlarge",
@@ -2805,6 +2829,15 @@ class App(CustomAttributes):
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	gramgen = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_nom_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_gen_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_dat_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_acc_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_nom_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_gen_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_dat_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_acc_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	startlink = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	iconlarge = Attr(File, get="_image_get", ul4get="_image_get")
@@ -3397,6 +3430,11 @@ class Field(CustomAttributes):
 		:type: list[str]
 
 		List of error messages for this field.
+  
+	.. attribute:: mode
+		:type: Control.Mode
+  
+		TODO
 
 	.. attribute:: enabled
 		:type: bool
@@ -3426,7 +3464,7 @@ class Field(CustomAttributes):
 		resets the value back to the ``required`` field of the :class:`Control`.
 	"""
 
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible", "required"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "value", "is_empty", "is_dirty", "errors", "mode", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible", "required"})
 	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
 
 	@property
@@ -3446,6 +3484,7 @@ class Field(CustomAttributes):
 		self._value = None
 		self._dirty = False
 		self.errors = []
+		self.mode = None
 		self.enabled = True
 		self.writable = True
 		self.visible = True
@@ -3510,6 +3549,14 @@ class Field(CustomAttributes):
 		if self.errors:
 			raise FieldValidationError(self, self.errors[0])
 
+	@property
+	def mode(self):
+		return self.mode if self.mode is not None else self.control.mode
+
+	@mode.setter
+	def mode(self, mode):
+		self.mode = mode
+
 	def _asjson(self, handler):
 		return self.control._asjson(handler, self)
 
@@ -3568,6 +3615,10 @@ class BoolField(Field):
 			if not value:
 				if self.required:
 					self.add_error(error_required(self, value))
+				value = False
+			elif value.lower() in {"false", "no", "0", "off"}:
+				if self.required:
+					self.add_error(error_truerequired(self, value))
 				value = False
 			else:
 				value = True
@@ -3765,6 +3816,13 @@ class FileField(Field):
 		elif not isinstance(value, File):
 			self.add_error(error_wrong_type(self, value))
 			value = None
+		elif isinstance(value, str):
+			file = globals.handler.file_sync_data(value, False)
+			if not file:
+				self.add_error(error_file_unknown(self, value))
+				self._value = None
+			else:
+				self._value = file
 		self._value = value
 
 
@@ -4315,7 +4373,10 @@ class Control(CustomAttributes):
 	class Mode(misc.Enum):
 		DISPLAY = "display"
 		EDIT = "edit"
-
+		READONLY = "readonly"
+		HIDDEN = "hidden"
+		ABSENT = "absent"
+  
 	class LabelPos(misc.Enum):
 		LEFT = "left"
 		RIGHT = "right"
@@ -4448,7 +4509,7 @@ class Control(CustomAttributes):
 		vc = self._get_viewcontrol()
 		if vc is not None:
 			return vc.mode
-		return Control.Mode.EDIT
+		return Control.Mode.DISPLAY
 
 	def _mode_ul4get(self):
 		mode = self._mode_get()

@@ -1,3 +1,19 @@
+HEAD (2024-??-??)
+-------------------
+
+*	Setting a ``BoolField`` to ``"false"``, ``"no"``, ``"0"`` or ``"off"`` now sets the value
+	to ``False``. This is checked in a case insensitive way.
+
+*	Setting a ``BoolField`` to an empty string now sets the value to ``None``.
+
+*	``template_url()`` and related methods now support sets as keyword argument values.
+	They will be handled like lists producing multiple parameters.
+
+*	:class:`Control.Mode` gained three new values: ``READONLY``, ``HIDDEN`` and ``ABSENT``.
+
+*	``Field.mode`` inherits ``Control.mode`` but can be overwritten.
+
+
 0.37.0 (2024-11-07)
 -------------------
 

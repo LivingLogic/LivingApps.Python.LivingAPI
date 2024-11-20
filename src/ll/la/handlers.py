@@ -308,7 +308,7 @@ class Handler:
 
 
 class DBHandler(Handler):
-	def __init__(self, *, connection=None, connectstring=None, connection_postgres=None, connectstring_postgres=None, uploaddir=None, ide_account=None, ide_id=None):
+	def __init__(self, *, connection=None, connectstring=None, connection_postgres=None, connectstring_postgres=None, uploaddir=None, ide_account=None, ide_id=None, session_id=None):
 		"""
 		Create a new :class:`DBHandler`.
 
@@ -403,6 +403,8 @@ class DBHandler(Handler):
 			self.ide_id = r.ide_id
 		else:
 			self.ide_id = None
+
+		self.session_id = session_id
 
 	def __repr__(self) -> str:
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
@@ -894,6 +896,8 @@ class DBHandler(Handler):
 			args["p_tpl_uuid"] = globals.app.id
 		if globals.record is not None:
 			args["p_dat_id"] = globals.record.id
+		if self.session_id is not None:
+			args["p_sessionid"] = self.session_id
 		self.proc_init(cursor, **args)
 
 	def _execute_incremental_ul4on_query(self, cursor, globals, query, **args):
@@ -979,6 +983,26 @@ class DBHandler(Handler):
 		records = self._loaddump(dump)
 		return records
 
+	def file_sync_data(self, file_path, force=False):
+		if not force:
+			result = self.ul4on_decoder.persistent_object(la.File.ul4onname, file_path)
+			if result is not None:
+				return result
+		c = self.cursor()
+		path_parts = file_path.split("/")
+		c.execute(
+			"select livingapi_pkg.upload_sync_ful4on(p_upr_table=>:upr_table, p_upr_pkvalue=>:upr_pkvalue, p_upr_field=>:upr_field, p_upl_id=>:upl_id, p_force=>:force) from dual",
+			upr_table=path_parts[0] if len(path_parts) > 0 else None,
+			upr_pkvalue=path_parts[1] if len(path_parts) > 1 else None,
+			upr_field=path_parts[2] if len(path_parts) > 2 else None,
+			upl_id=path_parts[3] if len(path_parts) > 3 else None,
+			force=int(force),
+		)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		record = self._loaddump(dump)
+		return record
+
 	def _data(self, vt_id=None, et_id=None, vw_id=None, tpl_uuid=None, dat_id=None, dat_ids=None, ctl_identifier=None, searchtext=None, reqparams=None, mode=None, sync=False, exportmeta=False, funcname="data_ful4on"):
 		paramslist = []
 		if reqparams:
@@ -1004,6 +1028,7 @@ class DBHandler(Handler):
 				select
 					livingapi_pkg.data_ful4on(
 						c_user => :c_user,
+						p_sessionid => :p_sessionid,
 						p_reqid => :p_reqid,
 						p_vt_id => :p_vt_id,
 						p_et_id => :p_et_id,
@@ -1022,6 +1047,7 @@ class DBHandler(Handler):
 				from dual
 			""",
 			c_user=self.ide_id,
+			p_sessionid=self.session_id,
 			p_reqid=self.requestid,
 			p_vt_id=vt_id,
 			p_et_id=et_id,

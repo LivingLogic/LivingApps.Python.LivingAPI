@@ -1214,24 +1214,77 @@ def check_field(handler, config_data, identifier, field, value, expected, isre=F
 		assert output == expected
 
 
-def test_changeapi_fieldvalue_bool_string(handler, config_data):
+def test_changeapi_fieldvalue_bool_string_true(handler, config_data):
 	type = "<java.lang.String>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "str"
 
 	check_field(
 		handler,
 		config_data,
-		"test_changeapi_fieldvalue_bool_string",
+		"test_changeapi_fieldvalue_bool_string_true",
 		"nobel_prize",
 		"'Gurk'",
 		f"""
-			en.value=None
-			en.errors0="Nobel prize (en)" doesn't support the type {type}.
-			fr.value=None
-			fr.errors0=«Nobel prize (en)» ne prend pas en charge le type {type}.
-			it.value=None
-			it.errors0="Nobel prize (en)" non supporta il tipo {type}.
-			de.value=None
-			de.errors0="Nobelpreis (de)" unterstützt den Typ {type} nicht.
+			en.value=True
+			fr.value=True
+			it.value=True
+			de.value=True
+		""",
+	)
+
+
+def test_changeapi_fieldvalue_bool_string_false(handler, config_data):
+	type = "<java.lang.String>" if isinstance(handler, (JavaDB, GatewayHTTP)) else "str"
+
+	check_field(
+		handler,
+		config_data,
+		"test_changeapi_fieldvalue_bool_string_true",
+		"nobel_prize",
+		"'faLse'",
+		f"""
+			en.value=False
+			fr.value=False
+			it.value=False
+			de.value=False
+		""",
+	)
+	check_field(
+		handler,
+		config_data,
+		"test_changeapi_fieldvalue_bool_string_true",
+		"nobel_prize",
+		"'nO'",
+		f"""
+			en.value=False
+			fr.value=False
+			it.value=False
+			de.value=False
+		""",
+	)
+	check_field(
+		handler,
+		config_data,
+		"test_changeapi_fieldvalue_bool_string_true",
+		"nobel_prize",
+		"'0'",
+		f"""
+			en.value=False
+			fr.value=False
+			it.value=False
+			de.value=False
+		""",
+	)
+	check_field(
+		handler,
+		config_data,
+		"test_changeapi_fieldvalue_bool_string_true",
+		"nobel_prize",
+		"'oFf'",
+		f"""
+			en.value=False
+			fr.value=False
+			it.value=False
+			de.value=False
 		""",
 	)
 
