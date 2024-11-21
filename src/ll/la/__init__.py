@@ -3484,7 +3484,7 @@ class Field(CustomAttributes):
 		self._value = None
 		self._dirty = False
 		self.errors = []
-		self.mode = None
+		self._mode = None
 		self.enabled = True
 		self.writable = True
 		self.visible = True
@@ -3551,11 +3551,11 @@ class Field(CustomAttributes):
 
 	@property
 	def mode(self):
-		return self.mode if self.mode is not None else self.control.mode
+		return self._mode if self._mode is not None else self.control.mode
 
 	@mode.setter
 	def mode(self, mode):
-		self.mode = mode
+		self._mode = mode
 
 	def _asjson(self, handler):
 		return self.control._asjson(handler, self)
