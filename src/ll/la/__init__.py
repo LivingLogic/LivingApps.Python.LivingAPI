@@ -6125,6 +6125,9 @@ class Record(CustomAttributes):
 	def ul4onid(self) -> str:
 		return self.id
 
+	def __str__(self):
+		return f"app={self.app or '?'}/record={self.id or '?'}"
+
 	def ul4onload_end(self, decoder:ul4on.Decoder) -> None:
 		self._new = False
 		self._deleted = False
@@ -6514,6 +6517,66 @@ class Record(CustomAttributes):
 
 	def is_new(self):
 		return self._new
+
+
+@register("recordchildren")
+class RecordChildren(Base):
+	"""
+	A :class:`RecordChildren` object the details records of a master record and
+	references to the configuration defining this master/detail relation.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id.
+
+	.. attribute:: record
+		:type: Record
+
+		The :class:`Record` these detail records belong to.
+
+	.. attribute:: datasourcechildren
+		:type: :class:`DataSourceChildren`
+
+		The configuration that led to these detail records.
+
+	.. attribute:: records
+		:type: dict[str, Record]
+
+		The detail records as a dictionary mapping record ids to
+		:class:`Record` objects.
+	"""
+
+	ul4_attrs = Base.ul4_attrs.union({"id", "record", "datasourcechildren", "records"})
+	ul4_type = ul4c.Type("la", "DataSourceChildren", "The detail records for a master record")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	record = Attr(Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	datasourcechildren = Attr(lambda: DataSourceChildren, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	records = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None):
+		self.id = id
+		self.record = None
+		self.datasourcechildren = None
+		self.records = {}
+
+	def __str__(self):
+		return f"{self.record or '?'}/recordchildren={self.id}"
+
+	def __repr__(self):
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def _gethandler(self):
+		if self.record is None:
+			raise NoHandlerError()
+		return self.record._gethandler()
 
 
 class Attachment(Base):
@@ -7258,9 +7321,9 @@ class DataSourceChildrenConfig(Base):
 		Unique database id.
 
 	.. attribute:: datasource
-		:type: DataSource
+		:type: DataSourceConfig
 
-		The :class:`DataSource` this object belongs to.
+		The :class:`DataSourceConfig` this object belongs to.
 
 	.. attribute:: identifier
 		:type: str
@@ -8487,6 +8550,68 @@ class ExternalDataSource(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+
+@register("datasourcechildren")
+class DataSourceChildren(Base):
+	"""
+	A :class:`DataSourceChildren` object contains information about detail records
+	for a master record that is available during a running view, form or email templates.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id.
+
+	.. attribute:: datasource
+		:type: DataSource
+
+		The :class:`DataSource` this object belongs to.
+
+	.. attribute:: identifier
+		:type: str
+
+		A unique identifier for this object (unique among the other
+		:class:`DataSourceChildren` objects of the :class:`DataSource`).
+
+	.. attribute:: control
+		:type: Control
+
+		The :class:`AppLookupControl` object that references this app. All records
+		from the controls app that reference our record will be added to the
+		children dict.
+	"""
+
+	ul4_attrs = Base.ul4_attrs.union({"id", "datasource", "identifier", "control"})
+	ul4_type = ul4c.Type("la", "DataSourceChildren", "A master/detail specification in a datasource")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, identifier=None, control=None, filter=None):
+		self.id = id
+		self.datasource = None
+		self.identifier = identifier
+		self.control = control
+
+	def __str__(self):
+		return f"{self.datasource or '?'}/datasourcechildren={self.identifier}"
+
+	def __repr__(self):
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def _gethandler(self):
+		if self.datasource is None:
+			raise NoHandlerError()
+		return self.datasource._gethandler()
 
 
 @register("lookupitem")
