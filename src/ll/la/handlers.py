@@ -272,7 +272,7 @@ class Handler:
 	def save_datasourceconfig(self, datasource, recursive=True):
 		raise NotImplementedError
 
-	def save_datasourcechildren(self, datasourcechildren, recursive=True):
+	def save_datasourcechildrenconfig(self, datasourcechildrenconfig, recursive=True):
 		raise NotImplementedError
 
 	def change_user(self, lang, oldpassword, newpassword, newemail):
@@ -742,9 +742,9 @@ class DBHandler(Handler):
 				ds_id=r.p_ds_id,
 			)
 			for children in datasource.children.values():
-				self.save_datasourcechildren(children, recursive=recursive)
+				self.save_datasourcechildrenconfig(children, recursive=recursive)
 
-	def save_datasourcechildren(self, datasourcechildren, recursive=True):
+	def save_datasourcechildrenconfig(self, datasourcechildrenconfig, recursive=True):
 		cursor = self.cursor()
 
 		# Find the ``ctl_id`` for the target control
@@ -762,17 +762,17 @@ class DBHandler(Handler):
 
 		cursor.execute(
 			query,
-			tpl_uuid=datasourcechildren.control.app.id,
-			ctl_identifier=datasourcechildren.control.identifier,
+			tpl_uuid=datasourcechildrenconfig.control.app.id,
+			ctl_identifier=datasourcechildrenconfig.control.identifier,
 		)
 		ctl_id = cursor.fetchone()[0]
 
 		# Compile and save the record filter
 		vs_id_filter = self.save_vsql_source(
 			cursor,
-			datasourcechildren.filter,
-			la.DataSourceChildren.filter.function,
-			p_ds_id=datasourcechildren.datasource.id,
+			datasourcechildrenconfig.filter,
+			la.DataSourceChildrenConfig.filter.function,
+			p_ds_id=datasourcechildrenconfig.datasource.id,
 			p_ctl_id=ctl_id,
 		)
 
@@ -780,18 +780,18 @@ class DBHandler(Handler):
 		r = self.proc_datasourcechildren_import(
 			cursor,
 			c_user=self.ide_id,
-			p_ds_id=datasourcechildren.datasource.id,
-			p_dsc_identifier=datasourcechildren.identifier,
+			p_ds_id=datasourcechildrenconfig.datasource.id,
+			p_dsc_identifier=datasourcechildrenconfig.identifier,
 			p_ctl_id=ctl_id,
 			p_ctl_id_syscontrol=None,
 			p_vs_id_filter=vs_id_filter,
 		)
-		datasourcechildren.id = r.p_dsc_id
+		datasourcechildrenconfig.id = r.p_dsc_id
 
 		if recursive:
 			self._save_dataorders(
 				cursor,
-				datasourcechildren.orders,
+				datasourcechildrenconfig.orders,
 				"VSQLSUPPORT_PKG3.DSC_ORDER_FUL4ON",
 				dsc_id=r.p_dsc_id,
 			)

@@ -7085,7 +7085,7 @@ class DataSourceConfig(Base):
 		The sort expressions for sorting the records dict.
 
 	.. attribute:: children
-		:type: dict[str, DataSourceChildren]
+		:type: dict[str, DataSourceChildrenConfig]
 
 		Children configuration for records that reference the record from this app.
 	"""
@@ -7228,7 +7228,7 @@ class DataSourceConfig(Base):
 			if isinstance(item, DataOrder):
 				item.parent = self
 				self.orders.append(item)
-			elif isinstance(item, DataSourceChildren):
+			elif isinstance(item, DataSourceChildrenConfig):
 				item.datasource = self
 				self.children[item.identifier] = item
 			else:
@@ -7244,10 +7244,10 @@ class DataSourceConfig(Base):
 		self._gethandler().save_datasourceconfig(self)
 
 
-@register("datasourcechildren")
-class DataSourceChildren(Base):
+@register("datasourcechildrenconfig")
+class DataSourceChildrenConfig(Base):
 	"""
-	A :class:`DataSourceChildren` object contains the configuration for
+	A :class:`DataSourceChildrenConfig` object contains the configuration for
 	attachment detail records to a master record.
 
 	Relevant instance attributes are:
@@ -7266,7 +7266,7 @@ class DataSourceChildren(Base):
 		:type: str
 
 		A unique identifier for this object (unique among the other
-		:class:`DataSourceChildren` objects of the :class:`DataSourceConfig`).
+		:class:`DataSourceChildrenConfig` objects of the :class:`DataSourceConfig`).
 
 	.. attribute:: control
 		:type: Control
@@ -7287,7 +7287,7 @@ class DataSourceChildren(Base):
 	"""
 
 	ul4_attrs = Base.ul4_attrs.union({"id", "datasource", "identifier", "control", "filters", "orders"})
-	ul4_type = ul4c.Type("la", "DataSourceChildren", "A master/detail specification in a datasource")
+	ul4_type = ul4c.Type("la", "DataSourceChildrenConfig", "A master/detail specification in a datasource")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -7306,7 +7306,7 @@ class DataSourceChildren(Base):
 		self.add(*args)
 
 	def __str__(self):
-		return f"{self.datasource or '?'}/datasourcechildren={self.identifier}"
+		return f"{self.datasource or '?'}/datasourcechildrenconfig={self.identifier}"
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
@@ -7330,7 +7330,7 @@ class DataSourceChildren(Base):
 		return self.datasource._gethandler()
 
 	def save(self, recursive=True):
-		self._gethandler().save_datasourcechildren(self)
+		self._gethandler().save_datasourcechildrenconfig(self)
 
 
 @register("dataorder")
@@ -7347,9 +7347,9 @@ class DataOrder(Base):
 		Unique database id
 
 	.. attribute:: parent
-		:type: Union[DataSourceConfig, DataSourceChildren]
+		:type: Union[DataSourceConfig, DataSourceChildrenConfig]
 
-		The :class:`DataSourceConfig` or :class:`DataSourceChildren` this object
+		The :class:`DataSourceConfig` or :class:`DataSourceChildrenConfig` this object
 		belongs to
 
 	.. attribute:: expression
@@ -7400,7 +7400,7 @@ class DataOrder(Base):
 		LAST = "last"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	parent = Attr(DataSourceConfig, DataSourceChildren, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(DataSourceConfig, DataSourceChildrenConfig, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	expression = VSQLAttr("?", get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	direction = EnumAttr(Direction, get=True, set=True, required=True, default=Direction.ASC, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	nulls = EnumAttr(Nulls, get=True, set=True, required=True, default=Nulls.LAST, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
