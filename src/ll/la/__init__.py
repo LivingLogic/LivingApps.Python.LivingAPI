@@ -6035,8 +6035,8 @@ class Record(CustomAttributes):
 
 		Attachments for this record (if configured).
 
-	.. attribute:: children
-		:type: dict[str, dict[str, Record]]
+	.. attribute:: details
+		:type: dict[str, RecordChildren]
 
 		Detail records, i.e. records that have a field pointing back to this
 		record.
@@ -6052,6 +6052,7 @@ class Record(CustomAttributes):
 		"updatecount",
 		"fields",
 		"values",
+		"details",
 		"children",
 		"attachments",
 		"errors",
@@ -6092,7 +6093,7 @@ class Record(CustomAttributes):
 	fields = AttrDictAttr(get="", ul4get="_fields_get")
 	values = AttrDictAttr(get="", set=True, ul4get="_values_get", ul4onget="", ul4onset="")
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
-	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset="")
+	details = AttrDictAttr(get="", ul4get=True, ul4set=True, ul4onget=True, ul4onset="")
 	errors = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
 	lookupdata = AttrDictAttr(ul4onget="", ul4onset="")
@@ -6115,7 +6116,7 @@ class Record(CustomAttributes):
 		self._sparse_target_param_name = attrdict()
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
-		self.children = attrdict()
+		self._details = None
 		self.attachments = None
 		self.errors = []
 		self._new = True
@@ -6217,9 +6218,25 @@ class Record(CustomAttributes):
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
 
-	def _children_ul4onset(self, value):
+	def _details_get(self):
+		if self._details is None:
+			self._details = attrdict()
+			if self.app is not None and self.app.datasource:
+				for ds in self.app.datasource.children:
+					self._details[ds.identifier] = RecordChildren(f"{self.id}_{ds.id}", self, ds)
+		return self._details
+
+	@property
+	def children(self):
+		return {k: v.records for (k, v) in self.details.items()}
+
+	def _details_ul4onset(self, value):
 		if value is not None:
-			self.children = value
+			self._details = value
+
+	@children.setter
+	def children(self, value):
+		pass # Ignore assignment, since this is now longer required
 
 	def _state_get(self):
 		if self._deleted:
@@ -6301,10 +6318,14 @@ class Record(CustomAttributes):
 			identifier = name[2:]
 			if identifier in self.fields:
 				return self.fields[identifier]
+		elif name.startswith("d_"):
+			identifier = name[2:]
+			if identifier in self.details:
+				return self.details[identifier]
 		elif name.startswith("c_"):
 			identifier = name[2:]
-			if identifier in self.children:
-				return self.children[identifier]
+			if identifier in self.details:
+				return self.details[identifier].records
 		elif name.startswith("t_"):
 			identifier = name[2:]
 			template = self.app._fetch_template(self, identifier)
@@ -6320,9 +6341,10 @@ class Record(CustomAttributes):
 		for identifier in self.app.controls:
 			attrs.add(f"f_{identifier}")
 			attrs.add(f"v_{identifier}")
-		if self.children:
-			for identifier in self.children:
+		if self.details:
+			for identifier in self.details:
 				attrs.add(f"c_{identifier}")
+				attrs.add(f"d_{identifier}")
 		return attrs
 
 	def ul4_dir(self):
@@ -6331,15 +6353,15 @@ class Record(CustomAttributes):
 	def ul4_hasattr(self, name):
 		if name.startswith(("f_", "v_")):
 			return name[2:] in self.app.controls
-		elif name.startswith("c_"):
-			return name[2:] in self.children
+		elif name.startswith(("c_", "d_")):
+			return name[2:] in self.details
 		elif name.startswith("x_") and name in self.__dict__:
 			return True
 		else:
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		if name.startswith(("f_", "v_", "c_", "t_")):
+		if name.startswith(("f_", "v_", "c_", "d_", "t_")):
 			return getattr(self, name)
 		else:
 			return super().ul4_getattr(name)
@@ -6354,8 +6376,8 @@ class Record(CustomAttributes):
 				raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 		elif name.startswith("c_"):
 			name = name[2:]
-			if self.children is not None and name in self.children:
-				self.children[name] = value
+			if name in self.details:
+				self.details[name].records = value
 				return
 			else:
 				raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
@@ -6369,12 +6391,9 @@ class Record(CustomAttributes):
 			setattr(self, name, value)
 			return
 		elif name.startswith("c_"):
-			if self.children is None:
-				self.children = attrdict()
-			self.children[name[2:]] = value
-			return
+			setattr(self, name, value)
 		elif name == "children":
-			self.children = value
+			# Ignore assignment here
 			return
 		super().ul4_setattr(name, value)
 
@@ -6557,10 +6576,10 @@ class RecordChildren(Base):
 	datasourcechildren = Attr(lambda: DataSourceChildren, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	records = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None):
+	def __init__(self, id=None, record=None, datasourcechildren=None):
 		self.id = id
-		self.record = None
-		self.datasourcechildren = None
+		self.record = record
+		self.datasourcechildren = datasourcechildren
 		self.records = {}
 
 	def __str__(self):
