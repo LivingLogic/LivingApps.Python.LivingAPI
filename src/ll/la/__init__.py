@@ -8475,25 +8475,35 @@ class DataSource(Base):
 
 		All apps that this datasource references (can only be more than one
 		if copies of this app or all apps are included)
+
+	.. attribute:: children
+		:type: list[DataSourceChildren]
+
+		The configurations for detail records of records in this data source.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "app", "apps"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "app", "apps", "children"})
 	ul4_type = ul4c.Type("la", "DataSource", "The data resulting from a data source configuration")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	children = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id:str=None, identifier:str=None, app:Optional["App"]=None, apps:Dict[str, "App"]=None):
 		self.id = id
 		self.identifier = identifier
 		self.app = app
 		self.apps = apps
+		self.children = []
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def __str__(self):
+		return f"datasource={self.identifier}"
 
 
 @register("externaldatasource")
