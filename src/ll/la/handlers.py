@@ -1783,7 +1783,7 @@ class FileHandler(Handler):
 				app.addtemplate(internaltemplate)
 
 	def save_app(self, app, recursive=True):
-		configcontrols = self._controls_as_config(app)
+		configcontrols = self._controls_as_json(app)
 		path = self.basepath/"index.json"
 		self._save(path, json.dumps(configcontrols, indent="\t", ensure_ascii=False))
 		if recursive:
@@ -1872,7 +1872,7 @@ class FileHandler(Handler):
 		path = pathlib.Path(dir, f"{internaltemplate.identifier}.{ext}")
 		self._save(path, internaltemplate.source)
 
-	def _controls_as_config(self, app):
+	def _controls_as_json(self, app):
 		configcontrols = {}
 		for control in app.controls.values():
 			# We don't have to include the identifier as this will be used as the key
@@ -1882,7 +1882,7 @@ class FileHandler(Handler):
 			configcontrols[control.identifier] = configcontrol
 		return configcontrols
 
-	def _datasource_as_config(self, datasource):
+	def _datasource_as_json(self, datasource):
 		configdatasource = {}
 		if datasource.app is not None:
 			configdatasource["app"] = datasource.app.fullname
@@ -1899,28 +1899,28 @@ class FileHandler(Handler):
 		self._dumpattr(configdatasource, datasource, "includeparams")
 		self._dumpattr(configdatasource, datasource, "includeviews")
 		self._dumpattr(configdatasource, datasource, "includecategories")
-		configorders = self._dataorders_as_config(datasource.orders)
+		configorders = self._dataorders_as_json(datasource.orders)
 		if configorders:
 			configdatasource["order"] = configorders
 		configdatasourcechildren = {}
 		for datasourcechildren in datasource.children.values():
-			configdatasourcechildren[datasourcechildren.identifier] = self._datasourcechildren_as_config(datasourcechildren)
+			configdatasourcechildren[datasourcechildren.identifier] = self._datasourcechildren_as_json(datasourcechildren)
 		if configdatasourcechildren:
 			configdatasource["children"] = configdatasourcechildren
 		return configdatasource
 
-	def _datasourcechildren_as_config(self, datasourcechildren):
+	def _datasourcechildren_as_json(self, datasourcechildren):
 		configdatasourcechildren = {}
 		self._dumpattr(configdatasourcechildren, datasourcechildren, "identifier")
 		configdatasourcechildren["app"] = datasourcechildren.control.app.fullname
 		configdatasourcechildren["control"] = datasourcechildren.control.identifier
 		self._dumpattr(configdatasourcechildren, datasourcechildren, "filter")
-		configorders = self._dataorders_as_config(datasourcechildren.orders)
+		configorders = self._dataorders_as_json(datasourcechildren.orders)
 		if configorders:
 			configdatasourcechildren["order"] = configorders
 		return configdatasourcechildren
 
-	def _dataorders_as_config(self, orders):
+	def _dataorders_as_json(self, orders):
 		configorders = []
 		for order in orders:
 			configorder = {}
@@ -1947,7 +1947,7 @@ class FileHandler(Handler):
 		if recursive:
 			configalldatasources = {}
 			for datasource in viewtemplate.datasources.values():
-				configalldatasources[datasource.identifier] = self._datasource_as_config(datasource)
+				configalldatasources[datasource.identifier] = self._datasource_as_json(datasource)
 			if configalldatasources:
 				config["datasources"] = configalldatasources
 		# Only save a configuration if any of the values differs from the default
@@ -1963,10 +1963,10 @@ class FileHandler(Handler):
 	def save_dataaction(self, dataaction, recursive=True):
 		dir = f"{self.basepath}/{dataaction.app.fullname}/dataactions"
 		path = pathlib.Path(dir, f"{dataaction.identifier}.json")
-		config = self._dataaction_as_config(dataaction)
+		config = self._dataaction_as_json(dataaction)
 		self._save(path, json.dumps(config, indent="\t", ensure_ascii=False))
 
-	def _dataaction_as_config(self, dataaction):
+	def _dataaction_as_json(self, dataaction):
 		configdataaction = {}
 		self._dumpattr(configdataaction, dataaction, "name")
 		self._dumpattr(configdataaction, dataaction, "order")
@@ -1982,23 +1982,23 @@ class FileHandler(Handler):
 		self._dumpattr(configdataaction, dataaction, "after_update")
 		self._dumpattr(configdataaction, dataaction, "after_insert")
 
-		configcommands = [self._dataactioncommand_as_config(dac) for dac in dataaction.commands]
+		configcommands = [self._dataactioncommand_as_json(dac) for dac in dataaction.commands]
 		if configcommands:
 			configdataaction["commands"] = configcommands
 		# configdatasourcechildren = {}
 		# for datasourcechildren in datasource.children.values():
-		# 	configdatasourcechildren[datasourcechildren.identifier] = self._datasourcechildren_as_config(datasourcechildren)
+		# 	configdatasourcechildren[datasourcechildren.identifier] = self._datasourcechildren_as_json(datasourcechildren)
 		# if configdatasourcechildren:
 		# 	configdatasource["children"] = configdatasourcechildren
 		return configdataaction
 
-	def _dataactioncommand_as_config(self, dataactioncommand):
+	def _dataactioncommand_as_json(self, dataactioncommand):
 		configdataactioncommand = {}
 		type = dataactioncommand.ul4onname.rpartition("_")[-1]
 		configdataactioncommand["type"] = type
 		self._dumpattr(configdataactioncommand, dataactioncommand, "condition")
 		configdetails = [
-			self._dataactiondetail_as_config(d)
+			self._dataactiondetail_as_json(d)
 			for d in dataactioncommand.details
 			if d.type
 		]
@@ -2008,7 +2008,7 @@ class FileHandler(Handler):
 			configdataactioncommand["app"] = dataactioncommand.app.fullname
 			self._dumpattr(configdataactioncommand, dataactioncommand, "identifier")
 			configchildren = [
-				self._dataactioncommand_as_config(c)
+				self._dataactioncommand_as_json(c)
 				for c in dataactioncommand.children
 			]
 			if configchildren:
@@ -2016,7 +2016,7 @@ class FileHandler(Handler):
 
 		return configdataactioncommand
 
-	def _dataactiondetail_as_config(self, dataactiondetail):
+	def _dataactiondetail_as_json(self, dataactiondetail):
 		configdataactiondetail = {}
 		configdataactiondetail["control"] = dataactiondetail.control.identifier
 		self._dumpattr(configdataactiondetail, dataactiondetail, "type")
