@@ -2041,6 +2041,7 @@ class Globals(CustomAttributes):
 		"hostname",
 		"platform",
 		"mode",
+		"form",
 		"app",
 		"record",
 		"datasources",
@@ -2106,6 +2107,14 @@ class Globals(CustomAttributes):
 		EMAIL_TEXT = "email/text"
 		EMAIL_HTML = "email/html"
 
+	class Form(misc.Enum):
+		"""
+		The type of form we are in (if we are in a form).
+		"""
+
+		STANAALONE = "standalone"
+		EMBEDDED= "embedded"
+
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	version = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	platform = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2119,6 +2128,7 @@ class Globals(CustomAttributes):
 	record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	templates = Attr(get="", ul4get="_templates_get")
 	mode = EnumAttr(Mode, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	form = EnumAttr(Form, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplate_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	emailtemplate_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	view_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)

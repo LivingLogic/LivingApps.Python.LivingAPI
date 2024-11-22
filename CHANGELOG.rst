@@ -13,6 +13,24 @@ HEAD (2024-??-??)
 
 *	``Field.mode`` inherits ``Control.mode`` but can be overwritten.
 
+*	:class:`App` has gained new attributes:
+
+	- ``gramgen``: The grammatical gender of the label of things in this app.
+	- ``typename_nom_sin``: A label for things in this app (nominative singular).
+	- ``typename_gen_sin``: A label for things in this app (genitive singular).
+	- ``typename_dat_sin``: A label for things in this app (dative singular).
+	- ``typename_acc_sin``: A label for things in this app (accusative singular).
+	- ``typename_nom_plu``: A label for things in this app (nominative plural).
+	- ``typename_gen_plu``: A label for things in this app (genitive plural).
+	- ``typename_dat_plu``: A label for things in this app (dative plural).
+	- ``typename_acc_plu``: A label for things in this app (accusative plural).
+
+*	Added ``Globals.form``.
+
+*	Detail records for a master record are now stored in a new
+	:class:`RecordChildren` object. Creating a new empty :class:`Record`
+	automatically attaches the appropriate :class:`RecordChildren` objects to it.
+
 
 0.37.0 (2024-11-07)
 -------------------
