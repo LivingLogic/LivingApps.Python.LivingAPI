@@ -9488,7 +9488,7 @@ class MenuItem(CustomAttributes):
 		Who updated this item last?
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "accessible", "children", "createdat", "createdby", "updatedat", "updatedby"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "on_view_template", "accessible", "children", "createdat", "createdby", "updatedat", "updatedby"})
 	ul4_type = ul4c.Type("la", "MenuItem", "An additional menu item in an app that links to a target page.")
 
 	template_types = ((None, "menuitem_instance"),)
@@ -9550,6 +9550,7 @@ class MenuItem(CustomAttributes):
 	on_app_detail_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	on_form_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	on_iframe_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_view_template = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	on_custom_overview_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	accessible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -9577,6 +9578,7 @@ class MenuItem(CustomAttributes):
 		self.on_app_detail_page = False
 		self.on_form_page = False
 		self.on_iframe_page = False
+		self.on_view_template = False
 		self.on_custom_overview_page = False
 		self.accessible = False
 		self.children = attrdict()

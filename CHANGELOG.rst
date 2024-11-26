@@ -31,6 +31,8 @@ HEAD (2024-??-??)
 	:class:`RecordChildren` object. Creating a new empty :class:`Record`
 	automatically attaches the appropriate :class:`RecordChildren` objects to it.
 
+*	Added ``MenuItem.on_view_template``.
+
 
 0.37.0 (2024-11-07)
 -------------------
