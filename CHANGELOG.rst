@@ -1,4 +1,4 @@
-HEAD (2024-??-??)
+0.38.0 (2024-11-26)
 -------------------
 
 *	Setting a ``BoolField`` to ``"false"``, ``"no"``, ``"0"`` or ``"off"`` now sets the value
