@@ -87,7 +87,7 @@ def url_with_params(url, first, params):
 	:class:`str`
 		Those will be output as is
 
-	:class:`list`
+	:class:`list` or :class:`set`
 		Those will be output recursively as multiple parameters
 
 	Anything else
@@ -113,7 +113,7 @@ def url_with_params(url, first, params):
 		'/url?foo=2022-10-28%2013%3A26%3A42.643636'
 	"""
 	def flatten_param(name, value):
-		if isinstance(value, list):
+		if isinstance(value, (list, set)):
 			for v in value:
 				yield from flatten_param(name, v)
 		elif isinstance(value, str):
@@ -486,6 +486,21 @@ def error_file_invaliddataurl(field:"Field", value:str) -> str:
 		return f'Data-URL ist ungültig.'
 	else:
 		return f'Data URL is invalid.'
+
+
+def error_file_unknown(field:"Field", value:str) -> str:
+	"""
+	Return an error message for an invalid ``data`` URL fir a ``file/signature`` field.
+	"""
+	lang = field.control.app.globals.lang
+	if lang == "de":
+			return f'Die Datei {value} für "{field.label}" wurde nicht gefunden.'
+	elif lang == "fr":
+			return f'Le fichier {value} pour «{field.label}» n\'a pas été trouvé.'
+	elif lang == "it":
+			return f'Il file {value} per "{field.label}" non è stato trovato.'
+	else:
+			return f'The file {value} for "{field.label}" could not be found.'
 
 
 def error_number_format(field:"Field", value:str) -> str:
@@ -2026,6 +2041,7 @@ class Globals(CustomAttributes):
 		"hostname",
 		"platform",
 		"mode",
+		"form",
 		"app",
 		"record",
 		"datasources",
@@ -2091,6 +2107,14 @@ class Globals(CustomAttributes):
 		EMAIL_TEXT = "email/text"
 		EMAIL_HTML = "email/html"
 
+	class Form(misc.Enum):
+		"""
+		The type of form we are in (if we are in a form).
+		"""
+
+		STANAALONE = "standalone"
+		EMBEDDED= "embedded"
+
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	version = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	platform = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2104,6 +2128,7 @@ class Globals(CustomAttributes):
 	record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	templates = Attr(get="", ul4get="_templates_get")
 	mode = EnumAttr(Mode, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	form = EnumAttr(Form, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplate_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	emailtemplate_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	view_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
@@ -2745,6 +2770,15 @@ class App(CustomAttributes):
 		"name",
 		"description",
 		"lang",
+		"gramgen",
+		"typename_nom_sin",
+		"typename_gen_sin",
+		"typename_dat_sin",
+		"typename_acc_sin",
+		"typename_nom_plu",
+		"typename_gen_plu",
+		"typename_dat_plu",
+		"typename_acc_plu",
 		"startlink",
 		"image",
 		"iconlarge",
@@ -2805,6 +2839,15 @@ class App(CustomAttributes):
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	gramgen = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_nom_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_gen_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_dat_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_acc_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_nom_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_gen_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_dat_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typename_acc_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	startlink = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	iconlarge = Attr(File, get="_image_get", ul4get="_image_get")
@@ -3397,6 +3440,11 @@ class Field(CustomAttributes):
 		:type: list[str]
 
 		List of error messages for this field.
+  
+	.. attribute:: mode
+		:type: Control.Mode
+  
+		TODO
 
 	.. attribute:: enabled
 		:type: bool
@@ -3426,7 +3474,7 @@ class Field(CustomAttributes):
 		resets the value back to the ``required`` field of the :class:`Control`.
 	"""
 
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "value", "is_empty", "is_dirty", "errors", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible", "required"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "value", "is_empty", "is_dirty", "errors", "mode", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible", "required"})
 	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
 
 	@property
@@ -3446,6 +3494,7 @@ class Field(CustomAttributes):
 		self._value = None
 		self._dirty = False
 		self.errors = []
+		self._mode = None
 		self.enabled = True
 		self.writable = True
 		self.visible = True
@@ -3510,6 +3559,14 @@ class Field(CustomAttributes):
 		if self.errors:
 			raise FieldValidationError(self, self.errors[0])
 
+	@property
+	def mode(self):
+		return self._mode if self._mode is not None else self.control.mode
+
+	@mode.setter
+	def mode(self, mode):
+		self._mode = mode
+
 	def _asjson(self, handler):
 		return self.control._asjson(handler, self)
 
@@ -3568,6 +3625,10 @@ class BoolField(Field):
 			if not value:
 				if self.required:
 					self.add_error(error_required(self, value))
+				value = False
+			elif value.lower() in {"false", "no", "0", "off"}:
+				if self.required:
+					self.add_error(error_truerequired(self, value))
 				value = False
 			else:
 				value = True
@@ -3765,6 +3826,13 @@ class FileField(Field):
 		elif not isinstance(value, File):
 			self.add_error(error_wrong_type(self, value))
 			value = None
+		elif isinstance(value, str):
+			file = globals.handler.file_sync_data(value, False)
+			if not file:
+				self.add_error(error_file_unknown(self, value))
+				self._value = None
+			else:
+				self._value = file
 		self._value = value
 
 
@@ -4315,7 +4383,10 @@ class Control(CustomAttributes):
 	class Mode(misc.Enum):
 		DISPLAY = "display"
 		EDIT = "edit"
-
+		READONLY = "readonly"
+		HIDDEN = "hidden"
+		ABSENT = "absent"
+  
 	class LabelPos(misc.Enum):
 		LEFT = "left"
 		RIGHT = "right"
@@ -4448,7 +4519,7 @@ class Control(CustomAttributes):
 		vc = self._get_viewcontrol()
 		if vc is not None:
 			return vc.mode
-		return Control.Mode.EDIT
+		return Control.Mode.DISPLAY
 
 	def _mode_ul4get(self):
 		mode = self._mode_get()
@@ -5974,8 +6045,8 @@ class Record(CustomAttributes):
 
 		Attachments for this record (if configured).
 
-	.. attribute:: children
-		:type: dict[str, dict[str, Record]]
+	.. attribute:: details
+		:type: dict[str, RecordChildren]
 
 		Detail records, i.e. records that have a field pointing back to this
 		record.
@@ -5991,6 +6062,7 @@ class Record(CustomAttributes):
 		"updatecount",
 		"fields",
 		"values",
+		"details",
 		"children",
 		"attachments",
 		"errors",
@@ -6031,7 +6103,7 @@ class Record(CustomAttributes):
 	fields = AttrDictAttr(get="", ul4get="_fields_get")
 	values = AttrDictAttr(get="", set=True, ul4get="_values_get", ul4onget="", ul4onset="")
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
-	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset="")
+	details = AttrDictAttr(get="", ul4get=True, ul4set=True, ul4onget=True, ul4onset="")
 	errors = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
 	lookupdata = AttrDictAttr(ul4onget="", ul4onset="")
@@ -6054,7 +6126,7 @@ class Record(CustomAttributes):
 		self._sparse_target_param_name = attrdict()
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
-		self.children = attrdict()
+		self._details = None
 		self.attachments = None
 		self.errors = []
 		self._new = True
@@ -6063,6 +6135,9 @@ class Record(CustomAttributes):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def __str__(self):
+		return f"app={self.app or '?'}/record={self.id or '?'}"
 
 	def ul4onload_end(self, decoder:ul4on.Decoder) -> None:
 		self._new = False
@@ -6153,9 +6228,25 @@ class Record(CustomAttributes):
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
 
-	def _children_ul4onset(self, value):
+	def _details_get(self):
+		if self._details is None:
+			self._details = attrdict()
+			if self.app is not None and self.app.datasource:
+				for ds in self.app.datasource.children:
+					self._details[ds.identifier] = RecordChildren(f"{self.id}_{ds.id}", self, ds)
+		return self._details
+
+	@property
+	def children(self):
+		return {k: v.records for (k, v) in self.details.items()}
+
+	def _details_ul4onset(self, value):
 		if value is not None:
-			self.children = value
+			self._details = value
+
+	@children.setter
+	def children(self, value):
+		pass # Ignore assignment, since this is now longer required
 
 	def _state_get(self):
 		if self._deleted:
@@ -6237,10 +6328,14 @@ class Record(CustomAttributes):
 			identifier = name[2:]
 			if identifier in self.fields:
 				return self.fields[identifier]
+		elif name.startswith("d_"):
+			identifier = name[2:]
+			if identifier in self.details:
+				return self.details[identifier]
 		elif name.startswith("c_"):
 			identifier = name[2:]
-			if identifier in self.children:
-				return self.children[identifier]
+			if identifier in self.details:
+				return self.details[identifier].records
 		elif name.startswith("t_"):
 			identifier = name[2:]
 			template = self.app._fetch_template(self, identifier)
@@ -6256,9 +6351,10 @@ class Record(CustomAttributes):
 		for identifier in self.app.controls:
 			attrs.add(f"f_{identifier}")
 			attrs.add(f"v_{identifier}")
-		if self.children:
-			for identifier in self.children:
+		if self.details:
+			for identifier in self.details:
 				attrs.add(f"c_{identifier}")
+				attrs.add(f"d_{identifier}")
 		return attrs
 
 	def ul4_dir(self):
@@ -6267,15 +6363,15 @@ class Record(CustomAttributes):
 	def ul4_hasattr(self, name):
 		if name.startswith(("f_", "v_")):
 			return name[2:] in self.app.controls
-		elif name.startswith("c_"):
-			return name[2:] in self.children
+		elif name.startswith(("c_", "d_")):
+			return name[2:] in self.details
 		elif name.startswith("x_") and name in self.__dict__:
 			return True
 		else:
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		if name.startswith(("f_", "v_", "c_", "t_")):
+		if name.startswith(("f_", "v_", "c_", "d_", "t_")):
 			return getattr(self, name)
 		else:
 			return super().ul4_getattr(name)
@@ -6290,8 +6386,8 @@ class Record(CustomAttributes):
 				raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 		elif name.startswith("c_"):
 			name = name[2:]
-			if self.children is not None and name in self.children:
-				self.children[name] = value
+			if name in self.details:
+				self.details[name].records = value
 				return
 			else:
 				raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
@@ -6305,12 +6401,9 @@ class Record(CustomAttributes):
 			setattr(self, name, value)
 			return
 		elif name.startswith("c_"):
-			if self.children is None:
-				self.children = attrdict()
-			self.children[name[2:]] = value
-			return
+			setattr(self, name, value)
 		elif name == "children":
-			self.children = value
+			# Ignore assignment here
 			return
 		super().ul4_setattr(name, value)
 
@@ -6453,6 +6546,66 @@ class Record(CustomAttributes):
 
 	def is_new(self):
 		return self._new
+
+
+@register("recordchildren")
+class RecordChildren(Base):
+	"""
+	A :class:`RecordChildren` object the details records of a master record and
+	references to the configuration defining this master/detail relation.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id.
+
+	.. attribute:: record
+		:type: Record
+
+		The :class:`Record` these detail records belong to.
+
+	.. attribute:: datasourcechildren
+		:type: :class:`DataSourceChildren`
+
+		The configuration that led to these detail records.
+
+	.. attribute:: records
+		:type: dict[str, Record]
+
+		The detail records as a dictionary mapping record ids to
+		:class:`Record` objects.
+	"""
+
+	ul4_attrs = Base.ul4_attrs.union({"id", "record", "datasourcechildren", "records"})
+	ul4_type = ul4c.Type("la", "DataSourceChildren", "The detail records for a master record")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	record = Attr(Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	datasourcechildren = Attr(lambda: DataSourceChildren, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	records = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, record=None, datasourcechildren=None):
+		self.id = id
+		self.record = record
+		self.datasourcechildren = datasourcechildren
+		self.records = {}
+
+	def __str__(self):
+		return f"{self.record or '?'}/recordchildren={self.id}"
+
+	def __repr__(self):
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def _gethandler(self):
+		if self.record is None:
+			raise NoHandlerError()
+		return self.record._gethandler()
 
 
 class Attachment(Base):
@@ -7024,7 +7177,7 @@ class DataSourceConfig(Base):
 		The sort expressions for sorting the records dict.
 
 	.. attribute:: children
-		:type: dict[str, DataSourceChildren]
+		:type: dict[str, DataSourceChildrenConfig]
 
 		Children configuration for records that reference the record from this app.
 	"""
@@ -7167,7 +7320,7 @@ class DataSourceConfig(Base):
 			if isinstance(item, DataOrder):
 				item.parent = self
 				self.orders.append(item)
-			elif isinstance(item, DataSourceChildren):
+			elif isinstance(item, DataSourceChildrenConfig):
 				item.datasource = self
 				self.children[item.identifier] = item
 			else:
@@ -7183,10 +7336,10 @@ class DataSourceConfig(Base):
 		self._gethandler().save_datasourceconfig(self)
 
 
-@register("datasourcechildren")
-class DataSourceChildren(Base):
+@register("datasourcechildrenconfig")
+class DataSourceChildrenConfig(Base):
 	"""
-	A :class:`DataSourceChildren` object contains the configuration for
+	A :class:`DataSourceChildrenConfig` object contains the configuration for
 	attachment detail records to a master record.
 
 	Relevant instance attributes are:
@@ -7197,15 +7350,15 @@ class DataSourceChildren(Base):
 		Unique database id.
 
 	.. attribute:: datasource
-		:type: DataSource
+		:type: DataSourceConfig
 
-		The :class:`DataSource` this object belongs to.
+		The :class:`DataSourceConfig` this object belongs to.
 
 	.. attribute:: identifier
 		:type: str
 
 		A unique identifier for this object (unique among the other
-		:class:`DataSourceChildren` objects of the :class:`DataSourceConfig`).
+		:class:`DataSourceChildrenConfig` objects of the :class:`DataSourceConfig`).
 
 	.. attribute:: control
 		:type: Control
@@ -7226,7 +7379,7 @@ class DataSourceChildren(Base):
 	"""
 
 	ul4_attrs = Base.ul4_attrs.union({"id", "datasource", "identifier", "control", "filters", "orders"})
-	ul4_type = ul4c.Type("la", "DataSourceChildren", "A master/detail specification in a datasource")
+	ul4_type = ul4c.Type("la", "DataSourceChildrenConfig", "A master/detail specification in a datasource")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -7245,7 +7398,7 @@ class DataSourceChildren(Base):
 		self.add(*args)
 
 	def __str__(self):
-		return f"{self.datasource or '?'}/datasourcechildren={self.identifier}"
+		return f"{self.datasource or '?'}/datasourcechildrenconfig={self.identifier}"
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
@@ -7269,7 +7422,7 @@ class DataSourceChildren(Base):
 		return self.datasource._gethandler()
 
 	def save(self, recursive=True):
-		self._gethandler().save_datasourcechildren(self)
+		self._gethandler().save_datasourcechildrenconfig(self)
 
 
 @register("dataorder")
@@ -7286,9 +7439,9 @@ class DataOrder(Base):
 		Unique database id
 
 	.. attribute:: parent
-		:type: Union[DataSourceConfig, DataSourceChildren]
+		:type: Union[DataSourceConfig, DataSourceChildrenConfig]
 
-		The :class:`DataSourceConfig` or :class:`DataSourceChildren` this object
+		The :class:`DataSourceConfig` or :class:`DataSourceChildrenConfig` this object
 		belongs to
 
 	.. attribute:: expression
@@ -7339,7 +7492,7 @@ class DataOrder(Base):
 		LAST = "last"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	parent = Attr(DataSourceConfig, DataSourceChildren, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	parent = Attr(DataSourceConfig, DataSourceChildrenConfig, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	expression = VSQLAttr("?", get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	direction = EnumAttr(Direction, get=True, set=True, required=True, default=Direction.ASC, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	nulls = EnumAttr(Nulls, get=True, set=True, required=True, default=Nulls.LAST, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -8351,25 +8504,35 @@ class DataSource(Base):
 
 		All apps that this datasource references (can only be more than one
 		if copies of this app or all apps are included)
+
+	.. attribute:: children
+		:type: list[DataSourceChildren]
+
+		The configurations for detail records of records in this data source.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "app", "apps"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "app", "apps", "children"})
 	ul4_type = ul4c.Type("la", "DataSource", "The data resulting from a data source configuration")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	children = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id:str=None, identifier:str=None, app:Optional["App"]=None, apps:Dict[str, "App"]=None):
 		self.id = id
 		self.identifier = identifier
 		self.app = app
 		self.apps = apps
+		self.children = []
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def __str__(self):
+		return f"datasource={self.identifier}"
 
 
 @register("externaldatasource")
@@ -8426,6 +8589,68 @@ class ExternalDataSource(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+
+@register("datasourcechildren")
+class DataSourceChildren(Base):
+	"""
+	A :class:`DataSourceChildren` object contains information about detail records
+	for a master record that is available during a running view, form or email templates.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id.
+
+	.. attribute:: datasource
+		:type: DataSource
+
+		The :class:`DataSource` this object belongs to.
+
+	.. attribute:: identifier
+		:type: str
+
+		A unique identifier for this object (unique among the other
+		:class:`DataSourceChildren` objects of the :class:`DataSource`).
+
+	.. attribute:: control
+		:type: Control
+
+		The :class:`AppLookupControl` object that references this app. All records
+		from the controls app that reference our record will be added to the
+		children dict.
+	"""
+
+	ul4_attrs = Base.ul4_attrs.union({"id", "datasource", "identifier", "control"})
+	ul4_type = ul4c.Type("la", "DataSourceChildren", "A master/detail specification in a datasource")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, identifier=None, control=None, filter=None):
+		self.id = id
+		self.datasource = None
+		self.identifier = identifier
+		self.control = control
+
+	def __str__(self):
+		return f"{self.datasource or '?'}/datasourcechildren={self.identifier}"
+
+	def __repr__(self):
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def _gethandler(self):
+		if self.datasource is None:
+			raise NoHandlerError()
+		return self.datasource._gethandler()
 
 
 @register("lookupitem")
@@ -9263,7 +9488,7 @@ class MenuItem(CustomAttributes):
 		Who updated this item last?
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "accessible", "children", "createdat", "createdby", "updatedat", "updatedby"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "on_view_template", "accessible", "children", "createdat", "createdby", "updatedat", "updatedby"})
 	ul4_type = ul4c.Type("la", "MenuItem", "An additional menu item in an app that links to a target page.")
 
 	template_types = ((None, "menuitem_instance"),)
@@ -9325,6 +9550,7 @@ class MenuItem(CustomAttributes):
 	on_app_detail_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	on_form_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	on_iframe_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_view_template = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	on_custom_overview_page = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	accessible = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	children = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -9352,6 +9578,7 @@ class MenuItem(CustomAttributes):
 		self.on_app_detail_page = False
 		self.on_form_page = False
 		self.on_iframe_page = False
+		self.on_view_template = False
 		self.on_custom_overview_page = False
 		self.accessible = False
 		self.children = attrdict()

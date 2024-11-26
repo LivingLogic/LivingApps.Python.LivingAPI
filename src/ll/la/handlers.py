@@ -272,7 +272,7 @@ class Handler:
 	def save_datasourceconfig(self, datasource, recursive=True):
 		raise NotImplementedError
 
-	def save_datasourcechildren(self, datasourcechildren, recursive=True):
+	def save_datasourcechildrenconfig(self, datasourcechildrenconfig, recursive=True):
 		raise NotImplementedError
 
 	def change_user(self, lang, oldpassword, newpassword, newemail):
@@ -308,7 +308,7 @@ class Handler:
 
 
 class DBHandler(Handler):
-	def __init__(self, *, connection=None, connectstring=None, connection_postgres=None, connectstring_postgres=None, uploaddir=None, ide_account=None, ide_id=None):
+	def __init__(self, *, connection=None, connectstring=None, connection_postgres=None, connectstring_postgres=None, uploaddir=None, ide_account=None, ide_id=None, session_id=None):
 		"""
 		Create a new :class:`DBHandler`.
 
@@ -403,6 +403,8 @@ class DBHandler(Handler):
 			self.ide_id = r.ide_id
 		else:
 			self.ide_id = None
+
+		self.session_id = session_id
 
 	def __repr__(self) -> str:
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} connectstring={self.db.connectstring()!r} ide_id={self.ide_id!r} at {id(self):#x}>"
@@ -740,9 +742,9 @@ class DBHandler(Handler):
 				ds_id=r.p_ds_id,
 			)
 			for children in datasource.children.values():
-				self.save_datasourcechildren(children, recursive=recursive)
+				self.save_datasourcechildrenconfig(children, recursive=recursive)
 
-	def save_datasourcechildren(self, datasourcechildren, recursive=True):
+	def save_datasourcechildrenconfig(self, datasourcechildrenconfig, recursive=True):
 		cursor = self.cursor()
 
 		# Find the ``ctl_id`` for the target control
@@ -760,17 +762,17 @@ class DBHandler(Handler):
 
 		cursor.execute(
 			query,
-			tpl_uuid=datasourcechildren.control.app.id,
-			ctl_identifier=datasourcechildren.control.identifier,
+			tpl_uuid=datasourcechildrenconfig.control.app.id,
+			ctl_identifier=datasourcechildrenconfig.control.identifier,
 		)
 		ctl_id = cursor.fetchone()[0]
 
 		# Compile and save the record filter
 		vs_id_filter = self.save_vsql_source(
 			cursor,
-			datasourcechildren.filter,
-			la.DataSourceChildren.filter.function,
-			p_ds_id=datasourcechildren.datasource.id,
+			datasourcechildrenconfig.filter,
+			la.DataSourceChildrenConfig.filter.function,
+			p_ds_id=datasourcechildrenconfig.datasource.id,
 			p_ctl_id=ctl_id,
 		)
 
@@ -778,18 +780,18 @@ class DBHandler(Handler):
 		r = self.proc_datasourcechildren_import(
 			cursor,
 			c_user=self.ide_id,
-			p_ds_id=datasourcechildren.datasource.id,
-			p_dsc_identifier=datasourcechildren.identifier,
+			p_ds_id=datasourcechildrenconfig.datasource.id,
+			p_dsc_identifier=datasourcechildrenconfig.identifier,
 			p_ctl_id=ctl_id,
 			p_ctl_id_syscontrol=None,
 			p_vs_id_filter=vs_id_filter,
 		)
-		datasourcechildren.id = r.p_dsc_id
+		datasourcechildrenconfig.id = r.p_dsc_id
 
 		if recursive:
 			self._save_dataorders(
 				cursor,
-				datasourcechildren.orders,
+				datasourcechildrenconfig.orders,
 				"VSQLSUPPORT_PKG3.DSC_ORDER_FUL4ON",
 				dsc_id=r.p_dsc_id,
 			)
@@ -894,6 +896,8 @@ class DBHandler(Handler):
 			args["p_tpl_uuid"] = globals.app.id
 		if globals.record is not None:
 			args["p_dat_id"] = globals.record.id
+		if self.session_id is not None:
+			args["p_sessionid"] = self.session_id
 		self.proc_init(cursor, **args)
 
 	def _execute_incremental_ul4on_query(self, cursor, globals, query, **args):
@@ -979,6 +983,26 @@ class DBHandler(Handler):
 		records = self._loaddump(dump)
 		return records
 
+	def file_sync_data(self, file_path, force=False):
+		if not force:
+			result = self.ul4on_decoder.persistent_object(la.File.ul4onname, file_path)
+			if result is not None:
+				return result
+		c = self.cursor()
+		path_parts = file_path.split("/")
+		c.execute(
+			"select livingapi_pkg.upload_sync_ful4on(p_upr_table=>:upr_table, p_upr_pkvalue=>:upr_pkvalue, p_upr_field=>:upr_field, p_upl_id=>:upl_id, p_force=>:force) from dual",
+			upr_table=path_parts[0] if len(path_parts) > 0 else None,
+			upr_pkvalue=path_parts[1] if len(path_parts) > 1 else None,
+			upr_field=path_parts[2] if len(path_parts) > 2 else None,
+			upl_id=path_parts[3] if len(path_parts) > 3 else None,
+			force=int(force),
+		)
+		r = c.fetchone()
+		dump = r[0].decode("utf-8")
+		record = self._loaddump(dump)
+		return record
+
 	def _data(self, vt_id=None, et_id=None, vw_id=None, tpl_uuid=None, dat_id=None, dat_ids=None, ctl_identifier=None, searchtext=None, reqparams=None, mode=None, sync=False, exportmeta=False, funcname="data_ful4on"):
 		paramslist = []
 		if reqparams:
@@ -1004,6 +1028,7 @@ class DBHandler(Handler):
 				select
 					livingapi_pkg.data_ful4on(
 						c_user => :c_user,
+						p_sessionid => :p_sessionid,
 						p_reqid => :p_reqid,
 						p_vt_id => :p_vt_id,
 						p_et_id => :p_et_id,
@@ -1022,6 +1047,7 @@ class DBHandler(Handler):
 				from dual
 			""",
 			c_user=self.ide_id,
+			p_sessionid=self.session_id,
 			p_reqid=self.requestid,
 			p_vt_id=vt_id,
 			p_et_id=et_id,
@@ -1757,7 +1783,7 @@ class FileHandler(Handler):
 				app.addtemplate(internaltemplate)
 
 	def save_app(self, app, recursive=True):
-		configcontrols = self._controls_as_config(app)
+		configcontrols = self._controls_as_json(app)
 		path = self.basepath/"index.json"
 		self._save(path, json.dumps(configcontrols, indent="\t", ensure_ascii=False))
 		if recursive:
@@ -1846,7 +1872,7 @@ class FileHandler(Handler):
 		path = pathlib.Path(dir, f"{internaltemplate.identifier}.{ext}")
 		self._save(path, internaltemplate.source)
 
-	def _controls_as_config(self, app):
+	def _controls_as_json(self, app):
 		configcontrols = {}
 		for control in app.controls.values():
 			# We don't have to include the identifier as this will be used as the key
@@ -1856,7 +1882,7 @@ class FileHandler(Handler):
 			configcontrols[control.identifier] = configcontrol
 		return configcontrols
 
-	def _datasource_as_config(self, datasource):
+	def _datasource_as_json(self, datasource):
 		configdatasource = {}
 		if datasource.app is not None:
 			configdatasource["app"] = datasource.app.fullname
@@ -1873,28 +1899,28 @@ class FileHandler(Handler):
 		self._dumpattr(configdatasource, datasource, "includeparams")
 		self._dumpattr(configdatasource, datasource, "includeviews")
 		self._dumpattr(configdatasource, datasource, "includecategories")
-		configorders = self._dataorders_as_config(datasource.orders)
+		configorders = self._dataorders_as_json(datasource.orders)
 		if configorders:
 			configdatasource["order"] = configorders
 		configdatasourcechildren = {}
 		for datasourcechildren in datasource.children.values():
-			configdatasourcechildren[datasourcechildren.identifier] = self._datasourcechildren_as_config(datasourcechildren)
+			configdatasourcechildren[datasourcechildren.identifier] = self._datasourcechildren_as_json(datasourcechildren)
 		if configdatasourcechildren:
 			configdatasource["children"] = configdatasourcechildren
 		return configdatasource
 
-	def _datasourcechildren_as_config(self, datasourcechildren):
+	def _datasourcechildren_as_json(self, datasourcechildren):
 		configdatasourcechildren = {}
 		self._dumpattr(configdatasourcechildren, datasourcechildren, "identifier")
 		configdatasourcechildren["app"] = datasourcechildren.control.app.fullname
 		configdatasourcechildren["control"] = datasourcechildren.control.identifier
 		self._dumpattr(configdatasourcechildren, datasourcechildren, "filter")
-		configorders = self._dataorders_as_config(datasourcechildren.orders)
+		configorders = self._dataorders_as_json(datasourcechildren.orders)
 		if configorders:
 			configdatasourcechildren["order"] = configorders
 		return configdatasourcechildren
 
-	def _dataorders_as_config(self, orders):
+	def _dataorders_as_json(self, orders):
 		configorders = []
 		for order in orders:
 			configorder = {}
@@ -1921,7 +1947,7 @@ class FileHandler(Handler):
 		if recursive:
 			configalldatasources = {}
 			for datasource in viewtemplate.datasources.values():
-				configalldatasources[datasource.identifier] = self._datasource_as_config(datasource)
+				configalldatasources[datasource.identifier] = self._datasource_as_json(datasource)
 			if configalldatasources:
 				config["datasources"] = configalldatasources
 		# Only save a configuration if any of the values differs from the default
@@ -1937,10 +1963,10 @@ class FileHandler(Handler):
 	def save_dataaction(self, dataaction, recursive=True):
 		dir = f"{self.basepath}/{dataaction.app.fullname}/dataactions"
 		path = pathlib.Path(dir, f"{dataaction.identifier}.json")
-		config = self._dataaction_as_config(dataaction)
+		config = self._dataaction_as_json(dataaction)
 		self._save(path, json.dumps(config, indent="\t", ensure_ascii=False))
 
-	def _dataaction_as_config(self, dataaction):
+	def _dataaction_as_json(self, dataaction):
 		configdataaction = {}
 		self._dumpattr(configdataaction, dataaction, "name")
 		self._dumpattr(configdataaction, dataaction, "order")
@@ -1956,23 +1982,23 @@ class FileHandler(Handler):
 		self._dumpattr(configdataaction, dataaction, "after_update")
 		self._dumpattr(configdataaction, dataaction, "after_insert")
 
-		configcommands = [self._dataactioncommand_as_config(dac) for dac in dataaction.commands]
+		configcommands = [self._dataactioncommand_as_json(dac) for dac in dataaction.commands]
 		if configcommands:
 			configdataaction["commands"] = configcommands
 		# configdatasourcechildren = {}
 		# for datasourcechildren in datasource.children.values():
-		# 	configdatasourcechildren[datasourcechildren.identifier] = self._datasourcechildren_as_config(datasourcechildren)
+		# 	configdatasourcechildren[datasourcechildren.identifier] = self._datasourcechildren_as_json(datasourcechildren)
 		# if configdatasourcechildren:
 		# 	configdatasource["children"] = configdatasourcechildren
 		return configdataaction
 
-	def _dataactioncommand_as_config(self, dataactioncommand):
+	def _dataactioncommand_as_json(self, dataactioncommand):
 		configdataactioncommand = {}
 		type = dataactioncommand.ul4onname.rpartition("_")[-1]
 		configdataactioncommand["type"] = type
 		self._dumpattr(configdataactioncommand, dataactioncommand, "condition")
 		configdetails = [
-			self._dataactiondetail_as_config(d)
+			self._dataactiondetail_as_json(d)
 			for d in dataactioncommand.details
 			if d.type
 		]
@@ -1982,7 +2008,7 @@ class FileHandler(Handler):
 			configdataactioncommand["app"] = dataactioncommand.app.fullname
 			self._dumpattr(configdataactioncommand, dataactioncommand, "identifier")
 			configchildren = [
-				self._dataactioncommand_as_config(c)
+				self._dataactioncommand_as_json(c)
 				for c in dataactioncommand.children
 			]
 			if configchildren:
@@ -1990,7 +2016,7 @@ class FileHandler(Handler):
 
 		return configdataactioncommand
 
-	def _dataactiondetail_as_config(self, dataactiondetail):
+	def _dataactiondetail_as_json(self, dataactiondetail):
 		configdataactiondetail = {}
 		configdataactiondetail["control"] = dataactiondetail.control.identifier
 		self._dumpattr(configdataactiondetail, dataactiondetail, "type")
