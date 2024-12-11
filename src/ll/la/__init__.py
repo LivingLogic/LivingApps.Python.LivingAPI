@@ -2991,18 +2991,14 @@ class App(CustomAttributes):
 	def _templates_get(self):
 		if self._templates is None:
 			self._templates = attrdict()
-			for templates in reversed(list(self._template_candidates())):
-				for (key, template) in templates.items():
-					for type in self.template_types:
-						identifier = None
-						if type is None:
-							if key is None:
-								identifier = key
-						else:
-							if key is not None and key.startswith(type):
-								identifier = key.rpartition(".")[-1]
-						if identifier is not None:
-							self._templates[identifier] = template
+			for templates in self._template_candidates():
+				for key in self.template_types:
+					if key in templates:
+						for (identifier, template) in templates[key].items():
+							if key[-1] is not None:
+								template = ul4c.BoundTemplate(self, template)
+							if identifier not in self._templates:
+								self._templates[identifier] = template
 		return self._templates
 
 	def template_url(self, identifier, record=None, /, **params):

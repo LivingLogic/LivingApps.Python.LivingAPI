@@ -1,3 +1,10 @@
+0.39.0 (2024-12-11)
+-------------------
+
+*	Fixed the implementation of the attribute ``App.templates``
+	(and ``Globals.templates``).
+
+
 0.38.0 (2024-11-26)
 -------------------
 
