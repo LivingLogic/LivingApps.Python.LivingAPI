@@ -3569,6 +3569,15 @@ class Field(CustomAttributes):
 	def _asdbarg(self, handler):
 		return self.control._asdbarg(handler, self)
 
+	def ul4_getattr(self, name):
+		if name == "mode":
+			mode = self.mode
+			if mode is not None:
+				mode = mode.value
+			return mode
+		else:
+			return getattr(self, name)
+
 	def __repr__(self):
 		s = f"<{self.__class__.__module__}.{self.__class__.__qualname__} identifier={self.control.identifier!r} value={self._value!r}"
 		if self._dirty:
