@@ -3418,8 +3418,14 @@ class Field(CustomAttributes):
 	.. attribute:: label
 		:type: str
 
-		A field specific label. Setting the label to ``None`` reset the value
+		A field specific label. Setting the label to ``None`` resets the value
 		back to the label of the :class:`Control`.
+
+	.. attribute:: description
+		:type: str
+
+		A field specific description. Setting the description to ``None`` resets
+		the value back to the description of the :class:`Control`.
 
 	.. attribute:: value
 
@@ -3470,7 +3476,7 @@ class Field(CustomAttributes):
 		resets the value back to the ``required`` field of the :class:`Control`.
 	"""
 
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "value", "is_empty", "is_dirty", "errors", "mode", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible", "required"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "description", "value", "is_empty", "is_dirty", "errors", "priority", "in_list", "in_mobile_list", "in_text", "required", "mode", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible"})
 	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
 
 	@property
@@ -3486,15 +3492,17 @@ class Field(CustomAttributes):
 		self.control = control
 		self.record = record
 		self._label = None
+		self._description = None
 		self._lookupdata = None
 		self._value = None
 		self._dirty = False
 		self.errors = []
+		self._in_text = None
+		self._required = None
 		self._mode = None
 		self.enabled = True
 		self.writable = True
 		self.visible = True
-		self._required = None
 		self._set_value(value)
 		self._dirty = False
 
@@ -3508,6 +3516,34 @@ class Field(CustomAttributes):
 	@label.setter
 	def label(self, label):
 		self._label = label
+
+	@property
+	def description(self):
+		return self._description if self._description is not None else self.control.description
+
+	@description.setter
+	def description(self, description):
+		self._description = description
+
+	@property
+	def priority(self):
+		return self.control.priority
+
+	@property
+	def in_list(self):
+		return self.control.in_list
+
+	@property
+	def in_mobile_list(self):
+		return self.control.in_mobile_list
+
+	@property
+	def in_text(self):
+		return self._in_text if self._in_text is not None else self.control.in_text
+
+	@in_text.setter
+	def in_text(self, in_text):
+		self._in_text = in_text
 
 	@property
 	def required(self):
@@ -4302,10 +4338,40 @@ class Control(CustomAttributes):
 
 		Label to be displayed for this control.
 
+		This attribute is settable.
+
+	.. attribute:: description
+		:type: str
+
+		Description of this control.
+
+		This attribute is settable.
+
 	.. attribute:: priority
 		:type: bool
 
 		Has this control high priority, i.e. should it be displayed in lists?
+
+		This attribute is settable.
+
+	.. attribute:: in_list
+		:type: bool
+
+		This is an alias for :attr:`priority`.
+
+	.. attribute:: in_mobile_list
+		:type: bool
+
+		Should this control be displayed in lists on mobile devices?
+
+		This attribute is settable.
+
+	.. attribute:: in_text
+		:type: bool
+
+		Should this control be displayed when a record is printed as text?
+
+		This attribute is settable.
 
 	.. attribute:: order
 		:type: bool
@@ -4360,7 +4426,12 @@ class Control(CustomAttributes):
 	.. attribute:: required
 		:type: bool
 
-		Is a value required for this field? (from the active view, else ``False``).
+		Is a value required for this field?
+
+		If a view is active this value is the value from the active view.
+
+		This attribute is settable (but the value will be shadowd unless/until
+		there's no active view).
 
 	.. attribute:: mode
 		:type: Mode
@@ -4382,7 +4453,7 @@ class Control(CustomAttributes):
 
 	_type = None
 	_subtype = None
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "identifier", "type", "subtype", "fulltype", "app", "label", "priority", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "required", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "identifier", "type", "subtype", "fulltype", "app", "label", "description", "priority", "in_list", "in_mobile_list", "in_text", "required", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure"})
 	ul4_type = ul4c.Type("la", "Control", "Metainformation about a field in a LivingApps application")
 
 	class Mode(misc.Enum):
@@ -4406,7 +4477,12 @@ class Control(CustomAttributes):
 	fieldname = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	label = Attr(str, get="", set=True, ul4get="_label_get", ul4onget=True, ul4onset=True)
-	priority = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	priority = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	in_list = BoolAttr(get="_in_list_get", set="_in_list_set", ul4get="_in_list_get", ul4set="_in_list_set")
+	in_mobile_list = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	in_text = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	required = BoolAttr(get="", ul4get="_required_get")
 	order = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	default = Attr(get="", ul4get="_default_get")
 	ininsertprocedure = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -4418,7 +4494,6 @@ class Control(CustomAttributes):
 	z_index = Attr(int, get="", ul4get="_z_index_get")
 	liveupdate = BoolAttr(get="", ul4get="_liveupdate_get")
 	tabindex = Attr(int, get="", ul4get="_tabindex_get")
-	required = BoolAttr(get="", ul4get="_required_get")
 	mode = EnumAttr(Mode, get="", ul4get="")
 	labelpos = EnumAttr(LabelPos, get="", ul4get="")
 	labelwidth = Attr(int, get="", ul4get="_labelwidth_get")
@@ -4432,7 +4507,9 @@ class Control(CustomAttributes):
 		self.identifier = identifier
 		self.fieldname = fieldname
 		self.label = label
+		self.description = None
 		self.priority = priority
+		self._required = None
 		self.order = order
 		self._vsqlfield = None
 
@@ -4471,6 +4548,12 @@ class Control(CustomAttributes):
 		if vc is not None:
 			return vc.label
 		return self.__dict__["label"]
+
+	def _in_list_get(self):
+		return self.priority
+
+	def _in_list_set(self, value):
+		self.priority = value
 
 	def _top_get(self):
 		vc = self._get_viewcontrol()
@@ -4518,7 +4601,7 @@ class Control(CustomAttributes):
 		vc = self._get_viewcontrol()
 		if vc is not None:
 			return vc.required
-		return False
+		return self._required
 
 	def _mode_get(self):
 		vc = self._get_viewcontrol()
