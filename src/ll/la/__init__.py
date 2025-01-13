@@ -3443,6 +3443,28 @@ class Field(CustomAttributes):
 
 		List of error messages for this field.
   
+	.. attribute:: priority
+		:type: bool
+
+		This mirrors :attr:`Control.priority`.
+
+	.. attribute:: in_list
+		:type: bool
+
+		This is an alias for :attr:`priority`.
+
+	.. attribute:: in_mobile_list
+		:type: bool
+
+		This mirrors :attr:`Control.in_mobile_list`.
+
+	.. attribute:: in_text
+		:type: bool
+
+		This mirrors :attr:`Control.in_text`.
+
+		This attribute is settable.
+
 	.. attribute:: mode
 		:type: Control.Mode
   
