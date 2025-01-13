@@ -13,7 +13,6 @@
 	the mirror the ``Control``\s attributes.
 
 
-
 0.39.1 (2024-12-16)
 -------------------
 
