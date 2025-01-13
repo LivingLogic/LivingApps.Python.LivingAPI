@@ -10,7 +10,7 @@
 	a view is active it mirrors the view fields "required" status.
 
 *	Added ``Field`` attributes ``description``, ``in_mobile_list``, ``in_text``
-	the mirror the ``Control``\s attributes.
+	that mirror the ``Control``\s attributes.
 
 
 0.39.1 (2024-12-16)
