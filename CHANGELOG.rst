@@ -9,7 +9,7 @@
 *	``Control.required`` now works independant of a active view. However when
 	a view is active it mirrors the view fields "required" status.
 
-*	Added ``Field`` attributes ``description``, ``in_mobile_list``, `in_text``
+*	Added ``Field`` attributes ``description``, ``in_mobile_list``, ``in_text``
 	the mirror the ``Control``\s attributes.
 
 
