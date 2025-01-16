@@ -1066,6 +1066,7 @@ class DBHandler(Handler):
 
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
+		open("/Users/walter/x/gurk.ul4on", "w").write(dump)
 		dump = self._loaddump(dump)
 		# Since the database didn't reset its backref registry, we don't either
 		return dump
@@ -1180,6 +1181,17 @@ class DBHandler(Handler):
 			c_user=self.ide_id,
 			p_tpl_uuid=app.id,
 		)
+
+	def appgroup_apps_incremental_data(self, appgroup):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			appgroup.globals,
+			"select livingapi_pkg.appgroup_apps_inc_ful4on(:c_user, :p_ag_id) from dual",
+			c_user=self.ide_id,
+			p_ag_id=appgroup.id,
+		)
+
+
 
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
