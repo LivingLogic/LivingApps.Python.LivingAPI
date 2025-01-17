@@ -2080,7 +2080,7 @@ class Globals(CustomAttributes):
 
 	template_types = ((None, "app_instance"), (None, None))
 
-	supported_version = "131"
+	supported_version = "132"
 
 	class Mode(misc.Enum):
 		"""
@@ -9761,6 +9761,9 @@ class MenuItem(CustomAttributes):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def _template_candidates(self):
+		yield from self.app._template_candidates()
 
 	def __getattr__(self, name):
 		if name.startswith("c_"):
