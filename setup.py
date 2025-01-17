@@ -54,7 +54,7 @@ description = description.expandtabs(2)
 
 args = dict(
 	name="ll-la",
-	version="0.40.0",
+	version="0.41.0",
 	description="Python API for LivingApps",
 	long_description=description,
 	author="Walter Doerwald",
@@ -67,14 +67,14 @@ args = dict(
 	package_dir={"": "src"},
 	packages=["ll.la"],
 	install_requires=[
-		"ll-xist >= 5.75",
+		"ll-xist >= 5.77",
 		"requests >= 2.21.0",
 		"geocoder >= 1.30.1",
 		"Pillow >= 6.1.0",
 		"validators >= 0.18.2",
 	],
 	extras_require={
-		"db": ["cx_Oracle >= 8.0", "psycopg[binary] >= 3.0.5"],
+		"db": ["oracledb", "psycopg[binary] >= 3.0.5"],
 	},
 	zip_safe=False,
 )
