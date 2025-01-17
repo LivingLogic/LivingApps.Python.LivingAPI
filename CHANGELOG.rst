@@ -1,5 +1,5 @@
-HEAD (2025-01-??)
------------------
+0.41.0 (2025-01-17)
+-------------------
 
 *	Added the class ``AppGroup`` and the ``App`` attribute ``group``.
 
