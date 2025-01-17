@@ -5,6 +5,8 @@ HEAD (2025-01-??)
 
 *	Member templates now work for ``MenuItem`` and ``Panel``.
 
+*	This version rquires the API version 132.
+
 
 0.40.0 (2025-01-13)
 -------------------
