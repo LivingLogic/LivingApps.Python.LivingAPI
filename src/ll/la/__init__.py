@@ -2080,7 +2080,7 @@ class Globals(CustomAttributes):
 
 	template_types = ((None, "app_instance"), (None, None))
 
-	supported_version = "131"
+	supported_version = "132"
 
 	class Mode(misc.Enum):
 		"""
@@ -2770,6 +2770,7 @@ class App(CustomAttributes):
 		"name",
 		"description",
 		"lang",
+		"group",
 		"gramgen",
 		"typename_nom_sin",
 		"typename_gen_sin",
@@ -2839,6 +2840,7 @@ class App(CustomAttributes):
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	group = Attr(lambda: AppGroup, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	gramgen = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	typename_nom_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	typename_gen_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2894,6 +2896,7 @@ class App(CustomAttributes):
 		self.name = name
 		self.description = description
 		self.lang = lang
+		self.group = None
 		self.startlink = startlink
 		self.image = image
 		self.createdat = createdat
@@ -3396,6 +3399,64 @@ class App(CustomAttributes):
 				if controls is None or control.priority:
 					result.extend(control.vsqlsortexpr(record, maxdepth-1))
 		return result
+
+
+@register("appgroup")
+class AppGroup(Base):
+	"""
+	An :class:`!AppGroup` describes group of apps that together form an application.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id.
+
+	.. attribute:: globals
+		:type: Globals
+
+		The :class:`Globals` objects.
+
+	.. attribute:: name
+		:type: str
+
+		Name of the group.
+
+	.. attribute:: apps
+		:type: dict[str, App]
+
+		The LivingApps that belong to this group.
+	"""
+
+	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps"})
+	ul4_type = ul4c.Type("la", "AppGroup", "A group of LivingApps")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	apps = AttrDictAttr(get="", ul4get="_apps_get", ul4onget="_apps_get")
+
+	def __init__(self, id=None, globals=None, name=None):
+		self.id = id
+		self.globals = globals
+		self.name = name
+		self._apps = None
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def _apps_get(self):
+		apps = self._apps
+		if apps is None:
+			handler = self.globals.handler
+			if handler is not None:
+				apps = handler.appgroup_apps_incremental_data(self)
+				if apps is not None:
+					apps = attrdict(apps)
+					self._apps = apps
+		return apps
 
 
 class Field(CustomAttributes):
@@ -4504,7 +4565,7 @@ class Control(CustomAttributes):
 	in_list = BoolAttr(get="_in_list_get", set="_in_list_set", ul4get="_in_list_get", ul4set="_in_list_set")
 	in_mobile_list = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	in_text = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	required = BoolAttr(get="", ul4get="_required_get")
+	required = BoolAttr(get="", ul4get="_required_get", ul4onset=True, ul4onget=True)
 	order = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	default = Attr(get="", ul4get="_default_get")
 	ininsertprocedure = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -8173,7 +8234,7 @@ class Installation(Base):
 	"""
 
 	ul4_attrs = Base.ul4_attrs.union({"id", "name"})
-	ul4_type = ul4c.Type("la", "Installation", "The installation that created an app")
+	ul4_type = ul4c.Type("la", "Installation", "The installation that created a LivingApp")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -9700,6 +9761,9 @@ class MenuItem(CustomAttributes):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def _template_candidates(self):
+		yield from self.app._template_candidates()
 
 	def __getattr__(self, name):
 		if name.startswith("c_"):

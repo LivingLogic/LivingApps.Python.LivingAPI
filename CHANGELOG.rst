@@ -1,3 +1,13 @@
+0.41.0 (2025-01-17)
+-------------------
+
+*	Added the class ``AppGroup`` and the ``App`` attribute ``group``.
+
+*	Member templates now work for ``MenuItem`` and ``Panel``.
+
+*	This version rquires the API version 132.
+
+
 0.40.0 (2025-01-13)
 -------------------
 
@@ -6,12 +16,11 @@
 
 *	Added ``Control.in_list`` as an alias for ``Control.priority``.
 
-*	``Control.required`` now works independant of a active view. However when
+*	``Control.required`` now works independent of an active view. However when
 	a view is active it mirrors the view fields "required" status.
 
-*	Added ``Field`` attributes ``description``, ``in_mobile_list``, `in_text``
-	the mirror the ``Control``\s attributes.
-
+*	Added ``Field`` attributes ``description``, ``in_mobile_list``, ``in_text``
+	that mirror the ``Control``\s attributes.
 
 
 0.39.1 (2024-12-16)
