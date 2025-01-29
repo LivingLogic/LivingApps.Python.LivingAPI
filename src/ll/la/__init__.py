@@ -3503,7 +3503,7 @@ class Field(CustomAttributes):
 		:type: list[str]
 
 		List of error messages for this field.
-  
+
 	.. attribute:: priority
 		:type: bool
 
@@ -3528,7 +3528,7 @@ class Field(CustomAttributes):
 
 	.. attribute:: mode
 		:type: Control.Mode
-  
+
 		TODO
 
 	.. attribute:: enabled
@@ -4247,7 +4247,7 @@ class AppLookupChoiceField(AppLookupField):
 		This value is inherited from the control and can be changed.
 	"""
 	ul4_attrs = AppLookupField.ul4_attrs.union({"search_url", "search_param_name", "target_param_name"})
- 
+
 	def __init__(self, control, record, value):
 		super().__init__(control, record, value)
 		self._search_url = None
@@ -4545,7 +4545,7 @@ class Control(CustomAttributes):
 		READONLY = "readonly"
 		HIDDEN = "hidden"
 		ABSENT = "absent"
-  
+
 	class LabelPos(misc.Enum):
 		LEFT = "left"
 		RIGHT = "right"
@@ -5588,7 +5588,7 @@ class AppLookupRadioControl(AppLookupControl):
 class AppLookupChoiceControl(AppLookupControl):
 	"""
 	Describes a field of type ``applookup``/``choice``.
- 
+
 	:class:`AppLookupChoiceControl` has the following additional attributes:
 
 	.. attribute:: search_url
@@ -5614,7 +5614,7 @@ class AppLookupChoiceControl(AppLookupControl):
 	ul4_type = ul4c.Type("la", "AppLookupChoiceControl", "A LivingApps applookup field (type 'applookup/choice')")
 
 	fieldtype = AppLookupChoiceField
-                                                
+
 	@property
 	def search_url(self):
 		return self.app.template_url(f"field_{self.identifier}_search")
@@ -6584,6 +6584,8 @@ class Record(CustomAttributes):
 		return self.app._gethandler()
 
 	def save(self, force=False, sync=False):
+		if self._deleted:
+			return None
 		handler = self._gethandler()
 		if not force:
 			self.check_errors()

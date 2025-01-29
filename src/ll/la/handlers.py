@@ -534,7 +534,7 @@ class DBHandler(Handler):
 			# "p_upl_recorddate=>", recordedAtP, ", ",
 			# "p_upr_path=>", uprPathP, ", ",
 			# "p_context_id=>", contextIdP,
-   
+
 			if self.urlcontext is None:
 				self.urlcontext = url.Context()
 			with (self.uploaddir/r.p_upl_name).open("wb", context=self.urlcontext) as f:
@@ -1275,26 +1275,33 @@ class DBHandler(Handler):
 		return saved
 
 	def delete_record(self, record):
-		app = record.app
-		args = {
-			"c_user": self.ide_id,
-			"p_dat_id": record.id,
-		}
-		if app.basetable in {"data_select", "data"}:
-			proc = self.proc_data_delete
-			mode = record.app.globals.mode
-			args["p_mode"] = mode.value if mode is not None else None
-		else:
-			proc = self._getproc(app.deleteprocedure)
+		if not record._deleted:
+			if record.id is None:
+				# Just record that the record has been deleted
+				# we don't need to call any db procedures
+				record._deleted = True
+			else:
+				app = record.app
+				args = {
+					"c_user": self.ide_id,
+					"p_dat_id": record.id,
+				}
+				if app.basetable in {"data_select", "data"}:
+					proc = self.proc_data_delete
+					mode = record.app.globals.mode
+					args["p_mode"] = mode.value if mode is not None else None
+				else:
+					proc = self._getproc(app.deleteprocedure)
 
-			mode = record.app.globals.mode
+					mode = record.app.globals.mode
 
-		c = self.cursor()
-		r = proc(c, **args)
-		record._deleted = True
+				c = self.cursor()
+				r = proc(c, **args)
+				record._deleted = True
+				record.id = None
 
-		if r.p_errormessage:
-			raise ValueError(r.p_errormessage)
+				if r.p_errormessage:
+					raise ValueError(r.p_errormessage)
 
 	def save_parameter(self, parameter, recursive=True):
 		c = self.cursor()
@@ -1425,7 +1432,7 @@ class DBHandler(Handler):
 		dump = r[0].decode("utf-8")
 		parameter = self._loaddump(dump)
 		return parameter
-	
+
 	def change_user(self, lang, oldpassword, newpassword, newemail):
 		c = self.cursor()
 		r = self.proc_identity_change(

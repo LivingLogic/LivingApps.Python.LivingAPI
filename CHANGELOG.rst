@@ -1,3 +1,14 @@
+0.42.0 (2025-01-29)
+-------------------
+
+*	If a ``Record`` hasn't been saved yet calling ``delete`` just
+	records the fact that the record has been deleted without calling
+	any database procedures. The ``Record``\s ``id`` attribute will
+	be set to ``None``.
+
+*	Calling ``save`` after a record has been deleted now doesn nothing.
+
+
 0.41.0 (2025-01-17)
 -------------------
 
