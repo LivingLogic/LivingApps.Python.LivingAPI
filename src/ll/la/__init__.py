@@ -4592,7 +4592,7 @@ class Control(CustomAttributes):
 		self.label = label
 		self.description = None
 		self.priority = priority
-		self._required = None
+		self.__dict__["required"] = None
 		self.order = order
 		self._vsqlfield = None
 
@@ -4619,6 +4619,14 @@ class Control(CustomAttributes):
 
 	def _fulltype_get(self):
 		return self._fulltype
+
+	def _get_viewviewcontrol(self):
+		view = self.app.active_view
+		if view is None:
+			return (None, None)
+		if view.controls is None:
+			return (view, None)
+		return (view, view.controls.get(self.identifier))
 
 	def _get_viewcontrol(self):
 		view = self.app.active_view
@@ -4681,10 +4689,14 @@ class Control(CustomAttributes):
 		return None
 
 	def _required_get(self):
-		vc = self._get_viewcontrol()
+		(v, vc) = self._get_viewviewcontrol()
+		# We have a corresponding control it the view, so we can use its info
 		if vc is not None:
 			return vc.required
-		return self._required
+		# We have a view, but it doesn't contain the control, so it can never be required
+		if v is not None:
+			return False
+		return self.__dict__["required"]
 
 	def _mode_get(self):
 		vc = self._get_viewcontrol()
