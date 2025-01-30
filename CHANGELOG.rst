@@ -1,3 +1,24 @@
+0.42.1 (2025-01-30)
+-------------------
+
+*	Fixed handling of the "required" info. Before the following could happen:
+
+	There is a first view A that has a field F that is required in view A and a
+	second view B that doesn't include field F. The configuration of the
+	``Control`` C for this field is the default value of "the first view decides"
+	which in this case means ``C.required`` is ``Trrue``. Now if view B is the
+	active view calling ``Control.required`` returned ``True``, which is wrong,
+	since a field that is not in a view shouldn't be required. The reason for the
+	wrong result was, that the return value of ``Control._get_viewcontrol()``
+	couldn't distinguish between "there is no active view" (in which case
+	"the first view decides" is the correct approach) an "there is an active view,
+	but it doesn't contain the control in question" (in which case the control
+	should never be required).
+
+	This has been fixed now by using a new method that can distinguish those
+	two cases.
+
+
 0.42.0 (2025-01-29)
 -------------------
 
