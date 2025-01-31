@@ -30,7 +30,7 @@
 	and their configuration into and out of LivingApps.
 """
 
-import os, datetime, pathlib, itertools, json, mimetypes, operator, warnings, random
+import datetime, pathlib, itertools, json, operator, warnings, random
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
