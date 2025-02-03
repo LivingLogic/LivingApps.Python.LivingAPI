@@ -1,3 +1,10 @@
+0.43.4 (2025-02-03)
+-------------------
+
+*	Remove debug logging statement.
+*	Reverted dependencies.
+
+
 0.43.3 (2025-02-03)
 -------------------
 

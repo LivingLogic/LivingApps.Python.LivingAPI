@@ -1066,7 +1066,6 @@ class DBHandler(Handler):
 
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
-		open("/Users/walter/x/gurk.ul4on", "w").write(dump)
 		dump = self._loaddump(dump)
 		# Since the database didn't reset its backref registry, we don't either
 		return dump

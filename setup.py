@@ -67,11 +67,11 @@ args = dict(
 	package_dir={"": "src"},
 	packages=["ll.la"],
 	install_requires=[
-		"ll-xist == 5.75",
-		"requests == 2.21.0",
-		"geocoder == 1.30.1",
-		"Pillow == 6.1.0",
-		"validators == 0.18.2",
+		"ll-xist >= 5.77",
+		"requests >= 2.21.0",
+		"geocoder >= 1.30.1",
+		"Pillow >= 6.1.0",
+		"validators >= 0.18.2",
 	],
 	extras_require={
 		"db": ["oracledb", "psycopg[binary] >= 3.0.5"],
