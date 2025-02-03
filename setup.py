@@ -68,7 +68,7 @@ args = dict(
 	packages=["ll.la"],
 	install_requires=[
 		"ll-xist == 5.75",
-		"requests == 2.21.0",
+		"requests == 2.32.2",
 		"geocoder == 1.30.1",
 		"Pillow == 6.1.0",
 		"validators == 0.18.2",
