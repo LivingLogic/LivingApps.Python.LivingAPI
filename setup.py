@@ -70,7 +70,7 @@ args = dict(
 		"ll-xist == 5.75",
 		"requests == 2.21.0",
 		"geocoder == 1.30.1",
-		"Pillow == 6.1.0",
+		"Pillow == 10.3.0",
 		"validators == 0.18.2",
 	],
 	extras_require={
