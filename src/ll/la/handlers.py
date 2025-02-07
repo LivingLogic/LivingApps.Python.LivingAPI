@@ -242,6 +242,9 @@ class Handler:
 	def delete_record(self, record) -> None:
 		raise NotImplementedError
 
+	def save_control(self, control) -> None:
+		raise NotImplementedError
+
 	def _executeaction(self, record, actionidentifier) -> None:
 		raise NotImplementedError
 
@@ -363,6 +366,7 @@ class DBHandler(Handler):
 		self.proc_data_insert = orasql.Procedure("LIVINGAPI_PKG.DATA_INSERT")
 		self.proc_data_update = orasql.Procedure("LIVINGAPI_PKG.DATA_UPDATE")
 		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
+		self.proc_control_update = orasql.Procedure("LIVINGAPI_PKG.CONTROL_UPDATE")
 		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
 		self.proc_appparameter_delete = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_DELETE")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
@@ -520,20 +524,6 @@ class DBHandler(Handler):
 				p_upl_longitude=file.geo.long if file.geo is not None else None,
 				p_upl_recorddate=file.recordedat,
 			)
-			# "c_user=>", userIdP, ", ",
-			# "p_upl_id=>", uplIdP, ", ",
-			# "p_upl_id_super=>", uplIdSuperP, ", ",
-			# "p_upl_name=>", nameP, ", ",
-			# "p_upl_orgname=>", orgNameP, ", ",
-			# "p_upl_size=>", sizeP, ", ",
-			# "p_upl_mimetype=>", mimetypeP, ", ",
-			# "p_upl_width=>", widthP, ", ",
-			# "p_upl_height=>", heightP, ", ",
-			# "p_upl_latitude=>", latitudeP, ", ",
-			# "p_upl_longitude=>", longitudeP, ", ",
-			# "p_upl_recorddate=>", recordedAtP, ", ",
-			# "p_upr_path=>", uprPathP, ", ",
-			# "p_context_id=>", contextIdP,
 
 			if self.urlcontext is None:
 				self.urlcontext = url.Context()
@@ -1190,8 +1180,6 @@ class DBHandler(Handler):
 			p_ag_id=appgroup.id,
 		)
 
-
-
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
 		app = record.app
@@ -1301,6 +1289,24 @@ class DBHandler(Handler):
 
 				if r.p_errormessage:
 					raise ValueError(r.p_errormessage)
+
+	def save_control(self, control):
+		c = self.cursor()
+		required = control.__dict__["required"] # Use the "raw" value
+		if required is not None:
+			required = int(required)
+		self.proc_control_update(
+			c,
+			c_user=self.ide_id,
+			p_ctl_id=control.id,
+			p_ctl_name=control.label,
+			p_ctl_description=control.description,
+			p_ctl_priority=int(control.priority),
+			p_ctl_inmobilelist=int(control.in_mobile_list),
+			p_ctl_intext=int(control.in_text),
+			p_ctl_required=required,
+		)
+		return True
 
 	def save_parameter(self, parameter, recursive=True):
 		c = self.cursor()

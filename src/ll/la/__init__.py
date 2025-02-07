@@ -1512,7 +1512,7 @@ class File(Base):
 		else:
 			return f"{self.archive.url}/{self.filename}"
 
-	def save(self) -> None:
+	def save_meta(self) -> None:
 		self._gethandler().save_file(self)
 
 	def content(self) -> bytes:
@@ -3264,7 +3264,7 @@ class App(CustomAttributes):
 			return attrdict()
 		return self.active_view.layout_controls
 
-	def save(self, recursive=True):
+	def save_meta(self, recursive=True):
 		self._gethandler().save_app(self, recursive=recursive)
 
 	_saveletters = string.ascii_letters + string.digits + "()-+_ äöüßÄÖÜ"
@@ -4536,7 +4536,7 @@ class Control(CustomAttributes):
 
 	_type = None
 	_subtype = None
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "identifier", "type", "subtype", "fulltype", "app", "label", "description", "priority", "in_list", "in_mobile_list", "in_text", "required", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "identifier", "type", "subtype", "fulltype", "app", "label", "description", "priority", "in_list", "in_mobile_list", "in_text", "required", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure", "save"})
 	ul4_type = ul4c.Type("la", "Control", "Metainformation about a field in a LivingApps application")
 
 	class Mode(misc.Enum):
@@ -4565,7 +4565,8 @@ class Control(CustomAttributes):
 	in_list = BoolAttr(get="_in_list_get", set="_in_list_set", ul4get="_in_list_get", ul4set="_in_list_set")
 	in_mobile_list = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	in_text = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	required = BoolAttr(get="", ul4get="_required_get", ul4onset=True, ul4onget=True)
+	required = BoolAttr(get="", set="", ul4get="_required_get", ul4onset=True, ul4onget=True)
+	required_in_view = BoolAttr(ul4onset=True, ul4onget=True)
 	order = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	default = Attr(get="", ul4get="_default_get")
 	ininsertprocedure = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -4593,8 +4594,12 @@ class Control(CustomAttributes):
 		self.description = None
 		self.priority = priority
 		self.__dict__["required"] = None
+		self.__dict__["required_in_view"] = None
 		self.order = order
 		self._vsqlfield = None
+
+	def _gethandler(self):
+		return self.app._gethandler()
 
 	@property
 	def template_types(self):
@@ -4696,7 +4701,13 @@ class Control(CustomAttributes):
 		# We have a view, but it doesn't contain the control, so it can never be required
 		if v is not None:
 			return False
-		return self.__dict__["required"]
+		required = self.__dict__["required"]
+		if required is not None:
+			return required
+		return self.__dict__["required_in_view"]
+
+	def _required_set(self, value):
+		self.__dict__["required"] = None if value is None else bool(value)
 
 	def _mode_get(self):
 		vc = self._get_viewcontrol()
@@ -4744,6 +4755,10 @@ class Control(CustomAttributes):
 
 	def _default_get(self):
 		return None
+
+	def save(self):
+		handler = self._gethandler()
+		return handler.save_control(self)
 
 	def _asdbarg(self, handler, field):
 		return field._value
@@ -7126,10 +7141,10 @@ class InternalTemplate(Template):
 	def __str__(self):
 		return f"{self.app or '?'}/internaltemplate={self.identifier}"
 
-	def save(self, recursive=True):
+	def save_meta(self, recursive=True):
 		self._gethandler().save_internaltemplate(self)
 
-	def delete(self):
+	def delete_meta(self):
 		self._gethandler().delete_internaltemplate(self)
 
 
@@ -7254,10 +7269,10 @@ class ViewTemplateConfig(Template):
 			self.datasources[datasource.identifier] = datasource
 		return self
 
-	def save(self, recursive=True):
+	def save_meta(self, recursive=True):
 		self._gethandler().save_viewtemplate(self)
 
-	def delete(self):
+	def delete_meta(self):
 		self._gethandler().delete_viewtemplate(self)
 
 
@@ -7517,7 +7532,7 @@ class DataSourceConfig(Base):
 			raise NoHandlerError()
 		return self.parent._gethandler()
 
-	def save(self, recursive=True):
+	def save_meta(self, recursive=True):
 		self._gethandler().save_datasourceconfig(self)
 
 
@@ -7606,7 +7621,7 @@ class DataSourceChildrenConfig(Base):
 			raise NoHandlerError()
 		return self.datasource._gethandler()
 
-	def save(self, recursive=True):
+	def save_meta(self, recursive=True):
 		self._gethandler().save_datasourcechildrenconfig(self)
 
 
@@ -7709,7 +7724,7 @@ class DataOrder(Base):
 	def ul4onid(self) -> str:
 		return self.id
 
-	def save(self, handler:T_opt_handler=None, recursive:bool=True):
+	def save_meta(self, handler:T_opt_handler=None, recursive:bool=True):
 		raise NotImplementedError("DataOrder objects can only be saved by their parent")
 
 

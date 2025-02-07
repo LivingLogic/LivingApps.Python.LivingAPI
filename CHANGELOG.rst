@@ -1,3 +1,10 @@
+HEAD (2025-??-??)
+-----------------
+
+*	Added method ``Control.save()`` that saves to user setable attributes to
+	the database.
+
+
 0.43.4 (2025-02-03)
 -------------------
 
