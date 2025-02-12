@@ -242,7 +242,7 @@ class Handler:
 	def delete_record(self, record) -> None:
 		raise NotImplementedError
 
-	def save_control(self, control) -> None:
+	def save_control(self, control) -> bool:
 		raise NotImplementedError
 
 	def _executeaction(self, record, actionidentifier) -> None:
@@ -251,7 +251,7 @@ class Handler:
 	def file_content(self, file):
 		raise NotImplementedError
 
-	def save_app(self, app, recursive=True):
+	def save_app_meta(self, app, recursive=True):
 		raise NotImplementedError
 
 	def save_file(self, file):
@@ -366,6 +366,7 @@ class DBHandler(Handler):
 		self.proc_data_update = orasql.Procedure("LIVINGAPI_PKG.DATA_UPDATE")
 		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
 		self.proc_control_update = orasql.Procedure("LIVINGAPI_PKG.CONTROL_UPDATE")
+		self.proc_template_update = orasql.Procedure("LIVINGAPI_PKG.TEMPLATE_UPDATE")
 		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
 		self.proc_appparameter_delete = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_DELETE")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
@@ -493,7 +494,7 @@ class DBHandler(Handler):
 			p_upl_id_attachment=attachments.internal_id if attachments else None,
 		)
 
-	def save_app(self, app, recursive=True):
+	def save_app_meta(self, app, recursive=True):
 		# FIXME: Save the app itself
 		if recursive:
 			if app.internaltemplates is not None:
@@ -1289,7 +1290,7 @@ class DBHandler(Handler):
 				if r.p_errormessage:
 					raise ValueError(r.p_errormessage)
 
-	def save_control(self, control):
+	def save_control(self, control) -> bool:
 		c = self.cursor()
 		required = control.__dict__["required"] # Use the "raw" value
 		if required is not None:
@@ -1304,6 +1305,32 @@ class DBHandler(Handler):
 			p_ctl_inmobilelist=int(control.in_mobile_list),
 			p_ctl_intext=int(control.in_text),
 			p_ctl_required=required,
+		)
+		return True
+
+	def save_app(self, app) -> bool:
+		if app.image is not None and app.image.internal_id is None:
+			raise la.UnsavedObjectError(app.image)
+
+		c = self.cursor()
+
+		self.proc_template_update(
+			c,
+			c_user=self.ide_id,
+			p_tpl_uuid=app.id,
+			p_tpl_name=app.name,
+			p_tpl_description=app.description,
+			p_upl_id_image=None if app.image is None else app.image.internal_id,
+			p_tpl_favorite=int(app.favorite),
+			p_tpl_gramgen=app.gramgen,
+			p_tpl_typename_nom_sin=app.typename_nom_sin,
+			p_tpl_typename_gen_sin=app.typename_gen_sin,
+			p_tpl_typename_dat_sin=app.typename_dat_sin,
+			p_tpl_typename_acc_sin=app.typename_acc_sin,
+			p_tpl_typename_nom_plu=app.typename_nom_plu,
+			p_tpl_typename_gen_plu=app.typename_gen_plu,
+			p_tpl_typename_dat_plu=app.typename_dat_plu,
+			p_tpl_typename_acc_plu=app.typename_acc_plu,
 		)
 		return True
 
@@ -1349,7 +1376,7 @@ class DBHandler(Handler):
 				p_ap_value_other = str(parameter.value.months())
 			elif parameter.type is parameter.Type.UPLOAD:
 				if parameter.value.internal_id is None:
-					raise la.ValueError(error_object_unsaved(parameter.value))
+					raise la.UnsavedObjectError(parameter.value)
 				p_upl_id = parameter.value.internal_id
 			elif parameter.type is parameter.Type.APP:
 				p_tpl_uuid_value = parameter.value.id
@@ -1805,7 +1832,7 @@ class FileHandler(Handler):
 				)
 				app.addtemplate(internaltemplate)
 
-	def save_app(self, app, recursive=True):
+	def save_app_meta(self, app, recursive=True):
 		configcontrols = self._controls_as_json(app)
 		path = self.basepath/"index.json"
 		self._save(path, json.dumps(configcontrols, indent="\t", ensure_ascii=False))

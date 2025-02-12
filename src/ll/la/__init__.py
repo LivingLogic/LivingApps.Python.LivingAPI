@@ -601,6 +601,19 @@ class VersionMismatchError(ValueError):
 		return f"invalid LivingAPI version: expected {self.expected_version!r}, got {self.encountered_version!r}"
 
 
+class UnsavedObjectError(ValueError):
+	"""
+	Exception that is raised when we are saving an object that references another object
+	that hasn't been saved yet.
+	"""
+
+	def __init__(self, object):
+		self.object = object
+
+	def __str__(self) -> str:
+		return error_object_unsaved(self.object)
+
+
 ###
 ### Data descriptors
 ###
@@ -2830,6 +2843,7 @@ class App(CustomAttributes):
 		"datamanageview_url",
 		"seq",
 		"send_mail",
+		"save",
 	})
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
@@ -2837,21 +2851,21 @@ class App(CustomAttributes):
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	group = Attr(lambda: AppGroup, get=True, ul4get=True, ul4onget=True, ul4onset=True)
-	gramgen = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_nom_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_gen_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_dat_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_acc_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_nom_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_gen_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_dat_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_acc_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	gramgen = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_nom_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_gen_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_dat_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_acc_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_nom_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_gen_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_dat_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_acc_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	startlink = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	image = Attr(File, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	iconlarge = Attr(File, get="_image_get", ul4get="_image_get")
 	iconsmall = Attr(File, get="_image_get", ul4get="_image_get")
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2876,7 +2890,7 @@ class App(CustomAttributes):
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	superid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	favorite = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	favorite = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	active_view = Attr(lambda: View, str, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	datasource = Attr(lambda: DataSource, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	menus = Attr(get="", set="", ul4get="_menus_get", ul4onget="_menus_ul4onget", ul4onset="_menus_set")
@@ -3073,6 +3087,10 @@ class App(CustomAttributes):
 			body_html=body_html,
 			attachments=attachments,
 		)
+
+	def save(self):
+		handler = self._gethandler()
+		return handler.save_app(self)
 
 	def __getattr__(self, name):
 		if name.startswith("c_"):

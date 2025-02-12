@@ -1,8 +1,14 @@
 HEAD (2025-??-??)
 -----------------
 
-*	Added method ``Control.save()`` that saves to user setable attributes to
+*	Added method ``Control.save()`` that saves the user settable attributes to
 	the database.
+
+*	Made the ``App`` attributes ``name``, ``description``, ``image``, ``favorite``,
+	``gramgen``, ``typename_nom_sin``, ``typename_gen_sin``, ``typename_dat_sin``,
+	``typename_acc_sin``, ``typename_nom_plu``, ``typename_gen_plu``,
+	``typename_dat_plu`` and ``typename_acc_plu`` settable and add a method
+	``App.save()`` that saves those attributes to the database.
 
 
 0.43.4 (2025-02-03)
