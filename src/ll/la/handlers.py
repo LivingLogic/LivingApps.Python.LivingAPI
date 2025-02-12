@@ -335,7 +335,6 @@ class DBHandler(Handler):
 
 		super().__init__()
 
-		now = datetime.datetime.now()
 		self.requestid = uuid()
 		if connection is not None:
 			if connectstring is not None:
