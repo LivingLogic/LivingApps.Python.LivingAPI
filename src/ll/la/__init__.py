@@ -2745,6 +2745,9 @@ class App(CustomAttributes):
 	.. attribute:: templates
 		:type: dict[str, ul4c.Template]
 
+	.. attribute:: viewtemplates
+		:type: dict[str, ViewTemplateInfo]
+
 	.. attribute:: createdat
 		:type: datetime.datetime
 
@@ -2780,7 +2783,7 @@ class App(CustomAttributes):
 
 		Internal templates of this app.
 
-	.. attribute:: viewtemplates
+	.. attribute:: viewtemplatesconfig
 		:type: Optional[dict[str, ViewTemplate]]
 
 		View templates of this app.
@@ -2834,6 +2837,7 @@ class App(CustomAttributes):
 		# "updateprocedure",
 		# "deleteprocedure",
 		"templates",
+		"viewtemplates",
 		"insert",
 		"favorite",
 		"active_view",
@@ -2892,6 +2896,7 @@ class App(CustomAttributes):
 	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
 	params = AttrDictAttr(get="", ul4get="_params_get")
 	templates = Attr(get="", ul4get="_templates_get")
+	viewtemplates = Attr(get="", ul4get="_viewtemplates_get")
 	views = Attr(get="", set="", ul4get="_views_get", ul4onget="_views_ul4onget", ul4onset="_views_set")
 	datamanagement_identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	basetable = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2912,7 +2917,7 @@ class App(CustomAttributes):
 	panels = Attr(get="", set="", ul4get="_panels_get")
 	child_controls = Attr(get="", set="", ul4get="_child_controls_get")
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	viewtemplatesconfig = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
@@ -2941,6 +2946,7 @@ class App(CustomAttributes):
 		self.installation = installation
 		self.categories = None
 		self._templates = None
+		self._viewtemplates = None
 		self._views = None
 		self.datamanagement_identifier = datamanagement_identifier
 		self.basetable = None
@@ -3033,6 +3039,17 @@ class App(CustomAttributes):
 							if identifier not in self._templates:
 								self._templates[identifier] = template
 		return self._templates
+
+	def _viewtemplates_get(self):
+		viewtemplates = self._viewtemplates
+		if viewtemplates is None:
+			handler = self.globals.handler
+			if handler is not None:
+				viewtemplates = handler.app_viewtemplates_incremental_data(self)
+				if viewtemplates is not None:
+					viewtemplates = attrdict(viewtemplates)
+					self._viewtemplates = viewtemplates
+		return viewtemplates
 
 	def template_url(self, identifier, record=None, /, **params):
 		url = f"https://{self.globals.hostname}/gateway/apps/{self.id}"
@@ -7272,14 +7289,14 @@ class ViewTemplateConfig(Template):
 
 	type = EnumAttr(Type, get=True, set=True, required=True, default=Type.LIST, ul4get=True, ul4onget=True, ul4onset=True)
 	mimetype = Attr(str, get=True, set=True, default="text/html", ul4get=True, ul4onget=True, ul4onset=True)
-	permission = IntEnumAttr(Permission, get=True, set=True, required=True, ul4get=True, default=Permission.ALL, ul4onget=True, ul4onset=True)
+	permission_level = IntEnumAttr(Permission, get=True, set=True, required=True, ul4get=True, default=Permission.ALL, ul4onget=True, ul4onset=True)
 	datasources = AttrDictAttr(get=True, set=True, required=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, *args, id=None, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype="text/html", permission=None):
+	def __init__(self, *args, id=None, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype="text/html", permission_level=None):
 		super().__init__(id=id, identifier=identifier, source=source, whitespace=whitespace, signature=signature, doc=doc)
 		self.type = type
 		self.mimetype = mimetype
-		self.permission = permission
+		self.permission_level = permission_level
 		self.datasources = attrdict()
 		for arg in args:
 			if isinstance(arg, DataSourceConfig):
@@ -7301,6 +7318,148 @@ class ViewTemplateConfig(Template):
 
 	def delete_meta(self):
 		self._gethandler().delete_viewtemplate(self)
+
+
+@register("viewtemplateinfo")
+class ViewTemplateInfo(CustomAttributes):
+	"""
+	A :class:`!ViewTemplateInfo` provides data of a view template.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+		
+		The database primary key of this view template.
+
+	.. attribute:: app
+		:type: App
+		
+		The app this view template belongs to.
+
+	.. attribute:: identifier
+		:type: str
+		
+		The database primary key of this view template.
+
+	.. attribute:: name
+		:type: str
+		
+		The name of this view template.
+
+	.. attribute:: icon
+		:type: str
+		
+		The icon of this view template.
+
+	.. attribute:: type
+		:type: Type
+
+		The type of the view template (i.e. in which context it is used)
+
+	.. attribute:: mimetype
+		:type: str
+
+		The MIME type of the HTTP response of the view template
+
+	.. attribute:: permission_level
+		:type: Permission
+
+		Who can access the template?
+	"""
+
+	ul4_type = ul4c.Type("la", "ViewTemplateInfo", "A view template info object")
+
+	class Type(misc.Enum):
+		"""
+		The type of a view template.
+
+		Enum values have the following meaning:
+
+		``LIST``
+			The template is supposed to display multiple records. The URL looks
+			like this:
+
+			.. sourcecode:: text
+
+				/gateway/apps/1234567890abcdef12345678?template=foo
+
+			(with ``1234567890abcdef12345678`` being the app id).
+
+		``LISTDEFAULT``
+			This is similar to ``LIST``, but this view template is the default when
+			no ``template`` parameter is specified, i.e. the URL looks like this:
+
+			.. sourcecode:: text
+
+				/gateway/apps/1234567890abcdef12345678
+
+		``LISTDATAMANAGEMENT``
+			This is similar to ``LIST``, but a link to this view template will be
+			available in the datamanagement and the menu.
+
+		``DETAIL``
+			The template is supposed to display the details of a single record. The
+			URL looks like this::
+
+				/gateway/apps/1234567890abcdef12345678/abcdefabcdefabcdefabcdef?template=foo
+
+			(with ``abcdefabcdefabcdefabcdef`` being the id of the record)
+
+		``DETAILRESULT``
+			This is similar to ``DETAIL``, but is used to replace the standard display
+			if a record is created or updated via the standard form.
+
+		``DETAILDATAMANAGEMENT``
+			This is similar to ``DETAIL``, but a link to this view template will be
+			available for each record in the datamanagement.
+
+		``SUPPORT``
+			The template is supposed to be independant of any record. This can be
+			used for delivering static CSS or similar stuff. The URL looks the same
+			as for the type ``LIST``.
+		"""
+
+		LIST = "list"
+		LISTDEFAULT = "listdefault"
+		LISTDATAMANAGEMENT = "listdatamanagement"
+		DETAIL = "detail"
+		DETAILRESULT = "detailresult"
+		DETAILDATAMANAGEMENT = "detaildatamanagement"
+		SUPPORT = "support"
+
+	class Permission(misc.IntEnum):
+		ALL = 0
+		LOGGEDIN = 1
+		APP = 2
+		APPEDIT = 3
+		APPADMIN = 4
+
+	app = Attr(App, get=True, set=True, default=None, ul4get=True, ul4onget=True, ul4onset=True)
+	identifier = Attr(str, get=True, set=True, default=None, ul4get=True, ul4onget=True, ul4onset=True, repr=True)
+	name = Attr(str, get=True, set=True, default=None, ul4get=True, ul4onget=True, ul4onset=True)
+	icon = Attr(str, get=True, set=True, default=None, ul4get=True, ul4onget=True, ul4onset=True)
+	type = EnumAttr(Type, get=True, set=True, required=True, default=Type.LIST, ul4get=True, ul4onget=True, ul4onset=True, repr=True)
+	mimetype = Attr(str, get=True, set=True, default="text/html", ul4get=True, ul4onget=True, ul4onset=True, repr=True)
+	permission_level = IntEnumAttr(Permission, get=True, set=True, required=True, ul4get=True, default=Permission.ALL, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, app=None, identifier=None, name=None, icon=None, type=Type.LIST, mimetype="text/html", permission_level=None):
+		super().__init__()
+		self.id = id
+		self.app = app
+		self.identifier = identifier
+		self.name = name
+		self.icon = icon
+		self.type = type
+		self.mimetype = mimetype
+		self.permission_level = permission_level
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def __str__(self):
+		return f"{self.app or '?'}/viewtemplate={self.identifier}"
 
 
 @register("datasourceconfig")

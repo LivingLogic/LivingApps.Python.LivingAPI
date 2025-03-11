@@ -10,6 +10,11 @@ HEAD (2025-??-??)
 	``typename_dat_plu`` and ``typename_acc_plu`` settable and add a method
 	``App.save()`` that saves those attributes to the database.
 
+*	Added attribute ``Globals.groups``, ``AppGroup.main_app`` and ``App.main``.
+
+*	Added class ``ViewTemplateInfo`` and attribute ``App.viewtemplates``. Renamed the
+	old attribute ``viewtemplates`` to ``viewtemplatesconfig``.
+
 
 0.43.4 (2025-02-03)
 -------------------

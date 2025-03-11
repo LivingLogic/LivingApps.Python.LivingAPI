@@ -1188,6 +1188,15 @@ class DBHandler(Handler):
 			c_user=self.ide_id,
 		)
 
+	def app_viewtemplates_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_viewtemplates_inc_ful4on(:c_user, :p_tpl_uuid) from dual",
+			c_user=self.ide_id,
+			p_tpl_uuid=app.id,
+		)
+
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
 		app = record.app
