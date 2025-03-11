@@ -1180,6 +1180,14 @@ class DBHandler(Handler):
 			p_ag_id=appgroup.id,
 		)
 
+	def appgroups_incremental_data(self, globals):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			globals,
+			"select livingapi_pkg.appgroups_inc_ful4on(:c_user) from dual",
+			c_user=self.ide_id,
+		)
+
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
 		app = record.app

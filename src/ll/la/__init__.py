@@ -2059,6 +2059,7 @@ class Globals(CustomAttributes):
 		"record",
 		"datasources",
 		"externaldatasources",
+		"groups",
 		"user",
 		"lang",
 		"templates",
@@ -2147,6 +2148,7 @@ class Globals(CustomAttributes):
 	view_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	externaldatasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	template_params = AttrDictAttr(get="", ul4onget="_template_params_get", ul4onset="_template_params_ul4onset")
+	groups = AttrDictAttr(get="", ul4get="_groups_get", ul4onget="_groups_get")
 	params = AttrDictAttr(get="", ul4get="_params_get")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
@@ -2159,6 +2161,7 @@ class Globals(CustomAttributes):
 		self.app = None
 		self.record = None
 		self.datasources = attrdict()
+		self._groups = None
 		self.user = None
 		self.maxdbactions = None
 		self.maxtemplateruntime = None
@@ -2194,6 +2197,17 @@ class Globals(CustomAttributes):
 	def _externaldatasources_ul4onset(self, value):
 		if value is not None:
 			self.externaldatasources = value
+
+	def _groups_get(self):
+		groups = self._groups
+		if groups is None:
+			handler = self.handler
+			if handler is not None:
+				groups = handler.appgroups_incremental_data(self)
+				if groups is not None:
+					groups = attrdict(groups)
+					self._groups = groups
+		return groups
 
 	def _record_ul4onset(self, value):
 		if value is not None:
@@ -2893,9 +2907,10 @@ class App(CustomAttributes):
 	favorite = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	active_view = Attr(lambda: View, str, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	datasource = Attr(lambda: DataSource, get=True, ul4get=True, ul4onget=True, ul4onset=True)
-	menus = Attr(get="", set="", ul4get="_menus_get", ul4onget="_menus_ul4onget", ul4onset="_menus_set")
-	panels = Attr(get="", set="", ul4get="_panels_get", ul4onget="_panels_ul4onget", ul4onset="_panels_set")
-	child_controls = Attr(get="", set="", ul4get="_child_controls_get", ul4onget="_child_controls_ul4onget", ul4onset="_child_controls_set")
+	main = BoolAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	menus = Attr(get="", set="", ul4get="_menus_get")
+	panels = Attr(get="", set="", ul4get="_panels_get")
+	child_controls = Attr(get="", set="", ul4get="_child_controls_get")
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2939,6 +2954,7 @@ class App(CustomAttributes):
 		self.favorite = False
 		self.active_view = None
 		self.datasource = None
+		self.main = False
 		self.internaltemplates = None
 		self.viewtemplates = None
 		self.dataactions = None
@@ -3232,9 +3248,6 @@ class App(CustomAttributes):
 	def _menus_set(self, value):
 		self._menus = value
 
-	def _menus_ul4onget(self):
-		return self._menus
-
 	def _panels_get(self):
 		panels = self._panels
 		if panels is None:
@@ -3246,9 +3259,6 @@ class App(CustomAttributes):
 	def _panels_set(self, value):
 		self._panels = value
 
-	def _panels_ul4onget(self):
-		return self._panels
-
 	def _child_controls_get(self):
 		child_controls = self._child_controls
 		if child_controls is None:
@@ -3259,9 +3269,6 @@ class App(CustomAttributes):
 
 	def _child_controls_set(self, value):
 		self._child_controls = value
-
-	def _child_controls_ul4onget(self):
-		return self._child_controls
 
 	def _views_get(self):
 		views = self._views
@@ -3447,19 +3454,21 @@ class AppGroup(Base):
 		The LivingApps that belong to this group.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps", "main_app"})
 	ul4_type = ul4c.Type("la", "AppGroup", "A group of LivingApps")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	apps = AttrDictAttr(get="", ul4get="_apps_get", ul4onget="_apps_get")
+	apps = AttrDictAttr(get="", ul4get="_apps_get", ul4onget="_apps_get", ul4onset=True)
+	main_app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, globals=None, name=None):
 		self.id = id
 		self.globals = globals
 		self.name = name
 		self._apps = None
+		self.main_app = None
 
 	@property
 	def ul4onid(self) -> str:
