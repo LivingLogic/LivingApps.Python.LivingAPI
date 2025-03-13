@@ -80,7 +80,7 @@ def test_global_variables(config_data):
 			la.DataOrder(expression="record.id"),
 			la.DataOrder(expression="params.str.nix"),
 			la.DataOrder(expression="len(params.strlist.nix)"),
-			la.DataSourceChildren(
+			la.DataSourceChildrenConfig(
 				la.DataOrder(expression="r.v_name"),
 				la.DataOrder(expression="app.p_str_value.value"),
 				la.DataOrder(expression="user.email"),
@@ -453,7 +453,7 @@ def test_datasource_masterdetail_recordfilter(config_data):
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
-			la.DataSourceChildren(
+			la.DataSourceChildrenConfig(
 				identifier="children",
 				control=c.apps.fields.c_parent,
 				filter="len(r.v_name) >= 6",
@@ -486,7 +486,7 @@ def test_datasource_masterdetail_sort_asc(config_data):
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
-			la.DataSourceChildren(
+			la.DataSourceChildrenConfig(
 				la.DataOrder(expression="r.v_name", direction="asc", nulls="first"),
 				identifier="children",
 				control=c.apps.fields.c_parent,
@@ -519,7 +519,7 @@ def test_datasource_masterdetail_sort_desc(config_data):
 
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
-			la.DataSourceChildren(
+			la.DataSourceChildrenConfig(
 				la.DataOrder(expression="r.v_name", direction="desc", nulls="first"),
 				identifier="children",
 				control=c.apps.fields.c_parent,
@@ -677,7 +677,7 @@ def test_datasourcechildren_paging(config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			la.DataOrder(expression="r.v_name"),
-			la.DataSourceChildren(
+			la.DataSourceChildrenConfig(
 				la.DataOrder(expression="r.v_lastname"),
 				la.DataOrder(expression="r.v_firstname"),
 				identifier="persons",
