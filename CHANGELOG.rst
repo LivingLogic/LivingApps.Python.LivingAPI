@@ -12,8 +12,8 @@ HEAD (2025-??-??)
 
 *	Added attribute ``Globals.groups``, ``AppGroup.main_app`` and ``App.main``.
 
-*	Added class ``ViewTemplateInfo`` and attribute ``App.viewtemplates``. Renamed the
-	old attribute ``viewtemplates`` to ``viewtemplatesconfig``.
+*	Added class ``ViewTemplateInfo`` and attribute ``App.viewtemplates``. Renamed
+	the old attribute ``viewtemplates`` to ``viewtemplatesconfig``.
 
 
 0.43.4 (2025-02-03)
