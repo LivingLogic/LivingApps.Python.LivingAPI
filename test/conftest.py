@@ -384,8 +384,9 @@ def create_data():
 				p.v_notes = notes.string()
 
 			if p.v_portrait is not None and p.v_portrait.id is None:
-				p.v_portrait.save()
-			p.save()
+				handler.save_file(p.v_portrait)
+			# Ignore `required` state we might "inherit" from the first form
+			p.save(force=True)
 			persons_app.records[p.id] = p
 			return p
 
