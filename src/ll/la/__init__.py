@@ -2896,7 +2896,6 @@ class App(CustomAttributes):
 	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
 	params = AttrDictAttr(get="", ul4get="_params_get")
 	templates = Attr(get="", ul4get="_templates_get")
-	viewtemplates = Attr(get="", ul4get="_viewtemplates_get")
 	views = Attr(get="", set="", ul4get="_views_get", ul4onget="_views_ul4onget", ul4onset="_views_set")
 	datamanagement_identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	basetable = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2913,6 +2912,7 @@ class App(CustomAttributes):
 	active_view = Attr(lambda: View, str, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	datasource = Attr(lambda: DataSource, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	main = BoolAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	viewtemplates = Attr(get="", ul4get="_viewtemplates_get", ul4onget="", ul4onset="")
 	menus = Attr(get="", set="", ul4get="_menus_get")
 	panels = Attr(get="", set="", ul4get="_panels_get")
 	child_controls = Attr(get="", set="", ul4get="_child_controls_get")
@@ -3050,6 +3050,15 @@ class App(CustomAttributes):
 					viewtemplates = attrdict(viewtemplates)
 					self._viewtemplates = viewtemplates
 		return viewtemplates
+
+	def _viewtemplates_ul4onget(self):
+		return self._viewtemplates
+
+	def _viewtemplates_ul4onset(self, value):
+		self._viewtemplates = value
+
+	def _viewtemplates_ul4ondefault(self):
+		self._viewtemplates = None
 
 	def template_url(self, identifier, record=None, /, **params):
 		url = f"https://{self.globals.hostname}/gateway/apps/{self.id}"
@@ -6345,7 +6354,7 @@ class Record(CustomAttributes):
 	fields = AttrDictAttr(get="", ul4get="_fields_get")
 	values = AttrDictAttr(get="", set=True, ul4get="_values_get", ul4onget="", ul4onset="")
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
-	details = AttrDictAttr(get="", ul4get=True, ul4set=True, ul4onget=True, ul4onset="")
+	details = AttrDictAttr(get=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	errors = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
 	lookupdata = AttrDictAttr(ul4onget="", ul4onset="")
@@ -6368,7 +6377,7 @@ class Record(CustomAttributes):
 		self._sparse_target_param_name = attrdict()
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
-		self._details = None
+		self.__dict__["details"] = None
 		self.attachments = None
 		self.errors = []
 		self._new = True
@@ -6470,21 +6479,13 @@ class Record(CustomAttributes):
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
 
-	def _details_get(self):
-		if self._details is None:
-			self._details = attrdict()
-			if self.app is not None and self.app.datasource:
-				for ds in self.app.datasource.children:
-					self._details[ds.identifier] = RecordChildren(f"{self.id}_{ds.id}", self, ds)
-		return self._details
-
 	@property
 	def children(self):
 		return {k: v.records for (k, v) in self.details.items()}
 
 	def _details_ul4onset(self, value):
 		if value is not None:
-			self._details = value
+			self.details = value
 
 	@children.setter
 	def children(self, value):
