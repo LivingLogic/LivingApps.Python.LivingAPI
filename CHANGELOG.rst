@@ -1,5 +1,5 @@
-HEAD (2025-??-??)
------------------
+0.44.0 (2025-03-13)
+-------------------
 
 *	Added method ``Control.save()`` that saves the user settable attributes to
 	the database.
