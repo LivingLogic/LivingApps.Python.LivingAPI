@@ -242,7 +242,7 @@ class Handler:
 	def delete_record(self, record) -> None:
 		raise NotImplementedError
 
-	def save_control(self, control) -> None:
+	def save_control(self, control) -> bool:
 		raise NotImplementedError
 
 	def _executeaction(self, record, actionidentifier) -> None:
@@ -251,7 +251,7 @@ class Handler:
 	def file_content(self, file):
 		raise NotImplementedError
 
-	def save_app(self, app, recursive=True):
+	def save_app_config(self, app, recursive=True):
 		raise NotImplementedError
 
 	def save_file(self, file):
@@ -263,7 +263,7 @@ class Handler:
 	def save_internaltemplate(self, internaltemplate, recursive=True):
 		raise NotImplementedError
 
-	def save_viewtemplate(self, viewtemplate, recursive=True):
+	def save_viewtemplate_config(self, viewtemplate, recursive=True):
 		raise NotImplementedError
 
 	def delete_viewtemplate(self, viewtemplate):
@@ -335,7 +335,6 @@ class DBHandler(Handler):
 
 		super().__init__()
 
-		now = datetime.datetime.now()
 		self.requestid = uuid()
 		if connection is not None:
 			if connectstring is not None:
@@ -367,6 +366,7 @@ class DBHandler(Handler):
 		self.proc_data_update = orasql.Procedure("LIVINGAPI_PKG.DATA_UPDATE")
 		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
 		self.proc_control_update = orasql.Procedure("LIVINGAPI_PKG.CONTROL_UPDATE")
+		self.proc_template_update = orasql.Procedure("LIVINGAPI_PKG.TEMPLATE_UPDATE")
 		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
 		self.proc_appparameter_delete = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_DELETE")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
@@ -494,15 +494,15 @@ class DBHandler(Handler):
 			p_upl_id_attachment=attachments.internal_id if attachments else None,
 		)
 
-	def save_app(self, app, recursive=True):
+	def save_app_config(self, app, recursive=True):
 		# FIXME: Save the app itself
 		if recursive:
 			if app.internaltemplates is not None:
 				for internaltemplate in app.internaltemplates.values():
 					self.save_internaltemplate(internaltemplate, recursive=recursive)
-			if app.viewtemplates is not None:
-				for viewtemplate in app.viewtemplates.values():
-					self.save_viewtemplate(viewtemplate, recursive=recursive)
+			if app.viewtemplates_config is not None:
+				for viewtemplate_config in app.viewtemplates_config.values():
+					self.save_viewtemplate_config(viewtemplate_config, recursive=recursive)
 			if app._ownparams is not None:
 				for param in app._ownparams.values():
 					self.save_parameter(param)
@@ -640,7 +640,7 @@ class DBHandler(Handler):
 			]
 		)
 
-	def save_viewtemplate(self, viewtemplate, recursive=True):
+	def save_viewtemplate_config(self, viewtemplate, recursive=True):
 		template = ul4c.Template(viewtemplate.source, name=viewtemplate.identifier)
 		cursor = self.cursor()
 		r = self.proc_viewtemplate_import(
@@ -654,7 +654,7 @@ class DBHandler(Handler):
 			p_utv_whitespace=template.whitespace,
 			p_utv_doc=template.doc,
 			p_utv_source=template.source,
-			p_vt_permission_level=viewtemplate.permission.value
+			p_vt_permission_level=viewtemplate.permission_level.value
 		)
 		viewtemplate.id = r.p_vt_id
 		if recursive:
@@ -1180,6 +1180,23 @@ class DBHandler(Handler):
 			p_ag_id=appgroup.id,
 		)
 
+	def appgroups_incremental_data(self, globals):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			globals,
+			"select livingapi_pkg.appgroups_inc_ful4on(:c_user) from dual",
+			c_user=self.ide_id,
+		)
+
+	def app_viewtemplates_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_viewtemplates_inc_ful4on(:c_user, :p_tpl_uuid) from dual",
+			c_user=self.ide_id,
+			p_tpl_uuid=app.id,
+		)
+
 	def save_record(self, record, recursive=True):
 		record.clear_errors()
 		app = record.app
@@ -1290,7 +1307,7 @@ class DBHandler(Handler):
 				if r.p_errormessage:
 					raise ValueError(r.p_errormessage)
 
-	def save_control(self, control):
+	def save_control(self, control) -> bool:
 		c = self.cursor()
 		required = control.__dict__["required"] # Use the "raw" value
 		if required is not None:
@@ -1305,6 +1322,32 @@ class DBHandler(Handler):
 			p_ctl_inmobilelist=int(control.in_mobile_list),
 			p_ctl_intext=int(control.in_text),
 			p_ctl_required=required,
+		)
+		return True
+
+	def save_app(self, app) -> bool:
+		if app.image is not None and app.image.internal_id is None:
+			raise la.UnsavedObjectError(app.image)
+
+		c = self.cursor()
+
+		self.proc_template_update(
+			c,
+			c_user=self.ide_id,
+			p_tpl_uuid=app.id,
+			p_tpl_name=app.name,
+			p_tpl_description=app.description,
+			p_upl_id_image=None if app.image is None else app.image.internal_id,
+			p_tpl_favorite=int(app.favorite),
+			p_tpl_gramgen=app.gramgen,
+			p_tpl_typename_nom_sin=app.typename_nom_sin,
+			p_tpl_typename_gen_sin=app.typename_gen_sin,
+			p_tpl_typename_dat_sin=app.typename_dat_sin,
+			p_tpl_typename_acc_sin=app.typename_acc_sin,
+			p_tpl_typename_nom_plu=app.typename_nom_plu,
+			p_tpl_typename_gen_plu=app.typename_gen_plu,
+			p_tpl_typename_dat_plu=app.typename_dat_plu,
+			p_tpl_typename_acc_plu=app.typename_acc_plu,
 		)
 		return True
 
@@ -1350,7 +1393,7 @@ class DBHandler(Handler):
 				p_ap_value_other = str(parameter.value.months())
 			elif parameter.type is parameter.Type.UPLOAD:
 				if parameter.value.internal_id is None:
-					raise la.ValueError(error_object_unsaved(parameter.value))
+					raise la.UnsavedObjectError(parameter.value)
 				p_upl_id = parameter.value.internal_id
 			elif parameter.type is parameter.Type.APP:
 				p_tpl_uuid_value = parameter.value.id
@@ -1806,7 +1849,7 @@ class FileHandler(Handler):
 				)
 				app.addtemplate(internaltemplate)
 
-	def save_app(self, app, recursive=True):
+	def save_app_config(self, app, recursive=True):
 		configcontrols = self._controls_as_json(app)
 		path = self.basepath/"index.json"
 		self._save(path, json.dumps(configcontrols, indent="\t", ensure_ascii=False))
@@ -1814,9 +1857,9 @@ class FileHandler(Handler):
 			if app.internaltemplates is not None:
 				for internaltemplate in app.internaltemplates.values():
 					self.save_internaltemplate(internaltemplate, recursive=recursive)
-			if app.viewtemplates is not None:
-				for viewtemplate in app.viewtemplates.values():
-					self.save_viewtemplate(viewtemplate, recursive=recursive)
+			if app.viewtemplates_config is not None:
+				for viewtemplate_config in app.viewtemplates_config.values():
+					self.save_viewtemplate_config(viewtemplate_config, recursive=recursive)
 			if app.dataactions is not None:
 				for dataaction in app.dataactions.values():
 					self.save_dataaction(dataaction)
@@ -1956,7 +1999,7 @@ class FileHandler(Handler):
 			configorders.append(configorder)
 		return configorders
 
-	def save_viewtemplate(self, viewtemplate, recursive=True):
+	def save_viewtemplate_config(self, viewtemplate, recursive=True):
 		# Save the template itself
 		dir = f"{self.basepath}/{viewtemplate.app.fullname}/viewtemplates"
 		ext = self._guessext(dir, viewtemplate)

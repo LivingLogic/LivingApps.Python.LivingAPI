@@ -115,7 +115,7 @@ class Handler:
 			app.handler = self.dbhandler
 			app.id = person_app_id()
 			app.addtemplate(viewtemplate)
-			app.save(self.dbhandler)
+			self.dbhandler.save_app_config(app)
 		return viewtemplate
 
 	def make_internaltemplate(self, *args, **kwargs):
@@ -125,7 +125,7 @@ class Handler:
 			app.handler = self.dbhandler
 			app.id = person_app_id()
 			app.addtemplate(internaltemplate)
-			app.save(self.dbhandler)
+			self.dbhandler.save_app_config(app)
 		return internaltemplate
 
 
@@ -384,8 +384,9 @@ def create_data():
 				p.v_notes = notes.string()
 
 			if p.v_portrait is not None and p.v_portrait.id is None:
-				p.v_portrait.save()
-			p.save()
+				handler.save_file(p.v_portrait)
+			# Ignore `required` state we might "inherit" from the first form
+			p.save(force=True)
 			persons_app.records[p.id] = p
 			return p
 

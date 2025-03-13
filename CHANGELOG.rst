@@ -1,8 +1,19 @@
-HEAD (2025-??-??)
------------------
+0.44.0 (2025-03-13)
+-------------------
 
-*	Added method ``Control.save()`` that saves to user setable attributes to
+*	Added method ``Control.save()`` that saves the user settable attributes to
 	the database.
+
+*	Made the ``App`` attributes ``name``, ``description``, ``image``, ``favorite``,
+	``gramgen``, ``typename_nom_sin``, ``typename_gen_sin``, ``typename_dat_sin``,
+	``typename_acc_sin``, ``typename_nom_plu``, ``typename_gen_plu``,
+	``typename_dat_plu`` and ``typename_acc_plu`` settable and add a method
+	``App.save()`` that saves those attributes to the database.
+
+*	Added attribute ``Globals.groups``, ``AppGroup.main_app`` and ``App.main``.
+
+*	Added class ``ViewTemplateInfo`` and attribute ``App.viewtemplates``. Renamed
+	the old attribute ``viewtemplates`` to ``viewtemplatesconfig``.
 
 
 0.43.4 (2025-02-03)

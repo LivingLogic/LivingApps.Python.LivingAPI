@@ -601,6 +601,19 @@ class VersionMismatchError(ValueError):
 		return f"invalid LivingAPI version: expected {self.expected_version!r}, got {self.encountered_version!r}"
 
 
+class UnsavedObjectError(ValueError):
+	"""
+	Exception that is raised when we are saving an object that references another object
+	that hasn't been saved yet.
+	"""
+
+	def __init__(self, object):
+		self.object = object
+
+	def __str__(self) -> str:
+		return error_object_unsaved(self.object)
+
+
 ###
 ### Data descriptors
 ###
@@ -2046,6 +2059,7 @@ class Globals(CustomAttributes):
 		"record",
 		"datasources",
 		"externaldatasources",
+		"groups",
 		"user",
 		"lang",
 		"templates",
@@ -2134,6 +2148,7 @@ class Globals(CustomAttributes):
 	view_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	externaldatasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	template_params = AttrDictAttr(get="", ul4onget="_template_params_get", ul4onset="_template_params_ul4onset")
+	groups = AttrDictAttr(get="", ul4get="_groups_get", ul4onget="_groups_get")
 	params = AttrDictAttr(get="", ul4get="_params_get")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
@@ -2146,6 +2161,7 @@ class Globals(CustomAttributes):
 		self.app = None
 		self.record = None
 		self.datasources = attrdict()
+		self._groups = None
 		self.user = None
 		self.maxdbactions = None
 		self.maxtemplateruntime = None
@@ -2181,6 +2197,17 @@ class Globals(CustomAttributes):
 	def _externaldatasources_ul4onset(self, value):
 		if value is not None:
 			self.externaldatasources = value
+
+	def _groups_get(self):
+		groups = self._groups
+		if groups is None:
+			handler = self.handler
+			if handler is not None:
+				groups = handler.appgroups_incremental_data(self)
+				if groups is not None:
+					groups = attrdict(groups)
+					self._groups = groups
+		return groups
 
 	def _record_ul4onset(self, value):
 		if value is not None:
@@ -2718,6 +2745,9 @@ class App(CustomAttributes):
 	.. attribute:: templates
 		:type: dict[str, ul4c.Template]
 
+	.. attribute:: viewtemplates
+		:type: dict[str, ViewTemplateInfo]
+
 	.. attribute:: createdat
 		:type: datetime.datetime
 
@@ -2753,7 +2783,7 @@ class App(CustomAttributes):
 
 		Internal templates of this app.
 
-	.. attribute:: viewtemplates
+	.. attribute:: viewtemplatesconfig
 		:type: Optional[dict[str, ViewTemplate]]
 
 		View templates of this app.
@@ -2807,6 +2837,7 @@ class App(CustomAttributes):
 		# "updateprocedure",
 		# "deleteprocedure",
 		"templates",
+		"viewtemplates",
 		"insert",
 		"favorite",
 		"active_view",
@@ -2830,6 +2861,7 @@ class App(CustomAttributes):
 		"datamanageview_url",
 		"seq",
 		"send_mail",
+		"save",
 	})
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
@@ -2837,21 +2869,21 @@ class App(CustomAttributes):
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	group = Attr(lambda: AppGroup, get=True, ul4get=True, ul4onget=True, ul4onset=True)
-	gramgen = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_nom_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_gen_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_dat_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_acc_sin = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_nom_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_gen_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_dat_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_acc_plu = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	gramgen = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_nom_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_gen_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_dat_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_acc_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_nom_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_gen_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_dat_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_acc_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	startlink = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	image = Attr(File, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	iconlarge = Attr(File, get="_image_get", ul4get="_image_get")
 	iconsmall = Attr(File, get="_image_get", ul4get="_image_get")
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2876,14 +2908,16 @@ class App(CustomAttributes):
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	superid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	favorite = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	favorite = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	active_view = Attr(lambda: View, str, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	datasource = Attr(lambda: DataSource, get=True, ul4get=True, ul4onget=True, ul4onset=True)
-	menus = Attr(get="", set="", ul4get="_menus_get", ul4onget="_menus_ul4onget", ul4onset="_menus_set")
-	panels = Attr(get="", set="", ul4get="_panels_get", ul4onget="_panels_ul4onget", ul4onset="_panels_set")
-	child_controls = Attr(get="", set="", ul4get="_child_controls_get", ul4onget="_child_controls_ul4onget", ul4onset="_child_controls_set")
+	main = BoolAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	viewtemplates = Attr(get="", ul4get="_viewtemplates_get", ul4onget="", ul4onset="")
+	menus = Attr(get="", set="", ul4get="_menus_get")
+	panels = Attr(get="", set="", ul4get="_panels_get")
+	child_controls = Attr(get="", set="", ul4get="_child_controls_get")
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	viewtemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	viewtemplates_config = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
@@ -2912,6 +2946,7 @@ class App(CustomAttributes):
 		self.installation = installation
 		self.categories = None
 		self._templates = None
+		self._viewtemplates = None
 		self._views = None
 		self.datamanagement_identifier = datamanagement_identifier
 		self.basetable = None
@@ -2925,8 +2960,9 @@ class App(CustomAttributes):
 		self.favorite = False
 		self.active_view = None
 		self.datasource = None
+		self.main = False
 		self.internaltemplates = None
-		self.viewtemplates = None
+		self.viewtemplates_config = None
 		self.dataactions = None
 		self._vsqlgroup_records = None
 		self._vsqlgroup_app = None
@@ -3004,6 +3040,26 @@ class App(CustomAttributes):
 								self._templates[identifier] = template
 		return self._templates
 
+	def _viewtemplates_get(self):
+		viewtemplates = self._viewtemplates
+		if viewtemplates is None:
+			handler = self.globals.handler
+			if handler is not None:
+				viewtemplates = handler.app_viewtemplates_incremental_data(self)
+				if viewtemplates is not None:
+					viewtemplates = attrdict(viewtemplates)
+					self._viewtemplates = viewtemplates
+		return viewtemplates
+
+	def _viewtemplates_ul4onget(self):
+		return self._viewtemplates
+
+	def _viewtemplates_ul4onset(self, value):
+		self._viewtemplates = value
+
+	def _viewtemplates_ul4ondefault(self):
+		self._viewtemplates = None
+
 	def template_url(self, identifier, record=None, /, **params):
 		url = f"https://{self.globals.hostname}/gateway/apps/{self.id}"
 		if record is not None:
@@ -3073,6 +3129,10 @@ class App(CustomAttributes):
 			body_html=body_html,
 			attachments=attachments,
 		)
+
+	def save(self):
+		handler = self._gethandler()
+		return handler.save_app(self)
 
 	def __getattr__(self, name):
 		if name.startswith("c_"):
@@ -3214,9 +3274,6 @@ class App(CustomAttributes):
 	def _menus_set(self, value):
 		self._menus = value
 
-	def _menus_ul4onget(self):
-		return self._menus
-
 	def _panels_get(self):
 		panels = self._panels
 		if panels is None:
@@ -3228,9 +3285,6 @@ class App(CustomAttributes):
 	def _panels_set(self, value):
 		self._panels = value
 
-	def _panels_ul4onget(self):
-		return self._panels
-
 	def _child_controls_get(self):
 		child_controls = self._child_controls
 		if child_controls is None:
@@ -3241,9 +3295,6 @@ class App(CustomAttributes):
 
 	def _child_controls_set(self, value):
 		self._child_controls = value
-
-	def _child_controls_ul4onget(self):
-		return self._child_controls
 
 	def _views_get(self):
 		views = self._views
@@ -3304,10 +3355,10 @@ class App(CustomAttributes):
 				template.app = self
 				self.internaltemplates[template.identifier] = template
 			elif isinstance(template, ViewTemplateConfig):
-				if self.viewtemplates is None:
-					self.viewtemplates = attrdict()
+				if self.viewtemplates_config is None:
+					self.viewtemplates_config = attrdict()
 				template.app = self
-				self.viewtemplates[template.identifier] = template
+				self.viewtemplates_config[template.identifier] = template
 			else:
 				raise TypeError(f"don't know what to do with positional argument {template!r}")
 		return self
@@ -3429,19 +3480,21 @@ class AppGroup(Base):
 		The LivingApps that belong to this group.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps", "main_app"})
 	ul4_type = ul4c.Type("la", "AppGroup", "A group of LivingApps")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	apps = AttrDictAttr(get="", ul4get="_apps_get", ul4onget="_apps_get")
+	apps = AttrDictAttr(get="", ul4get="_apps_get", ul4onget="_apps_get", ul4onset=True)
+	main_app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, globals=None, name=None):
 		self.id = id
 		self.globals = globals
 		self.name = name
 		self._apps = None
+		self.main_app = None
 
 	@property
 	def ul4onid(self) -> str:
@@ -6301,7 +6354,7 @@ class Record(CustomAttributes):
 	fields = AttrDictAttr(get="", ul4get="_fields_get")
 	values = AttrDictAttr(get="", set=True, ul4get="_values_get", ul4onget="", ul4onset="")
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
-	details = AttrDictAttr(get="", ul4get=True, ul4set=True, ul4onget=True, ul4onset="")
+	details = AttrDictAttr(get=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	errors = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
 	lookupdata = AttrDictAttr(ul4onget="", ul4onset="")
@@ -6324,7 +6377,7 @@ class Record(CustomAttributes):
 		self._sparse_target_param_name = attrdict()
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
-		self._details = None
+		self.__dict__["details"] = None
 		self.attachments = None
 		self.errors = []
 		self._new = True
@@ -6426,21 +6479,13 @@ class Record(CustomAttributes):
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
 
-	def _details_get(self):
-		if self._details is None:
-			self._details = attrdict()
-			if self.app is not None and self.app.datasource:
-				for ds in self.app.datasource.children:
-					self._details[ds.identifier] = RecordChildren(f"{self.id}_{ds.id}", self, ds)
-		return self._details
-
 	@property
 	def children(self):
 		return {k: v.records for (k, v) in self.details.items()}
 
 	def _details_ul4onset(self, value):
 		if value is not None:
-			self._details = value
+			self.details = value
 
 	@children.setter
 	def children(self, value):
@@ -7245,14 +7290,14 @@ class ViewTemplateConfig(Template):
 
 	type = EnumAttr(Type, get=True, set=True, required=True, default=Type.LIST, ul4get=True, ul4onget=True, ul4onset=True)
 	mimetype = Attr(str, get=True, set=True, default="text/html", ul4get=True, ul4onget=True, ul4onset=True)
-	permission = IntEnumAttr(Permission, get=True, set=True, required=True, ul4get=True, default=Permission.ALL, ul4onget=True, ul4onset=True)
+	permission_level = IntEnumAttr(Permission, get=True, set=True, required=True, ul4get=True, default=Permission.ALL, ul4onget=True, ul4onset=True)
 	datasources = AttrDictAttr(get=True, set=True, required=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, *args, id=None, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype="text/html", permission=None):
+	def __init__(self, *args, id=None, identifier=None, source=None, whitespace="keep", signature=None, doc=None, type=Type.LIST, mimetype="text/html", permission_level=None):
 		super().__init__(id=id, identifier=identifier, source=source, whitespace=whitespace, signature=signature, doc=doc)
 		self.type = type
 		self.mimetype = mimetype
-		self.permission = permission
+		self.permission_level = permission_level
 		self.datasources = attrdict()
 		for arg in args:
 			if isinstance(arg, DataSourceConfig):
@@ -7274,6 +7319,148 @@ class ViewTemplateConfig(Template):
 
 	def delete_meta(self):
 		self._gethandler().delete_viewtemplate(self)
+
+
+@register("viewtemplateinfo")
+class ViewTemplateInfo(CustomAttributes):
+	"""
+	A :class:`!ViewTemplateInfo` provides data of a view template.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+		
+		The database primary key of this view template.
+
+	.. attribute:: app
+		:type: App
+		
+		The app this view template belongs to.
+
+	.. attribute:: identifier
+		:type: str
+		
+		The database primary key of this view template.
+
+	.. attribute:: name
+		:type: str
+		
+		The name of this view template.
+
+	.. attribute:: icon
+		:type: str
+		
+		The icon of this view template.
+
+	.. attribute:: type
+		:type: Type
+
+		The type of the view template (i.e. in which context it is used)
+
+	.. attribute:: mimetype
+		:type: str
+
+		The MIME type of the HTTP response of the view template
+
+	.. attribute:: permission_level
+		:type: Permission
+
+		Who can access the template?
+	"""
+
+	ul4_type = ul4c.Type("la", "ViewTemplateInfo", "A view template info object")
+
+	class Type(misc.Enum):
+		"""
+		The type of a view template.
+
+		Enum values have the following meaning:
+
+		``LIST``
+			The template is supposed to display multiple records. The URL looks
+			like this:
+
+			.. sourcecode:: text
+
+				/gateway/apps/1234567890abcdef12345678?template=foo
+
+			(with ``1234567890abcdef12345678`` being the app id).
+
+		``LISTDEFAULT``
+			This is similar to ``LIST``, but this view template is the default when
+			no ``template`` parameter is specified, i.e. the URL looks like this:
+
+			.. sourcecode:: text
+
+				/gateway/apps/1234567890abcdef12345678
+
+		``LISTDATAMANAGEMENT``
+			This is similar to ``LIST``, but a link to this view template will be
+			available in the datamanagement and the menu.
+
+		``DETAIL``
+			The template is supposed to display the details of a single record. The
+			URL looks like this::
+
+				/gateway/apps/1234567890abcdef12345678/abcdefabcdefabcdefabcdef?template=foo
+
+			(with ``abcdefabcdefabcdefabcdef`` being the id of the record)
+
+		``DETAILRESULT``
+			This is similar to ``DETAIL``, but is used to replace the standard display
+			if a record is created or updated via the standard form.
+
+		``DETAILDATAMANAGEMENT``
+			This is similar to ``DETAIL``, but a link to this view template will be
+			available for each record in the datamanagement.
+
+		``SUPPORT``
+			The template is supposed to be independant of any record. This can be
+			used for delivering static CSS or similar stuff. The URL looks the same
+			as for the type ``LIST``.
+		"""
+
+		LIST = "list"
+		LISTDEFAULT = "listdefault"
+		LISTDATAMANAGEMENT = "listdatamanagement"
+		DETAIL = "detail"
+		DETAILRESULT = "detailresult"
+		DETAILDATAMANAGEMENT = "detaildatamanagement"
+		SUPPORT = "support"
+
+	class Permission(misc.IntEnum):
+		ALL = 0
+		LOGGEDIN = 1
+		APP = 2
+		APPEDIT = 3
+		APPADMIN = 4
+
+	app = Attr(App, get=True, set=True, default=None, ul4get=True, ul4onget=True, ul4onset=True)
+	identifier = Attr(str, get=True, set=True, default=None, ul4get=True, ul4onget=True, ul4onset=True, repr=True)
+	name = Attr(str, get=True, set=True, default=None, ul4get=True, ul4onget=True, ul4onset=True)
+	icon = Attr(str, get=True, set=True, default=None, ul4get=True, ul4onget=True, ul4onset=True)
+	type = EnumAttr(Type, get=True, set=True, required=True, default=Type.LIST, ul4get=True, ul4onget=True, ul4onset=True, repr=True)
+	mimetype = Attr(str, get=True, set=True, default="text/html", ul4get=True, ul4onget=True, ul4onset=True, repr=True)
+	permission_level = IntEnumAttr(Permission, get=True, set=True, required=True, ul4get=True, default=Permission.ALL, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, app=None, identifier=None, name=None, icon=None, type=Type.LIST, mimetype="text/html", permission_level=None):
+		super().__init__()
+		self.id = id
+		self.app = app
+		self.identifier = identifier
+		self.name = name
+		self.icon = icon
+		self.type = type
+		self.mimetype = mimetype
+		self.permission_level = permission_level
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def __str__(self):
+		return f"{self.app or '?'}/viewtemplate={self.identifier}"
 
 
 @register("datasourceconfig")
