@@ -3116,7 +3116,9 @@ def test_globals_dir(handler, config_data):
 			request=True
 			response=True
 			custom=True
+			form=True
 			geo=True
+			groups=True
 			dist=True
 			seq=True
 			flashes=True
