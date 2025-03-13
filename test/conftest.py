@@ -115,7 +115,7 @@ class Handler:
 			app.handler = self.dbhandler
 			app.id = person_app_id()
 			app.addtemplate(viewtemplate)
-			app.save(self.dbhandler)
+			self.dbhandler.save_app_config(app)
 		return viewtemplate
 
 	def make_internaltemplate(self, *args, **kwargs):
@@ -125,7 +125,7 @@ class Handler:
 			app.handler = self.dbhandler
 			app.id = person_app_id()
 			app.addtemplate(internaltemplate)
-			app.save(self.dbhandler)
+			self.dbhandler.save_app_config(app)
 		return internaltemplate
 
 

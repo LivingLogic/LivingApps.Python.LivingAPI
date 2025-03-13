@@ -251,7 +251,7 @@ class Handler:
 	def file_content(self, file):
 		raise NotImplementedError
 
-	def save_app_meta(self, app, recursive=True):
+	def save_app_config(self, app, recursive=True):
 		raise NotImplementedError
 
 	def save_file(self, file):
@@ -263,7 +263,7 @@ class Handler:
 	def save_internaltemplate(self, internaltemplate, recursive=True):
 		raise NotImplementedError
 
-	def save_viewtemplate(self, viewtemplate, recursive=True):
+	def save_viewtemplate_config(self, viewtemplate, recursive=True):
 		raise NotImplementedError
 
 	def delete_viewtemplate(self, viewtemplate):
@@ -494,15 +494,15 @@ class DBHandler(Handler):
 			p_upl_id_attachment=attachments.internal_id if attachments else None,
 		)
 
-	def save_app_meta(self, app, recursive=True):
+	def save_app_config(self, app, recursive=True):
 		# FIXME: Save the app itself
 		if recursive:
 			if app.internaltemplates is not None:
 				for internaltemplate in app.internaltemplates.values():
 					self.save_internaltemplate(internaltemplate, recursive=recursive)
-			if app.viewtemplates is not None:
-				for viewtemplate in app.viewtemplates.values():
-					self.save_viewtemplate(viewtemplate, recursive=recursive)
+			if app.viewtemplates_config is not None:
+				for viewtemplate_config in app.viewtemplates_config.values():
+					self.save_viewtemplate_config(viewtemplate_config, recursive=recursive)
 			if app._ownparams is not None:
 				for param in app._ownparams.values():
 					self.save_parameter(param)
@@ -640,7 +640,7 @@ class DBHandler(Handler):
 			]
 		)
 
-	def save_viewtemplate(self, viewtemplate, recursive=True):
+	def save_viewtemplate_config(self, viewtemplate, recursive=True):
 		template = ul4c.Template(viewtemplate.source, name=viewtemplate.identifier)
 		cursor = self.cursor()
 		r = self.proc_viewtemplate_import(
@@ -654,7 +654,7 @@ class DBHandler(Handler):
 			p_utv_whitespace=template.whitespace,
 			p_utv_doc=template.doc,
 			p_utv_source=template.source,
-			p_vt_permission_level=viewtemplate.permission.value
+			p_vt_permission_level=viewtemplate.permission_level.value
 		)
 		viewtemplate.id = r.p_vt_id
 		if recursive:
@@ -1849,7 +1849,7 @@ class FileHandler(Handler):
 				)
 				app.addtemplate(internaltemplate)
 
-	def save_app_meta(self, app, recursive=True):
+	def save_app_config(self, app, recursive=True):
 		configcontrols = self._controls_as_json(app)
 		path = self.basepath/"index.json"
 		self._save(path, json.dumps(configcontrols, indent="\t", ensure_ascii=False))
@@ -1857,9 +1857,9 @@ class FileHandler(Handler):
 			if app.internaltemplates is not None:
 				for internaltemplate in app.internaltemplates.values():
 					self.save_internaltemplate(internaltemplate, recursive=recursive)
-			if app.viewtemplates is not None:
-				for viewtemplate in app.viewtemplates.values():
-					self.save_viewtemplate(viewtemplate, recursive=recursive)
+			if app.viewtemplates_config is not None:
+				for viewtemplate_config in app.viewtemplates_config.values():
+					self.save_viewtemplate_config(viewtemplate_config, recursive=recursive)
 			if app.dataactions is not None:
 				for dataaction in app.dataactions.values():
 					self.save_dataaction(dataaction)
@@ -1999,7 +1999,7 @@ class FileHandler(Handler):
 			configorders.append(configorder)
 		return configorders
 
-	def save_viewtemplate(self, viewtemplate, recursive=True):
+	def save_viewtemplate_config(self, viewtemplate, recursive=True):
 		# Save the template itself
 		dir = f"{self.basepath}/{viewtemplate.app.fullname}/viewtemplates"
 		ext = self._guessext(dir, viewtemplate)

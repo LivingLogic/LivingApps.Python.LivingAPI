@@ -2917,7 +2917,7 @@ class App(CustomAttributes):
 	panels = Attr(get="", set="", ul4get="_panels_get")
 	child_controls = Attr(get="", set="", ul4get="_child_controls_get")
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	viewtemplatesconfig = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	viewtemplates_config = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
@@ -2962,7 +2962,7 @@ class App(CustomAttributes):
 		self.datasource = None
 		self.main = False
 		self.internaltemplates = None
-		self.viewtemplates = None
+		self.viewtemplates_config = None
 		self.dataactions = None
 		self._vsqlgroup_records = None
 		self._vsqlgroup_app = None
@@ -3355,10 +3355,10 @@ class App(CustomAttributes):
 				template.app = self
 				self.internaltemplates[template.identifier] = template
 			elif isinstance(template, ViewTemplateConfig):
-				if self.viewtemplates is None:
-					self.viewtemplates = attrdict()
+				if self.viewtemplates_config is None:
+					self.viewtemplates_config = attrdict()
 				template.app = self
-				self.viewtemplates[template.identifier] = template
+				self.viewtemplates_config[template.identifier] = template
 			else:
 				raise TypeError(f"don't know what to do with positional argument {template!r}")
 		return self
