@@ -1,3 +1,9 @@
+0.45.0 (2024-03-24)
+-------------------
+
+*	Updated internal LivingAPI version number to 133.
+
+
 0.44.0 (2025-03-13)
 -------------------
 
@@ -74,7 +80,7 @@
 
 *	Member templates now work for ``MenuItem`` and ``Panel``.
 
-*	This version rquires the API version 132.
+*	This version requires the API version 132.
 
 
 0.40.0 (2025-01-13)
