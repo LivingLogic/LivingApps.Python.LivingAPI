@@ -384,7 +384,7 @@ class Field(Repr):
 	"""
 	A :class:`!Field` object describes a database field.
 
-	This field is either in a database table or view or a global package variable.
+	This field is either in a database table or view or a global variable.
 
 	As a table or view field it belongs to a :class:`Group` object.
 	"""
@@ -512,7 +512,7 @@ class Query(Repr):
 		"""
 		self.comment = comment
 		self.vars = vars
-		self._fields : Dict[str, "AST"] = {}
+		self._fields : Dict[str, Tuple["AST", T_opt_str]] = {}
 		self._from : Dict[str, "AST"] = {}
 		self._where : Dict[str, "AST"] = {}
 		self._orderby : List[Tuple[str, "AST", T_opt_str, T_opt_str]] = []
@@ -558,23 +558,20 @@ class Query(Repr):
 			self._vsql_register(fieldref)
 		return expr
 
-	def select(self, *exprs:str) -> "Query":
-		for expr in exprs:
-			expr = self._vsql(expr)
-			sqlsource = expr.sqlsource(self)
-			if sqlsource not in self._fields:
-				self._fields[sqlsource] = expr
+	def select(self, expr:str, alias=None) -> "Query":
+		expr = self._vsql(expr)
+		sqlsource = expr.sqlsource(self)
+		if sqlsource not in self._fields:
+			self._fields[sqlsource] = (expr, alias)
 		return self
 
-	def where(self, *exprs:str) -> "Query":
-		for expr in exprs:
-			expr = self._vsql(expr)
-			if expr.datatype is not DataType.BOOL:
-				expr = FuncAST.make("bool", expr)
-			sqlsource = expr.sqlsource(self)
-			sqlsource = f"{sqlsource} = 1"
-			if sqlsource not in self._where:
-				self._where[sqlsource] = expr
+	def where(self, expr:str) -> "Query":
+		expr = self._vsql(expr)
+		if expr.datatype is not DataType.BOOL:
+			expr = FuncAST.make("bool", expr)
+		sqlsource = f"{expr.sqlsource(self)} = 1"
+		if sqlsource not in self._where:
+			self._where[sqlsource] = expr
 		return self
 
 	def orderby(self, expr:str, direction:T_sortdirection=None, nulls:T_sortnulls=None) -> "Query":
@@ -626,8 +623,10 @@ class Query(Repr):
 		def a(*parts):
 			tokens.extend(parts)
 
-		def s(sqlsource, expr):
+		def s(sqlsource, expr, alias=None):
 			tokens.append(sqlsource)
+			if alias is not None:
+				tokens.append(f" as {alias}")
 			vsqlsource = f" /* {expr.source()} */"
 			if not sqlsource.endswith(vsqlsource):
 				tokens.append(vsqlsource)
@@ -637,10 +636,10 @@ class Query(Repr):
 
 		a("select", None, +1)
 		if self._fields:
-			for (i, (field, expr)) in enumerate(self._fields.items()):
+			for (i, (field, (expr, alias))) in enumerate(self._fields.items()):
 				if i:
 					a(",", None)
-				s(field, expr)
+				s(field, expr, alias)
 		else:
 			a("42")
 		a(None, -1)

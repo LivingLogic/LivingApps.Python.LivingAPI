@@ -1,4 +1,13 @@
-0.45.0 (2024-03-24)
+HEAD (2025-04-??)
+-----------------
+
+*	It is no longer possible to pass multiple expressions to
+	:meth:`ll.la.vsql.Query.select` or :meth:`ll.la.vsql.Query.where`.
+
+*	It is now possible to add field aliases for the selected fields in
+	:meth:`ll.la.vsql.Query.select`.
+
+0.45.0 (2025-03-24)
 -------------------
 
 *	Updated internal LivingAPI version number to 133.
