@@ -389,6 +389,30 @@ class Field(Repr):
 	As a table or view field it belongs to a :class:`Group` object.
 	"""
 	def __init__(self, identifier:T_opt_str=None, datatype:DataType=DataType.NULL, fieldsql:T_opt_str=None, joinsql:T_opt_str=None, refgroup:Optional["Group"]=None):
+		"""
+		Create a :class:`Field` instance.
+
+		Argument are:
+
+		``identifier``
+			The UL4 identifier of the field
+
+		``datatype``
+			The vSQL datatype of the field
+
+		``fieldsql``
+			The SQL expression for that fields. This should include ``{a}`` as a
+			placeholder for the table alias
+
+		``joinsql``
+			If this field is a foreign key to another table, ``joinsql`` is the
+			join condition. This should include ``{m}`` and ``{d}`` placeholder
+			for the table aliases of the master table (i.e. the one where this
+			field is in) and the detail table (i.e. the one that will be joined).
+
+		``refgroup``
+			The :class:`Group` object that represents the target table.
+		"""
 		self.identifier = identifier
 		self.datatype = datatype
 		self.fieldsql = fieldsql
@@ -1839,7 +1863,8 @@ class FieldRefAST(AST):
 		elif alias is None:
 			yield f"{self.field.fieldsql} /* {self.source()} */"
 		else:
-			yield f"{alias}.{self.field.fieldsql} /* {self.source()} */"
+			fieldsql = self.field.fieldsql.replace("{a}", alias)
+			yield f"{fieldsql} /* {self.source()} */"
 
 	def validate(self) -> None:
 		self.error = Error.FIELD if self.field is None else None

@@ -10,6 +10,10 @@ HEAD (2025-04-??)
 *	It is now possible to pass additional expressions to
 	:meth:`ll.la.vsql.Query.sqlsource` for the list of tables to select from.
 
+*	The ``fieldsql`` attribute of :class:`ll.la.vsql.Field` objects now should
+	contain the placeholder ``{a}`` for the table alias.
+
+
 0.45.0 (2025-03-24)
 -------------------
 
