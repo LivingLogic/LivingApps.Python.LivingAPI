@@ -502,7 +502,7 @@ class Query(Repr):
 		``comment`` : :class:`str` or ``None``
 			A comment that will be included in the generated SQL.
 
-			Note that the comment test may not include ``/*`` or ``*/``.
+			Note that the comment text may not include ``/*`` or ``*/``.
 
 		``vars`` : :class:`Field`
 			These are the top level variables that will be availabe for vSQL
