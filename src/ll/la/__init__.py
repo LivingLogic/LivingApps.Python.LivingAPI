@@ -4862,7 +4862,7 @@ class StringControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, self.field)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5062,7 +5062,7 @@ class TextAreaControl(StringControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, self.field)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 
@@ -5082,7 +5082,7 @@ class HTMLControl(StringControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, self.field)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 
@@ -5102,7 +5102,7 @@ class IntControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.INT, self.field)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.INT, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5144,7 +5144,7 @@ class NumberControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.NUMBER, self.field)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.NUMBER, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5239,7 +5239,7 @@ class DateControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATE, self.field)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATE, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 
@@ -5282,7 +5282,7 @@ class DatetimeMinuteControl(DateControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, self.field)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 
@@ -5325,7 +5325,7 @@ class DatetimeSecondControl(DateControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, self.field)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 
@@ -5351,7 +5351,7 @@ class BoolControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.BOOL, self.field)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.BOOL, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5457,7 +5457,7 @@ class LookupControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, self.field)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5620,7 +5620,7 @@ class AppLookupControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, self.field, f"{{m}}.{self.field} = {{d}}.dat_id(+)", self.lookup_app.vsqlgroup_records)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}", f"{{m}}.{self.field} = {{d}}.dat_id(+)", self.lookup_app.vsqlgroup_records)
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5731,7 +5731,9 @@ class MultipleLookupControl(LookupControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST)
+			id = self.field.removeprefix("lup_kennungs")
+			fieldsql = f"cast(multiset(select lup_kennung from data_lookup_select where dat_id = {{a}}.dat_id and dl_i = {id}) as varchars)"
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST, fieldsql)
 		return self._vsqlfield
 
 
@@ -5811,7 +5813,9 @@ class MultipleAppLookupControl(AppLookupControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST)
+			id = self.field.removeprefix("dat_ids_applookup")
+			fieldsql = f"cast(multiset(select dat_id_applookup from data_applookup where dat_id = {{a}}.dat_id and dal_i = {id}) as varchars)"
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST, fieldsql)
 		return self._vsqlfield
 
 
@@ -5884,7 +5888,7 @@ class FileControl(Control):
 	def vsqlfield(self):
 		if self._vsqlfield is None:
 			# FIXME: This should reference :class:`File`, but Oracle doesn't support this yet.
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5949,7 +5953,7 @@ class GeoControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.GEO)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.GEO, f"{{a}}.{self.field}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
