@@ -7,6 +7,9 @@ HEAD (2025-04-??)
 *	It is now possible to add field aliases for the selected fields in
 	:meth:`ll.la.vsql.Query.select`.
 
+*	It is now possible to pass additional expressions to
+	:meth:`ll.la.vsql.Query.sqlsource` for the list of tables to select from.
+
 0.45.0 (2025-03-24)
 -------------------
 

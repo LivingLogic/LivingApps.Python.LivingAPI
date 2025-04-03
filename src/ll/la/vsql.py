@@ -617,7 +617,7 @@ class Query(Repr):
 		self._orderby.append((sqlsource, expr, direction, nulls))
 		return self
 
-	def sqlsource(self, indent="\t") -> str:
+	def sqlsource(self, indent="\t", froms=[]) -> str:
 		tokens = []
 
 		def a(*parts):
@@ -635,24 +635,34 @@ class Query(Repr):
 			a("/* ", self.comment, " */", None)
 
 		a("select", None, +1)
-		if self._fields:
-			for (i, (field, (expr, alias))) in enumerate(self._fields.items()):
-				if i:
-					a(",", None)
-				s(field, expr, alias)
-		else:
+		first = True
+		for (field, (expr, alias)) in self._fields.items():
+			if first:
+				first = False
+			else:
+				a(",", None)
+			s(field, expr, alias)
+		if first:
 			a("42")
 		a(None, -1)
 
 		a("from", None, +1)
-		if self._from:
-			for (i, (table, expr)) in enumerate(self._from.items()):
-				if i:
-					a(",", None)
-				s(table, expr)
-			a(None, -1)
-		else:
-			a("dual", None, -1)
+		first = True
+		for (table, expr) in self._from.items():
+			if first:
+				first = False
+			else:
+				a(",", None)
+			s(table, expr)
+		for f in froms:
+			if first:
+				first = False
+			else:
+				a(",", None)
+			tokens.append(f)
+		if first:
+			a("dual")
+		a(None, -1)
 
 		if self._where:
 			a("where", None, +1)
