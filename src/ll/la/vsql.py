@@ -549,7 +549,7 @@ class Query(Repr):
 		"""
 		Registers the :class:`FieldRefAST` object `fieldref`.
 
-		This means that all the tables and join conditions that are required at
+		This means that all the tables and join conditions that are required to
 		access the field will be added to the "form" and "where" clauses.
 		"""
 		if fieldref.error is not None:
