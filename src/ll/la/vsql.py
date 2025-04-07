@@ -533,16 +533,25 @@ class Query(Repr):
 			expressions added to this query. The argument name is the name of
 			the variable. The argument value is a :class:`Field` object that
 			describes this variable.
+
+			In most cases this :class:`Field` object is a foreign key to another
+			table, so it has a ``joinsql`` and a ``refgroup``.
 		"""
 		self.comment = comment
 		self.vars = vars
-		self._fields : Dict[str, Tuple["AST", T_opt_str]] = {}
-		self._from : Dict[str, "AST"] = {}
-		self._where : Dict[str, "AST"] = {}
-		self._orderby : List[Tuple[str, "AST", T_opt_str, T_opt_str]] = []
+		self._fields : Dict[str, Tuple["AST"|str, T_opt_str]] = {}
+		self._from : Dict[str, "AST"|str] = {}
+		self._where : Dict[str, "AST"|str] = {}
+		self._orderby : List[Tuple[str, "AST"|str, T_opt_str, T_opt_str]] = []
 		self._identifier_aliases : Dict[str, str] = {}
 
 	def _vsql_register(self, fieldref:"FieldRefAST") -> T_opt_str:
+		"""
+		Registers the :class:`FieldRefAST` object `fieldref`.
+
+		This means that all the tables and join conditions that are required at
+		access the field will be added to the "form" and "where" clauses.
+		"""
 		if fieldref.error is not None:
 			return # Don't register broken expressions
 		if fieldref.parent is None:
@@ -554,6 +563,7 @@ class Query(Repr):
 		if identifier in self._identifier_aliases:
 			alias = self._identifier_aliases[identifier]
 			return alias
+
 		alias = self._vsql_register(fieldref.parent)
 
 		newalias = f"t{len(self._from)+1}"
@@ -577,19 +587,71 @@ class Query(Repr):
 		return newalias
 
 	def _vsql(self, expr:str) -> None:
+		"""
+		Compiles ``expr`` to a vSQL :class:`AST` and register all field references in it.
+		"""
 		expr = AST.fromsource(expr, **self.vars)
 		for fieldref in expr.fieldrefs():
 			self._vsql_register(fieldref)
 		return expr
 
-	def select(self, expr:str, alias=None) -> "Query":
+	def select_vsql(self, expr:str, alias=None) -> "Query":
+		"""
+		Add the vSQL expression ``expr`` to the list of expression to select.
+
+		``alias`` can be used to give the expression a column alias.
+
+		Note that this compiles ``expr`` and adds the resulting SQL. To add an
+		SQL expression directly use :meth:`select_sql` instead.
+		"""
 		expr = self._vsql(expr)
 		sqlsource = expr.sqlsource(self)
 		if sqlsource not in self._fields:
 			self._fields[sqlsource] = (expr, alias)
 		return self
 
-	def where(self, expr:str) -> "Query":
+	def select_sql(self, expr:str, alias=None, comment=None) -> "Query":
+		"""
+		Add the SQL expression ``expr`` to the list of expression to select.
+
+		``alias`` can be used to give the expression a column alias.
+
+		``comment`` can be used to give the column a comment in the select list.
+
+		Note that that adds ``expr`` directly as "raw" SQL. To add a vSQL
+		expression use :meth:`select_vsql` instead.
+		"""
+		if expr not in self._fields:
+			self._fields[expr] = (comment, alias)
+		return self
+
+	def from_sql(self, tablename, alias, comment=None) -> "Query":
+		"""
+		Add a table to the list of table to select from.
+
+		This adds the table in "raw" SQL form.
+
+		There's no need to add to the "from" list in vSQL form, since this
+		is done automatically in :meth:`select_vsql`, :meth:`where_vsql` or
+		:meth:`orderby_vsql`.
+		"""
+		for f in self._from:
+			(n, a) = f.rsplit(" ", 1)
+			if a == alias:
+				raise ValueError(f"duplicate table alias {alias!r}")
+		self._from[f"{tablename} {alias}"] = comment
+		return self
+
+	def where_vsql(self, expr:str) -> "Query":
+		"""
+		Add vSQL condition ``expr`` to the ``where`` clause.
+
+		Note that this compiles ``expr`` and add the resulting SQL. To add an
+		SQL expression directly use :meth:`where_sql` instead.
+
+		If ``expr`` doesn't have the datatype ``BOOL`` it will be automatically
+		converted to ``BOOL``.
+		"""
 		expr = self._vsql(expr)
 		if expr.datatype is not DataType.BOOL:
 			expr = FuncAST.make("bool", expr)
@@ -598,12 +660,26 @@ class Query(Repr):
 			self._where[sqlsource] = expr
 		return self
 
-	def orderby(self, expr:str, direction:T_sortdirection=None, nulls:T_sortnulls=None) -> "Query":
+	def where_sql(self, expr:str, comment:str|None=None) -> "Query":
+		"""
+		Add vSQL condition ``expr`` to the ``where`` clause.
+
+		Note that that adds ``expr`` directly as "raw" SQL. To add a vSQL
+		expression use :meth:`where_vsql` instead.
+		"""
+		if expr not in self._where:
+			self._where[expr] = comment
+		return self
+
+	def orderby_vsql(self, expr:str, direction:T_sortdirection=None, nulls:T_sortnulls=None) -> "Query":
 		r"""
-		Add an "order by" specification to this query.
+		Add the "order by" vSQL exprssion ``expr`` to this query.
 
 		"order by" specifications will be output in the query in the order they
 		have been added.
+
+		Note that this compiles ``expr`` and add the resulting SQL. To add an
+		SQL expression directly use :meth:`orderby_sql` instead.
 
 		Argument are:
 
@@ -641,7 +717,25 @@ class Query(Repr):
 		self._orderby.append((sqlsource, expr, direction, nulls))
 		return self
 
-	def sqlsource(self, indent="\t", froms=[]) -> str:
+	def orderby_sql(self, expr:str, direction:T_sortdirection=None, nulls:T_sortnulls=None) -> "Query":
+		r"""
+		Add the "order by" SQL exprssion ``expr`` to this query.
+
+		"order by" specifications will be output in the query in the order they
+		have been added.
+
+		Note that that adds ``expr`` directly as "raw" SQL. To add a vSQL
+		expression use :meth:`select_vsql` instead.
+
+		For an explanation of the rest of the arguments see :meth:`select_vsql`.
+		"""
+		self._orderby.append((expr, None, direction, nulls))
+		return self
+
+	def sqlsource(self, indent="\t") -> str:
+		"""
+		Return the SQL source code for this query.
+		"""
 		tokens = []
 
 		def a(*parts):
@@ -649,11 +743,16 @@ class Query(Repr):
 
 		def s(sqlsource, expr, alias=None):
 			tokens.append(sqlsource)
+			if isinstance(expr, AST):
+				vsqlsource = f" /* {expr.source()} */"
+			elif expr is not None:
+				vsqlsource = f" /* {expr} */"
+			else:
+				vsqlsource = None
+			if vsqlsource is not None and not sqlsource.endswith(vsqlsource):
+				tokens.append(vsqlsource)
 			if alias is not None:
 				tokens.append(f" as {alias}")
-			vsqlsource = f" /* {expr.source()} */"
-			if not sqlsource.endswith(vsqlsource):
-				tokens.append(vsqlsource)
 
 		if self.comment:
 			a("/* ", self.comment, " */", None)
@@ -678,12 +777,6 @@ class Query(Repr):
 			else:
 				a(",", None)
 			s(table, expr)
-		for f in froms:
-			if first:
-				first = False
-			else:
-				a(",", None)
-			tokens.append(f)
 		if first:
 			a("dual")
 		a(None, -1)
@@ -1351,6 +1444,26 @@ class AST(Repr):
 		if lastpos != node.pos.stop:
 			content.append(node.fullsource[lastpos:node.pos.stop])
 		return content
+
+	def walkpaths(self):
+		"""
+		Return an iterator for traversing the syntax tree rooted at ``self``.
+
+		Items produced by the iterator paths, i.e. lists containing the path
+		from the root :class:`AST` object to ``self``.
+
+		Note that the iterator will always produre the same object that will
+		be changed during the iteration. If you want to keep value produced
+		during the iteration, you have to make copies.
+		"""
+		yield from self._walkpaths([])
+
+	def _walkpaths(self, path):
+		path.append(self)
+		yield path
+		for child in self.children():
+			yield from child._walkpaths(path)
+		path.pop()
 
 
 class ConstAST(AST):
@@ -2721,20 +2834,21 @@ class FuncAST(AST):
 	def validate(self) -> None:
 		if any(arg.error is not None for arg in self.args):
 			self.error = Error.SUBNODEERROR
-		signature = (self.name, *(arg.datatype for arg in self.args))
-		try:
-			rule = self.rules[signature]
-		except KeyError:
-			if self.name not in self.names:
-				self.error = Error.NAME
-			elif len(self.args) not in self.names[self.name]:
-				self.error = Error.ARITY
-			else:
-				self.error = Error.SUBNODETYPES
-			self.datatype = None
 		else:
-			self.error = None
-			self.datatype = rule.result
+			signature = (self.name, *(arg.datatype for arg in self.args))
+			try:
+				rule = self.rules[signature]
+			except KeyError:
+				if self.name not in self.names:
+					self.error = Error.NAME
+				elif len(self.args) not in self.names[self.name]:
+					self.error = Error.ARITY
+				else:
+					self.error = Error.SUBNODETYPES
+				self.datatype = None
+			else:
+				self.error = None
+				self.datatype = rule.result
 
 	@property
 	def nodevalue(self) -> str:
