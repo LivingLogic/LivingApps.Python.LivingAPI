@@ -17,6 +17,9 @@ HEAD (2025-04-??)
 	now have the suffix ``_vsql`` in their name. Version that take "raw" SQL
 	have been added with the name suffix ``_sql``.
 
+*	:meth:`ll.la.Globals.scaled_url` now complains if the ``image`` argument isn't
+	of type :class:`~ll.la.File` or :class:`str`.
+
 
 0.45.0 (2025-03-24)
 -------------------

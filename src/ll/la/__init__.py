@@ -2433,8 +2433,10 @@ class Globals(CustomAttributes):
 			if encoded_filename == filename:
 				v.append(f"/fn:{encoded_filename}")
 			v.append(f"/plain/{image.url}")
-		else:
+		elif isinstance(image, str):
 			v.append(f"/plain/{urlparse.quote(image)}")
+		else:
+			raise TypeError(f"`Globals.scaled_url()` image argument must be a `File` or `str`, but is `{misc.format_class(image)}`")
 		return "".join(v)
 
 	def qrcode_url(self, /, data:str, size:int) -> str:
