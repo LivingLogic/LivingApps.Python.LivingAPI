@@ -13,6 +13,10 @@ HEAD (2025-04-??)
 *	The ``fieldsql`` attribute of :class:`ll.la.vsql.Field` objects now should
 	contain the placeholder ``{a}`` for the table alias.
 
+*	Methods of :meth:`ll.la.vsql.Query that take vSQL expressions as an argument,
+	now have the suffix ``_vsql`` in their name. Version that take "raw" SQL
+	have been added with the name suffix ``_sql``.
+
 
 0.45.0 (2025-03-24)
 -------------------
