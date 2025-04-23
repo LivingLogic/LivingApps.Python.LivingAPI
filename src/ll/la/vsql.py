@@ -320,57 +320,168 @@ class NodeType(misc.Enum):
 	METH = "meth"
 
 
-class Error(misc.Enum):
+class VSQLError(Exception):
+	def __init__(self, root_ast:AST, cause_ast:AST, context:str | None=None):
+		self.root_ast = root_ast
+		self.cause_ast = cause_ast
+		self.context = context
+
+	def __str__(self) -> str:
+		if self.root_ast is self.cause_ast:
+			if self.context is None:
+				return f"Error in vSQL expression `{self.root_ast!r}`: {self.detail()}"
+			else:
+				return f"Error in `{self.context}` expression `{self.root_ast!r}`: {self.detail()}"
+		else:
+			if self.context is None:
+				return f"Error in vSQL subexpression `{self.cause_ast!r}` of `{self.root_ast!r}`: {self.detail()}"
+			else:
+				return f"Error in `{self.context}` subexpression `{self.cause_ast!r}` of `{self.root_ast!r}`: {self.detail()}"
+
+	def detail(self) -> str:
+		return "..."
+
+
+class VSQLSubnodeErrorError(VSQLError):
+	def detail(self) -> str:
+		return f"AST subnodes are invalid (Internal vSQL error)."
+
+
+class VSQLUnknownNodeTypeError(VSQLError):
+	def detail(self) -> str:
+		return f"AST node has unknown type (Internal vSQL error)."
+
+
+class VSQLArityError(VSQLError):
+	def detail(self) -> str:
+		return f"AST node has wrong arity (Internal vSQL error)."
+
+
+class VSQLSubnodeTypesError(VSQLError):
+	def detail(self) -> str:
+		if any(child.datatype is None for child in self.cause_ast.children()):
+			# This shouldn't happen, as :meth:`AST.check_valid` always return the most specific error
+			return f"Expression contains invalid sub expression."
+		else:
+			types = ", ".join(f"`{child.datatype.name}`" for child in self.cause_ast.children())
+			return f"Type combination {types} is not supported."
+
+
+class VSQLUnknownFieldError(VSQLError):
+	def detail(self) -> str:
+		return f"Expression references the unknown field `{self.ast.identifier}`."
+
+
+class VSQLMalformedConstantError(VSQLError):
+	def detail(self) -> str:
+		return f"Constant `{ast.nodevalue}` is malformed."
+
+
+class VSQLUnknownNameError(VSQLError):
+	def detail(self) -> str:
+		if isinstance(self.ast, FuncAST):
+			name = f"function name `{self.cause_ast.name}`"
+		elif isinstance(self.cause_ast, MethAST):
+			name = f"method name `{self.cause_ast.name}`"
+		elif isinstance(self.cause_ast, AttrAST):
+			name = f"attribute name `{self.cause_ast.attrname}`"
+		else:
+			name = "name"
+		return f"The {name} is unknown."
+
+
+class VSQLUnknownListTypeError(VSQLError):
+	def detail(self) -> str:
+		return f"List type can't be determined."
+
+
+class VSQLMixedListTypesError(VSQLError):
+	def detail(self) -> str:
+		return f"List type can't be determined, since it contains mixed types."
+
+
+class VSQLUnsupportedListTypesError(VSQLError):
+	def detail(self) -> str:
+		return f"Unsupported item type for list."
+
+
+class VSQLUnknownSetTypeError(VSQLError):
+	def detail(self) -> str:
+		return f"Set type can't be determined."
+
+
+class VSQLMixedSetTypesError(VSQLError):
+	def detail(self) -> str:
+		return f"Set type can't be determined, since it contains mixed types."
+
+
+class VSQLUnsupportedSetTypesError(VSQLError):
+	def detail(self) -> str:
+		return f"Unsupported item type for set."
+
+
+class VSQLWrongDatatypeError(VSQLError):
+	def detail(self) -> str:
+		return f"The expression should be of type `{self.cause_ast.error.name[9:]}` but is of type `{self.cause_ast.datatype.name}`."
+
+
+class Error(str, misc.Enum):
 	"""
 	The types of errors that can lead to invalid vSQL AST nodes.
 
 	Note that some of those can not be produced by the Python implementation.
 	"""
 
-	SUBNODEERROR = "subnodeerror" # Subnodes are invalid
-	NODETYPE = "nodetype" # Unknown node type (not any of the ``NODETYPE_...`` values from above
-	ARITY = "arity" # Node does not have the required number of children
-	SUBNODETYPES = "subnodetypes" # Subnodes have a combination of types that are not supported by the node
-	FIELD = "field" # ``NODETYPE_FIELD`` nodes references an unknown field
-	CONST_BOOL = "const_bool" # ``NODETYPE_CONST_BOOL`` value is ``null`` or malformed
-	CONST_INT = "const_int" # ``NODETYPE_CONST_INT`` value is ``null`` or malformed
-	CONST_NUMBER = "const_number" # ``NODETYPE_CONST_NUMBER`` value is ``null`` or malformed
-	CONST_DATE = "const_date" # ``NODETYPE_CONST_DATE`` value is ``null`` or malformed
-	CONST_DATETIME = "const_datetime" # ``NODETYPE_CONST_DATETIME`` value is ``null`` or malformed
-	CONST_TIMESTAMP = "const_timestamp" # ``NODETYPE_CONST_DATETIME`` value is ``null`` or malformed
-	CONST_COLOR = "const_color" # ``NODETYPE_CONST_COLOR`` value is ``null`` or malformed
-	NAME = "name" # Attribute/Function/Method is unknown
-	LISTTYPEUNKNOWN = "listtypeunknown" # List is empty or only has literal ``None``s as items, so the type can't be determined
-	LISTMIXEDTYPES = "listmixedtypes" # List items have incompatible types, so the type can't be determined
-	LISTUNSUPPORTEDTYPES = "listunsupportedtypes" # List items have unsupported types, so the type can't be determined
-	SETTYPEUNKNOWN = "settypeunknown" # Set is empty or only has literal ``None``s as items, so the type can't be determined
-	SETMIXEDTYPES = "setmixedtypes" # Set items have incompatible types, so the type can't be determined
-	SETUNSUPPORTEDTYPES = "setunsupportedtypes" # Set items have unsupported types, so the type can't be determined
-	DATATYPE_NULL = "datatype_null" # The datatype of the node should be ``null`` but isn't
-	DATATYPE_BOOL = "datatype_bool" # The datatype of the node should be ``bool`` but isn't
-	DATATYPE_INT = "datatype_int" # The datatype of the node should be ``int`` but isn't
-	DATATYPE_NUMBER = "datatype_number" # The datatype of the node should be ``number`` but isn't
-	DATATYPE_STR = "datatype_str" # The datatype of the node should be ``str`` but isn't
-	DATATYPE_CLOB = "datatype_clob" # The datatype of the node should be ``clob`` but isn't
-	DATATYPE_COLOR = "datatype_color" # The datatype of the node should be ``color`` but isn't
-	DATATYPE_DATE = "datatype_date" # The datatype of the node should be ``date`` but isn't
-	DATATYPE_DATETIME = "datatype_datetime" # The datatype of the node should be ``datetime`` but isn't
-	DATATYPE_DATEDELTA = "datatype_datedelta" # The datatype of the node should be ``datedelta`` but isn't
-	DATATYPE_DATETIMEDELTA = "datatype_datetimedelta" # The datatype of the node should be ``datetimedelta`` but isn't
-	DATATYPE_MONTHDELTA = "datatype_monthdelta" # The datatype of the node should be ``monthdelta`` but isn't
-	DATATYPE_NULLLIST = "datatype_nulllist" # The datatype of the node should be ``nulllist`` but isn't
-	DATATYPE_INTLIST = "datatype_intlist" # The datatype of the node should be ``intlist`` but isn't
-	DATATYPE_NUMBERLIST = "datatype_numberlist" # The datatype of the node should be ``numberlist`` but isn't
-	DATATYPE_STRLIST = "datatype_strlist" # The datatype of the node should be ``strlist`` but isn't
-	DATATYPE_CLOBLIST = "datatype_cloblist" # The datatype of the node should be ``cloblist`` but isn't
-	DATATYPE_DATELIST = "datatype_datelist" # The datatype of the node should be ``datelist`` but isn't
-	DATATYPE_DATETIMELIST = "datatype_datetimelist" # The datatype of the node should be ``datetimelist`` but isn't
-	DATATYPE_NULLSET = "datatype_nullset" # The datatype of the node should be ``nullset`` but isn't
-	DATATYPE_INTSET = "datatype_intset" # The datatype of the node should be ``intset`` but isn't
-	DATATYPE_NUMBERSET = "datatype_numberset" # The datatype of the node should be ``numberset`` but isn't
-	DATATYPE_STRSET = "datatype_strset" # The datatype of the node should be ``strset`` but isn't
-	DATATYPE_DATESET = "datatype_dateset" # The datatype of the node should be ``dateset`` but isn't
-	DATATYPE_DATETIMESET = "datatype_datetimeset" # The datatype of the node should be ``datetimeset`` but isn't
+	def __new__(cls, value:str, exception:Type[VSQLError]):
+		obj = str.__new__(cls, value)
+		obj._value_ = value
+		obj.exception = exception
+		return obj
+
+	SUBNODEERROR = ("subnodeerror", VSQLSubnodeErrorError) # Subnodes are invalid
+	NODETYPE = ("nodetype", VSQLUnknownNodeTypeError) # Unknown node type (not any of the ``NODETYPE_...`` values from above
+	ARITY = ("arity", VSQLArityError) # Node does not have the required number of children
+	SUBNODETYPES = ("subnodetypes", VSQLSubnodeTypesError) # Subnodes have a combination of types that are not supported by the node
+	FIELD = ("field", VSQLUnknownFieldError) # ``NODETYPE_FIELD`` nodes references an unknown field
+	CONST_BOOL = ("const_bool", VSQLMalformedConstantError) # ``NODETYPE_CONST_BOOL`` value is ``null`` or malformed
+	CONST_INT = ("const_int", VSQLMalformedConstantError) # ``NODETYPE_CONST_INT`` value is ``null`` or malformed
+	CONST_NUMBER = ("const_number", VSQLMalformedConstantError) # ``NODETYPE_CONST_NUMBER`` value is ``null`` or malformed
+	CONST_DATE = ("const_date", VSQLMalformedConstantError) # ``NODETYPE_CONST_DATE`` value is ``null`` or malformed
+	CONST_DATETIME = ("const_datetime", VSQLMalformedConstantError) # ``NODETYPE_CONST_DATETIME`` value is ``null`` or malformed
+	CONST_TIMESTAMP = ("const_timestamp", VSQLMalformedConstantError) # ``NODETYPE_CONST_DATETIME`` value is ``null`` or malformed
+	CONST_COLOR = ("const_color", VSQLMalformedConstantError) # ``NODETYPE_CONST_COLOR`` value is ``null`` or malformed
+	NAME = ("name", VSQLUnknownNameError) # Attribute/Function/Method is unknown
+	LISTTYPEUNKNOWN = ("listtypeunknown", VSQLUnknownListTypeError) # List is empty or only has literal ``None``s as items, so the type can't be determined
+	LISTMIXEDTYPES = ("listmixedtypes", VSQLMixedListTypesError) # List items have incompatible types, so the type can't be determined
+	LISTUNSUPPORTEDTYPES = ("listunsupportedtypes", VSQLUnsupportedListTypesError) # List items have unsupported types, so the type can't be determined
+	SETTYPEUNKNOWN = ("settypeunknown", VSQLUnknownSetTypeError) # Set is empty or only has literal ``None``s as items, so the type can't be determined
+	SETMIXEDTYPES = ("setmixedtypes", VSQLMixedSetTypesError) # Set items have incompatible types, so the type can't be determined
+	SETUNSUPPORTEDTYPES = ("setunsupportedtypes", VSQLUnsupportedSetTypesError) # Set items have unsupported types, so the type can't be determined
+	DATATYPE_NULL = ("datatype_null", VSQLWrongDatatypeError) # The datatype of the node should be ``null`` but isn't
+	DATATYPE_BOOL = ("datatype_bool", VSQLWrongDatatypeError) # The datatype of the node should be ``bool`` but isn't
+	DATATYPE_INT = ("datatype_int", VSQLWrongDatatypeError) # The datatype of the node should be ``int`` but isn't
+	DATATYPE_NUMBER = ("datatype_number", VSQLWrongDatatypeError) # The datatype of the node should be ``number`` but isn't
+	DATATYPE_STR = ("datatype_str", VSQLWrongDatatypeError) # The datatype of the node should be ``str`` but isn't
+	DATATYPE_CLOB = ("datatype_clob", VSQLWrongDatatypeError) # The datatype of the node should be ``clob`` but isn't
+	DATATYPE_COLOR = ("datatype_color", VSQLWrongDatatypeError) # The datatype of the node should be ``color`` but isn't
+	DATATYPE_DATE = ("datatype_date", VSQLWrongDatatypeError) # The datatype of the node should be ``date`` but isn't
+	DATATYPE_DATETIME = ("datatype_datetime", VSQLWrongDatatypeError) # The datatype of the node should be ``datetime`` but isn't
+	DATATYPE_DATEDELTA = ("datatype_datedelta", VSQLWrongDatatypeError) # The datatype of the node should be ``datedelta`` but isn't
+	DATATYPE_DATETIMEDELTA = ("datatype_datetimedelta", VSQLWrongDatatypeError) # The datatype of the node should be ``datetimedelta`` but isn't
+	DATATYPE_MONTHDELTA = ("datatype_monthdelta", VSQLWrongDatatypeError) # The datatype of the node should be ``monthdelta`` but isn't
+	DATATYPE_NULLLIST = ("datatype_nulllist", VSQLWrongDatatypeError) # The datatype of the node should be ``nulllist`` but isn't
+	DATATYPE_INTLIST = ("datatype_intlist", VSQLWrongDatatypeError) # The datatype of the node should be ``intlist`` but isn't
+	DATATYPE_NUMBERLIST = ("datatype_numberlist", VSQLWrongDatatypeError) # The datatype of the node should be ``numberlist`` but isn't
+	DATATYPE_STRLIST = ("datatype_strlist", VSQLWrongDatatypeError) # The datatype of the node should be ``strlist`` but isn't
+	DATATYPE_CLOBLIST = ("datatype_cloblist", VSQLWrongDatatypeError) # The datatype of the node should be ``cloblist`` but isn't
+	DATATYPE_DATELIST = ("datatype_datelist", VSQLWrongDatatypeError) # The datatype of the node should be ``datelist`` but isn't
+	DATATYPE_DATETIMELIST = ("datatype_datetimelist", VSQLWrongDatatypeError) # The datatype of the node should be ``datetimelist`` but isn't
+	DATATYPE_NULLSET = ("datatype_nullset", VSQLWrongDatatypeError) # The datatype of the node should be ``nullset`` but isn't
+	DATATYPE_INTSET = ("datatype_intset", VSQLWrongDatatypeError) # The datatype of the node should be ``intset`` but isn't
+	DATATYPE_NUMBERSET = ("datatype_numberset", VSQLWrongDatatypeError) # The datatype of the node should be ``numberset`` but isn't
+	DATATYPE_STRSET = ("datatype_strset", VSQLWrongDatatypeError) # The datatype of the node should be ``strset`` but isn't
+	DATATYPE_DATESET = ("datatype_dateset", VSQLWrongDatatypeError) # The datatype of the node should be ``dateset`` but isn't
+	DATATYPE_DATETIMESET = ("datatype_datetimeset", VSQLWrongDatatypeError) # The datatype of the node should be ``datetimeset`` but isn't
 
 
 @ul4on.register("de.livinglogic.vsql.field")
@@ -599,6 +710,7 @@ class Query(Repr):
 		SQL expression directly use :meth:`select_sql` instead.
 		"""
 		expr = self._vsql(expr)
+		expr.check_valid("select")
 		sqlsource = expr.sqlsource(self)
 		if sqlsource not in self._fields:
 			self._fields[sqlsource] = (expr, alias)
@@ -647,6 +759,7 @@ class Query(Repr):
 		converted to ``BOOL``.
 		"""
 		expr = self._vsql(expr)
+		expr.check_valid("where")
 		if expr.datatype is not DataType.BOOL:
 			expr = FuncAST.make("bool", expr)
 		sqlsource = f"{expr.sqlsource(self)} = 1"
@@ -707,6 +820,7 @@ class Query(Repr):
 				t1.ide_surname /* user.surname */ desc
 		"""
 		expr = self._vsql(expr)
+		expr.check_valid("orderby")
 		sqlsource = expr.sqlsource(self)
 		self._orderby.append((sqlsource, expr, direction, nulls))
 		return self
@@ -992,6 +1106,11 @@ class AST(Repr):
 	"""
 
 	datatype = None
+	title = None
+	"""
+	This class attribute contain a human readable name for the AST type.
+	"""
+
 	rules = None
 	_restore_tokens = None
 
@@ -1348,6 +1467,24 @@ class AST(Repr):
 		"""
 		pass
 
+	def check_valid(self, context:str | None=None) -> None:
+		"""
+		Makes sure that ``self`` is valid.
+
+		If ``self`` is invalid an appropriate exception will be raised.
+
+		``context`` should describe the context in which the expression is used.
+		E.g. ``"select"``when used in :meth:`Query.select_vsql` or ``"where"``
+		when used in :meth:`Query.where_vsql`.
+		"""
+		if self.error is not None:
+			# Find first child node with a "real" error
+			for child in self.walknodes():
+				if child.error is not None and child.error is not Error.SUBNODEERROR:
+					raise child.error.exception(self, child, context)
+			# No child has a "real" error, so raise one for ``self``
+			raise self.error.exception(self, self, context)
+
 	def source(self) -> str:
 		"""
 		Return the UL4/vSQL source code of the AST.
@@ -1465,6 +1602,7 @@ class ConstAST(AST):
 	Base class for all vSQL expressions that are constants.
 	"""
 
+	title = "Constant"
 	precedence = 20
 
 	@staticmethod
@@ -1492,6 +1630,7 @@ class NoneAST(ConstAST):
 	The constant ``None``.
 	"""
 
+	title = "Constant `None`"
 	nodetype = NodeType.CONST_NONE
 	datatype = DataType.NULL
 
@@ -1555,6 +1694,7 @@ class BoolAST(_ConstWithValueAST):
 	A boolean constant (i.e. ``True`` or ``False``).
 	"""
 
+	title = "Boolean constant"
 	nodetype = NodeType.CONST_BOOL
 	datatype = DataType.BOOL
 
@@ -1576,6 +1716,7 @@ class IntAST(_ConstWithValueAST):
 	An integer constant.
 	"""
 
+	title = "Integer constant"
 	nodetype = NodeType.CONST_INT
 	datatype = DataType.INT
 
@@ -1593,6 +1734,7 @@ class NumberAST(_ConstWithValueAST):
 	A number constant (containing a decimal point).
 	"""
 
+	title = "Number constant"
 	nodetype = NodeType.CONST_NUMBER
 	datatype = DataType.NUMBER
 
@@ -1610,6 +1752,7 @@ class StrAST(_ConstWithValueAST):
 	A string constant.
 	"""
 
+	title = "String constant"
 	nodetype = NodeType.CONST_STR
 	datatype = DataType.STR
 
@@ -1626,6 +1769,7 @@ class CLOBAST(_ConstWithValueAST):
 	This normally will not be created by the Python implementation
 	"""
 
+	title = "CLOB constant"
 	nodetype = NodeType.CONST_CLOB
 	datatype = DataType.CLOB
 
@@ -1640,6 +1784,7 @@ class ColorAST(_ConstWithValueAST):
 	A color constant (e.g. ``#fff``).
 	"""
 
+	title = "Color constant"
 	nodetype = NodeType.CONST_COLOR
 	datatype = DataType.COLOR
 
@@ -1659,6 +1804,7 @@ class DateAST(_ConstWithValueAST):
 	A date constant (e.g. ``@(2000-02-29)``).
 	"""
 
+	title = "Date constant"
 	nodetype = NodeType.CONST_DATE
 	datatype = DataType.DATE
 
@@ -1676,6 +1822,7 @@ class DateTimeAST(_ConstWithValueAST):
 	A datetime constant (e.g. ``@(2000-02-29T12:34:56)``).
 	"""
 
+	title = "Datetime constant"
 	nodetype = NodeType.CONST_DATETIME
 	datatype = DataType.DATETIME
 
@@ -1758,6 +1905,7 @@ class ListAST(_SeqAST):
 	types that con be converted to a common type without losing information.
 	"""
 
+	title = "List"
 	nodetype = NodeType.LIST
 	nulltype = DataType.NULLLIST
 	precedence = 20
@@ -1835,6 +1983,7 @@ class SetAST(_SeqAST):
 	types that can be converted to a common type without losing information.
 	"""
 
+	title = "Set"
 	nodetype = NodeType.SET
 	nulltype = DataType.NULLSET
 	precedence = 20
@@ -1906,6 +2055,7 @@ class FieldRefAST(AST):
 	Reference to a field defined in the database.
 	"""
 
+	title = "Field reference"
 	nodetype = NodeType.FIELD
 	precedence = 19
 
@@ -2039,7 +2189,9 @@ class BinaryAST(AST):
 	Base class of all binary expressions (i.e. expressions with two operands).
 	"""
 
-	def __init__(self, obj1:AST, obj2:AST, *content:T_AST_Content):
+	title = "Binary operation"
+
+	def __init__(self, obj1:AST, obj2:AST, *content:AST | str):
 		super().__init__(*content)
 		self.obj1 = obj1
 		self.obj2 = obj2
@@ -2120,6 +2272,7 @@ class EQAST(BinaryAST):
 	Equality comparison (``A == B``).
 	"""
 
+	title = "Equality comparison (`A == B`)"
 	nodetype = NodeType.CMP_EQ
 	precedence = 6
 	operator = "=="
@@ -2131,6 +2284,7 @@ class NEAST(BinaryAST):
 	Inequality comparison (``A != B``).
 	"""
 
+	title = "Inequality comparison (`A != B`)"
 	nodetype = NodeType.CMP_NE
 	precedence = 6
 	operator = "!="
@@ -2142,6 +2296,7 @@ class LTAST(BinaryAST):
 	Less-than comparison (``A < B``).
 	"""
 
+	title = "Less-than comparison (`A < B`)"
 	nodetype = NodeType.CMP_LT
 	precedence = 6
 	operator = "<"
@@ -2150,9 +2305,10 @@ class LTAST(BinaryAST):
 @ul4on.register("de.livinglogic.vsql.le")
 class LEAST(BinaryAST):
 	"""
-	Less-than-or equal comparison (``A <= B``).
+	Less-than or equal comparison (``A <= B``).
 	"""
 
+	title = "Less-than or equal comparison (`A <= B`)"
 	nodetype = NodeType.CMP_LE
 	precedence = 6
 	operator = "<="
@@ -2164,6 +2320,7 @@ class GTAST(BinaryAST):
 	Greater-than comparison (``A > B``).
 	"""
 
+	title = "Greater-than comparison (`A > B`)"
 	nodetype = NodeType.CMP_GT
 	precedence = 6
 	operator = ">"
@@ -2175,6 +2332,7 @@ class GEAST(BinaryAST):
 	Greater-than-or equal comparison (``A >= B``).
 	"""
 
+	title = "Greater-than or equal comparison (`A >= B`)"
 	nodetype = NodeType.CMP_GE
 	precedence = 6
 	operator = ">="
@@ -2186,6 +2344,7 @@ class AddAST(BinaryAST):
 	Addition (``A + B``).
 	"""
 
+	title = "Addition (`A + B`)"
 	nodetype = NodeType.BINOP_ADD
 	precedence = 11
 	operator = "+"
@@ -2197,6 +2356,7 @@ class SubAST(BinaryAST):
 	Subtraction (``A - B``).
 	"""
 
+	title = "Subtraction (`A - B`)"
 	nodetype = NodeType.BINOP_SUB
 	precedence = 11
 	operator = "-"
@@ -2208,6 +2368,7 @@ class MulAST(BinaryAST):
 	Multiplication (``A * B``).
 	"""
 
+	title = "Multiplication (`A * B`)"
 	nodetype = NodeType.BINOP_MUL
 	precedence = 12
 	operator = "*"
@@ -2219,6 +2380,7 @@ class TrueDivAST(BinaryAST):
 	True division (``A / B``).
 	"""
 
+	title = "True division (`A / B`)"
 	nodetype = NodeType.BINOP_TRUEDIV
 	precedence = 12
 	operator = "/"
@@ -2230,6 +2392,7 @@ class FloorDivAST(BinaryAST):
 	Floor division (``A // B``).
 	"""
 
+	title = "Floor division (`A // B`)"
 	nodetype = NodeType.BINOP_FLOORDIV
 	precedence = 12
 	operator = "//"
@@ -2241,6 +2404,7 @@ class ModAST(BinaryAST):
 	Modulo operator (``A % B``).
 	"""
 
+	title = "Modulo operation (`A % B`)"
 	nodetype = NodeType.BINOP_MOD
 	precedence = 12
 	operator = "%"
@@ -2252,6 +2416,7 @@ class ShiftLeftAST(BinaryAST):
 	Left shift operator (``A << B``).
 	"""
 
+	title = "Left shift operation (`A << B`)"
 	nodetype = NodeType.BINOP_SHIFTLEFT
 	precedence = 10
 	operator = "<<"
@@ -2263,6 +2428,7 @@ class ShiftRightAST(BinaryAST):
 	Right shift operator (``A >> B``).
 	"""
 
+	title = "Right shift operation (`A >> B`)"
 	nodetype = NodeType.BINOP_SHIFTRIGHT
 	precedence = 10
 	operator = ">>"
@@ -2274,6 +2440,7 @@ class AndAST(BinaryAST):
 	Logical "and" (``A and B``).
 	"""
 
+	title = 'Logical "and" operation (`A and B`)'
 	nodetype = NodeType.BINOP_AND
 	precedence = 4
 	operator = "and"
@@ -2286,6 +2453,7 @@ class OrAST(BinaryAST):
 	Logical "or" (``A or B``).
 	"""
 
+	title = 'Logical "or" operation (`A or B`)'
 	nodetype = NodeType.BINOP_OR
 	precedence = 4
 	operator = "or"
@@ -2298,6 +2466,7 @@ class ContainsAST(BinaryAST):
 	Containment test (``A in B``).
 	"""
 
+	title = "Containment test (`A in B`)"
 	nodetype = NodeType.BINOP_CONTAINS
 	precedence = 6
 	operator = "in"
@@ -2310,6 +2479,7 @@ class NotContainsAST(BinaryAST):
 	Inverted containment test (``A not in B``).
 	"""
 
+	title = "Inverted containment test (`A not in B`)"
 	nodetype = NodeType.BINOP_NOTCONTAINS
 	precedence = 6
 	operator = "not in"
@@ -2322,6 +2492,7 @@ class IsAST(BinaryAST):
 	Identity test (``A is B``).
 	"""
 
+	title = "Identity test (`A is B`)"
 	nodetype = NodeType.BINOP_IS
 	precedence = 6
 	operator = "is"
@@ -2334,6 +2505,7 @@ class IsNotAST(BinaryAST):
 	Inverted identity test (``A is not B``).
 	"""
 
+	title = "Inverted identity test (`A is not B`)"
 	nodetype = NodeType.BINOP_ISNOT
 	precedence = 6
 	operator = "is not"
@@ -2346,6 +2518,7 @@ class ItemAST(BinaryAST):
 	Item access operator (``A[B]``).
 	"""
 
+	title = "Item access operation (`A[B]`)"
 	nodetype = NodeType.BINOP_ITEM
 	precedence = 16
 
@@ -2369,6 +2542,7 @@ class BitAndAST(BinaryAST):
 	Bitwise "and" (``A & B``).
 	"""
 
+	title = 'Bitwise "and" operation (`A & B`)'
 	nodetype = NodeType.BINOP_BITAND
 	precedence = 9
 	operator = "&"
@@ -2380,6 +2554,7 @@ class BitOrAST(BinaryAST):
 	Bitwise "or" (``A | B``).
 	"""
 
+	title = 'Bitwise "or" operation (`A | B`)'
 	nodetype = NodeType.BINOP_BITOR
 	precedence = 7
 	operator = "|"
@@ -2391,6 +2566,7 @@ class BitXOrAST(BinaryAST):
 	Bitwise "exclusive or" (``A ^ B``).
 	"""
 
+	title = 'Bitwise "exclusive or" operation (`A ^ B`)'
 	nodetype = NodeType.BINOP_BITXOR
 	precedence = 8
 	operator = "^"
@@ -2401,7 +2577,9 @@ class UnaryAST(AST):
 	Base class of all unary expressions (i.e. expressions with one operand).
 	"""
 
-	def __init__(self, obj:AST, *content:T_AST_Content):
+	title = "Unary operation"
+
+	def __init__(self, obj:AST, *content:AST | str):
 		super().__init__(*content)
 		self.obj = obj
 		self.datatype = None
@@ -2469,6 +2647,7 @@ class NotAST(UnaryAST):
 	Logical negation (``not A``).
 	"""
 
+	title = "Logical negation operation (`not A`)"
 	nodetype = NodeType.UNOP_NOT
 	precedence = 5
 	operator = "not "
@@ -2480,6 +2659,7 @@ class NegAST(UnaryAST):
 	Arithmetic negation (``-A``).
 	"""
 
+	title = "Arithmetic negation operation (`-A`)"
 	nodetype = NodeType.UNOP_NEG
 	precedence = 14
 	operator = "-"
@@ -2491,6 +2671,7 @@ class BitNotAST(UnaryAST):
 	Bitwise "not" (``~A``).
 	"""
 
+	title = 'Bitwise "not" operation (`~A`)'
 	nodetype = NodeType.UNOP_BITNOT
 	precedence = 14
 	operator = "~"
@@ -2502,6 +2683,7 @@ class IfAST(AST):
 	Ternary "if"/"else" (``A if COND else B``).
 	"""
 
+	title = "if/else operation (`A if COND else B`)"
 	nodetype = NodeType.TERNOP_IF
 	precedence = 3
 	_restore_tokens = ("if", "else")
@@ -2602,6 +2784,7 @@ class SliceAST(AST):
 	Slice operator (``A[B:C]``).
 	"""
 
+	title = "Slice operation (`A[B:C]`)"
 	nodetype = NodeType.TERNOP_SLICE
 	precedence = 16
 
@@ -2709,6 +2892,7 @@ class AttrAST(AST):
 	Attribute access (``A.name``).
 	"""
 
+	title = "Attribute access operation (`A.name`)"
 	nodetype = NodeType.ATTR
 	precedence = 19
 
@@ -2736,7 +2920,7 @@ class AttrAST(AST):
 		try:
 			rule = self.rules[signature]
 		except KeyError:
-			self.error = Error.SUBNODETYPES
+			self.error = Error.NAME
 			self.datatype = None
 		else:
 			self.error = None
@@ -2787,6 +2971,7 @@ class FuncAST(AST):
 	Function call (``name(A, ...)``).
 	"""
 
+	title = "Function call (`name(A, ...)`)"
 	nodetype = NodeType.FUNC
 	precedence = 18
 	names = {} # Maps function names to set of supported arities
@@ -2880,11 +3065,12 @@ class MethAST(AST):
 	Method call (``A.name(B, ...)``).
 	"""
 
+	title = "Method call (`A.name(B, ...)`)"
 	nodetype = NodeType.METH
 	precedence = 17
 	names = {} # Maps (type, meth name) to set of supported arities
 
-	def __init__(self, obj:AST, name:str, args:Tuple[AST, ...], *content:T_AST_Content):
+	def __init__(self, obj:AST, name:str, args:Tuple[AST, ...], *content:AST | str):
 		super().__init__(*content)
 		self.obj = obj
 		self.name = name
