@@ -1505,12 +1505,6 @@ class AST(Repr):
 			else:
 				yield from item._source()
 
-	def children(self) -> T_gen("AST"):
-		"""
-		Return the child AST nodes of this node.
-		"""
-		yield from ()
-
 	def save(self, handler:"ll.la.handlers.DBHandler") -> str:
 		"""
 		Save this vSQL expression to the database and return the resulting
@@ -1583,14 +1577,28 @@ class AST(Repr):
 			content.append(node.fullsource[lastpos:node.pos.stop])
 		return content
 
-	def walkpaths(self):
+	def children(self) -> Generator[AST, None, None]:
+		"""
+		Return the child AST nodes of this node.
+		"""
+		yield from ()
+
+	def walknodes(self) -> Generator[AST, None, None]:
+		"""
+		Return the all child AST nodes of this node (recursively).
+		"""
+		for child in self.children():
+			yield child
+			yield from child.walknodes()
+
+	def walkpaths(self) -> Generator[list[AST], None, None]:
 		"""
 		Return an iterator for traversing the syntax tree rooted at ``self``.
 
 		Items produced by the iterator paths, i.e. lists containing the path
 		from the root :class:`AST` object to ``self``.
 
-		Note that the iterator will always produre the same object that will
+		Note that the iterator will always produre the same list object that will
 		be changed during the iteration. If you want to keep value produced
 		during the iteration, you have to make copies.
 		"""
