@@ -1,3 +1,9 @@
+HEAD (2025-04-23)
+-----------------
+
+*	Fixed wrong variable name in :meth:`ll.la.vsql.VSQLUnknownNameError.detail`.
+
+
 0.46.0 (2025-04-23)
 -------------------
 

@@ -379,7 +379,7 @@ class VSQLMalformedConstantError(VSQLError):
 
 class VSQLUnknownNameError(VSQLError):
 	def detail(self) -> str:
-		if isinstance(self.ast, FuncAST):
+		if isinstance(self.cause_ast, FuncAST):
 			name = f"function name `{self.cause_ast.name}`"
 		elif isinstance(self.cause_ast, MethAST):
 			name = f"method name `{self.cause_ast.name}`"
