@@ -1106,6 +1106,13 @@ class AST(Repr):
 	"""
 
 	datatype = None
+	"""
+	The datatype is an instance attribute that represents the datatype of the
+	expression.
+
+	If the datatype can't be determined because of errors `datatype` will be `None`.
+	"""
+
 	title = None
 	"""
 	This class attribute contain a human readable name for the AST type.
