@@ -26,7 +26,7 @@ HEAD (2025-04-??)
 *	A method :meth:`ll.la.vsql.AST.check_valid` has been added. It does nothing
 	if the AST node is valid, and raises an appropriate exception otherwise.
 
-*	Modernize type hints.
+*	Modernize type hints (This means that Python 3.10 is required now).
 
 
 0.45.0 (2025-03-24)

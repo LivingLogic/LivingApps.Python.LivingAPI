@@ -27,7 +27,7 @@ Operating System :: OS Independent
 Programming Language :: Python
 Programming Language :: Python :: 3 :: Only
 Programming Language :: Python :: 3
-Programming Language :: Python :: 3.8
+Programming Language :: Python :: 3.10
 Topic :: Software Development :: Libraries :: Python Modules
 Topic :: Internet :: WWW/HTTP
 """
@@ -67,7 +67,7 @@ args = dict(
 	package_dir={"": "src"},
 	packages=["ll.la"],
 	install_requires=[
-		"ll-xist >= 5.77",
+		"ll-xist >= 5.78",
 		"requests >= 2.21.0",
 		"geocoder >= 1.30.1",
 		"Pillow >= 6.1.0",
