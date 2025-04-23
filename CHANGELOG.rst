@@ -1,7 +1,7 @@
 0.46.0 (2025-04-23)
 -------------------
 
-*	Methods of :meth:`ll.la.vsql.Query that take vSQL expressions as an argument,
+*	Methods of :meth:`ll.la.vsql.Query` that take vSQL expressions as an argument,
 	now have the suffix ``_vsql`` in their name. Versions that take "raw" SQL
 	have been added with the name suffix ``_sql``.
 
