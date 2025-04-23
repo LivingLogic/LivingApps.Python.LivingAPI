@@ -1,4 +1,35 @@
-0.45.0 (2024-03-24)
+0.46.0 (2025-04-23)
+-------------------
+
+*	Methods of :meth:`ll.la.vsql.Query that take vSQL expressions as an argument,
+	now have the suffix ``_vsql`` in their name. Versions that take "raw" SQL
+	have been added with the name suffix ``_sql``.
+
+*	It is no longer possible to pass multiple expressions to
+	:meth:`ll.la.vsql.Query.select` or :meth:`ll.la.vsql.Query.where`.
+
+*	It is now possible to add field aliases for the selected fields in
+	:meth:`ll.la.vsql.Query.select`.
+
+*	It is now possible to pass additional expressions to
+	:meth:`ll.la.vsql.Query.sqlsource` for the list of tables to select from.
+
+*	The ``fieldsql`` attribute of :class:`ll.la.vsql.Field` objects now should
+	contain the placeholder ``{a}`` for the table alias.
+
+*	:meth:`ll.la.Globals.scaled_url` now complains if the ``image`` argument isn't
+	of type :class:`~ll.la.File` or :class:`str`.
+
+*	A method :meth:`ll.la.vsql.AST.walknodes` has been added that recursively
+	iterates through all children.
+
+*	A method :meth:`ll.la.vsql.AST.check_valid` has been added. It does nothing
+	if the AST node is valid, and raises an appropriate exception otherwise.
+
+*	Modernize type hints (This means that Python 3.10 is required now).
+
+
+0.45.0 (2025-03-24)
 -------------------
 
 *	Updated internal LivingAPI version number to 133.

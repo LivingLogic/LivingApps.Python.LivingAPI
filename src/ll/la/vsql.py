@@ -37,6 +37,8 @@ A vSQL expression can be generated in two ways:
 
 """
 
+from __future__ import annotations
+
 import sys, datetime, itertools, re, pathlib
 
 from ll import color, misc, ul4c, ul4on
@@ -52,16 +54,8 @@ except ImportError:
 
 from typing import *
 
-T_AST_Content = Union["AST", str]
-
-T_opt_str = Optional[str]
-T_opt_int = Optional[int]
-T_opt_ast = Optional["AST"]
-T_sortdirection = Union[None, Literal["asc", "desc"]]
-T_sortnulls = Union[None, Literal["first", "last"]]
-
-def T_gen(type):
-	return Generator[type, None, None]
+T_sortdirection = None | Literal["asc", "desc"]
+T_sortnulls = None | Literal["first", "last"]
 
 
 ###
@@ -77,23 +71,23 @@ scriptname = misc.sysinfo.short_script_name
 
 fields = dict(
 	vr_nodetype=str,
-	vr_value=T_opt_str,
+	vr_value=str | None,
 	vr_result=str,
-	vr_signature=T_opt_str,
+	vr_signature=str | None,
 	vr_arity=int,
-	vr_literal1=T_opt_str,
-	vr_child2=T_opt_int,
-	vr_literal3=T_opt_str,
-	vr_child4=T_opt_int,
-	vr_literal5=T_opt_str,
-	vr_child6=T_opt_int,
-	vr_literal7=T_opt_str,
-	vr_child8=T_opt_int,
-	vr_literal9=T_opt_str,
-	vr_child10=T_opt_int,
-	vr_literal11=T_opt_str,
-	vr_child12=T_opt_int,
-	vr_literal13=T_opt_str,
+	vr_literal1=str | None,
+	vr_child2=int | None,
+	vr_literal3=str | None,
+	vr_child4=int | None,
+	vr_literal5=str | None,
+	vr_child6=int | None,
+	vr_literal7=str | None,
+	vr_child8=int | None,
+	vr_literal9=str | None,
+	vr_child10=int | None,
+	vr_literal11=str | None,
+	vr_child12=int | None,
+	vr_literal13=str | None,
 	vr_cname=str,
 	vr_cdate=datetime.datetime,
 )
@@ -161,7 +155,7 @@ class Repr:
 		)
 		return " ".join(parts)
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		"""
 		Each string produced by :meth:`!_ll_repr__` will be part of the
 		:meth:`__repr__` output (joined by spaces).
@@ -220,7 +214,7 @@ class DataType(misc.Enum):
 	DATETIMESET = "datetimeset"
 
 	@classmethod
-	def compatible_to(cls, given:"DataType", required:"DataType") -> Optional["Error"]:
+	def compatible_to(cls, given:DataType, required:DataType) -> Error | None:
 		"""
 		Check whether the type ``given`` is compatible to ``required``.
 
@@ -326,57 +320,168 @@ class NodeType(misc.Enum):
 	METH = "meth"
 
 
-class Error(misc.Enum):
+class VSQLError(Exception):
+	def __init__(self, root_ast:AST, cause_ast:AST, context:str | None=None):
+		self.root_ast = root_ast
+		self.cause_ast = cause_ast
+		self.context = context
+
+	def __str__(self) -> str:
+		if self.root_ast is self.cause_ast:
+			if self.context is None:
+				return f"Error in vSQL expression `{self.root_ast!r}`: {self.detail()}"
+			else:
+				return f"Error in `{self.context}` expression `{self.root_ast!r}`: {self.detail()}"
+		else:
+			if self.context is None:
+				return f"Error in vSQL subexpression `{self.cause_ast!r}` of `{self.root_ast!r}`: {self.detail()}"
+			else:
+				return f"Error in `{self.context}` subexpression `{self.cause_ast!r}` of `{self.root_ast!r}`: {self.detail()}"
+
+	def detail(self) -> str:
+		return "..."
+
+
+class VSQLSubnodeErrorError(VSQLError):
+	def detail(self) -> str:
+		return f"AST subnodes are invalid (Internal vSQL error)."
+
+
+class VSQLUnknownNodeTypeError(VSQLError):
+	def detail(self) -> str:
+		return f"AST node has unknown type (Internal vSQL error)."
+
+
+class VSQLArityError(VSQLError):
+	def detail(self) -> str:
+		return f"AST node has wrong arity (Internal vSQL error)."
+
+
+class VSQLSubnodeTypesError(VSQLError):
+	def detail(self) -> str:
+		if any(child.datatype is None for child in self.cause_ast.children()):
+			# This shouldn't happen, as :meth:`AST.check_valid` always return the most specific error
+			return f"Expression contains invalid sub expression."
+		else:
+			types = ", ".join(f"`{child.datatype.name}`" for child in self.cause_ast.children())
+			return f"Type combination {types} is not supported."
+
+
+class VSQLUnknownFieldError(VSQLError):
+	def detail(self) -> str:
+		return f"Expression references the unknown field `{self.ast.identifier}`."
+
+
+class VSQLMalformedConstantError(VSQLError):
+	def detail(self) -> str:
+		return f"Constant `{ast.nodevalue}` is malformed."
+
+
+class VSQLUnknownNameError(VSQLError):
+	def detail(self) -> str:
+		if isinstance(self.ast, FuncAST):
+			name = f"function name `{self.cause_ast.name}`"
+		elif isinstance(self.cause_ast, MethAST):
+			name = f"method name `{self.cause_ast.name}`"
+		elif isinstance(self.cause_ast, AttrAST):
+			name = f"attribute name `{self.cause_ast.attrname}`"
+		else:
+			name = "name"
+		return f"The {name} is unknown."
+
+
+class VSQLUnknownListTypeError(VSQLError):
+	def detail(self) -> str:
+		return f"List type can't be determined."
+
+
+class VSQLMixedListTypesError(VSQLError):
+	def detail(self) -> str:
+		return f"List type can't be determined, since it contains mixed types."
+
+
+class VSQLUnsupportedListTypesError(VSQLError):
+	def detail(self) -> str:
+		return f"Unsupported item type for list."
+
+
+class VSQLUnknownSetTypeError(VSQLError):
+	def detail(self) -> str:
+		return f"Set type can't be determined."
+
+
+class VSQLMixedSetTypesError(VSQLError):
+	def detail(self) -> str:
+		return f"Set type can't be determined, since it contains mixed types."
+
+
+class VSQLUnsupportedSetTypesError(VSQLError):
+	def detail(self) -> str:
+		return f"Unsupported item type for set."
+
+
+class VSQLWrongDatatypeError(VSQLError):
+	def detail(self) -> str:
+		return f"The expression should be of type `{self.cause_ast.error.name[9:]}` but is of type `{self.cause_ast.datatype.name}`."
+
+
+class Error(str, misc.Enum):
 	"""
 	The types of errors that can lead to invalid vSQL AST nodes.
 
 	Note that some of those can not be produced by the Python implementation.
 	"""
 
-	SUBNODEERROR = "subnodeerror" # Subnodes are invalid
-	NODETYPE = "nodetype" # Unknown node type (not any of the ``NODETYPE_...`` values from above
-	ARITY = "arity" # Node does not have the required number of children
-	SUBNODETYPES = "subnodetypes" # Subnodes have a combination of types that are not supported by the node
-	FIELD = "field" # ``NODETYPE_FIELD`` nodes references an unknown field
-	CONST_BOOL = "const_bool" # ``NODETYPE_CONST_BOOL`` value is ``null`` or malformed
-	CONST_INT = "const_int" # ``NODETYPE_CONST_INT`` value is ``null`` or malformed
-	CONST_NUMBER = "const_number" # ``NODETYPE_CONST_NUMBER`` value is ``null`` or malformed
-	CONST_DATE = "const_date" # ``NODETYPE_CONST_DATE`` value is ``null`` or malformed
-	CONST_DATETIME = "const_datetime" # ``NODETYPE_CONST_DATETIME`` value is ``null`` or malformed
-	CONST_TIMESTAMP = "const_timestamp" # ``NODETYPE_CONST_DATETIME`` value is ``null`` or malformed
-	CONST_COLOR = "const_color" # ``NODETYPE_CONST_COLOR`` value is ``null`` or malformed
-	NAME = "name" # Attribute/Function/Method is unknown
-	LISTTYPEUNKNOWN = "listtypeunknown" # List is empty or only has literal ``None``s as items, so the type can't be determined
-	LISTMIXEDTYPES = "listmixedtypes" # List items have incompatible types, so the type can't be determined
-	LISTUNSUPPORTEDTYPES = "listunsupportedtypes" # List items have unsupported types, so the type can't be determined
-	SETTYPEUNKNOWN = "settypeunknown" # Set is empty or only has literal ``None``s as items, so the type can't be determined
-	SETMIXEDTYPES = "setmixedtypes" # Set items have incompatible types, so the type can't be determined
-	SETUNSUPPORTEDTYPES = "setunsupportedtypes" # Set items have unsupported types, so the type can't be determined
-	DATATYPE_NULL = "datatype_null" # The datatype of the node should be ``null`` but isn't
-	DATATYPE_BOOL = "datatype_bool" # The datatype of the node should be ``bool`` but isn't
-	DATATYPE_INT = "datatype_int" # The datatype of the node should be ``int`` but isn't
-	DATATYPE_NUMBER = "datatype_number" # The datatype of the node should be ``number`` but isn't
-	DATATYPE_STR = "datatype_str" # The datatype of the node should be ``str`` but isn't
-	DATATYPE_CLOB = "datatype_clob" # The datatype of the node should be ``clob`` but isn't
-	DATATYPE_COLOR = "datatype_color" # The datatype of the node should be ``color`` but isn't
-	DATATYPE_DATE = "datatype_date" # The datatype of the node should be ``date`` but isn't
-	DATATYPE_DATETIME = "datatype_datetime" # The datatype of the node should be ``datetime`` but isn't
-	DATATYPE_DATEDELTA = "datatype_datedelta" # The datatype of the node should be ``datedelta`` but isn't
-	DATATYPE_DATETIMEDELTA = "datatype_datetimedelta" # The datatype of the node should be ``datetimedelta`` but isn't
-	DATATYPE_MONTHDELTA = "datatype_monthdelta" # The datatype of the node should be ``monthdelta`` but isn't
-	DATATYPE_NULLLIST = "datatype_nulllist" # The datatype of the node should be ``nulllist`` but isn't
-	DATATYPE_INTLIST = "datatype_intlist" # The datatype of the node should be ``intlist`` but isn't
-	DATATYPE_NUMBERLIST = "datatype_numberlist" # The datatype of the node should be ``numberlist`` but isn't
-	DATATYPE_STRLIST = "datatype_strlist" # The datatype of the node should be ``strlist`` but isn't
-	DATATYPE_CLOBLIST = "datatype_cloblist" # The datatype of the node should be ``cloblist`` but isn't
-	DATATYPE_DATELIST = "datatype_datelist" # The datatype of the node should be ``datelist`` but isn't
-	DATATYPE_DATETIMELIST = "datatype_datetimelist" # The datatype of the node should be ``datetimelist`` but isn't
-	DATATYPE_NULLSET = "datatype_nullset" # The datatype of the node should be ``nullset`` but isn't
-	DATATYPE_INTSET = "datatype_intset" # The datatype of the node should be ``intset`` but isn't
-	DATATYPE_NUMBERSET = "datatype_numberset" # The datatype of the node should be ``numberset`` but isn't
-	DATATYPE_STRSET = "datatype_strset" # The datatype of the node should be ``strset`` but isn't
-	DATATYPE_DATESET = "datatype_dateset" # The datatype of the node should be ``dateset`` but isn't
-	DATATYPE_DATETIMESET = "datatype_datetimeset" # The datatype of the node should be ``datetimeset`` but isn't
+	def __new__(cls, value:str, exception:Type[VSQLError]):
+		obj = str.__new__(cls, value)
+		obj._value_ = value
+		obj.exception = exception
+		return obj
+
+	SUBNODEERROR = ("subnodeerror", VSQLSubnodeErrorError) # Subnodes are invalid
+	NODETYPE = ("nodetype", VSQLUnknownNodeTypeError) # Unknown node type (not any of the ``NODETYPE_...`` values from above
+	ARITY = ("arity", VSQLArityError) # Node does not have the required number of children
+	SUBNODETYPES = ("subnodetypes", VSQLSubnodeTypesError) # Subnodes have a combination of types that are not supported by the node
+	FIELD = ("field", VSQLUnknownFieldError) # ``NODETYPE_FIELD`` nodes references an unknown field
+	CONST_BOOL = ("const_bool", VSQLMalformedConstantError) # ``NODETYPE_CONST_BOOL`` value is ``null`` or malformed
+	CONST_INT = ("const_int", VSQLMalformedConstantError) # ``NODETYPE_CONST_INT`` value is ``null`` or malformed
+	CONST_NUMBER = ("const_number", VSQLMalformedConstantError) # ``NODETYPE_CONST_NUMBER`` value is ``null`` or malformed
+	CONST_DATE = ("const_date", VSQLMalformedConstantError) # ``NODETYPE_CONST_DATE`` value is ``null`` or malformed
+	CONST_DATETIME = ("const_datetime", VSQLMalformedConstantError) # ``NODETYPE_CONST_DATETIME`` value is ``null`` or malformed
+	CONST_TIMESTAMP = ("const_timestamp", VSQLMalformedConstantError) # ``NODETYPE_CONST_DATETIME`` value is ``null`` or malformed
+	CONST_COLOR = ("const_color", VSQLMalformedConstantError) # ``NODETYPE_CONST_COLOR`` value is ``null`` or malformed
+	NAME = ("name", VSQLUnknownNameError) # Attribute/Function/Method is unknown
+	LISTTYPEUNKNOWN = ("listtypeunknown", VSQLUnknownListTypeError) # List is empty or only has literal ``None``s as items, so the type can't be determined
+	LISTMIXEDTYPES = ("listmixedtypes", VSQLMixedListTypesError) # List items have incompatible types, so the type can't be determined
+	LISTUNSUPPORTEDTYPES = ("listunsupportedtypes", VSQLUnsupportedListTypesError) # List items have unsupported types, so the type can't be determined
+	SETTYPEUNKNOWN = ("settypeunknown", VSQLUnknownSetTypeError) # Set is empty or only has literal ``None``s as items, so the type can't be determined
+	SETMIXEDTYPES = ("setmixedtypes", VSQLMixedSetTypesError) # Set items have incompatible types, so the type can't be determined
+	SETUNSUPPORTEDTYPES = ("setunsupportedtypes", VSQLUnsupportedSetTypesError) # Set items have unsupported types, so the type can't be determined
+	DATATYPE_NULL = ("datatype_null", VSQLWrongDatatypeError) # The datatype of the node should be ``null`` but isn't
+	DATATYPE_BOOL = ("datatype_bool", VSQLWrongDatatypeError) # The datatype of the node should be ``bool`` but isn't
+	DATATYPE_INT = ("datatype_int", VSQLWrongDatatypeError) # The datatype of the node should be ``int`` but isn't
+	DATATYPE_NUMBER = ("datatype_number", VSQLWrongDatatypeError) # The datatype of the node should be ``number`` but isn't
+	DATATYPE_STR = ("datatype_str", VSQLWrongDatatypeError) # The datatype of the node should be ``str`` but isn't
+	DATATYPE_CLOB = ("datatype_clob", VSQLWrongDatatypeError) # The datatype of the node should be ``clob`` but isn't
+	DATATYPE_COLOR = ("datatype_color", VSQLWrongDatatypeError) # The datatype of the node should be ``color`` but isn't
+	DATATYPE_DATE = ("datatype_date", VSQLWrongDatatypeError) # The datatype of the node should be ``date`` but isn't
+	DATATYPE_DATETIME = ("datatype_datetime", VSQLWrongDatatypeError) # The datatype of the node should be ``datetime`` but isn't
+	DATATYPE_DATEDELTA = ("datatype_datedelta", VSQLWrongDatatypeError) # The datatype of the node should be ``datedelta`` but isn't
+	DATATYPE_DATETIMEDELTA = ("datatype_datetimedelta", VSQLWrongDatatypeError) # The datatype of the node should be ``datetimedelta`` but isn't
+	DATATYPE_MONTHDELTA = ("datatype_monthdelta", VSQLWrongDatatypeError) # The datatype of the node should be ``monthdelta`` but isn't
+	DATATYPE_NULLLIST = ("datatype_nulllist", VSQLWrongDatatypeError) # The datatype of the node should be ``nulllist`` but isn't
+	DATATYPE_INTLIST = ("datatype_intlist", VSQLWrongDatatypeError) # The datatype of the node should be ``intlist`` but isn't
+	DATATYPE_NUMBERLIST = ("datatype_numberlist", VSQLWrongDatatypeError) # The datatype of the node should be ``numberlist`` but isn't
+	DATATYPE_STRLIST = ("datatype_strlist", VSQLWrongDatatypeError) # The datatype of the node should be ``strlist`` but isn't
+	DATATYPE_CLOBLIST = ("datatype_cloblist", VSQLWrongDatatypeError) # The datatype of the node should be ``cloblist`` but isn't
+	DATATYPE_DATELIST = ("datatype_datelist", VSQLWrongDatatypeError) # The datatype of the node should be ``datelist`` but isn't
+	DATATYPE_DATETIMELIST = ("datatype_datetimelist", VSQLWrongDatatypeError) # The datatype of the node should be ``datetimelist`` but isn't
+	DATATYPE_NULLSET = ("datatype_nullset", VSQLWrongDatatypeError) # The datatype of the node should be ``nullset`` but isn't
+	DATATYPE_INTSET = ("datatype_intset", VSQLWrongDatatypeError) # The datatype of the node should be ``intset`` but isn't
+	DATATYPE_NUMBERSET = ("datatype_numberset", VSQLWrongDatatypeError) # The datatype of the node should be ``numberset`` but isn't
+	DATATYPE_STRSET = ("datatype_strset", VSQLWrongDatatypeError) # The datatype of the node should be ``strset`` but isn't
+	DATATYPE_DATESET = ("datatype_dateset", VSQLWrongDatatypeError) # The datatype of the node should be ``dateset`` but isn't
+	DATATYPE_DATETIMESET = ("datatype_datetimeset", VSQLWrongDatatypeError) # The datatype of the node should be ``datetimeset`` but isn't
 
 
 @ul4on.register("de.livinglogic.vsql.field")
@@ -384,18 +489,42 @@ class Field(Repr):
 	"""
 	A :class:`!Field` object describes a database field.
 
-	This field is either in a database table or view or a global package variable.
+	This field is either in a database table or view or a global variable.
 
 	As a table or view field it belongs to a :class:`Group` object.
 	"""
-	def __init__(self, identifier:T_opt_str=None, datatype:DataType=DataType.NULL, fieldsql:T_opt_str=None, joinsql:T_opt_str=None, refgroup:Optional["Group"]=None):
+	def __init__(self, identifier:str | None=None, datatype:DataType=DataType.NULL, fieldsql:str | None=None, joinsql:str | None=None, refgroup:Group | None=None):
+		"""
+		Create a :class:`Field` instance.
+
+		Argument are:
+
+		``identifier``
+			The UL4 identifier of the field
+
+		``datatype``
+			The vSQL datatype of the field
+
+		``fieldsql``
+			The SQL expression for that fields. This should include ``{a}`` as a
+			placeholder for the table alias
+
+		``joinsql``
+			If this field is a foreign key to another table, ``joinsql`` is the
+			join condition. This should include ``{m}`` and ``{d}`` placeholder
+			for the table aliases of the master table (i.e. the one where this
+			field is in) and the detail table (i.e. the one that will be joined).
+
+		``refgroup``
+			The :class:`Group` object that represents the target table.
+		"""
 		self.identifier = identifier
 		self.datatype = datatype
 		self.fieldsql = fieldsql
 		self.joinsql = joinsql
 		self.refgroup = refgroup
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield f"identifier={self.identifier!r}"
 		if self.datatype is not None:
 			yield f"datatype={self.datatype.name}"
@@ -451,7 +580,7 @@ class Group(Repr):
 	:class:`Field`.
 	"""
 
-	def __init__(self, tablesql:T_opt_str=None, **fields:Union["Field", Tuple[DataType, str], Tuple[DataType, str, str, "Group"]]):
+	def __init__(self, tablesql:str | None=None, **fields:Field | Tuple[DataType, str] | Tuple[DataType, str, str, Group]):
 		self.tablesql = tablesql
 		self.fields = {}
 		for (fieldname, fielddata) in fields.items():
@@ -459,7 +588,7 @@ class Group(Repr):
 				fielddata = Field(fieldname, *fielddata)
 			self.fields[fieldname] = fielddata
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield f"tablesql={self.tablesql!r}"
 		yield f"with {len(self.fields):,} fields"
 
@@ -476,7 +605,7 @@ class Group(Repr):
 		else:
 			raise KeyError(key)
 
-	def add_field(self, identifier:str, datatype:DataType, fieldsql:str, joinsql:T_opt_str=None, refgroup:Optional["Group"]=None) -> None:
+	def add_field(self, identifier:str, datatype:DataType, fieldsql:str, joinsql:str | None=None, refgroup:Group | None=None) -> None:
 		field = Field(identifier, datatype, fieldsql, joinsql, refgroup)
 		self.fields[identifier] = field
 
@@ -493,7 +622,7 @@ class Query(Repr):
 	"""
 	A :class:`!Query` object can be used to build an SQL query using vSQL expressions.
 	"""
-	def __init__(self, comment:T_opt_str=None, **vars:"Field"):
+	def __init__(self, comment:str | None=None, **vars:Field):
 		"""
 		Create a new empty :class:`!Query` object.
 
@@ -502,23 +631,32 @@ class Query(Repr):
 		``comment`` : :class:`str` or ``None``
 			A comment that will be included in the generated SQL.
 
-			Note that the comment test may not include ``/*`` or ``*/``.
+			Note that the comment text may not include ``/*`` or ``*/``.
 
 		``vars`` : :class:`Field`
 			These are the top level variables that will be availabe for vSQL
 			expressions added to this query. The argument name is the name of
 			the variable. The argument value is a :class:`Field` object that
 			describes this variable.
+
+			In most cases this :class:`Field` object is a foreign key to another
+			table, so it has a ``joinsql`` and a ``refgroup``.
 		"""
 		self.comment = comment
 		self.vars = vars
-		self._fields : Dict[str, "AST"] = {}
-		self._from : Dict[str, "AST"] = {}
-		self._where : Dict[str, "AST"] = {}
-		self._orderby : List[Tuple[str, "AST", T_opt_str, T_opt_str]] = []
+		self._fields : Dict[str, Tuple["AST"|str, str | None]] = {}
+		self._from : Dict[str, "AST"|str] = {}
+		self._where : Dict[str, "AST"|str] = {}
+		self._orderby : List[Tuple[str, "AST"|str, str | None, str | None]] = []
 		self._identifier_aliases : Dict[str, str] = {}
 
-	def _vsql_register(self, fieldref:"FieldRefAST") -> T_opt_str:
+	def _vsql_register(self, fieldref:FieldRefAST) -> str | None:
+		"""
+		Registers the :class:`FieldRefAST` object `fieldref`.
+
+		This means that all the tables and join conditions that are required to
+		access the field will be added to the "form" and "where" clauses.
+		"""
 		if fieldref.error is not None:
 			return # Don't register broken expressions
 		if fieldref.parent is None:
@@ -530,6 +668,7 @@ class Query(Repr):
 		if identifier in self._identifier_aliases:
 			alias = self._identifier_aliases[identifier]
 			return alias
+
 		alias = self._vsql_register(fieldref.parent)
 
 		newalias = f"t{len(self._from)+1}"
@@ -553,36 +692,101 @@ class Query(Repr):
 		return newalias
 
 	def _vsql(self, expr:str) -> None:
+		"""
+		Compiles ``expr`` to a vSQL :class:`AST` and register all field references in it.
+		"""
 		expr = AST.fromsource(expr, **self.vars)
 		for fieldref in expr.fieldrefs():
 			self._vsql_register(fieldref)
 		return expr
 
-	def select(self, *exprs:str) -> "Query":
-		for expr in exprs:
-			expr = self._vsql(expr)
-			sqlsource = expr.sqlsource(self)
-			if sqlsource not in self._fields:
-				self._fields[sqlsource] = expr
+	def select_vsql(self, expr:str, alias=None) -> "Query":
+		"""
+		Add the vSQL expression ``expr`` to the list of expression to select.
+
+		``alias`` can be used to give the expression a column alias.
+
+		Note that this compiles ``expr`` and adds the resulting SQL. To add an
+		SQL expression directly use :meth:`select_sql` instead.
+		"""
+		expr = self._vsql(expr)
+		expr.check_valid("select")
+		sqlsource = expr.sqlsource(self)
+		if sqlsource not in self._fields:
+			self._fields[sqlsource] = (expr, alias)
 		return self
 
-	def where(self, *exprs:str) -> "Query":
-		for expr in exprs:
-			expr = self._vsql(expr)
-			if expr.datatype is not DataType.BOOL:
-				expr = FuncAST.make("bool", expr)
-			sqlsource = expr.sqlsource(self)
-			sqlsource = f"{sqlsource} = 1"
-			if sqlsource not in self._where:
-				self._where[sqlsource] = expr
+	def select_sql(self, expr:str, alias=None, comment=None) -> "Query":
+		"""
+		Add the SQL expression ``expr`` to the list of expression to select.
+
+		``alias`` can be used to give the expression a column alias.
+
+		``comment`` can be used to give the column a comment in the select list.
+
+		Note that that adds ``expr`` directly as "raw" SQL. To add a vSQL
+		expression use :meth:`select_vsql` instead.
+		"""
+		if expr not in self._fields:
+			self._fields[expr] = (comment, alias)
 		return self
 
-	def orderby(self, expr:str, direction:T_sortdirection=None, nulls:T_sortnulls=None) -> "Query":
+	def from_sql(self, tablename, alias, comment=None) -> "Query":
+		"""
+		Add a table to the list of table to select from.
+
+		This adds the table in "raw" SQL form.
+
+		There's no need to add to the "from" list in vSQL form, since this
+		is done automatically in :meth:`select_vsql`, :meth:`where_vsql` or
+		:meth:`orderby_vsql`.
+		"""
+		for f in self._from:
+			(n, a) = f.rsplit(" ", 1)
+			if a == alias:
+				raise ValueError(f"duplicate table alias {alias!r}")
+		self._from[f"{tablename} {alias}"] = comment
+		return self
+
+	def where_vsql(self, expr:str) -> "Query":
+		"""
+		Add vSQL condition ``expr`` to the ``where`` clause.
+
+		Note that this compiles ``expr`` and add the resulting SQL. To add an
+		SQL expression directly use :meth:`where_sql` instead.
+
+		If ``expr`` doesn't have the datatype ``BOOL`` it will be automatically
+		converted to ``BOOL``.
+		"""
+		expr = self._vsql(expr)
+		expr.check_valid("where")
+		if expr.datatype is not DataType.BOOL:
+			expr = FuncAST.make("bool", expr)
+		sqlsource = f"{expr.sqlsource(self)} = 1"
+		if sqlsource not in self._where:
+			self._where[sqlsource] = expr
+		return self
+
+	def where_sql(self, expr:str, comment:str|None=None) -> "Query":
+		"""
+		Add vSQL condition ``expr`` to the ``where`` clause.
+
+		Note that that adds ``expr`` directly as "raw" SQL. To add a vSQL
+		expression use :meth:`where_vsql` instead.
+		"""
+		if expr not in self._where:
+			self._where[expr] = comment
+		return self
+
+	def orderby_vsql(self, expr:str, direction:T_sortdirection=None, nulls:T_sortnulls=None) -> "Query":
 		r"""
-		Add an "order by" specification to this query.
+		Add the "order by" vSQL exprssion ``expr`` to this query.
 
 		"order by" specifications will be output in the query in the order they
 		have been added.
+
+		Note that this compiles ``expr`` and add the resulting SQL. To add an
+		SQL expression directly use :meth:`orderby_sql` instead.
 
 		Argument are:
 
@@ -616,44 +820,74 @@ class Query(Repr):
 				t1.ide_surname /* user.surname */ desc
 		"""
 		expr = self._vsql(expr)
+		expr.check_valid("orderby")
 		sqlsource = expr.sqlsource(self)
 		self._orderby.append((sqlsource, expr, direction, nulls))
 		return self
 
+	def orderby_sql(self, expr:str, direction:T_sortdirection=None, nulls:T_sortnulls=None) -> "Query":
+		r"""
+		Add the "order by" SQL exprssion ``expr`` to this query.
+
+		"order by" specifications will be output in the query in the order they
+		have been added.
+
+		Note that that adds ``expr`` directly as "raw" SQL. To add a vSQL
+		expression use :meth:`select_vsql` instead.
+
+		For an explanation of the rest of the arguments see :meth:`select_vsql`.
+		"""
+		self._orderby.append((expr, None, direction, nulls))
+		return self
+
 	def sqlsource(self, indent="\t") -> str:
+		"""
+		Return the SQL source code for this query.
+		"""
 		tokens = []
 
 		def a(*parts):
 			tokens.extend(parts)
 
-		def s(sqlsource, expr):
+		def s(sqlsource, expr, alias=None):
 			tokens.append(sqlsource)
-			vsqlsource = f" /* {expr.source()} */"
-			if not sqlsource.endswith(vsqlsource):
+			if isinstance(expr, AST):
+				vsqlsource = f" /* {expr.source()} */"
+			elif expr is not None:
+				vsqlsource = f" /* {expr} */"
+			else:
+				vsqlsource = None
+			if vsqlsource is not None and not sqlsource.endswith(vsqlsource):
 				tokens.append(vsqlsource)
+			if alias is not None:
+				tokens.append(f" as {alias}")
 
 		if self.comment:
 			a("/* ", self.comment, " */", None)
 
 		a("select", None, +1)
-		if self._fields:
-			for (i, (field, expr)) in enumerate(self._fields.items()):
-				if i:
-					a(",", None)
-				s(field, expr)
-		else:
+		first = True
+		for (field, (expr, alias)) in self._fields.items():
+			if first:
+				first = False
+			else:
+				a(",", None)
+			s(field, expr, alias)
+		if first:
 			a("42")
 		a(None, -1)
 
 		a("from", None, +1)
-		if self._from:
-			for (i, (table, expr)) in enumerate(self._from.items()):
-				if i:
-					a(",", None)
-				s(table, expr)
-			a(None, -1)
-		else:
-			a("dual", None, -1)
+		first = True
+		for (table, expr) in self._from.items():
+			if first:
+				first = False
+			else:
+				a(",", None)
+			s(table, expr)
+		if first:
+			a("dual")
+		a(None, -1)
 
 		if self._where:
 			a("where", None, +1)
@@ -735,7 +969,7 @@ class Rule(Repr):
 	def str_vsqlsource(self):
 		return "".join(p if isinstance(p, str) else p.name for p in self.vsqlsource)
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield f"nodetype={self.astcls.nodetype.name}"
 		yield f"result={self.result.name}"
 		if self.name is not None:
@@ -767,7 +1001,7 @@ class Rule(Repr):
 		p.pretty(self.str_vsqlsource())
 
 	@classmethod
-	def _parse_source(cls, signature:str, source:str) -> Tuple[Union[int, str], ...]:
+	def _parse_source(cls, signature:str, source:str) -> Tuple[int | str, ...]:
 		final_source = []
 
 		def append(text):
@@ -800,7 +1034,7 @@ class Rule(Repr):
 
 		return f"addRule(rules, VSQLDataType.{self.result.name}, {key});"
 
-	def oracle_fields(self) -> Dict[str, Union[int, str, sqlliteral]]:
+	def oracle_fields(self) -> Dict[str, int | str | sqlliteral]:
 		fields = {}
 
 		fields["vr_nodetype"] = self.astcls.nodetype.value
@@ -872,10 +1106,22 @@ class AST(Repr):
 	"""
 
 	datatype = None
+	"""
+	The datatype is an instance attribute that represents the datatype of the
+	expression.
+
+	If the datatype can't be determined because of errors `datatype` will be `None`.
+	"""
+
+	title = None
+	"""
+	This class attribute contain a human readable name for the AST type.
+	"""
+
 	rules = None
 	_restore_tokens = None
 
-	def __init__(self, *content: T_AST_Content):
+	def __init__(self, *content: AST | str):
 		"""
 		Create a new :class:`!AST` node from its content.
 
@@ -1003,10 +1249,10 @@ class AST(Repr):
 		expr = template.content[-1].obj
 		return cls.fromul4(expr, **vars)
 
-	def sqlsource(self, query:"Query") -> str:
+	def sqlsource(self, query:Query) -> str:
 		return "".join(s for s in self._sqlsource(query))
 
-	def fieldrefs(self) -> T_gen("FieldRefAST"):
+	def fieldrefs(self) -> Generator[FieldRefAST, None, None]:
 		"""
 		Return all :class:`FieldRefAST` objects in this :class:`!AST`.
 
@@ -1016,7 +1262,7 @@ class AST(Repr):
 			yield from child.fieldrefs()
 
 	@classmethod
-	def all_types(cls) -> T_gen(Type["AST"]):
+	def all_types(cls) -> Generator[Type[AST], None, None]:
 		"""
 		Return this class and all subclasses.
 
@@ -1027,7 +1273,7 @@ class AST(Repr):
 			yield from subcls.all_types()
 
 	@classmethod
-	def all_rules(cls) -> T_gen(Rule):
+	def all_rules(cls) -> Generator[Rule, None, None]:
 		"""
 		Return all grammar rules of this class and all its subclasses.
 
@@ -1042,13 +1288,13 @@ class AST(Repr):
 		cls.rules[rule.key] = rule
 
 	@classmethod
-	def typeref(cls, s:str) -> T_opt_int:
+	def typeref(cls, s:str) -> int | None:
 		if s.startswith("T") and s[1:].isdigit():
 			return int(s[1:])
 		return None
 
 	@classmethod
-	def _specs(cls, spec:Tuple[str, ...]) -> T_gen(Tuple[str, Tuple[Union[DataType, str], ...]]):
+	def _specs(cls, spec:Tuple[str, ...]) -> Generator[Tuple[str, Tuple[DataType | str, ...]], None, None]:
 		# Find position of potential name in the spec, so we can correct
 		# the typeref offsets later.
 		for (i, p) in enumerate(spec):
@@ -1228,24 +1474,36 @@ class AST(Repr):
 		"""
 		pass
 
+	def check_valid(self, context:str | None=None) -> None:
+		"""
+		Makes sure that ``self`` is valid.
+
+		If ``self`` is invalid an appropriate exception will be raised.
+
+		``context`` should describe the context in which the expression is used.
+		E.g. ``"select"``when used in :meth:`Query.select_vsql` or ``"where"``
+		when used in :meth:`Query.where_vsql`.
+		"""
+		if self.error is not None:
+			# Find first child node with a "real" error
+			for child in self.walknodes():
+				if child.error is not None and child.error is not Error.SUBNODEERROR:
+					raise child.error.exception(self, child, context)
+			# No child has a "real" error, so raise one for ``self``
+			raise self.error.exception(self, self, context)
+
 	def source(self) -> str:
 		"""
 		Return the UL4/vSQL source code of the AST.
 		"""
 		return "".join(s for s in self._source())
 
-	def _source(self) -> T_gen(str):
+	def _source(self) -> Generator[str, None, None]:
 		for item in self.content:
 			if isinstance(item, str):
 				yield item
 			else:
 				yield from item._source()
-
-	def children(self) -> T_gen("AST"):
-		"""
-		Return the child AST nodes of this node.
-		"""
-		yield from ()
 
 	def save(self, handler:"ll.la.handlers.DBHandler") -> str:
 		"""
@@ -1266,7 +1524,7 @@ class AST(Repr):
 		parts.append(f": {self.source()}")
 		return "".join(parts)
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		if self.datatype is not None:
 			yield f"datatype={self.datatype.name}"
 		if self.error is not None:
@@ -1285,7 +1543,7 @@ class AST(Repr):
 		p.pretty(self.source())
 
 	@classmethod
-	def _wrap(cls, obj:T_AST_Content, cond:bool) -> T_gen(T_AST_Content):
+	def _wrap(cls, obj:AST | str, cond:bool) -> Generator[AST | str, None, None]:
 		if cond:
 			yield "("
 		yield obj
@@ -1301,7 +1559,7 @@ class AST(Repr):
 		self.pos = decoder.load()
 
 	@classmethod
-	def _make_content_from_ul4(cls, node:ul4c.AST, *args:Union[ul4c.AST, "AST", str, None]) -> Tuple[T_AST_Content, ...]:
+	def _make_content_from_ul4(cls, node:ul4c.AST, *args:ul4c.AST | AST | str | None) -> Tuple[AST | str, ...]:
 		content = []
 		lastpos = node.pos.start
 		for subnode in args:
@@ -1319,12 +1577,47 @@ class AST(Repr):
 			content.append(node.fullsource[lastpos:node.pos.stop])
 		return content
 
+	def children(self) -> Generator[AST, None, None]:
+		"""
+		Return the child AST nodes of this node.
+		"""
+		yield from ()
+
+	def walknodes(self) -> Generator[AST, None, None]:
+		"""
+		Return the all child AST nodes of this node (recursively).
+		"""
+		for child in self.children():
+			yield child
+			yield from child.walknodes()
+
+	def walkpaths(self) -> Generator[list[AST], None, None]:
+		"""
+		Return an iterator for traversing the syntax tree rooted at ``self``.
+
+		Items produced by the iterator paths, i.e. lists containing the path
+		from the root :class:`AST` object to ``self``.
+
+		Note that the iterator will always produre the same list object that will
+		be changed during the iteration. If you want to keep value produced
+		during the iteration, you have to make copies.
+		"""
+		yield from self._walkpaths([])
+
+	def _walkpaths(self, path:list[AST]) -> Generator[list[AST], None, None]:
+		path.append(self)
+		yield path
+		for child in self.children():
+			yield from child._walkpaths(path)
+		path.pop()
+
 
 class ConstAST(AST):
 	"""
 	Base class for all vSQL expressions that are constants.
 	"""
 
+	title = "Constant"
 	precedence = 20
 
 	@staticmethod
@@ -1352,6 +1645,7 @@ class NoneAST(ConstAST):
 	The constant ``None``.
 	"""
 
+	title = "Constant `None`"
 	nodetype = NodeType.CONST_NONE
 	datatype = DataType.NULL
 
@@ -1359,7 +1653,7 @@ class NoneAST(ConstAST):
 	def make(cls) -> "NoneAST":
 		return cls("None")
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield "null"
 
 	@classmethod
@@ -1390,7 +1684,7 @@ class _ConstWithValueAST(ConstAST):
 	def nodevalue(self) -> str:
 		return self.value
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		yield f"value={self.value!r}"
 
@@ -1415,6 +1709,7 @@ class BoolAST(_ConstWithValueAST):
 	A boolean constant (i.e. ``True`` or ``False``).
 	"""
 
+	title = "Boolean constant"
 	nodetype = NodeType.CONST_BOOL
 	datatype = DataType.BOOL
 
@@ -1422,7 +1717,7 @@ class BoolAST(_ConstWithValueAST):
 	def make(cls, value:Any) -> "BoolAST":
 		return cls(value, "True" if value else "False")
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield "1" if self.value else "0"
 
 	@property
@@ -1436,10 +1731,11 @@ class IntAST(_ConstWithValueAST):
 	An integer constant.
 	"""
 
+	title = "Integer constant"
 	nodetype = NodeType.CONST_INT
 	datatype = DataType.INT
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield str(self.value)
 
 	@property
@@ -1453,10 +1749,11 @@ class NumberAST(_ConstWithValueAST):
 	A number constant (containing a decimal point).
 	"""
 
+	title = "Number constant"
 	nodetype = NodeType.CONST_NUMBER
 	datatype = DataType.NUMBER
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield str(self.value)
 
 	@property
@@ -1470,10 +1767,11 @@ class StrAST(_ConstWithValueAST):
 	A string constant.
 	"""
 
+	title = "String constant"
 	nodetype = NodeType.CONST_STR
 	datatype = DataType.STR
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		s = self.value.replace("'", "''")
 		yield f"'{s}'"
 
@@ -1486,10 +1784,11 @@ class CLOBAST(_ConstWithValueAST):
 	This normally will not be created by the Python implementation
 	"""
 
+	title = "CLOB constant"
 	nodetype = NodeType.CONST_CLOB
 	datatype = DataType.CLOB
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		s = self.value.replace("'", "''")
 		yield f"'{s}'"
 
@@ -1500,10 +1799,11 @@ class ColorAST(_ConstWithValueAST):
 	A color constant (e.g. ``#fff``).
 	"""
 
+	title = "Color constant"
 	nodetype = NodeType.CONST_COLOR
 	datatype = DataType.COLOR
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		c = self.value
 		yield str((c.r() << 24) + (c.g() << 16) + (c.b() << 8) + c.a())
 
@@ -1519,10 +1819,11 @@ class DateAST(_ConstWithValueAST):
 	A date constant (e.g. ``@(2000-02-29)``).
 	"""
 
+	title = "Date constant"
 	nodetype = NodeType.CONST_DATE
 	datatype = DataType.DATE
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield f"to_date('{self.value:%Y-%m-%d}', 'YYYY-MM-DD')";
 
 	@property
@@ -1536,6 +1837,7 @@ class DateTimeAST(_ConstWithValueAST):
 	A datetime constant (e.g. ``@(2000-02-29T12:34:56)``).
 	"""
 
+	title = "Datetime constant"
 	nodetype = NodeType.CONST_DATETIME
 	datatype = DataType.DATETIME
 
@@ -1544,7 +1846,7 @@ class DateTimeAST(_ConstWithValueAST):
 		value = value.replace(microsecond=0)
 		return cls(value, ul4c._repr(value))
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield f"to_date('{self.value:%Y-%m-%d %H:%M:%S}', 'YYYY-MM-DD HH24:MI:SS')";
 
 	@property
@@ -1557,7 +1859,7 @@ class _SeqAST(AST):
 	Base class of :class:`ListAST` and :class:`SetAST`.
 	"""
 
-	def __init__(self, *content:T_AST_Content):
+	def __init__(self, *content:AST | str):
 		super().__init__(*content)
 		self.items = [item for item in content if isinstance(item, AST)]
 		self.datatype = None
@@ -1575,7 +1877,7 @@ class _SeqAST(AST):
 			content.append(AST.fromul4(item.value, **vars))
 		return cls(*cls._make_content_from_ul4(node, *content))
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		if self.datatype is self.nulltype:
 			yield self.nodevalue
 		else:
@@ -1587,7 +1889,7 @@ class _SeqAST(AST):
 				yield from item._sqlsource(query)
 			yield suffix
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		yield f"with {len(self.items):,} items"
 
@@ -1597,7 +1899,7 @@ class _SeqAST(AST):
 			p.breakable()
 			p.pretty(item)
 
-	def children(self) -> T_gen("AST"):
+	def children(self) -> Generator[AST, None, None]:
 		yield from self.items
 
 	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
@@ -1618,6 +1920,7 @@ class ListAST(_SeqAST):
 	types that con be converted to a common type without losing information.
 	"""
 
+	title = "List"
 	nodetype = NodeType.LIST
 	nulltype = DataType.NULLLIST
 	precedence = 20
@@ -1631,12 +1934,12 @@ class ListAST(_SeqAST):
 		DataType.DATETIMELIST: ("dates(", ")"),
 	}
 
-	def __init__(self, *content:T_AST_Content):
+	def __init__(self, *content:AST | str):
 		super().__init__(*content)
 		self.validate()
 
 	@classmethod
-	def make(cls, *items:"AST") -> "ListAST":
+	def make(cls, *items:AST) -> ListAST:
 		if items:
 			content = []
 			for (i, item) in enumerate(items):
@@ -1695,6 +1998,7 @@ class SetAST(_SeqAST):
 	types that can be converted to a common type without losing information.
 	"""
 
+	title = "Set"
 	nodetype = NodeType.SET
 	nulltype = DataType.NULLSET
 	precedence = 20
@@ -1707,12 +2011,12 @@ class SetAST(_SeqAST):
 		DataType.DATETIMESET: ("vsqlimpl_pkg.set_datetimelist(dates(", "))"),
 	}
 
-	def __init__(self, *content:T_AST_Content):
+	def __init__(self, *content:AST | str):
 		super().__init__(*content)
 		self.validate()
 
 	@classmethod
-	def make(cls, *items:"AST") -> "SetAST":
+	def make(cls, *items:AST) -> SetAST:
 		if items:
 			content = []
 			for (i, item) in enumerate(items):
@@ -1766,10 +2070,11 @@ class FieldRefAST(AST):
 	Reference to a field defined in the database.
 	"""
 
+	title = "Field reference"
 	nodetype = NodeType.FIELD
 	precedence = 19
 
-	def __init__(self, parent:Optional["FieldRefAST"], identifier:str, field:Optional["Field"], *content:T_AST_Content):
+	def __init__(self, parent:FieldRefAST | None, identifier:str, field:Field | None, *content:AST | str):
 		"""
 		Create a :class:`FieldRef` object.
 
@@ -1800,7 +2105,7 @@ class FieldRefAST(AST):
 		self.validate()
 
 	@classmethod
-	def make_root(cls, field:Union[str, "Field"]) -> "FieldRefAST":
+	def make_root(cls, field:str | Field) -> FieldRefAST:
 		if isinstance(field, str):
 			# This is an invalid field reference
 			return FieldRefAST(None, field, None, field)
@@ -1808,7 +2113,7 @@ class FieldRefAST(AST):
 			return FieldRefAST(None, field.identifier, field, field.identifier)
 
 	@classmethod
-	def make(cls, parent:"FieldRefAST", identifier:str) -> "FieldRefAST":
+	def make(cls, parent:FieldRefAST, identifier:str) -> FieldRefAST:
 		result_field = None
 		parent_field = parent.field
 		if parent_field is not None:
@@ -1821,7 +2126,7 @@ class FieldRefAST(AST):
 
 		return FieldRefAST(parent, identifier, result_field, parent, ".", identifier)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		alias = query._vsql_register(self)
 		full_identifier = self.full_identifier
 		if full_identifier.startswith("params."):
@@ -1830,13 +2135,14 @@ class FieldRefAST(AST):
 		elif alias is None:
 			yield f"{self.field.fieldsql} /* {self.source()} */"
 		else:
-			yield f"{alias}.{self.field.fieldsql} /* {self.source()} */"
+			fieldsql = self.field.fieldsql.replace("{a}", alias)
+			yield f"{fieldsql} /* {self.source()} */"
 
 	def validate(self) -> None:
 		self.error = Error.FIELD if self.field is None else None
 
 	@property
-	def datatype(self) -> Optional[DataType]:
+	def datatype(self) -> DataType | None:
 		return self.field.datatype if self.field is not None else None
 
 	@property
@@ -1848,7 +2154,7 @@ class FieldRefAST(AST):
 			node = node.parent
 		return ".".join(identifierpath)
 
-	def fieldrefs(self) -> T_gen("FieldRefAST"):
+	def fieldrefs(self) -> Generator[FieldRefAST, None, None]:
 		yield self
 		yield from super().fieldrefs()
 
@@ -1859,7 +2165,7 @@ class FieldRefAST(AST):
 		else:
 			return f"{self.parent.full_identifier}.{self.identifier}"
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		if self.field is None or self.field.identifier != self.identifier:
 			yield f"identifier={self.identifier!r}"
@@ -1898,7 +2204,9 @@ class BinaryAST(AST):
 	Base class of all binary expressions (i.e. expressions with two operands).
 	"""
 
-	def __init__(self, obj1:AST, obj2:AST, *content:T_AST_Content):
+	title = "Binary operation"
+
+	def __init__(self, obj1:AST, obj2:AST, *content:AST | str):
 		super().__init__(*content)
 		self.obj1 = obj1
 		self.obj2 = obj2
@@ -1938,7 +2246,7 @@ class BinaryAST(AST):
 			*cls._make_content_from_ul4(node, node.obj1, obj1, node.obj2, obj2),
 		)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.obj1.datatype, self.obj2.datatype)]
 		result = []
 		for child in rule.source:
@@ -1949,7 +2257,7 @@ class BinaryAST(AST):
 			else:
 				yield child
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.obj1
 		yield self.obj2
 
@@ -1979,6 +2287,7 @@ class EQAST(BinaryAST):
 	Equality comparison (``A == B``).
 	"""
 
+	title = "Equality comparison (`A == B`)"
 	nodetype = NodeType.CMP_EQ
 	precedence = 6
 	operator = "=="
@@ -1990,6 +2299,7 @@ class NEAST(BinaryAST):
 	Inequality comparison (``A != B``).
 	"""
 
+	title = "Inequality comparison (`A != B`)"
 	nodetype = NodeType.CMP_NE
 	precedence = 6
 	operator = "!="
@@ -2001,6 +2311,7 @@ class LTAST(BinaryAST):
 	Less-than comparison (``A < B``).
 	"""
 
+	title = "Less-than comparison (`A < B`)"
 	nodetype = NodeType.CMP_LT
 	precedence = 6
 	operator = "<"
@@ -2009,9 +2320,10 @@ class LTAST(BinaryAST):
 @ul4on.register("de.livinglogic.vsql.le")
 class LEAST(BinaryAST):
 	"""
-	Less-than-or equal comparison (``A <= B``).
+	Less-than or equal comparison (``A <= B``).
 	"""
 
+	title = "Less-than or equal comparison (`A <= B`)"
 	nodetype = NodeType.CMP_LE
 	precedence = 6
 	operator = "<="
@@ -2023,6 +2335,7 @@ class GTAST(BinaryAST):
 	Greater-than comparison (``A > B``).
 	"""
 
+	title = "Greater-than comparison (`A > B`)"
 	nodetype = NodeType.CMP_GT
 	precedence = 6
 	operator = ">"
@@ -2034,6 +2347,7 @@ class GEAST(BinaryAST):
 	Greater-than-or equal comparison (``A >= B``).
 	"""
 
+	title = "Greater-than or equal comparison (`A >= B`)"
 	nodetype = NodeType.CMP_GE
 	precedence = 6
 	operator = ">="
@@ -2045,6 +2359,7 @@ class AddAST(BinaryAST):
 	Addition (``A + B``).
 	"""
 
+	title = "Addition (`A + B`)"
 	nodetype = NodeType.BINOP_ADD
 	precedence = 11
 	operator = "+"
@@ -2056,6 +2371,7 @@ class SubAST(BinaryAST):
 	Subtraction (``A - B``).
 	"""
 
+	title = "Subtraction (`A - B`)"
 	nodetype = NodeType.BINOP_SUB
 	precedence = 11
 	operator = "-"
@@ -2067,6 +2383,7 @@ class MulAST(BinaryAST):
 	Multiplication (``A * B``).
 	"""
 
+	title = "Multiplication (`A * B`)"
 	nodetype = NodeType.BINOP_MUL
 	precedence = 12
 	operator = "*"
@@ -2078,6 +2395,7 @@ class TrueDivAST(BinaryAST):
 	True division (``A / B``).
 	"""
 
+	title = "True division (`A / B`)"
 	nodetype = NodeType.BINOP_TRUEDIV
 	precedence = 12
 	operator = "/"
@@ -2089,6 +2407,7 @@ class FloorDivAST(BinaryAST):
 	Floor division (``A // B``).
 	"""
 
+	title = "Floor division (`A // B`)"
 	nodetype = NodeType.BINOP_FLOORDIV
 	precedence = 12
 	operator = "//"
@@ -2100,6 +2419,7 @@ class ModAST(BinaryAST):
 	Modulo operator (``A % B``).
 	"""
 
+	title = "Modulo operation (`A % B`)"
 	nodetype = NodeType.BINOP_MOD
 	precedence = 12
 	operator = "%"
@@ -2111,6 +2431,7 @@ class ShiftLeftAST(BinaryAST):
 	Left shift operator (``A << B``).
 	"""
 
+	title = "Left shift operation (`A << B`)"
 	nodetype = NodeType.BINOP_SHIFTLEFT
 	precedence = 10
 	operator = "<<"
@@ -2122,6 +2443,7 @@ class ShiftRightAST(BinaryAST):
 	Right shift operator (``A >> B``).
 	"""
 
+	title = "Right shift operation (`A >> B`)"
 	nodetype = NodeType.BINOP_SHIFTRIGHT
 	precedence = 10
 	operator = ">>"
@@ -2133,6 +2455,7 @@ class AndAST(BinaryAST):
 	Logical "and" (``A and B``).
 	"""
 
+	title = 'Logical "and" operation (`A and B`)'
 	nodetype = NodeType.BINOP_AND
 	precedence = 4
 	operator = "and"
@@ -2145,6 +2468,7 @@ class OrAST(BinaryAST):
 	Logical "or" (``A or B``).
 	"""
 
+	title = 'Logical "or" operation (`A or B`)'
 	nodetype = NodeType.BINOP_OR
 	precedence = 4
 	operator = "or"
@@ -2157,6 +2481,7 @@ class ContainsAST(BinaryAST):
 	Containment test (``A in B``).
 	"""
 
+	title = "Containment test (`A in B`)"
 	nodetype = NodeType.BINOP_CONTAINS
 	precedence = 6
 	operator = "in"
@@ -2169,6 +2494,7 @@ class NotContainsAST(BinaryAST):
 	Inverted containment test (``A not in B``).
 	"""
 
+	title = "Inverted containment test (`A not in B`)"
 	nodetype = NodeType.BINOP_NOTCONTAINS
 	precedence = 6
 	operator = "not in"
@@ -2181,6 +2507,7 @@ class IsAST(BinaryAST):
 	Identity test (``A is B``).
 	"""
 
+	title = "Identity test (`A is B`)"
 	nodetype = NodeType.BINOP_IS
 	precedence = 6
 	operator = "is"
@@ -2193,6 +2520,7 @@ class IsNotAST(BinaryAST):
 	Inverted identity test (``A is not B``).
 	"""
 
+	title = "Inverted identity test (`A is not B`)"
 	nodetype = NodeType.BINOP_ISNOT
 	precedence = 6
 	operator = "is not"
@@ -2205,6 +2533,7 @@ class ItemAST(BinaryAST):
 	Item access operator (``A[B]``).
 	"""
 
+	title = "Item access operation (`A[B]`)"
 	nodetype = NodeType.BINOP_ITEM
 	precedence = 16
 
@@ -2228,6 +2557,7 @@ class BitAndAST(BinaryAST):
 	Bitwise "and" (``A & B``).
 	"""
 
+	title = 'Bitwise "and" operation (`A & B`)'
 	nodetype = NodeType.BINOP_BITAND
 	precedence = 9
 	operator = "&"
@@ -2239,6 +2569,7 @@ class BitOrAST(BinaryAST):
 	Bitwise "or" (``A | B``).
 	"""
 
+	title = 'Bitwise "or" operation (`A | B`)'
 	nodetype = NodeType.BINOP_BITOR
 	precedence = 7
 	operator = "|"
@@ -2250,6 +2581,7 @@ class BitXOrAST(BinaryAST):
 	Bitwise "exclusive or" (``A ^ B``).
 	"""
 
+	title = 'Bitwise "exclusive or" operation (`A ^ B`)'
 	nodetype = NodeType.BINOP_BITXOR
 	precedence = 8
 	operator = "^"
@@ -2260,7 +2592,9 @@ class UnaryAST(AST):
 	Base class of all unary expressions (i.e. expressions with one operand).
 	"""
 
-	def __init__(self, obj:AST, *content:T_AST_Content):
+	title = "Unary operation"
+
+	def __init__(self, obj:AST, *content:AST | str):
 		super().__init__(*content)
 		self.obj = obj
 		self.datatype = None
@@ -2295,7 +2629,7 @@ class UnaryAST(AST):
 			self.error = None
 			self.datatype = rule.result
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.obj.datatype, )]
 		result = []
 		for child in rule.source:
@@ -2304,7 +2638,7 @@ class UnaryAST(AST):
 			else:
 				yield child
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.obj
 
 	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
@@ -2328,6 +2662,7 @@ class NotAST(UnaryAST):
 	Logical negation (``not A``).
 	"""
 
+	title = "Logical negation operation (`not A`)"
 	nodetype = NodeType.UNOP_NOT
 	precedence = 5
 	operator = "not "
@@ -2339,6 +2674,7 @@ class NegAST(UnaryAST):
 	Arithmetic negation (``-A``).
 	"""
 
+	title = "Arithmetic negation operation (`-A`)"
 	nodetype = NodeType.UNOP_NEG
 	precedence = 14
 	operator = "-"
@@ -2350,6 +2686,7 @@ class BitNotAST(UnaryAST):
 	Bitwise "not" (``~A``).
 	"""
 
+	title = 'Bitwise "not" operation (`~A`)'
 	nodetype = NodeType.UNOP_BITNOT
 	precedence = 14
 	operator = "~"
@@ -2361,11 +2698,12 @@ class IfAST(AST):
 	Ternary "if"/"else" (``A if COND else B``).
 	"""
 
+	title = "if/else operation (`A if COND else B`)"
 	nodetype = NodeType.TERNOP_IF
 	precedence = 3
 	_restore_tokens = ("if", "else")
 
-	def __init__(self, objif:AST, objcond:AST, objelse:AST, *content:T_AST_Content):
+	def __init__(self, objif:AST, objcond:AST, objelse:AST, *content:AST | str):
 		super().__init__(*content)
 		self.objif = objif
 		self.objcond = objcond
@@ -2412,7 +2750,7 @@ class IfAST(AST):
 			*cls._make_content_from_ul4(node, node.objif, objif, node.objcond, objcond, node.objelse, objelse),
 		)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.objif.datatype, self.objcond.datatype, self.objelse.datatype)]
 		result = []
 		for child in rule.source:
@@ -2425,7 +2763,7 @@ class IfAST(AST):
 			else:
 				yield child
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.objif
 		yield self.objcond
 		yield self.objelse
@@ -2461,10 +2799,11 @@ class SliceAST(AST):
 	Slice operator (``A[B:C]``).
 	"""
 
+	title = "Slice operation (`A[B:C]`)"
 	nodetype = NodeType.TERNOP_SLICE
 	precedence = 16
 
-	def __init__(self, obj:AST, index1:T_opt_ast, index2:T_opt_ast, *content:T_AST_Content):
+	def __init__(self, obj:AST, index1:AST | None, index2:AST | None, *content:AST | str):
 		super().__init__(*content)
 		self.obj = obj
 		self.index1 = index1
@@ -2473,7 +2812,7 @@ class SliceAST(AST):
 		self.validate()
 
 	@classmethod
-	def make(cls, obj:AST, index1:T_opt_ast, index2:T_opt_ast) -> "SliceAST":
+	def make(cls, obj:AST, index1:AST | None, index2:AST | None) -> "SliceAST":
 		if index1 is None:
 			index1 = NoneAST(None)
 		if index2 is None:
@@ -2517,7 +2856,7 @@ class SliceAST(AST):
 			*cls._make_content_from_ul4(node, node.obj1, obj, node.obj2.index1, index1, node.obj2.index2, index2)
 		)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.obj.datatype, self.index1.datatype, self.index2.datatype)]
 		result = []
 		for child in rule.source:
@@ -2530,7 +2869,7 @@ class SliceAST(AST):
 			else:
 				yield child
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.obj
 		yield self.index1 if self.index1 is None else NoneAST("")
 		yield self.index2 if self.index2 is None else NoneAST("")
@@ -2568,10 +2907,11 @@ class AttrAST(AST):
 	Attribute access (``A.name``).
 	"""
 
+	title = "Attribute access operation (`A.name`)"
 	nodetype = NodeType.ATTR
 	precedence = 19
 
-	def __init__(self, obj:AST, attrname:str, *content:T_AST_Content):
+	def __init__(self, obj:AST, attrname:str, *content:AST | str):
 		super().__init__(*content)
 		self.obj = obj
 		self.attrname = attrname
@@ -2595,13 +2935,13 @@ class AttrAST(AST):
 		try:
 			rule = self.rules[signature]
 		except KeyError:
-			self.error = Error.SUBNODETYPES
+			self.error = Error.NAME
 			self.datatype = None
 		else:
 			self.error = None
 			self.datatype = rule.result
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.obj.datatype, self.attrname)]
 		for child in rule.source:
 			if child == 1:
@@ -2613,10 +2953,10 @@ class AttrAST(AST):
 	def nodevalue(self) -> str:
 		return self.attrname
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.obj
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		yield f"attrname={self.attrname!r}"
 
@@ -2646,11 +2986,12 @@ class FuncAST(AST):
 	Function call (``name(A, ...)``).
 	"""
 
+	title = "Function call (`name(A, ...)`)"
 	nodetype = NodeType.FUNC
 	precedence = 18
 	names = {} # Maps function names to set of supported arities
 
-	def __init__(self, name:str, args:Tuple[AST, ...], *content:T_AST_Content):
+	def __init__(self, name:str, args:Tuple[AST, ...], *content:AST | str):
 		super().__init__(*content)
 		self.name = name
 		self.args = args
@@ -2668,7 +3009,7 @@ class FuncAST(AST):
 
 		return cls(name, args, *content)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.name,) + tuple(c.datatype for c in self.args)]
 		result = []
 		for child in rule.source:
@@ -2687,29 +3028,30 @@ class FuncAST(AST):
 	def validate(self) -> None:
 		if any(arg.error is not None for arg in self.args):
 			self.error = Error.SUBNODEERROR
-		signature = (self.name, *(arg.datatype for arg in self.args))
-		try:
-			rule = self.rules[signature]
-		except KeyError:
-			if self.name not in self.names:
-				self.error = Error.NAME
-			elif len(self.args) not in self.names[self.name]:
-				self.error = Error.ARITY
-			else:
-				self.error = Error.SUBNODETYPES
-			self.datatype = None
 		else:
-			self.error = None
-			self.datatype = rule.result
+			signature = (self.name, *(arg.datatype for arg in self.args))
+			try:
+				rule = self.rules[signature]
+			except KeyError:
+				if self.name not in self.names:
+					self.error = Error.NAME
+				elif len(self.args) not in self.names[self.name]:
+					self.error = Error.ARITY
+				else:
+					self.error = Error.SUBNODETYPES
+				self.datatype = None
+			else:
+				self.error = None
+				self.datatype = rule.result
 
 	@property
 	def nodevalue(self) -> str:
 		return self.name
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield from self.args
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		yield f"name={self.name!r}"
 		yield f"with {len(self.args):,} arguments"
@@ -2738,11 +3080,12 @@ class MethAST(AST):
 	Method call (``A.name(B, ...)``).
 	"""
 
+	title = "Method call (`A.name(B, ...)`)"
 	nodetype = NodeType.METH
 	precedence = 17
 	names = {} # Maps (type, meth name) to set of supported arities
 
-	def __init__(self, obj:AST, name:str, args:Tuple[AST, ...], *content:T_AST_Content):
+	def __init__(self, obj:AST, name:str, args:Tuple[AST, ...], *content:AST | str):
 		super().__init__(*content)
 		self.obj = obj
 		self.name = name
@@ -2761,7 +3104,7 @@ class MethAST(AST):
 
 		return cls(obj, name, args, *content)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.obj.datatype, self.name) + tuple(c.datatype for c in self.args)]
 		result = []
 		for child in rule.source:
@@ -2804,11 +3147,11 @@ class MethAST(AST):
 	def nodevalue(self) -> str:
 		return self.name
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.obj
 		yield from self.args
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		yield f"name={self.name!r}"
 		yield f"with {len(self.args):,} arguments"
@@ -3510,7 +3853,7 @@ class JavaSource:
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} cls={self.cls!r} path={str(self.path)!r} at {id(self):#x}>"
 
-	def new_lines(self) -> T_gen(str):
+	def new_lines(self) -> Generator[str, None, None]:
 		"""
 		Return an iterator over the new Java source code lines that should
 		replace the static initialization block inside the Java source file.
@@ -3566,7 +3909,7 @@ class JavaSource:
 						f.write(f"{line}\n")
 
 	@classmethod
-	def all_java_source_files(cls, path: pathlib.Path) -> T_gen("JavaSource"):
+	def all_java_source_files(cls, path: pathlib.Path) -> Generator[JavaSource, None, None]:
 		"""
 		Return an iterator over all :class:`!JavaSource` objects that can be found
 		in the directory ``path``. ``path`` should point to the directory
@@ -3618,14 +3961,14 @@ def oracle_sql_table() -> str:
 			sql.append(f"\t{fieldname} varchar2(200) not null{term}")
 		elif fieldtype is int:
 			sql.append(f"\t{fieldname} integer not null{term}")
-		elif fieldtype is T_opt_int:
+		elif fieldtype == int | None:
 			sql.append(f"\t{fieldname} integer{term}")
 		elif fieldtype is datetime.datetime:
 			sql.append(f"\t{fieldname} date not null{term}")
 		elif fieldtype is str:
 			size = max(len(r[fieldname]) for r in recordfields if fieldname in r and r[fieldname])
 			sql.append(f"\t{fieldname} varchar2({size}) not null{term}")
-		elif fieldtype is T_opt_str:
+		elif fieldtype == str | None:
 			size = max(len(r[fieldname]) for r in recordfields if fieldname in r and r[fieldname])
 			sql.append(f"\t{fieldname} varchar2({size}){term}")
 		else:
@@ -3712,7 +4055,7 @@ def recreate_oracle(connectstring:str, verbose:bool=False) -> None:
 	db.commit()
 
 
-def main(args:Optional[Tuple[str, ...]]=None) -> None:
+def main(args:Tuple[str, ...] | None=None) -> None:
 	import argparse
 	p = argparse.ArgumentParser(description="Recreate vSQL type info for the Java and Oracle implementations")
 	p.add_argument("-c", "--connectstring", help="Oracle database where the table VSQLRULE and the procedure VSQLGRAMMAR_MAKE will be created")
