@@ -1,6 +1,10 @@
 HEAD (2025-04-??)
 -----------------
 
+*	Methods of :meth:`ll.la.vsql.Query that take vSQL expressions as an argument,
+	now have the suffix ``_vsql`` in their name. Versions that take "raw" SQL
+	have been added with the name suffix ``_sql``.
+
 *	It is no longer possible to pass multiple expressions to
 	:meth:`ll.la.vsql.Query.select` or :meth:`ll.la.vsql.Query.where`.
 
@@ -13,12 +17,16 @@ HEAD (2025-04-??)
 *	The ``fieldsql`` attribute of :class:`ll.la.vsql.Field` objects now should
 	contain the placeholder ``{a}`` for the table alias.
 
-*	Methods of :meth:`ll.la.vsql.Query that take vSQL expressions as an argument,
-	now have the suffix ``_vsql`` in their name. Version that take "raw" SQL
-	have been added with the name suffix ``_sql``.
-
 *	:meth:`ll.la.Globals.scaled_url` now complains if the ``image`` argument isn't
 	of type :class:`~ll.la.File` or :class:`str`.
+
+*	A method :meth:`ll.la.vsql.AST.walknodes` has been added that recursively
+	iterates through all children.
+
+*	A method :meth:`ll.la.vsql.AST.check_valid` has been added. It does nothing
+	if the AST node is valid, and raises an appropriate exception otherwise.
+
+*	Modernize type hints.
 
 
 0.45.0 (2025-03-24)
