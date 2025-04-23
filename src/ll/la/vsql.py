@@ -37,6 +37,8 @@ A vSQL expression can be generated in two ways:
 
 """
 
+from __future__ import annotations
+
 import sys, datetime, itertools, re, pathlib
 
 from ll import color, misc, ul4c, ul4on
@@ -52,16 +54,8 @@ except ImportError:
 
 from typing import *
 
-T_AST_Content = Union["AST", str]
-
-T_opt_str = Optional[str]
-T_opt_int = Optional[int]
-T_opt_ast = Optional["AST"]
-T_sortdirection = Union[None, Literal["asc", "desc"]]
-T_sortnulls = Union[None, Literal["first", "last"]]
-
-def T_gen(type):
-	return Generator[type, None, None]
+T_sortdirection = None | Literal["asc", "desc"]
+T_sortnulls = None | Literal["first", "last"]
 
 
 ###
@@ -77,23 +71,23 @@ scriptname = misc.sysinfo.short_script_name
 
 fields = dict(
 	vr_nodetype=str,
-	vr_value=T_opt_str,
+	vr_value=str | None,
 	vr_result=str,
-	vr_signature=T_opt_str,
+	vr_signature=str | None,
 	vr_arity=int,
-	vr_literal1=T_opt_str,
-	vr_child2=T_opt_int,
-	vr_literal3=T_opt_str,
-	vr_child4=T_opt_int,
-	vr_literal5=T_opt_str,
-	vr_child6=T_opt_int,
-	vr_literal7=T_opt_str,
-	vr_child8=T_opt_int,
-	vr_literal9=T_opt_str,
-	vr_child10=T_opt_int,
-	vr_literal11=T_opt_str,
-	vr_child12=T_opt_int,
-	vr_literal13=T_opt_str,
+	vr_literal1=str | None,
+	vr_child2=int | None,
+	vr_literal3=str | None,
+	vr_child4=int | None,
+	vr_literal5=str | None,
+	vr_child6=int | None,
+	vr_literal7=str | None,
+	vr_child8=int | None,
+	vr_literal9=str | None,
+	vr_child10=int | None,
+	vr_literal11=str | None,
+	vr_child12=int | None,
+	vr_literal13=str | None,
 	vr_cname=str,
 	vr_cdate=datetime.datetime,
 )
@@ -161,7 +155,7 @@ class Repr:
 		)
 		return " ".join(parts)
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		"""
 		Each string produced by :meth:`!_ll_repr__` will be part of the
 		:meth:`__repr__` output (joined by spaces).
@@ -220,7 +214,7 @@ class DataType(misc.Enum):
 	DATETIMESET = "datetimeset"
 
 	@classmethod
-	def compatible_to(cls, given:"DataType", required:"DataType") -> Optional["Error"]:
+	def compatible_to(cls, given:DataType, required:DataType) -> Error | None:
 		"""
 		Check whether the type ``given`` is compatible to ``required``.
 
@@ -388,7 +382,7 @@ class Field(Repr):
 
 	As a table or view field it belongs to a :class:`Group` object.
 	"""
-	def __init__(self, identifier:T_opt_str=None, datatype:DataType=DataType.NULL, fieldsql:T_opt_str=None, joinsql:T_opt_str=None, refgroup:Optional["Group"]=None):
+	def __init__(self, identifier:str | None=None, datatype:DataType=DataType.NULL, fieldsql:str | None=None, joinsql:str | None=None, refgroup:Group | None=None):
 		"""
 		Create a :class:`Field` instance.
 
@@ -419,7 +413,7 @@ class Field(Repr):
 		self.joinsql = joinsql
 		self.refgroup = refgroup
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield f"identifier={self.identifier!r}"
 		if self.datatype is not None:
 			yield f"datatype={self.datatype.name}"
@@ -475,7 +469,7 @@ class Group(Repr):
 	:class:`Field`.
 	"""
 
-	def __init__(self, tablesql:T_opt_str=None, **fields:Union["Field", Tuple[DataType, str], Tuple[DataType, str, str, "Group"]]):
+	def __init__(self, tablesql:str | None=None, **fields:Field | Tuple[DataType, str] | Tuple[DataType, str, str, Group]):
 		self.tablesql = tablesql
 		self.fields = {}
 		for (fieldname, fielddata) in fields.items():
@@ -483,7 +477,7 @@ class Group(Repr):
 				fielddata = Field(fieldname, *fielddata)
 			self.fields[fieldname] = fielddata
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield f"tablesql={self.tablesql!r}"
 		yield f"with {len(self.fields):,} fields"
 
@@ -500,7 +494,7 @@ class Group(Repr):
 		else:
 			raise KeyError(key)
 
-	def add_field(self, identifier:str, datatype:DataType, fieldsql:str, joinsql:T_opt_str=None, refgroup:Optional["Group"]=None) -> None:
+	def add_field(self, identifier:str, datatype:DataType, fieldsql:str, joinsql:str | None=None, refgroup:Group | None=None) -> None:
 		field = Field(identifier, datatype, fieldsql, joinsql, refgroup)
 		self.fields[identifier] = field
 
@@ -517,7 +511,7 @@ class Query(Repr):
 	"""
 	A :class:`!Query` object can be used to build an SQL query using vSQL expressions.
 	"""
-	def __init__(self, comment:T_opt_str=None, **vars:"Field"):
+	def __init__(self, comment:str | None=None, **vars:Field):
 		"""
 		Create a new empty :class:`!Query` object.
 
@@ -539,13 +533,13 @@ class Query(Repr):
 		"""
 		self.comment = comment
 		self.vars = vars
-		self._fields : Dict[str, Tuple["AST"|str, T_opt_str]] = {}
+		self._fields : Dict[str, Tuple["AST"|str, str | None]] = {}
 		self._from : Dict[str, "AST"|str] = {}
 		self._where : Dict[str, "AST"|str] = {}
-		self._orderby : List[Tuple[str, "AST"|str, T_opt_str, T_opt_str]] = []
+		self._orderby : List[Tuple[str, "AST"|str, str | None, str | None]] = []
 		self._identifier_aliases : Dict[str, str] = {}
 
-	def _vsql_register(self, fieldref:"FieldRefAST") -> T_opt_str:
+	def _vsql_register(self, fieldref:FieldRefAST) -> str | None:
 		"""
 		Registers the :class:`FieldRefAST` object `fieldref`.
 
@@ -861,7 +855,7 @@ class Rule(Repr):
 	def str_vsqlsource(self):
 		return "".join(p if isinstance(p, str) else p.name for p in self.vsqlsource)
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield f"nodetype={self.astcls.nodetype.name}"
 		yield f"result={self.result.name}"
 		if self.name is not None:
@@ -893,7 +887,7 @@ class Rule(Repr):
 		p.pretty(self.str_vsqlsource())
 
 	@classmethod
-	def _parse_source(cls, signature:str, source:str) -> Tuple[Union[int, str], ...]:
+	def _parse_source(cls, signature:str, source:str) -> Tuple[int | str, ...]:
 		final_source = []
 
 		def append(text):
@@ -926,7 +920,7 @@ class Rule(Repr):
 
 		return f"addRule(rules, VSQLDataType.{self.result.name}, {key});"
 
-	def oracle_fields(self) -> Dict[str, Union[int, str, sqlliteral]]:
+	def oracle_fields(self) -> Dict[str, int | str | sqlliteral]:
 		fields = {}
 
 		fields["vr_nodetype"] = self.astcls.nodetype.value
@@ -1001,7 +995,7 @@ class AST(Repr):
 	rules = None
 	_restore_tokens = None
 
-	def __init__(self, *content: T_AST_Content):
+	def __init__(self, *content: AST | str):
 		"""
 		Create a new :class:`!AST` node from its content.
 
@@ -1129,10 +1123,10 @@ class AST(Repr):
 		expr = template.content[-1].obj
 		return cls.fromul4(expr, **vars)
 
-	def sqlsource(self, query:"Query") -> str:
+	def sqlsource(self, query:Query) -> str:
 		return "".join(s for s in self._sqlsource(query))
 
-	def fieldrefs(self) -> T_gen("FieldRefAST"):
+	def fieldrefs(self) -> Generator[FieldRefAST, None, None]:
 		"""
 		Return all :class:`FieldRefAST` objects in this :class:`!AST`.
 
@@ -1142,7 +1136,7 @@ class AST(Repr):
 			yield from child.fieldrefs()
 
 	@classmethod
-	def all_types(cls) -> T_gen(Type["AST"]):
+	def all_types(cls) -> Generator[Type[AST], None, None]:
 		"""
 		Return this class and all subclasses.
 
@@ -1153,7 +1147,7 @@ class AST(Repr):
 			yield from subcls.all_types()
 
 	@classmethod
-	def all_rules(cls) -> T_gen(Rule):
+	def all_rules(cls) -> Generator[Rule, None, None]:
 		"""
 		Return all grammar rules of this class and all its subclasses.
 
@@ -1168,13 +1162,13 @@ class AST(Repr):
 		cls.rules[rule.key] = rule
 
 	@classmethod
-	def typeref(cls, s:str) -> T_opt_int:
+	def typeref(cls, s:str) -> int | None:
 		if s.startswith("T") and s[1:].isdigit():
 			return int(s[1:])
 		return None
 
 	@classmethod
-	def _specs(cls, spec:Tuple[str, ...]) -> T_gen(Tuple[str, Tuple[Union[DataType, str], ...]]):
+	def _specs(cls, spec:Tuple[str, ...]) -> Generator[Tuple[str, Tuple[DataType | str, ...]], None, None]:
 		# Find position of potential name in the spec, so we can correct
 		# the typeref offsets later.
 		for (i, p) in enumerate(spec):
@@ -1360,7 +1354,7 @@ class AST(Repr):
 		"""
 		return "".join(s for s in self._source())
 
-	def _source(self) -> T_gen(str):
+	def _source(self) -> Generator[str, None, None]:
 		for item in self.content:
 			if isinstance(item, str):
 				yield item
@@ -1392,7 +1386,7 @@ class AST(Repr):
 		parts.append(f": {self.source()}")
 		return "".join(parts)
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		if self.datatype is not None:
 			yield f"datatype={self.datatype.name}"
 		if self.error is not None:
@@ -1411,7 +1405,7 @@ class AST(Repr):
 		p.pretty(self.source())
 
 	@classmethod
-	def _wrap(cls, obj:T_AST_Content, cond:bool) -> T_gen(T_AST_Content):
+	def _wrap(cls, obj:AST | str, cond:bool) -> Generator[AST | str, None, None]:
 		if cond:
 			yield "("
 		yield obj
@@ -1427,7 +1421,7 @@ class AST(Repr):
 		self.pos = decoder.load()
 
 	@classmethod
-	def _make_content_from_ul4(cls, node:ul4c.AST, *args:Union[ul4c.AST, "AST", str, None]) -> Tuple[T_AST_Content, ...]:
+	def _make_content_from_ul4(cls, node:ul4c.AST, *args:ul4c.AST | AST | str | None) -> Tuple[AST | str, ...]:
 		content = []
 		lastpos = node.pos.start
 		for subnode in args:
@@ -1458,7 +1452,7 @@ class AST(Repr):
 		"""
 		yield from self._walkpaths([])
 
-	def _walkpaths(self, path):
+	def _walkpaths(self, path:list[AST]) -> Generator[list[AST], None, None]:
 		path.append(self)
 		yield path
 		for child in self.children():
@@ -1505,7 +1499,7 @@ class NoneAST(ConstAST):
 	def make(cls) -> "NoneAST":
 		return cls("None")
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield "null"
 
 	@classmethod
@@ -1536,7 +1530,7 @@ class _ConstWithValueAST(ConstAST):
 	def nodevalue(self) -> str:
 		return self.value
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		yield f"value={self.value!r}"
 
@@ -1568,7 +1562,7 @@ class BoolAST(_ConstWithValueAST):
 	def make(cls, value:Any) -> "BoolAST":
 		return cls(value, "True" if value else "False")
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield "1" if self.value else "0"
 
 	@property
@@ -1585,7 +1579,7 @@ class IntAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_INT
 	datatype = DataType.INT
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield str(self.value)
 
 	@property
@@ -1602,7 +1596,7 @@ class NumberAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_NUMBER
 	datatype = DataType.NUMBER
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield str(self.value)
 
 	@property
@@ -1619,7 +1613,7 @@ class StrAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_STR
 	datatype = DataType.STR
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		s = self.value.replace("'", "''")
 		yield f"'{s}'"
 
@@ -1635,7 +1629,7 @@ class CLOBAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_CLOB
 	datatype = DataType.CLOB
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		s = self.value.replace("'", "''")
 		yield f"'{s}'"
 
@@ -1649,7 +1643,7 @@ class ColorAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_COLOR
 	datatype = DataType.COLOR
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		c = self.value
 		yield str((c.r() << 24) + (c.g() << 16) + (c.b() << 8) + c.a())
 
@@ -1668,7 +1662,7 @@ class DateAST(_ConstWithValueAST):
 	nodetype = NodeType.CONST_DATE
 	datatype = DataType.DATE
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield f"to_date('{self.value:%Y-%m-%d}', 'YYYY-MM-DD')";
 
 	@property
@@ -1690,7 +1684,7 @@ class DateTimeAST(_ConstWithValueAST):
 		value = value.replace(microsecond=0)
 		return cls(value, ul4c._repr(value))
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		yield f"to_date('{self.value:%Y-%m-%d %H:%M:%S}', 'YYYY-MM-DD HH24:MI:SS')";
 
 	@property
@@ -1703,7 +1697,7 @@ class _SeqAST(AST):
 	Base class of :class:`ListAST` and :class:`SetAST`.
 	"""
 
-	def __init__(self, *content:T_AST_Content):
+	def __init__(self, *content:AST | str):
 		super().__init__(*content)
 		self.items = [item for item in content if isinstance(item, AST)]
 		self.datatype = None
@@ -1721,7 +1715,7 @@ class _SeqAST(AST):
 			content.append(AST.fromul4(item.value, **vars))
 		return cls(*cls._make_content_from_ul4(node, *content))
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		if self.datatype is self.nulltype:
 			yield self.nodevalue
 		else:
@@ -1733,7 +1727,7 @@ class _SeqAST(AST):
 				yield from item._sqlsource(query)
 			yield suffix
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		yield f"with {len(self.items):,} items"
 
@@ -1743,7 +1737,7 @@ class _SeqAST(AST):
 			p.breakable()
 			p.pretty(item)
 
-	def children(self) -> T_gen("AST"):
+	def children(self) -> Generator[AST, None, None]:
 		yield from self.items
 
 	def ul4ondump(self, encoder:ul4on.Encoder) -> None:
@@ -1777,12 +1771,12 @@ class ListAST(_SeqAST):
 		DataType.DATETIMELIST: ("dates(", ")"),
 	}
 
-	def __init__(self, *content:T_AST_Content):
+	def __init__(self, *content:AST | str):
 		super().__init__(*content)
 		self.validate()
 
 	@classmethod
-	def make(cls, *items:"AST") -> "ListAST":
+	def make(cls, *items:AST) -> ListAST:
 		if items:
 			content = []
 			for (i, item) in enumerate(items):
@@ -1853,12 +1847,12 @@ class SetAST(_SeqAST):
 		DataType.DATETIMESET: ("vsqlimpl_pkg.set_datetimelist(dates(", "))"),
 	}
 
-	def __init__(self, *content:T_AST_Content):
+	def __init__(self, *content:AST | str):
 		super().__init__(*content)
 		self.validate()
 
 	@classmethod
-	def make(cls, *items:"AST") -> "SetAST":
+	def make(cls, *items:AST) -> SetAST:
 		if items:
 			content = []
 			for (i, item) in enumerate(items):
@@ -1915,7 +1909,7 @@ class FieldRefAST(AST):
 	nodetype = NodeType.FIELD
 	precedence = 19
 
-	def __init__(self, parent:Optional["FieldRefAST"], identifier:str, field:Optional["Field"], *content:T_AST_Content):
+	def __init__(self, parent:FieldRefAST | None, identifier:str, field:Field | None, *content:AST | str):
 		"""
 		Create a :class:`FieldRef` object.
 
@@ -1946,7 +1940,7 @@ class FieldRefAST(AST):
 		self.validate()
 
 	@classmethod
-	def make_root(cls, field:Union[str, "Field"]) -> "FieldRefAST":
+	def make_root(cls, field:str | Field) -> FieldRefAST:
 		if isinstance(field, str):
 			# This is an invalid field reference
 			return FieldRefAST(None, field, None, field)
@@ -1954,7 +1948,7 @@ class FieldRefAST(AST):
 			return FieldRefAST(None, field.identifier, field, field.identifier)
 
 	@classmethod
-	def make(cls, parent:"FieldRefAST", identifier:str) -> "FieldRefAST":
+	def make(cls, parent:FieldRefAST, identifier:str) -> FieldRefAST:
 		result_field = None
 		parent_field = parent.field
 		if parent_field is not None:
@@ -1967,7 +1961,7 @@ class FieldRefAST(AST):
 
 		return FieldRefAST(parent, identifier, result_field, parent, ".", identifier)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		alias = query._vsql_register(self)
 		full_identifier = self.full_identifier
 		if full_identifier.startswith("params."):
@@ -1983,7 +1977,7 @@ class FieldRefAST(AST):
 		self.error = Error.FIELD if self.field is None else None
 
 	@property
-	def datatype(self) -> Optional[DataType]:
+	def datatype(self) -> DataType | None:
 		return self.field.datatype if self.field is not None else None
 
 	@property
@@ -1995,7 +1989,7 @@ class FieldRefAST(AST):
 			node = node.parent
 		return ".".join(identifierpath)
 
-	def fieldrefs(self) -> T_gen("FieldRefAST"):
+	def fieldrefs(self) -> Generator[FieldRefAST, None, None]:
 		yield self
 		yield from super().fieldrefs()
 
@@ -2006,7 +2000,7 @@ class FieldRefAST(AST):
 		else:
 			return f"{self.parent.full_identifier}.{self.identifier}"
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		if self.field is None or self.field.identifier != self.identifier:
 			yield f"identifier={self.identifier!r}"
@@ -2085,7 +2079,7 @@ class BinaryAST(AST):
 			*cls._make_content_from_ul4(node, node.obj1, obj1, node.obj2, obj2),
 		)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.obj1.datatype, self.obj2.datatype)]
 		result = []
 		for child in rule.source:
@@ -2096,7 +2090,7 @@ class BinaryAST(AST):
 			else:
 				yield child
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.obj1
 		yield self.obj2
 
@@ -2442,7 +2436,7 @@ class UnaryAST(AST):
 			self.error = None
 			self.datatype = rule.result
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.obj.datatype, )]
 		result = []
 		for child in rule.source:
@@ -2451,7 +2445,7 @@ class UnaryAST(AST):
 			else:
 				yield child
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.obj
 
 	def _ll_repr_pretty_(self, p:"IPython.lib.pretty.PrettyPrinter") -> None:
@@ -2512,7 +2506,7 @@ class IfAST(AST):
 	precedence = 3
 	_restore_tokens = ("if", "else")
 
-	def __init__(self, objif:AST, objcond:AST, objelse:AST, *content:T_AST_Content):
+	def __init__(self, objif:AST, objcond:AST, objelse:AST, *content:AST | str):
 		super().__init__(*content)
 		self.objif = objif
 		self.objcond = objcond
@@ -2559,7 +2553,7 @@ class IfAST(AST):
 			*cls._make_content_from_ul4(node, node.objif, objif, node.objcond, objcond, node.objelse, objelse),
 		)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.objif.datatype, self.objcond.datatype, self.objelse.datatype)]
 		result = []
 		for child in rule.source:
@@ -2572,7 +2566,7 @@ class IfAST(AST):
 			else:
 				yield child
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.objif
 		yield self.objcond
 		yield self.objelse
@@ -2611,7 +2605,7 @@ class SliceAST(AST):
 	nodetype = NodeType.TERNOP_SLICE
 	precedence = 16
 
-	def __init__(self, obj:AST, index1:T_opt_ast, index2:T_opt_ast, *content:T_AST_Content):
+	def __init__(self, obj:AST, index1:AST | None, index2:AST | None, *content:AST | str):
 		super().__init__(*content)
 		self.obj = obj
 		self.index1 = index1
@@ -2620,7 +2614,7 @@ class SliceAST(AST):
 		self.validate()
 
 	@classmethod
-	def make(cls, obj:AST, index1:T_opt_ast, index2:T_opt_ast) -> "SliceAST":
+	def make(cls, obj:AST, index1:AST | None, index2:AST | None) -> "SliceAST":
 		if index1 is None:
 			index1 = NoneAST(None)
 		if index2 is None:
@@ -2664,7 +2658,7 @@ class SliceAST(AST):
 			*cls._make_content_from_ul4(node, node.obj1, obj, node.obj2.index1, index1, node.obj2.index2, index2)
 		)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.obj.datatype, self.index1.datatype, self.index2.datatype)]
 		result = []
 		for child in rule.source:
@@ -2677,7 +2671,7 @@ class SliceAST(AST):
 			else:
 				yield child
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.obj
 		yield self.index1 if self.index1 is None else NoneAST("")
 		yield self.index2 if self.index2 is None else NoneAST("")
@@ -2718,7 +2712,7 @@ class AttrAST(AST):
 	nodetype = NodeType.ATTR
 	precedence = 19
 
-	def __init__(self, obj:AST, attrname:str, *content:T_AST_Content):
+	def __init__(self, obj:AST, attrname:str, *content:AST | str):
 		super().__init__(*content)
 		self.obj = obj
 		self.attrname = attrname
@@ -2748,7 +2742,7 @@ class AttrAST(AST):
 			self.error = None
 			self.datatype = rule.result
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.obj.datatype, self.attrname)]
 		for child in rule.source:
 			if child == 1:
@@ -2760,10 +2754,10 @@ class AttrAST(AST):
 	def nodevalue(self) -> str:
 		return self.attrname
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.obj
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		yield f"attrname={self.attrname!r}"
 
@@ -2797,7 +2791,7 @@ class FuncAST(AST):
 	precedence = 18
 	names = {} # Maps function names to set of supported arities
 
-	def __init__(self, name:str, args:Tuple[AST, ...], *content:T_AST_Content):
+	def __init__(self, name:str, args:Tuple[AST, ...], *content:AST | str):
 		super().__init__(*content)
 		self.name = name
 		self.args = args
@@ -2815,7 +2809,7 @@ class FuncAST(AST):
 
 		return cls(name, args, *content)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.name,) + tuple(c.datatype for c in self.args)]
 		result = []
 		for child in rule.source:
@@ -2854,10 +2848,10 @@ class FuncAST(AST):
 	def nodevalue(self) -> str:
 		return self.name
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield from self.args
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		yield f"name={self.name!r}"
 		yield f"with {len(self.args):,} arguments"
@@ -2909,7 +2903,7 @@ class MethAST(AST):
 
 		return cls(obj, name, args, *content)
 
-	def _sqlsource(self, query:"Query") -> T_gen(str):
+	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
 		rule = self.rules[(self.obj.datatype, self.name) + tuple(c.datatype for c in self.args)]
 		result = []
 		for child in rule.source:
@@ -2952,11 +2946,11 @@ class MethAST(AST):
 	def nodevalue(self) -> str:
 		return self.name
 
-	def children(self) -> T_gen(AST):
+	def children(self) -> Generator[AST, None, None]:
 		yield self.obj
 		yield from self.args
 
-	def _ll_repr_(self) -> T_gen(str):
+	def _ll_repr_(self) -> Generator[str, None, None]:
 		yield from super()._ll_repr_()
 		yield f"name={self.name!r}"
 		yield f"with {len(self.args):,} arguments"
@@ -3658,7 +3652,7 @@ class JavaSource:
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} cls={self.cls!r} path={str(self.path)!r} at {id(self):#x}>"
 
-	def new_lines(self) -> T_gen(str):
+	def new_lines(self) -> Generator[str, None, None]:
 		"""
 		Return an iterator over the new Java source code lines that should
 		replace the static initialization block inside the Java source file.
@@ -3714,7 +3708,7 @@ class JavaSource:
 						f.write(f"{line}\n")
 
 	@classmethod
-	def all_java_source_files(cls, path: pathlib.Path) -> T_gen("JavaSource"):
+	def all_java_source_files(cls, path: pathlib.Path) -> Generator[JavaSource, None, None]:
 		"""
 		Return an iterator over all :class:`!JavaSource` objects that can be found
 		in the directory ``path``. ``path`` should point to the directory
@@ -3766,14 +3760,14 @@ def oracle_sql_table() -> str:
 			sql.append(f"\t{fieldname} varchar2(200) not null{term}")
 		elif fieldtype is int:
 			sql.append(f"\t{fieldname} integer not null{term}")
-		elif fieldtype is T_opt_int:
+		elif fieldtype == int | None:
 			sql.append(f"\t{fieldname} integer{term}")
 		elif fieldtype is datetime.datetime:
 			sql.append(f"\t{fieldname} date not null{term}")
 		elif fieldtype is str:
 			size = max(len(r[fieldname]) for r in recordfields if fieldname in r and r[fieldname])
 			sql.append(f"\t{fieldname} varchar2({size}) not null{term}")
-		elif fieldtype is T_opt_str:
+		elif fieldtype == str | None:
 			size = max(len(r[fieldname]) for r in recordfields if fieldname in r and r[fieldname])
 			sql.append(f"\t{fieldname} varchar2({size}){term}")
 		else:
@@ -3860,7 +3854,7 @@ def recreate_oracle(connectstring:str, verbose:bool=False) -> None:
 	db.commit()
 
 
-def main(args:Optional[Tuple[str, ...]]=None) -> None:
+def main(args:Tuple[str, ...] | None=None) -> None:
 	import argparse
 	p = argparse.ArgumentParser(description="Recreate vSQL type info for the Java and Oracle implementations")
 	p.add_argument("-c", "--connectstring", help="Oracle database where the table VSQLRULE and the procedure VSQLGRAMMAR_MAKE will be created")
