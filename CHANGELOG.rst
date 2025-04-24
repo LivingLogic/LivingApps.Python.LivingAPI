@@ -1,3 +1,9 @@
+0.46.2 (2025-04-24)
+-------------------
+
+*	Fixed wrong variable name in :meth:`ll.la.vsql.VSQLUnknownFieldError.detail`.
+
+
 0.46.1 (2025-04-23)
 -------------------
 
