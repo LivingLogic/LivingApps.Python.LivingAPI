@@ -369,7 +369,7 @@ class VSQLSubnodeTypesError(VSQLError):
 
 class VSQLUnknownFieldError(VSQLError):
 	def detail(self) -> str:
-		return f"Expression references the unknown field `{self.ast.identifier}`."
+		return f"Expression references the unknown field `{self.cause_ast.identifier}`."
 
 
 class VSQLMalformedConstantError(VSQLError):
