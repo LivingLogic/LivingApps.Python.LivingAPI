@@ -1121,6 +1121,14 @@ class DBHandler(Handler):
 			p_tpl_uuid=app.id,
 		)
 
+	def appgroup_params_incremental_data(self, appgroup):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			appgroup.globals,
+			"select livingapi_pkg.appgroup_params_inc_ful4on(:p_ag_id) from dual",
+			p_ag_id=appgroup.id,
+		)
+
 	def app_views_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
@@ -1353,7 +1361,6 @@ class DBHandler(Handler):
 
 	def save_parameter(self, parameter, recursive=True):
 		c = self.cursor()
-		app = parameter.owner
 
 		p_ap_value_bool = None
 		p_ap_value_date = None
@@ -1407,7 +1414,8 @@ class DBHandler(Handler):
 				c_lang="de", # FIXME
 				p_reqid=self.requestid,
 				p_ap_id=parameter.id,
-				p_tpl_uuid=app.id,
+				p_tpl_uuid=parameter.app.id if parameter.app is not None else None,
+				p_ag_id=parameter.appgroup.id if parameter.appgroup is not None else None,
 				p_vt_id=None,
 				p_et_id=None,
 				p_ap_id_super=parameter.parent.id if parameter.parent is not None else None,
@@ -1442,11 +1450,13 @@ class DBHandler(Handler):
 		if parameter.id is None:
 			parameter.id = result.p_ap_id
 			parameter.createdat = datetime.datetime.now()
-			parameter.createdby = app.globals.user
+			parameter.createdby = parameter.globals.user
 		else:
 			parameter.updatedat = datetime.datetime.now()
-			parameter.updatedby = app.globals.user
+			parameter.updatedby = parameter.globals.user
 		parameter._dirty = False
+		parameter._deleted = False
+		parameter._new = False
 		if recursive:
 			if parameter.type is parameter.Type.LIST:
 				for child in parameter.value:

@@ -2803,6 +2803,7 @@ class App(CustomAttributes):
 		"description",
 		"lang",
 		"group",
+		"appgroup",
 		"gramgen",
 		"typename_nom_sin",
 		"typename_gen_sin",
@@ -2874,7 +2875,7 @@ class App(CustomAttributes):
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	group = Attr(lambda: AppGroup, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	appgroup = Attr(lambda: AppGroup, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	gramgen = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	typename_nom_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	typename_gen_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
@@ -2932,7 +2933,7 @@ class App(CustomAttributes):
 		self.name = name
 		self.description = description
 		self.lang = lang
-		self.group = None
+		self.appgroup = None
 		self.startlink = startlink
 		self.image = image
 		self.createdat = createdat
@@ -2977,16 +2978,20 @@ class App(CustomAttributes):
 	def ul4onid(self) -> str:
 		return self.id
 
+	@property
+	def group(self) -> "AppGroup":
+		return self.appgroup
+
 	def addparam(self, *params):
 		for param in params:
-			param.owner = self
+			param.app = self
 			self.ownparams[param.identifier] = param
 			if self._params is not None:
 				self._params[param.identifier] = param
 		return self
 
 	def ul4_add_param(self, type, identifier, description, value):
-		param = MutableAppParameter(type=type, identifier=identifier, description=description, value=value)
+		param = MutableAppParameter(app=self, type=type, identifier=identifier, description=description, value=value)
 		self.addparam(param)
 		return param
 
@@ -3224,6 +3229,8 @@ class App(CustomAttributes):
 
 	def _params_inheritance_chain(self):
 		yield self._ownparams_get()
+		if self.appgroup:
+			yield self.appgroup.params
 		if "la" in self.ownparams and isinstance(self._ownparams["la"].value, App):
 			yield from self.ownparams["la"].value._params_inheritance_chain()
 		else:
@@ -3480,9 +3487,14 @@ class AppGroup(Base):
 		:type: dict[str, App]
 
 		The LivingApps that belong to this group.
+
+	.. attribute:: params
+		:type: dict[str, AppParameter]
+
+		Parameters of this app group.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps", "main_app"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps", "main_app", "params", "add_param"})
 	ul4_type = ul4c.Type("la", "AppGroup", "A group of LivingApps")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -3490,6 +3502,7 @@ class AppGroup(Base):
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = AttrDictAttr(get="", ul4get="_apps_get", ul4onget="_apps_get", ul4onset=True)
 	main_app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	params = AttrDictAttr(get="", ul4get="_params_get", ul4onget="_params_get", ul4onset=True)
 
 	def __init__(self, id=None, globals=None, name=None):
 		self.id = id
@@ -3497,10 +3510,16 @@ class AppGroup(Base):
 		self.name = name
 		self._apps = None
 		self.main_app = None
+		self._params = None
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def _gethandler(self):
+		if self.globals is None:
+			raise NoHandlerError()
+		return self.globals._gethandler()
 
 	def _apps_get(self):
 		apps = self._apps
@@ -3512,6 +3531,22 @@ class AppGroup(Base):
 					apps = attrdict(apps)
 					self._apps = apps
 		return apps
+
+	def _params_get(self):
+		params = self._params
+		if params is None:
+			handler = self.globals.handler
+			if handler is not None:
+				params = handler.appgroup_params_incremental_data(self)
+				if params is not None:
+					params = attrdict(params)
+					self._params = params
+		return params
+
+	def add_param(self, identifier, *, type=None, description=None, value=None):
+		param = MutableAppParameter(appgroup=self, type=type, identifier=identifier, description=description, value=value)
+		self.params[param.identifier] = param
+		return param
 
 
 class Field(CustomAttributes):
@@ -9255,124 +9290,33 @@ class Category(Base):
 		return self.id
 
 
-@register("templatelibrary")
-class TemplateLibrary(Base):
-	r"""
-	A template library contains a collection of templates.
-
-	Relevant instance attributes are:
-
-	.. attribute:: id
-		:type: str
-
-		Unique database id
-
-	.. attribute:: identifier
-		:type: str
-
-		Human readable identifier
-
-	.. attribute:: description
-		:type: str
-
-		Description of the library
-
-	.. attribute:: templates
-
-		The UL4 templates belonging to this library.
-
-	.. attribute:: params
-
-		The parameters belonging to this library.
-	"""
-
-	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "description", "templates", "params"})
-	ul4_type = ul4c.Type("la", "TemplateLibrary", "A LivingApps template library")
-
-	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	templates = AttrDictAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
-	params = AttrDictAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
-
-	def __init__(self, id=None, identifier=None, description=None, templates=None, params=None):
-		self.id = id
-		self.identifier = identifier
-		self.description = description
-		self.templates = attrdict(templates) if templates is not None else attrdict()
-		self.params = attrdict(params) if params is not None else attrdict()
-
-	@property
-	def ul4onid(self) -> str:
-		return self.id
-
-	def __getattr__(self, name):
-		if name.startswith("t_"):
-			identifier = name[2:]
-			if identifier in self.templates:
-				return self.templates[identifier]
-		elif name.startswith("p_"):
-			identifier = name[2:]
-			if identifier in self.params:
-				return self.params[identifier]
-		elif name.startswith("pv_"):
-			identifier = name[3:]
-			if identifier in self.params:
-				return self.params[identifier].value
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-
-	def __dir__(self):
-		"""
-		Make keys completeable in IPython.
-		"""
-		attrs = set(super().__dir__())
-		for identifier in self.templates:
-			attrs.add(f"t_{identifier}")
-		for identifier in self.params:
-			attrs.add(f"p_{identifier}")
-			attrs.add(f"pv_{identifier}")
-		return attrs
-
-	def ul4_hasattr(self, name):
-		if name in self.ul4_attrs:
-			return True
-		elif name.startswith("t_") and name[2:] in self.templates:
-			return True
-		elif name.startswith("p_") and name[2:] in self.params:
-			return True
-		elif name.startswith("pv_") and name[3:] in self.params:
-			return True
-		else:
-			return super().ul4_hasattr(name)
-
-
 @register("appparameter")
 class AppParameter(Base):
 	r"""
-	An parameter for an app or the library.
+	An parameter for an app, app group or the library.
 
 	This class provides objects that can not be changed by UL4 templates, and
 	are therefore used for the library parameters. The mutable subclass
-	:class:`MutableAppParameter` is used for parameters attached to apps.
-	This can e.g. be used to provide a simple way to configure the behaviour
-	of :class:`ViewTemplate`\s.
+	:class:`MutableAppParameter` is used for parameters attached to apps or
+	app group. This can e.g. be used to provide a simple way to configure
+	the behaviour of :class:`ViewTemplate`\s.
 
 	Relevant instance attributes are:
 
 	.. attribute:: id
 		:type: str
 
-		Unique database id
+		Unique database id.
 
 	.. attribute:: app
 		:type: App
 
 		The app this parameter belong to.
 
-	.. attribute:: library
-		:type: TemplateLibrary
+	.. attribute:: appgroup
+		:type: AppGroup
 
-		The template library this parameter belong to.
+		The app group this parameter belong to.
 
 	.. attribute:: owner
 		:type: App
@@ -9385,7 +9329,6 @@ class AppParameter(Base):
 		If this is a :class:`!AppParameter` object inside another
 		:class:`!AppParameter` object of type ``list`` or ``dict``, ``parent``
 		references this parent object.
-		a :class:`TemplatLibrary`.
 
 	.. attribute:: order
 		:type: Optional[int]
@@ -9434,8 +9377,8 @@ class AppParameter(Base):
 		Who updated this parameter last?
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "app", "library", "owner", "parent", "type", "order", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby", "state"})
-	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application or library")
+	ul4_attrs = Base.ul4_attrs.union({"id", "app", "appgroup", "parent", "type", "order", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby", "state"})
+	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application, app group or library")
 
 	class Type(misc.Enum):
 		"""
@@ -9477,7 +9420,8 @@ class AppParameter(Base):
 		DICT = "dict"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	owner = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	appgroup = Attr(AppGroup, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	parent = Attr(lambda: AppParameter, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	type = EnumAttr(Type, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	order = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -9489,10 +9433,11 @@ class AppParameter(Base):
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, parent=None, owner=None, type=None, order=None, identifier=None, description=None, value=None):
+	def __init__(self, id=None, parent=None, app=None, appgroup=None, type=None, order=None, identifier=None, description=None, value=None):
 		self.id = id
+		self.app = app
+		self.appgroup = appgroup
 		self.parent = parent
-		self.owner = owner
 		self.order = order
 		self.identifier = identifier
 		self.description = description
@@ -9511,14 +9456,19 @@ class AppParameter(Base):
 		return self.id
 
 	@property
-	def app(self) -> Optional[App]:
-		return self.parent if isinstance(self.parent, App) else None
+	def globals(self) -> Globals:
+		if self.app is not None:
+			return self.app.globals
+		elif self.appgroup is not None:
+			return self.appgroup.globals
+		else:
+			return None
 
 
 @register("mutableappparameter")
 class MutableAppParameter(AppParameter):
 	r"""
-	An additional parameter for an app.
+	A modifiable parameter for an app.
 
 	Instances of this class can be changed by UL4 templates.
 	"""
@@ -9530,8 +9480,8 @@ class MutableAppParameter(AppParameter):
 	type = EnumAttr(AppParameter.Type, get=True, set="", repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	value = Attr(get=True, set="", ul4get=True, ul4set="_value_set", ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, parent=None, owner=None, type=None, order=None, identifier=None, description=None, value=None):
-		super().__init__(id=id, parent=parent, owner=owner, type=type, order=order, identifier=identifier, description=description, value=value)
+	def __init__(self, id=None, app=None, appgroup=None, parent=None, type=None, order=None, identifier=None, description=None, value=None):
+		super().__init__(id=id, app=app, appgroup=appgroup, parent=parent, type=type, order=order, identifier=identifier, description=description, value=value)
 		self._new = True
 		self._deleted = False
 		self._dirty = True
@@ -9702,9 +9652,10 @@ class MutableAppParameter(AppParameter):
 			raise TypeError(f"Type {type(value)} not supported for app parameters")
 
 	def _gethandler(self):
-		if self.owner is None:
+		globals = self.globals
+		if globals is None:
 			raise NoHandlerError()
-		return self.owner._gethandler()
+		return globals._gethandler()
 
 	def save(self, sync=False):
 		handler = self._gethandler()

@@ -1,3 +1,14 @@
+HEAD (2025-05-??)
+-----------------
+
+*	Added support for :class:`ll.la.AppParameter`\s attached to
+:class:`ll.la.AppGroup`\s.
+
+*	Added method :meth:`ll.la.AppGroup.add_param`.
+
+*	Removed unused class `ll.la.TemplateLibrary`.
+
+
 0.46.2 (2025-04-24)
 -------------------
 
