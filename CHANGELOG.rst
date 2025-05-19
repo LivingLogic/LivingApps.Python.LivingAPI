@@ -6,7 +6,10 @@ HEAD (2025-05-??)
 
 *	Added method :meth:`ll.la.AppGroup.add_param`.
 
-*	Removed unused class `ll.la.TemplateLibrary`.
+*	Removed unused class :class:`ll.la.TemplateLibrary`.
+
+*	The methods :meth:`ll.la.Record.save` and  :meth:`ll.la.AppParameter.save`
+	will do nothing when the record or parameter have been deleted before.
 
 
 0.46.2 (2025-04-24)

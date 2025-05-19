@@ -1206,6 +1206,9 @@ class DBHandler(Handler):
 		)
 
 	def save_record(self, record, recursive=True):
+		if record._deleted:
+			return None
+
 		record.clear_errors()
 		app = record.app
 		real = app.basetable in {"data_select", "data"}
