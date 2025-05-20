@@ -2,7 +2,7 @@
 -------------------
 
 *	Added support for :class:`ll.la.AppParameter`\s attached to
-:class:`ll.la.AppGroup`\s.
+	:class:`ll.la.AppGroup`\s.
 
 *	Added method :meth:`ll.la.AppGroup.add_param`.
 
