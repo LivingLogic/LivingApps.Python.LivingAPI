@@ -1121,6 +1121,14 @@ class DBHandler(Handler):
 			p_tpl_uuid=app.id,
 		)
 
+	def appgroup_params_incremental_data(self, appgroup):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			appgroup.globals,
+			"select livingapi_pkg.appgroup_params_inc_ful4on(:p_ag_id) from dual",
+			p_ag_id=appgroup.id,
+		)
+
 	def app_views_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
@@ -1198,6 +1206,9 @@ class DBHandler(Handler):
 		)
 
 	def save_record(self, record, recursive=True):
+		if record._deleted:
+			return None
+
 		record.clear_errors()
 		app = record.app
 		real = app.basetable in {"data_select", "data"}
@@ -1352,108 +1363,110 @@ class DBHandler(Handler):
 		return True
 
 	def save_parameter(self, parameter, recursive=True):
-		c = self.cursor()
-		app = parameter.owner
+		if not parameter._deleted:
+			c = self.cursor()
 
-		p_ap_value_bool = None
-		p_ap_value_date = None
-		p_ap_value_datetime = None
-		p_ap_value_str = None
-		p_ap_value_html = None
-		p_ap_value_other = None
-		p_upl_id = None
-		p_tpl_uuid_value = None
-		p_ctl_id = None
+			p_ap_value_bool = None
+			p_ap_value_date = None
+			p_ap_value_datetime = None
+			p_ap_value_str = None
+			p_ap_value_html = None
+			p_ap_value_other = None
+			p_upl_id = None
+			p_tpl_uuid_value = None
+			p_ctl_id = None
 
-		if parameter.value is not None:
-			if parameter.type is parameter.Type.BOOL:
-				p_ap_value_bool = int(parameter.value)
-			elif parameter.type is parameter.Type.INT:
-				p_ap_value_other = str(parameter.value)
-			elif parameter.type is parameter.Type.NUMBER:
-				p_ap_value_other = str(parameter.value)
-			elif parameter.type is parameter.Type.STR:
-				p_ap_value_str = parameter.value
-			elif parameter.type is parameter.Type.HTML:
-				p_ap_value_html = parameter.value
-			elif parameter.type is parameter.Type.COLOR:
-				p_ap_value_other = f"#{parameter.value.r():02x}{parameter.value.g():02x}{parameter.value.b():02x}{parameter.value.a():02x}"
-			elif parameter.type is parameter.Type.DATE:
-				p_ap_value_date = parameter.value
-			elif parameter.type is parameter.Type.DATETIME:
-				p_ap_value_datetime = parameter.value
-			elif parameter.type is parameter.Type.DATEDELTA:
-				p_ap_value_other = str(parameter.value.days)
-			elif parameter.type is parameter.Type.DATETIMEDELTA:
-				seconds = parameter.value.seconds
-				(minutes, seconds) = divmod(seconds, 60)
-				(hours, minutes) = divmod(minutes, 60)
-				p_ap_value_other = f"{parameter.value.days} days, {hours:02}:{minutes:02}:{seconds:02}"
-			elif parameter.type is parameter.Type.MONTHDELTA:
-				p_ap_value_other = str(parameter.value.months())
-			elif parameter.type is parameter.Type.UPLOAD:
-				if parameter.value.internal_id is None:
-					raise la.UnsavedObjectError(parameter.value)
-				p_upl_id = parameter.value.internal_id
-			elif parameter.type is parameter.Type.APP:
-				p_tpl_uuid_value = parameter.value.id
-			elif parameter.type is parameter.Type.CONTROL:
-				p_ctl_id = parameter.value.id
+			if parameter.value is not None:
+				if parameter.type is parameter.Type.BOOL:
+					p_ap_value_bool = int(parameter.value)
+				elif parameter.type is parameter.Type.INT:
+					p_ap_value_other = str(parameter.value)
+				elif parameter.type is parameter.Type.NUMBER:
+					p_ap_value_other = str(parameter.value)
+				elif parameter.type is parameter.Type.STR:
+					p_ap_value_str = parameter.value
+				elif parameter.type is parameter.Type.HTML:
+					p_ap_value_html = parameter.value
+				elif parameter.type is parameter.Type.COLOR:
+					p_ap_value_other = f"#{parameter.value.r():02x}{parameter.value.g():02x}{parameter.value.b():02x}{parameter.value.a():02x}"
+				elif parameter.type is parameter.Type.DATE:
+					p_ap_value_date = parameter.value
+				elif parameter.type is parameter.Type.DATETIME:
+					p_ap_value_datetime = parameter.value
+				elif parameter.type is parameter.Type.DATEDELTA:
+					p_ap_value_other = str(parameter.value.days)
+				elif parameter.type is parameter.Type.DATETIMEDELTA:
+					seconds = parameter.value.seconds
+					(minutes, seconds) = divmod(seconds, 60)
+					(hours, minutes) = divmod(minutes, 60)
+					p_ap_value_other = f"{parameter.value.days} days, {hours:02}:{minutes:02}:{seconds:02}"
+				elif parameter.type is parameter.Type.MONTHDELTA:
+					p_ap_value_other = str(parameter.value.months())
+				elif parameter.type is parameter.Type.UPLOAD:
+					if parameter.value.internal_id is None:
+						raise la.UnsavedObjectError(parameter.value)
+					p_upl_id = parameter.value.internal_id
+				elif parameter.type is parameter.Type.APP:
+					p_tpl_uuid_value = parameter.value.id
+				elif parameter.type is parameter.Type.CONTROL:
+					p_ctl_id = parameter.value.id
 
-		try:
-			result = self.proc_appparameter_save(
-				c,
-				c_user=self.ide_id,
-				c_lang="de", # FIXME
-				p_reqid=self.requestid,
-				p_ap_id=parameter.id,
-				p_tpl_uuid=app.id,
-				p_vt_id=None,
-				p_et_id=None,
-				p_ap_id_super=parameter.parent.id if parameter.parent is not None else None,
-				p_ap_order=parameter.order,
-				p_ap_identifier=parameter.identifier,
-				p_ap_type=parameter.type.value,
-				p_ap_description=parameter.description,
-				p_ap_value_bool=p_ap_value_bool,
-				p_ap_value_date=p_ap_value_date,
-				p_ap_value_datetime=p_ap_value_datetime,
-				p_ap_value_str=p_ap_value_str,
-				p_ap_value_html=p_ap_value_html,
-				p_ap_value_other=p_ap_value_other,
-				p_upl_id=p_upl_id,
-				p_tpl_uuid_value=p_tpl_uuid_value,
-				p_ctl_id=p_ctl_id,
-			)
-		except orasql.DatabaseError as exc:
-			error = exc.args[0]
-			if error.code == 20010:
-				parts = error.message.split("\x01")[1:-1]
-				if parts:
-					# An error message with the usual formatting from ``errmsg_pkg``.
-					raise ValueError("\n".join(parts[1::2])) from None
+			try:
+				result = self.proc_appparameter_save(
+					c,
+					c_user=self.ide_id,
+					c_lang="de", # FIXME
+					p_reqid=self.requestid,
+					p_ap_id=parameter.id,
+					p_tpl_uuid=parameter.app.id if parameter.app is not None else None,
+					p_ag_id=parameter.appgroup.id if parameter.appgroup is not None else None,
+					p_vt_id=None,
+					p_et_id=None,
+					p_ap_id_super=parameter.parent.id if parameter.parent is not None else None,
+					p_ap_order=parameter.order,
+					p_ap_identifier=parameter.identifier,
+					p_ap_type=parameter.type.value,
+					p_ap_description=parameter.description,
+					p_ap_value_bool=p_ap_value_bool,
+					p_ap_value_date=p_ap_value_date,
+					p_ap_value_datetime=p_ap_value_datetime,
+					p_ap_value_str=p_ap_value_str,
+					p_ap_value_html=p_ap_value_html,
+					p_ap_value_other=p_ap_value_other,
+					p_upl_id=p_upl_id,
+					p_tpl_uuid_value=p_tpl_uuid_value,
+					p_ctl_id=p_ctl_id,
+				)
+			except orasql.DatabaseError as exc:
+				error = exc.args[0]
+				if error.code == 20010:
+					parts = error.message.split("\x01")[1:-1]
+					if parts:
+						# An error message with the usual formatting from ``errmsg_pkg``.
+						raise ValueError("\n".join(parts[1::2])) from None
+					else:
+						# An error message with strange formatting, use it as it is.
+						raise ValueError(error.message) from None
 				else:
-					# An error message with strange formatting, use it as it is.
-					raise ValueError(error.message) from None
-			else:
-				# Some other database exception
-				raise
+					# Some other database exception
+					raise
 
-		if parameter.id is None:
-			parameter.id = result.p_ap_id
-			parameter.createdat = datetime.datetime.now()
-			parameter.createdby = app.globals.user
-		else:
-			parameter.updatedat = datetime.datetime.now()
-			parameter.updatedby = app.globals.user
-		parameter._dirty = False
-		if recursive:
-			if parameter.type is parameter.Type.LIST:
-				for child in parameter.value:
-					self.save_parameter(child, True)
-			elif parameter.type is parameter.Type.DICT:
-				for child in parameter.value.values():
-					self.save_parameter(child, True)
+			if parameter.id is None:
+				parameter.id = result.p_ap_id
+				parameter.createdat = datetime.datetime.now()
+				parameter.createdby = parameter.globals.user
+			else:
+				parameter.updatedat = datetime.datetime.now()
+				parameter.updatedby = parameter.globals.user
+			parameter._dirty = False
+			parameter._new = False
+			if recursive:
+				if parameter.type is parameter.Type.LIST:
+					for child in parameter.value:
+						self.save_parameter(child, True)
+				elif parameter.type is parameter.Type.DICT:
+					for child in parameter.value.values():
+						self.save_parameter(child, True)
 
 	def delete_parameter(self, parameter):
 		if not parameter._deleted:

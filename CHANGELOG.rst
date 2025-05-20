@@ -1,3 +1,20 @@
+HEAD (2025-05-??)
+-----------------
+
+*	Added support for :class:`ll.la.AppParameter`\s attached to
+:class:`ll.la.AppGroup`\s.
+
+*	Added method :meth:`ll.la.AppGroup.add_param`.
+
+*	The signature of :meth:`ll.la.App.add_param` has changed to
+	``(self, identifier, *, type=None, description=None, value=None)``.
+
+*	Removed unused class :class:`ll.la.TemplateLibrary`.
+
+*	The methods :meth:`ll.la.Record.save` and  :meth:`ll.la.AppParameter.save`
+	will do nothing when the record or parameter have been deleted before.
+
+
 0.46.2 (2025-04-24)
 -------------------
 
