@@ -2969,7 +2969,7 @@ class App(CustomAttributes):
 		self.dataactions = None
 		self._vsqlgroup_records = None
 		self._vsqlgroup_app = None
-		self.addparam(*args)
+		self._add_param(*args)
 
 	def __str__(self):
 		return self.fullname
@@ -2982,7 +2982,7 @@ class App(CustomAttributes):
 	def group(self) -> "AppGroup":
 		return self.appgroup
 
-	def addparam(self, *params):
+	def _add_param(self, *params):
 		for param in params:
 			param.app = self
 			self.ownparams[param.identifier] = param
@@ -2990,9 +2990,9 @@ class App(CustomAttributes):
 				self._params[param.identifier] = param
 		return self
 
-	def ul4_add_param(self, type, identifier, description, value):
+	def add_param(self, identifier, *, type=None, description=None, value=None):
 		param = MutableAppParameter(app=self, type=type, identifier=identifier, description=description, value=value)
-		self.addparam(param)
+		self._add_param(param)
 		return param
 
 	def _image_get(self):
@@ -3207,9 +3207,7 @@ class App(CustomAttributes):
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name):
-		if name == "add_param":
-			return self.ul4_add_param
-		elif name.startswith(("c_", "lc_", "p_", "pv_", "t_")):
+		if name.startswith(("c_", "lc_", "p_", "pv_", "t_")):
 			return getattr(self, name)
 		elif self.ul4_hasattr(name):
 			return super().ul4_getattr(name)
