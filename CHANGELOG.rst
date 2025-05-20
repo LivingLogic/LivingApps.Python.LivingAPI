@@ -1,5 +1,5 @@
-HEAD (2025-05-??)
------------------
+0.47.0 (2025-05-20)
+-------------------
 
 *	Added support for :class:`ll.la.AppParameter`\s attached to
 :class:`ll.la.AppGroup`\s.
