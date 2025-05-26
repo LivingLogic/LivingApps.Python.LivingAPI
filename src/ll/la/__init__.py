@@ -3228,7 +3228,7 @@ class App(CustomAttributes):
 	def _params_inheritance_chain(self):
 		yield self._ownparams_get()
 		if self.appgroup:
-			yield self.appgroup.params
+			yield self.appgroup.ownparams
 		if "la" in self.ownparams and isinstance(self._ownparams["la"].value, App):
 			yield from self.ownparams["la"].value._params_inheritance_chain()
 		else:
@@ -3243,9 +3243,7 @@ class App(CustomAttributes):
 	def _ownparams_get(self):
 		params = self._ownparams
 		if params is None:
-			handler = self.globals.handler
-			if handler is None:
-				raise NoHandlerError()
+			handler = self._gethandler()
 			params = handler.app_params_incremental_data(self)
 			params = attrdict(params)
 			self._ownparams = params
@@ -3500,7 +3498,8 @@ class AppGroup(Base):
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = AttrDictAttr(get="", ul4get="_apps_get", ul4onget="_apps_get", ul4onset=True)
 	main_app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	params = AttrDictAttr(get="", ul4get="_params_get", ul4onget="_params_get", ul4onset=True)
+	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
+	params = AttrDictAttr(get="", ul4get="_params_get")
 
 	def __init__(self, id=None, globals=None, name=None):
 		self.id = id
@@ -3508,11 +3507,63 @@ class AppGroup(Base):
 		self.name = name
 		self._apps = None
 		self.main_app = None
+		self._ownparams = None
 		self._params = None
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def __getattr__(self, name):
+		if name.startswith("p_"):
+			identifier = name[2:]
+			if self.params and identifier in self.params:
+				return self.params[identifier]
+		elif name.startswith("pv_"):
+			identifier = name[3:]
+			if self.params and identifier in self.params:
+				return self.params[identifier].value
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def __setattr__(self, name, value):
+		if name.startswith("pv_"):
+			identifier = name[3:]
+			if identifier in self.ownparams:
+				self.ownparams[identifier].value = value
+			else:
+				self.addparam(None, identifier, None, value)
+			return
+		super().__setattr__(name, value)
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = super().__dir__()
+		for identifier in self.params:
+			attrs.add(f"p_{identifier}")
+			attrs.add(f"pv_{identifier}")
+		return attrs
+
+	def ul4_hasattr(self, name):
+		if name.startswith("p_") and name[2:] in self.params:
+			return True
+		elif name.startswith("pv_") and name[3:] in self.params:
+			return True
+		else:
+			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if name.startswith(("p_", "pv_")):
+			return getattr(self, name)
+		elif self.ul4_hasattr(name):
+			return super().ul4_getattr(name)
+
+	def ul4_setattr(self, name, value):
+		if name.startswith("pv_"):
+			setattr(self, name, value)
+		else:
+			super().ul4_setattr(name, value)
 
 	def _gethandler(self):
 		if self.globals is None:
@@ -3530,16 +3581,35 @@ class AppGroup(Base):
 					self._apps = apps
 		return apps
 
-	def _params_get(self):
+	def _ownparams_get(self):
 		params = self._params
 		if params is None:
-			handler = self.globals.handler
-			if handler is not None:
-				params = handler.appgroup_params_incremental_data(self)
-				if params is not None:
-					params = attrdict(params)
-					self._params = params
+			handler = self._gethandler()
+			params = handler.appgroup_params_incremental_data(self)
+			if params is not None:
+				params = attrdict(params)
+				self._ownparams = params
 		return params
+
+	def _ownparams_set(self, value):
+		self._ownparams = value
+
+	def _ownparams_ul4onget(self):
+		# Bypass the logic that fetches the parameters from the database
+		return self._ownparams
+
+	def _ownparams_ul4onset(self, value):
+		if value is not None:
+			self._ownparams = value
+
+	def _params_get(self):
+		if self._params is None:
+			handler = self._gethandler()
+			params = attrdict()
+			params.update(handler.fetch_libraryparams())
+			params.update(self.ownparams)
+			self._params = params
+		return self._params
 
 	def add_param(self, identifier, *, type=None, description=None, value=None):
 		param = MutableAppParameter(appgroup=self, type=type, identifier=identifier, description=description, value=value)

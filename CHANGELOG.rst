@@ -1,3 +1,12 @@
+HEAD (2025-08-??)
+-----------------
+
+*	Parameters of an app group now inherit the library parameters too.
+	However for parameter of an app the library parameters will be ignored during
+	traversal of the app group. The library parameters will only be used as the
+	ultimate fallback.
+
+
 0.47.0 (2025-05-20)
 -------------------
 
