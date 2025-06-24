@@ -2,9 +2,25 @@ HEAD (2025-08-??)
 -----------------
 
 *	Parameters of an app group now inherit the library parameters too.
-	However for parameter of an app the library parameters will be ignored during
-	traversal of the app group. The library parameters will only be used as the
-	ultimate fallback.
+	However for parameters of an app the library parameters will be ignored
+	during traversal of the app group. The library parameters will only be used
+	as the ultimate fallback.
+
+*	``AppParameter`` objects now support member templates.
+
+*	``Control.mode`` is now settable.
+
+*	Add support for custom attributes to ``AppParameter``.
+
+*	Update name of ``AppParameter`` type ``str`` to ``string``.
+
+*	The attribute ``App.recordcount`` has been renamed to ``record_total``.
+	Attributes ``record_start`` and ``record_count`` have been added that
+	contain paging information (when paging parameters are in use or vSQL
+	expressions for paging have been configured).
+
+*	Similar attributes (``record_total``, ``record_start`` and ``record_count``)
+	have been added to ``RecordChildren``).
 
 
 0.47.0 (2025-05-20)

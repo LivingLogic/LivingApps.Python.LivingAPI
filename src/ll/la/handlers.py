@@ -998,9 +998,9 @@ class DBHandler(Handler):
 		if reqparams:
 			for (key, value) in reqparams.items():
 				if value is not None:
-					if isinstance(value, str):
+					if isinstance(value, (str, int)):
 						paramslist.append(key)
-						paramslist.append(value)
+						paramslist.append(str(value))
 					elif isinstance(value, list):
 						for subvalue in value:
 							paramslist.append(key)
