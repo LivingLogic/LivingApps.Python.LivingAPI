@@ -2094,7 +2094,7 @@ class Globals(CustomAttributes):
 
 	template_types = ((None, "app_instance"), (None, None))
 
-	supported_version = "133"
+	supported_version = "134"
 
 	class Mode(misc.Enum):
 		"""
@@ -2176,6 +2176,8 @@ class Globals(CustomAttributes):
 		self.view_id = None
 		self.externaldatasources = attrdict()
 		self._template_params = {}
+		self._library_params = None
+		self._params = None
 
 	@property
 	def ul4onid(self) -> str:
@@ -2505,19 +2507,32 @@ class Globals(CustomAttributes):
 	def _template_params_ul4onset(self, value):
 		self._template_params = attrdict(value) if value else attrdict()
 
+	@property
+	def library_params(self) -> Dict[str, "AppParameter"]:
+		if self._library_params is None:
+			handler = self._gethandler()
+			self._library_params = attrdict()
+			for p in handler.fetch_libraryparams().values():
+				p = AppParameter(id=p.id, type=p.type, identifier=p.identifier, value=p.value, description=p.description)
+				p._globals = self
+				self._library_params[p.identifier] = p
+		return self._library_params
+
 	def _params_get(self) -> Dict[str, "MutableAppParameter"]:
-		if self.template_params:
-			if self.app.params:
-				return attrdict(
-					collections.ChainMap(
-						self.template_params,
-						self.app.params,
+		if self._params is None:
+			if self.template_params:
+				if self.app.params:
+					self._params = attrdict(
+						collections.ChainMap(
+							self.template_params,
+							self.app.params,
+						)
 					)
-				)
+				else:
+					self._params = self.template_params
 			else:
-				return self.template_params
-		else:
-			return self.app.params
+				self._params = self.app.params
+		return self._params
 
 	vsqlsearchfield = vsql.Field("search", vsql.DataType.STR, "livingapi_pkg.global_search")
 
@@ -2693,10 +2708,22 @@ class App(CustomAttributes):
 
 		The records of this app (if configured).
 
-	.. attribute:: recordcount
+	.. attribute:: record_total
 		:type: int
 
 		The number of records in this app (if configured).
+
+	.. attribute:: record_start
+		:type: int
+
+		The start index of records (when paging parameters are in use or vSQL
+		expressions for paging are configured).
+
+	.. attribute:: record_count
+		:type: int
+
+		The number of records per page (when paging parameters are in use or vSQL
+		expressions for paging are configured).
 
 	.. attribute:: installation
 		:type: Optional[Installation]
@@ -2827,7 +2854,9 @@ class App(CustomAttributes):
 		"menus",
 		"panels",
 		"records",
-		"recordcount",
+		"record_start",
+		"record_count",
+		"record_total",
 		"installation",
 		"categories",
 		"params",
@@ -2893,7 +2922,9 @@ class App(CustomAttributes):
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	layout_controls = AttrDictAttr(get="", ul4get="_layout_controls_get")
 	records = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
-	recordcount = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	record_start = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	record_count = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	record_total = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	installation = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	categories = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
@@ -2924,7 +2955,7 @@ class App(CustomAttributes):
 	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
-	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, recordcount=None, installation=None, datamanagement_identifier=None):
+	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, installation=None, datamanagement_identifier=None):
 		super().__init__()
 		self.id = id
 		self.superid = None
@@ -2945,7 +2976,9 @@ class App(CustomAttributes):
 		self._menus = None
 		self._panels = None
 		self.records = None
-		self.recordcount = recordcount
+		self.record_start = None
+		self.record_count = None
+		self.record_total = None
 		self.installation = installation
 		self.categories = None
 		self._templates = None
@@ -3002,9 +3035,9 @@ class App(CustomAttributes):
 		if value is not None:
 			self.records = value
 
-	def _recordcount_ul4onset(self, value):
+	def _record_total_ul4onset(self, value):
 		if value is not None:
-			self.recordcound = value
+			self.record_total = value
 
 	def _categories_ul4onset(self, value):
 		if value is not None:
@@ -3228,11 +3261,11 @@ class App(CustomAttributes):
 	def _params_inheritance_chain(self):
 		yield self._ownparams_get()
 		if self.appgroup:
-			yield self.appgroup.params
+			yield self.appgroup.ownparams
 		if "la" in self.ownparams and isinstance(self._ownparams["la"].value, App):
 			yield from self.ownparams["la"].value._params_inheritance_chain()
 		else:
-			yield self.globals.handler.fetch_libraryparams()
+			yield self.globals.library_params
 
 	def _param(self, identifier):
 		for params in self._params_inheritance_chain():
@@ -3243,9 +3276,7 @@ class App(CustomAttributes):
 	def _ownparams_get(self):
 		params = self._ownparams
 		if params is None:
-			handler = self.globals.handler
-			if handler is None:
-				raise NoHandlerError()
+			handler = self._gethandler()
 			params = handler.app_params_incremental_data(self)
 			params = attrdict(params)
 			self._ownparams = params
@@ -3500,7 +3531,8 @@ class AppGroup(Base):
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = AttrDictAttr(get="", ul4get="_apps_get", ul4onget="_apps_get", ul4onset=True)
 	main_app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	params = AttrDictAttr(get="", ul4get="_params_get", ul4onget="_params_get", ul4onset=True)
+	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
+	params = AttrDictAttr(get="", ul4get="_params_get")
 
 	def __init__(self, id=None, globals=None, name=None):
 		self.id = id
@@ -3508,11 +3540,63 @@ class AppGroup(Base):
 		self.name = name
 		self._apps = None
 		self.main_app = None
+		self._ownparams = None
 		self._params = None
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def __getattr__(self, name):
+		if name.startswith("p_"):
+			identifier = name[2:]
+			if self.params and identifier in self.params:
+				return self.params[identifier]
+		elif name.startswith("pv_"):
+			identifier = name[3:]
+			if self.params and identifier in self.params:
+				return self.params[identifier].value
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def __setattr__(self, name, value):
+		if name.startswith("pv_"):
+			identifier = name[3:]
+			if identifier in self.ownparams:
+				self.ownparams[identifier].value = value
+			else:
+				self.addparam(None, identifier, None, value)
+			return
+		super().__setattr__(name, value)
+
+	def __dir__(self):
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = super().__dir__()
+		for identifier in self.params:
+			attrs.add(f"p_{identifier}")
+			attrs.add(f"pv_{identifier}")
+		return attrs
+
+	def ul4_hasattr(self, name):
+		if name.startswith("p_") and name[2:] in self.params:
+			return True
+		elif name.startswith("pv_") and name[3:] in self.params:
+			return True
+		else:
+			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name):
+		if name.startswith(("p_", "pv_")):
+			return getattr(self, name)
+		elif self.ul4_hasattr(name):
+			return super().ul4_getattr(name)
+
+	def ul4_setattr(self, name, value):
+		if name.startswith("pv_"):
+			setattr(self, name, value)
+		else:
+			super().ul4_setattr(name, value)
 
 	def _gethandler(self):
 		if self.globals is None:
@@ -3530,16 +3614,31 @@ class AppGroup(Base):
 					self._apps = apps
 		return apps
 
-	def _params_get(self):
+	def _ownparams_get(self):
 		params = self._params
 		if params is None:
-			handler = self.globals.handler
-			if handler is not None:
-				params = handler.appgroup_params_incremental_data(self)
-				if params is not None:
-					params = attrdict(params)
-					self._params = params
+			handler = self._gethandler()
+			params = handler.appgroup_params_incremental_data(self)
+			if params is not None:
+				params = attrdict(params)
+				self._ownparams = params
 		return params
+
+	def _ownparams_set(self, value):
+		self._ownparams = value
+
+	def _ownparams_ul4onget(self):
+		# Bypass the logic that fetches the parameters from the database
+		return self._ownparams
+
+	def _ownparams_ul4onset(self, value):
+		if value is not None:
+			self._ownparams = value
+
+	def _params_get(self):
+		if self._params is None:
+			self._params = attrdict(collections.ChainMap(self.ownparams, self.globals.library_params))
+		return self._params
 
 	def add_param(self, identifier, *, type=None, description=None, value=None):
 		param = MutableAppParameter(appgroup=self, type=type, identifier=identifier, description=description, value=value)
@@ -4666,7 +4765,7 @@ class Control(CustomAttributes):
 	z_index = Attr(int, get="", ul4get="_z_index_get")
 	liveupdate = BoolAttr(get="", ul4get="_liveupdate_get")
 	tabindex = Attr(int, get="", ul4get="_tabindex_get")
-	mode = EnumAttr(Mode, get="", ul4get="")
+	mode = EnumAttr(Mode, get="", ul4get="", set=True, ul4set=True)
 	labelpos = EnumAttr(LabelPos, get="", ul4get="")
 	labelwidth = Attr(int, get="", ul4get="_labelwidth_get")
 	autoalign = BoolAttr(get="", ul4get="_autoalign_get")
@@ -4684,6 +4783,7 @@ class Control(CustomAttributes):
 		self.__dict__["required"] = None
 		self.__dict__["required_in_view"] = None
 		self.order = order
+		self._mode = None
 		self._vsqlfield = None
 
 	def _gethandler(self):
@@ -4798,6 +4898,8 @@ class Control(CustomAttributes):
 		self.__dict__["required"] = None if value is None else bool(value)
 
 	def _mode_get(self):
+		if self._mode is not None:
+			return self._mode
 		vc = self._get_viewcontrol()
 		if vc is not None:
 			return vc.mode
@@ -6860,6 +6962,22 @@ class RecordChildren(Base):
 
 		The detail records as a dictionary mapping record ids to
 		:class:`Record` objects.
+	.. attribute:: record_total
+		:type: int
+
+		The number of records in this object (if configured).
+
+	.. attribute:: record_start
+		:type: int
+
+		The start index of records (when paging parameters are in use or vSQL
+		expressions for paging are configured).
+
+	.. attribute:: record_count
+		:type: int
+
+		The number of records per page (when paging parameters are in use or vSQL
+		expressions for paging are configured).
 	"""
 
 	ul4_attrs = Base.ul4_attrs.union({"id", "record", "datasourcechildren", "records"})
@@ -6869,12 +6987,18 @@ class RecordChildren(Base):
 	record = Attr(Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	datasourcechildren = Attr(lambda: DataSourceChildren, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	records = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	record_start = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	record_count = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	record_total = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, record=None, datasourcechildren=None):
 		self.id = id
 		self.record = record
 		self.datasourcechildren = datasourcechildren
 		self.records = {}
+		self.record_start = None
+		self.record_count = None
+		self.record_total = None
 
 	def __str__(self):
 		return f"{self.record or '?'}/recordchildren={self.id}"
@@ -9289,7 +9413,7 @@ class Category(Base):
 
 
 @register("appparameter")
-class AppParameter(Base):
+class AppParameter(CustomAttributes):
 	r"""
 	An parameter for an app, app group or the library.
 
@@ -9375,7 +9499,7 @@ class AppParameter(Base):
 		Who updated this parameter last?
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "app", "appgroup", "parent", "type", "order", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby", "state"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "app", "appgroup", "parent", "type", "order", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby", "state"})
 	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application, app group or library")
 
 	class Type(misc.Enum):
@@ -9403,7 +9527,7 @@ class AppParameter(Base):
 		BOOL = "bool"
 		INT = "int"
 		NUMBER = "number"
-		STR = "str"
+		STRING = "string"
 		HTML = "html"
 		COLOR = "color"
 		DATE = "date"
@@ -9421,7 +9545,7 @@ class AppParameter(Base):
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	appgroup = Attr(AppGroup, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	parent = Attr(lambda: AppParameter, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	type = EnumAttr(Type, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	type = EnumAttr(Type, get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	order = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -9431,8 +9555,17 @@ class AppParameter(Base):
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
+	@property
+	def template_types(self):
+		return (
+			(None, f"parameter_{self.type.value}_instance"),
+			(None, "parameter_instance"),
+		)
+
 	def __init__(self, id=None, parent=None, app=None, appgroup=None, type=None, order=None, identifier=None, description=None, value=None):
+		super().__init__()
 		self.id = id
+		self._globals = None
 		self.app = app
 		self.appgroup = appgroup
 		self.parent = parent
@@ -9446,8 +9579,8 @@ class AppParameter(Base):
 		self._new = True
 		self._deleted = False
 		self._dirty = True
-		self.__dict__["type"] = None
-		self.__dict__["value"] = None
+		self.__dict__["type"] = type
+		self.__dict__["value"] = value
 
 	@property
 	def ul4onid(self) -> str:
@@ -9460,7 +9593,23 @@ class AppParameter(Base):
 		elif self.appgroup is not None:
 			return self.appgroup.globals
 		else:
-			return None
+			return self._globals
+
+	def _template_candidates(self):
+		if self.appgroup is not None:
+			yield from self.globals._template_candidates()
+		elif self.app is not None:
+			yield from self.app._template_candidates()
+		elif self._globals is not None:
+			yield from self._globals._template_candidates()
+
+	def __getattr__(self, name):
+		if name.startswith("t_"):
+			identifier = name[2:]
+			template = self._fetch_template(self, identifier)
+			if template is not None:
+				return template
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 
 @register("mutableappparameter")
@@ -9538,7 +9687,7 @@ class MutableAppParameter(AppParameter):
 				elif type is self.Type.NUMBER:
 					if not isinstance(self.value, (int, float)):
 						self.value = None
-				elif type is self.Type.STR or type is self.Type.HTML:
+				elif type is self.Type.STRING or type is self.Type.HTML:
 					if not isinstance(self.value, str):
 						self.value = None
 				elif type is self.Type.COLOR:
@@ -9604,7 +9753,7 @@ class MutableAppParameter(AppParameter):
 			if oldvalue != value:
 				self.__dict__["value"] = value
 				if self.type is not self.Type.HTML:
-					self.__dict__["type"] = self.Type.STR
+					self.__dict__["type"] = self.Type.STRING
 				self._dirty = True
 		elif isinstance(value, color.Color):
 			if oldvalue != value:
