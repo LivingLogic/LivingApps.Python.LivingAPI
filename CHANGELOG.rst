@@ -1,5 +1,5 @@
-HEAD (2025-08-??)
------------------
+0.48.0 (2025-06-24)
+-------------------
 
 *	Parameters of an app group now inherit the library parameters too.
 	However for parameters of an app the library parameters will be ignored
