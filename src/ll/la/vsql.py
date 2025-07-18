@@ -3414,6 +3414,63 @@ FuncAST.add_rules(f"NUMBER <- tan({NUMBERLIKE})", "tan({s1})")
 # Function ``sqrt()``
 FuncAST.add_rules(f"NUMBER <- sqrt({NUMBERLIKE})", "sqrt(case when {s1} >= 0 then {s1} else null end)")
 
+# Function ``request_id()``
+FuncAST.add_rules(f"STR <- request_id()", "livingapi_pkg.reqid")
+
+# Function ``request_method()``
+FuncAST.add_rules(f"STR <- request_method()", "livingapi_pkg.reqmethod")
+
+# Function ``request_url()``
+FuncAST.add_rules(f"STR <- request_url()", "livingapi_pkg.requrl")
+
+# Function ``request_header_str()``
+FuncAST.add_rules(f"STR <- request_header_str(STR)", "livingapi_pkg.reqheader_str({s1})")
+
+# Function ``request_header_strlist()``
+FuncAST.add_rules(f"STRLIST <- request_header_strlist(STR)", "livingapi_pkg.reqheader_str({s1})")
+
+# Function ``request_cookie()``
+FuncAST.add_rules(f"STR <- request_cookie(STR)", "livingapi_pkg.reqcookie_str({s1})")
+
+# Function ``request_param_str()``
+FuncAST.add_rules(f"STR <- request_param_str(STR)", "livingapi_pkg.reqparam_str({s1})")
+
+# Function ``request_param_strlist()``
+FuncAST.add_rules(f"STRLIST <- request_param_strlist(STR)", "livingapi_pkg.reqparam_strlist({s1})")
+
+# Function ``request_param_int()``
+FuncAST.add_rules(f"INT <- request_param_int(STR)", "livingapi_pkg.reqparam_int({s1})")
+
+# Function ``request_param_intlist()``
+FuncAST.add_rules(f"INTLIST <- request_param_intlist(STR)", "livingapi_pkg.reqparam_intlist({s1})")
+
+# Function ``request_param_float()``
+FuncAST.add_rules(f"NUMBER <- request_param_float(STR)", "livingapi_pkg.reqparam_float({s1})")
+
+# Function ``request_param_floatlist()``
+FuncAST.add_rules(f"NUMBERLIST <- request_param_floatlist(STR)", "livingapi_pkg.reqparam_floatlist({s1})")
+
+# Function ``request_param_date()``
+FuncAST.add_rules(f"DATE <- request_param_date(STR)", "livingapi_pkg.reqparam_date({s1})")
+
+# Function ``request_param_datelist()``
+FuncAST.add_rules(f"DATELIST <- request_param_datelist(STR)", "livingapi_pkg.reqparam_datelist({s1})")
+
+# Function ``request_param_datetime()``
+FuncAST.add_rules(f"DATETIME <- request_param_datetime(STR)", "livingapi_pkg.reqparam_datetime({s1})")
+
+# Function ``request_param_datetimelist()``
+FuncAST.add_rules(f"DATETIMELIST <- request_param_datetimelist(STR)", "livingapi_pkg.reqparam_datetimelist({s1})")
+
+# Function ``search()``
+FuncAST.add_rules(f"STR <- search()", "livingapi_pkg.global_search")
+
+# Function ``lang()``
+FuncAST.add_rules(f"STR <- lang()", "livingapi_pkg.global_lang")
+
+# Function ``mode()``
+FuncAST.add_rules(f"STR <- mode()", "livingapi_pkg.global_mode")
+
 # Method ``lower()``
 MethAST.add_rules(f"T1 <- {TEXT}.lower()", "lower({s1})")
 

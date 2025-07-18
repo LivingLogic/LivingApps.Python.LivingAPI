@@ -1,3 +1,9 @@
+HEAD (2025-??-??)
+-----------------
+
+*	Add additional vSQL methods for request paramaters and other global
+	information.
+
 0.48.0 (2025-06-24)
 -------------------
 
@@ -20,7 +26,7 @@
 	expressions for paging have been configured).
 
 *	Similar attributes (``record_total``, ``record_start`` and ``record_count``)
-	have been added to ``RecordChildren``).
+	have been added to ``RecordChildren``.
 
 
 0.47.0 (2025-05-20)
