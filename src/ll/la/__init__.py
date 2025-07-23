@@ -2245,10 +2245,8 @@ class Globals(CustomAttributes):
 				content = r.read()
 		else:
 			content = source.read()
-			if source.name:
-				filename = os.path.basename(source.name)
-			else:
-				filename = "Unnnamed"
+			name = getattr(source, "name", None)
+			filename = os.path.basename(name) if name else "Unnamed"
 		if mimetype is None:
 			mimetype = mimetypes.guess_type(filename, strict=False)[0]
 			if mimetype is None:
