@@ -1041,7 +1041,9 @@ class Rule(Repr):
 			for p in self.key
 		)
 
-		return f"addRule(rules, VSQLDataType.{self.result.name}, {key});"
+		source = ", ".join(misc.javaexpr(s) for s in self.source)
+
+		return f"addRule(rules, VSQLDataType.{self.result.name}, List.of({key}), List.of({source}));"
 
 	def oracle_fields(self) -> Dict[str, int | str | sqlliteral]:
 		fields = {}
@@ -3917,7 +3919,7 @@ class JavaSource:
 		self.lines = path.read_text(encoding="utf-8").splitlines(False)
 
 	def __repr__(self):
-		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} cls={self.cls!r} path={str(self.path)!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} cls={self.astcls!r} path={str(self.path)!r} at {id(self):#x}>"
 
 	def new_lines(self) -> Generator[str, None, None]:
 		"""

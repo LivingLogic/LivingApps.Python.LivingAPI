@@ -1,8 +1,11 @@
 HEAD (2025-??-??)
 -----------------
 
-*	Add additional vSQL methods for request paramaters and other global
+*	Add additional vSQL methods for request parameters and other global
 	information.
+*	Fix :meth:`ll.la.Record.send_mail`.
+*	Alwasy use the ``{a}`` table alias in vSQL expressions for fields.
+
 
 0.48.0 (2025-06-24)
 -------------------
