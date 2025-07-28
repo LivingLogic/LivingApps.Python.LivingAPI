@@ -4,7 +4,8 @@ HEAD (2025-??-??)
 *	Add additional vSQL methods for request parameters and other global
 	information.
 *	Fix :meth:`ll.la.Record.send_mail`.
-*	Alwasy use the ``{a}`` table alias in vSQL expressions for fields.
+*	Always use the ``{a}`` table alias in vSQL expressions for fields.
+*	Java source code for vSQL expressions not also knows the Oracle source code.
 
 
 0.48.0 (2025-06-24)
