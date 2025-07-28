@@ -6858,7 +6858,7 @@ class Record(CustomAttributes):
 			return self.display_embedded_url(**params)
 
 	def send_mail(self, from_: T_opt_str = None, reply_to: T_opt_str = None, to: T_opt_str = None, cc: T_opt_str = None, bcc: T_opt_str = None, subject: T_opt_str = None, body_text: T_opt_str = None, body_html: T_opt_str = None, attachments: T_opt_file = None) -> None:
-		self.globals.handler.send_mail(
+		self._gethandler().send_mail(
 			globals=self.app.globals,
 			app=self.app,
 			record=self,
