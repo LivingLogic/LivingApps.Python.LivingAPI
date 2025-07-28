@@ -3974,12 +3974,12 @@ class JavaSource:
 		"""
 
 		# Find all AST classes that have rules
-		classes = {cls.__name__: cls for cls in AST.all_types() if hasattr(cls, "rules")}
+		classes = {cls.__name__.lower(): cls for cls in AST.all_types() if hasattr(cls, "rules")}
 
 		for filename in path.glob("**/*.java"):
 			try:
 				# Do we have a Python class for this Java source?
-				cls = classes[filename.stem]
+				cls = classes[filename.stem.lower()]
 			except KeyError:
 				pass
 			else:
