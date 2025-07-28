@@ -2094,7 +2094,7 @@ class Globals(CustomAttributes):
 
 	template_types = ((None, "app_instance"), (None, None))
 
-	supported_version = "135"
+	supported_version = "134"
 
 	class Mode(misc.Enum):
 		"""
@@ -3436,13 +3436,13 @@ class App(CustomAttributes):
 	def vsqlgroup_records(self):
 		if self._vsqlgroup_records is None:
 			self._vsqlgroup_records = g = vsql.Group("data_select_la")
-			g.add_field("id", vsql.DataType.STR, "dat_id")
-			g.add_field("app", vsql.DataType.STR, "tpl_uuid")
-			g.add_field("createdat", vsql.DataType.DATETIME, "dat_cdate")
-			g.add_field("createdby", vsql.DataType.STR, "dat_cname", "{m}.dat_cname = {d}.ide_id(+)", User.vsqlgroup)
-			g.add_field("updatedat", vsql.DataType.DATETIME, "dat_udate")
-			g.add_field("updatedby", vsql.DataType.STR, "dat_uname", "{m}.dat_uname = {d}.ide_id(+)", User.vsqlgroup)
-			g.add_field("url", vsql.DataType.STR, "'https://' || parameter_pkg.str_os('INGRESS_HOST') || '/gateway/apps/' || tpl_uuid || '/' || dat_id || '/edit'")
+			g.add_field("id", vsql.DataType.STR, "{a}.dat_id")
+			g.add_field("app", vsql.DataType.STR, "{a}.tpl_uuid")
+			g.add_field("createdat", vsql.DataType.DATETIME, "{a}.dat_cdate")
+			g.add_field("createdby", vsql.DataType.STR, "{a}.dat_cname", "{m}.dat_cname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("updatedat", vsql.DataType.DATETIME, "{a}.dat_udate")
+			g.add_field("updatedby", vsql.DataType.STR, "{a}.dat_uname", "{m}.dat_uname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("url", vsql.DataType.STR, "'https://' || parameter_pkg.str_os('INGRESS_HOST') || '/gateway/apps/' || {a}.tpl_uuid || '/' || {a}.dat_id || '/edit'")
 			if self.controls is not None:
 				for control in self.controls.values():
 					vsqlfield = control.vsqlfield
@@ -3453,14 +3453,14 @@ class App(CustomAttributes):
 	def vsqlgroup_app(self):
 		if self._vsqlgroup_app is None:
 			self._vsqlgroup_app = g = vsql.Group("template")
-			g.add_field("id", vsql.DataType.STR, "tpl_uuid")
-			g.add_field("name", vsql.DataType.STR, "tpl_name")
-			g.add_field("description", vsql.DataType.STR, "tpl_description")
-			g.add_field("createdat", vsql.DataType.DATETIME, "tpl_ctimstamp")
-			g.add_field("createdby", vsql.DataType.STR, "tpl_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
-			g.add_field("updatedat", vsql.DataType.DATETIME, "tpl_utimstamp")
-			g.add_field("updatedby", vsql.DataType.STR, "tpl_uname", "{m}.tpl_uname = {d}.ide_id(+)", User.vsqlgroup)
-			g.add_field("installation", vsql.DataType.STR, "inl_id", "{m}.inl_id = {d}.inl_id(+)", Installation.vsqlgroup)
+			g.add_field("id", vsql.DataType.STR, "{a}.tpl_uuid")
+			g.add_field("name", vsql.DataType.STR, "{a}.tpl_name")
+			g.add_field("description", vsql.DataType.STR, "{a}.tpl_description")
+			g.add_field("createdat", vsql.DataType.DATETIME, "{a}.tpl_ctimstamp")
+			g.add_field("createdby", vsql.DataType.STR, "{a}.tpl_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("updatedat", vsql.DataType.DATETIME, "{a}.tpl_utimstamp")
+			g.add_field("updatedby", vsql.DataType.STR, "{a}.tpl_uname", "{m}.tpl_uname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("installation", vsql.DataType.STR, "{a}.inl_id", "{m}.inl_id = {d}.inl_id(+)", Installation.vsqlgroup)
 			# FIXME: Add app parameters
 		return self._vsqlgroup_app
 
@@ -5867,7 +5867,7 @@ class MultipleLookupControl(LookupControl):
 	def vsqlfield(self):
 		if self._vsqlfield is None:
 			id = self.field.removeprefix("lup_kennungs")
-			fieldsql = f"cast(multiset(select lup_kennung from data_lookup_select where dat_id = {{a}}.dat_id and dl_i = {id}) as varchars)"
+			fieldsql = f"cast(multiset(select lup_kennung from data_lookup_select dl where d.dat_id = {{a}}.dat_id and dl.dl_i = {id}) as varchars)"
 			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST, fieldsql)
 		return self._vsqlfield
 
@@ -5949,7 +5949,7 @@ class MultipleAppLookupControl(AppLookupControl):
 	def vsqlfield(self):
 		if self._vsqlfield is None:
 			id = self.field.removeprefix("dat_ids_applookup")
-			fieldsql = f"cast(multiset(select dat_id_applookup from data_applookup where dat_id = {{a}}.dat_id and dal_i = {id}) as varchars)"
+			fieldsql = f"cast(multiset(select dat_id_applookup from data_applookup dal where dal.dat_id = {{a}}.dat_id and dal.dal_i = {id}) as varchars)"
 			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST, fieldsql)
 		return self._vsqlfield
 
