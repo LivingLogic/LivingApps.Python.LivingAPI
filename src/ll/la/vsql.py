@@ -127,6 +127,15 @@ def sql(value:Any) -> str:
 		raise TypeError(f"unknown type {type(value)!r}")
 
 
+def comment(s:str) -> str:
+	"""
+	Return an SQL comment with ther content ``s``.
+
+	I.e. ``comment("foo")`` returns ``"/* foo */"``.
+	"""
+	return f"/* {s.replace('/*', '/ *').replace('*/', '* /')} */"
+
+
 class Repr:
 	"""
 	Base class that provides functionality for implementing :meth:`__repr__`
@@ -852,9 +861,9 @@ class Query(Repr):
 		def s(sqlsource, expr, alias=None):
 			tokens.append(sqlsource)
 			if isinstance(expr, AST):
-				vsqlsource = f" /* {expr.source()} */"
+				vsqlsource = f" {comment(expr.source())} */"
 			elif expr is not None:
-				vsqlsource = f" /* {expr} */"
+				vsqlsource = f" /* {comment(expr)} */"
 			else:
 				vsqlsource = None
 			if vsqlsource is not None and not sqlsource.endswith(vsqlsource):
@@ -863,7 +872,7 @@ class Query(Repr):
 				tokens.append(f" as {alias}")
 
 		if self.comment:
-			a("/* ", self.comment, " */", None)
+			a("/* ", self.comment.replace('/*', '/ *').replace('*/', '* /'), " */", None)
 
 		a("select", None, +1)
 		first = True
