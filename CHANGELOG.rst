@@ -5,7 +5,7 @@ HEAD (2025-??-??)
 	information.
 *	Fix :meth:`ll.la.Record.send_mail`.
 *	Always use the ``{a}`` table alias in vSQL expressions for fields.
-*	Java source code for vSQL expressions not also knows the Oracle source code.
+*	Java source code for vSQL expressions now also knows the Oracle source code.
 
 
 0.48.0 (2025-06-24)
