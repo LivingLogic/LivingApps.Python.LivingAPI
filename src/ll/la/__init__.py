@@ -2094,7 +2094,7 @@ class Globals(CustomAttributes):
 
 	template_types = ((None, "app_instance"), (None, None))
 
-	supported_version = "134"
+	supported_version = "135"
 
 	class Mode(misc.Enum):
 		"""
