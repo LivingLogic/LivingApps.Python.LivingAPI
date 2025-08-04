@@ -127,6 +127,15 @@ def sql(value:Any) -> str:
 		raise TypeError(f"unknown type {type(value)!r}")
 
 
+def comment(s:str) -> str:
+	"""
+	Return an SQL comment with ther content ``s``.
+
+	I.e. ``comment("foo")`` returns ``"/* foo */"``.
+	"""
+	return f"/* {s.replace('/*', '/ *').replace('*/', '* /')} */"
+
+
 class Repr:
 	"""
 	Base class that provides functionality for implementing :meth:`__repr__`
@@ -852,9 +861,9 @@ class Query(Repr):
 		def s(sqlsource, expr, alias=None):
 			tokens.append(sqlsource)
 			if isinstance(expr, AST):
-				vsqlsource = f" /* {expr.source()} */"
+				vsqlsource = f" {comment(expr.source())} */"
 			elif expr is not None:
-				vsqlsource = f" /* {expr} */"
+				vsqlsource = f" /* {comment(expr)} */"
 			else:
 				vsqlsource = None
 			if vsqlsource is not None and not sqlsource.endswith(vsqlsource):
@@ -863,7 +872,7 @@ class Query(Repr):
 				tokens.append(f" as {alias}")
 
 		if self.comment:
-			a("/* ", self.comment, " */", None)
+			a("/* ", self.comment.replace('/*', '/ *').replace('*/', '* /'), " */", None)
 
 		a("select", None, +1)
 		first = True
@@ -1032,7 +1041,9 @@ class Rule(Repr):
 			for p in self.key
 		)
 
-		return f"addRule(rules, VSQLDataType.{self.result.name}, {key});"
+		source = ", ".join(misc.javaexpr(s) for s in self.source)
+
+		return f"addRule(rules, VSQLDataType.{self.result.name}, List.of({key}), List.of({source}));"
 
 	def oracle_fields(self) -> Dict[str, int | str | sqlliteral]:
 		fields = {}
@@ -3414,6 +3425,63 @@ FuncAST.add_rules(f"NUMBER <- tan({NUMBERLIKE})", "tan({s1})")
 # Function ``sqrt()``
 FuncAST.add_rules(f"NUMBER <- sqrt({NUMBERLIKE})", "sqrt(case when {s1} >= 0 then {s1} else null end)")
 
+# Function ``request_id()``
+FuncAST.add_rules(f"STR <- request_id()", "livingapi_pkg.reqid")
+
+# Function ``request_method()``
+FuncAST.add_rules(f"STR <- request_method()", "livingapi_pkg.reqmethod")
+
+# Function ``request_url()``
+FuncAST.add_rules(f"STR <- request_url()", "livingapi_pkg.requrl")
+
+# Function ``request_header_str()``
+FuncAST.add_rules(f"STR <- request_header_str(STR)", "livingapi_pkg.reqheader_str({s1})")
+
+# Function ``request_header_strlist()``
+FuncAST.add_rules(f"STRLIST <- request_header_strlist(STR)", "livingapi_pkg.reqheader_str({s1})")
+
+# Function ``request_cookie()``
+FuncAST.add_rules(f"STR <- request_cookie(STR)", "livingapi_pkg.reqcookie_str({s1})")
+
+# Function ``request_param_str()``
+FuncAST.add_rules(f"STR <- request_param_str(STR)", "livingapi_pkg.reqparam_str({s1})")
+
+# Function ``request_param_strlist()``
+FuncAST.add_rules(f"STRLIST <- request_param_strlist(STR)", "livingapi_pkg.reqparam_strlist({s1})")
+
+# Function ``request_param_int()``
+FuncAST.add_rules(f"INT <- request_param_int(STR)", "livingapi_pkg.reqparam_int({s1})")
+
+# Function ``request_param_intlist()``
+FuncAST.add_rules(f"INTLIST <- request_param_intlist(STR)", "livingapi_pkg.reqparam_intlist({s1})")
+
+# Function ``request_param_float()``
+FuncAST.add_rules(f"NUMBER <- request_param_float(STR)", "livingapi_pkg.reqparam_float({s1})")
+
+# Function ``request_param_floatlist()``
+FuncAST.add_rules(f"NUMBERLIST <- request_param_floatlist(STR)", "livingapi_pkg.reqparam_floatlist({s1})")
+
+# Function ``request_param_date()``
+FuncAST.add_rules(f"DATE <- request_param_date(STR)", "livingapi_pkg.reqparam_date({s1})")
+
+# Function ``request_param_datelist()``
+FuncAST.add_rules(f"DATELIST <- request_param_datelist(STR)", "livingapi_pkg.reqparam_datelist({s1})")
+
+# Function ``request_param_datetime()``
+FuncAST.add_rules(f"DATETIME <- request_param_datetime(STR)", "livingapi_pkg.reqparam_datetime({s1})")
+
+# Function ``request_param_datetimelist()``
+FuncAST.add_rules(f"DATETIMELIST <- request_param_datetimelist(STR)", "livingapi_pkg.reqparam_datetimelist({s1})")
+
+# Function ``search()``
+FuncAST.add_rules(f"STR <- search()", "livingapi_pkg.global_search")
+
+# Function ``lang()``
+FuncAST.add_rules(f"STR <- lang()", "livingapi_pkg.global_lang")
+
+# Function ``mode()``
+FuncAST.add_rules(f"STR <- mode()", "livingapi_pkg.global_mode")
+
 # Method ``lower()``
 MethAST.add_rules(f"T1 <- {TEXT}.lower()", "lower({s1})")
 
@@ -3851,7 +3919,7 @@ class JavaSource:
 		self.lines = path.read_text(encoding="utf-8").splitlines(False)
 
 	def __repr__(self):
-		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} cls={self.cls!r} path={str(self.path)!r} at {id(self):#x}>"
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} cls={self.astcls!r} path={str(self.path)!r} at {id(self):#x}>"
 
 	def new_lines(self) -> Generator[str, None, None]:
 		"""
@@ -3917,12 +3985,12 @@ class JavaSource:
 		"""
 
 		# Find all AST classes that have rules
-		classes = {cls.__name__: cls for cls in AST.all_types() if hasattr(cls, "rules")}
+		classes = {cls.__name__.lower(): cls for cls in AST.all_types() if hasattr(cls, "rules")}
 
 		for filename in path.glob("**/*.java"):
 			try:
 				# Do we have a Python class for this Java source?
-				cls = classes[filename.stem]
+				cls = classes[filename.stem.lower()]
 			except KeyError:
 				pass
 			else:

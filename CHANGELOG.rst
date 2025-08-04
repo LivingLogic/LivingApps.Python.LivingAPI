@@ -1,3 +1,15 @@
+0.49.0 (2025-08-04)
+-------------------
+
+*	Add additional vSQL methods for request parameters and other global
+	information.
+*	Fix :meth:`ll.la.Record.send_mail`.
+*	Always use the ``{a}`` table alias in vSQL expressions for fields.
+*	Java source code for vSQL expressions now also knows the Oracle source code.
+*	Add the attributes ``App.ai_generated``, ``AppGroup.description`` and
+	``AppGroup.image``.
+
+
 0.48.0 (2025-06-24)
 -------------------
 
@@ -20,7 +32,7 @@
 	expressions for paging have been configured).
 
 *	Similar attributes (``record_total``, ``record_start`` and ``record_count``)
-	have been added to ``RecordChildren``).
+	have been added to ``RecordChildren``.
 
 
 0.47.0 (2025-05-20)
