@@ -1,5 +1,5 @@
-HEAD (2025-??-??)
------------------
+0.49.0 (2025-08-04)
+-------------------
 
 *	Add additional vSQL methods for request parameters and other global
 	information.
