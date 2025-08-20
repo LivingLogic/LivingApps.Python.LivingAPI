@@ -2052,6 +2052,7 @@ class Globals(CustomAttributes):
 		"id",
 		"version",
 		"hostname",
+		"free",
 		"platform",
 		"mode",
 		"form",
@@ -2138,6 +2139,7 @@ class Globals(CustomAttributes):
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	datasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	hostname = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	free = BoolAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	templates = Attr(get="", ul4get="_templates_get")
@@ -2157,6 +2159,7 @@ class Globals(CustomAttributes):
 		self.id = id
 		self.version = version
 		self.hostname = hostname
+		self.free = True
 		self.platform = platform
 		self.app = None
 		self.record = None
@@ -2902,6 +2905,9 @@ class App(CustomAttributes):
 		"seq",
 		"send_mail",
 		"save",
+		"count_records",
+		"delete_records",
+		"fetch_records",
 	})
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
@@ -3452,10 +3458,12 @@ class App(CustomAttributes):
 			self._vsqlgroup_records = g = vsql.Group("data_select_la")
 			g.add_field("id", vsql.DataType.STR, "{a}.dat_id")
 			g.add_field("app", vsql.DataType.STR, "{a}.tpl_uuid")
+			g.add_field("app_internal_id", vsql.DataType.INT, "{a}.tpl_id")
 			g.add_field("createdat", vsql.DataType.DATETIME, "{a}.dat_cdate")
 			g.add_field("createdby", vsql.DataType.STR, "{a}.dat_cname", "{m}.dat_cname = {d}.ide_id(+)", User.vsqlgroup)
 			g.add_field("updatedat", vsql.DataType.DATETIME, "{a}.dat_udate")
 			g.add_field("updatedby", vsql.DataType.STR, "{a}.dat_uname", "{m}.dat_uname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("updatecount", vsql.DataType.INT, "{a}.dat_updatecount")
 			g.add_field("url", vsql.DataType.STR, "'https://' || parameter_pkg.str_os('INGRESS_HOST') || '/gateway/apps/' || {a}.tpl_uuid || '/' || {a}.dat_id || '/edit'")
 			if self.controls is not None:
 				for control in self.controls.values():
@@ -3500,6 +3508,22 @@ class App(CustomAttributes):
 				if controls is None or control.priority:
 					result.extend(control.vsqlsortexpr(record, maxdepth-1))
 		return result
+
+	def count_records(self, filter:str) -> int:
+		handler = self._gethandler()
+		return handler.count_records(self, filter)
+
+	def delete_records(self, filter:str) -> None:
+		handler = self._gethandler()
+		handler.delete_records(self, filter)
+
+	def fetch_records(self, filter:str, sorts:str | list[str] = None, offset:int = None, limit:int = None) -> None:
+		handler = self._gethandler()
+		if sorts is None:
+			sorts = []
+		elif isinstance(sorts, str):
+			sorts = [sorts]
+		return handler.fetch_records(self, filter=filter, sorts=sorts, offset=offset, limit=limit)
 
 
 @register("appgroup")
@@ -4988,6 +5012,9 @@ class Control(CustomAttributes):
 	def vsqlsortexpr(self, record, maxdepth):
 		return [] # The default doesn't add any sort expressions
 
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
+
 
 class StringControl(Control):
 	"""
@@ -5025,7 +5052,7 @@ class StringControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5225,8 +5252,11 @@ class TextAreaControl(StringControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_textarea_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
 
 
 @register("htmlcontrol")
@@ -5245,7 +5275,7 @@ class HTMLControl(StringControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 
@@ -5265,7 +5295,7 @@ class IntControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.INT, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.INT, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5307,7 +5337,7 @@ class NumberControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.NUMBER, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.NUMBER, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5402,7 +5432,7 @@ class DateControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATE, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATE, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 
@@ -5445,8 +5475,11 @@ class DatetimeMinuteControl(DateControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_datetime_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
 
 
 @register("datetimesecondcontrol")
@@ -5488,8 +5521,11 @@ class DatetimeSecondControl(DateControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_datetime_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
 
 
 @register("boolcontrol")
@@ -5514,7 +5550,7 @@ class BoolControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.BOOL, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.BOOL, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5620,7 +5656,7 @@ class LookupControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5636,6 +5672,9 @@ class LookupControl(Control):
 		return [
 			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower")
 		]
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, {vsql.sql(self.id)}, row.{self.fieldname});"
 
 
 @register("lookupselectcontrol")
@@ -5783,7 +5822,7 @@ class AppLookupControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}", f"{{m}}.{self.field} = {{d}}.dat_id(+)", self.lookup_app.vsqlgroup_records)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.fieldname}", f"{{m}}.{self.field} = {{d}}.dat_id(+)", self.lookup_app.vsqlgroup_records)
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5797,6 +5836,9 @@ class AppLookupControl(Control):
 			vsql.FieldRefAST.make(record, f"v_{self.identifier}"),
 			maxdepth,
 		)
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, {vsql.sql(str(self.lookup_app.internal_id))}, row.{self.fieldname});"
 
 
 @register("applookupselectcontrol")
@@ -5894,8 +5936,8 @@ class MultipleLookupControl(LookupControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			id = self.field.removeprefix("lup_kennungs")
-			fieldsql = f"cast(multiset(select lup_kennung from data_lookup_select dl where d.dat_id = {{a}}.dat_id and dl.dl_i = {id}) as varchars)"
+			id = self.fieldname.removeprefix("lup_kennungs")
+			fieldsql = f"cast(multiset(select lup_kennung from data_lookup_select dl where dl.dat_id = {{a}}.dat_id and dl.dl_i = {id}) as varchars)"
 			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST, fieldsql)
 		return self._vsqlfield
 
@@ -5976,7 +6018,7 @@ class MultipleAppLookupControl(AppLookupControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			id = self.field.removeprefix("dat_ids_applookup")
+			id = self.fieldname.removeprefix("dat_ids_applookup")
 			fieldsql = f"cast(multiset(select dat_id_applookup from data_applookup dal where dal.dat_id = {{a}}.dat_id and dal.dal_i = {id}) as varchars)"
 			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST, fieldsql)
 		return self._vsqlfield
@@ -6051,7 +6093,7 @@ class FileControl(Control):
 	def vsqlfield(self):
 		if self._vsqlfield is None:
 			# FIXME: This should reference :class:`File`, but Oracle doesn't support this yet.
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -6078,6 +6120,9 @@ class FileControl(Control):
 		return [
 			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower")
 		]
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, {vsql.sql(self.fieldname)}, row.dat_id, v_tpl_uuid, row.{self.fieldname});"
 
 
 @register("filesignaturecontrol")
@@ -6116,7 +6161,7 @@ class GeoControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.GEO, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.GEO, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):

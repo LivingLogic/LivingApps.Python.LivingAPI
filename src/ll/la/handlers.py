@@ -311,6 +311,18 @@ class Handler:
 
 
 class DBHandler(Handler):
+	query_prefix = """
+	with v_globals as (
+		select
+			:ide_id_user as ide_id_user /* user.id */,
+			:lang as lang /* language */,
+			:tpl_id_app as tpl_id_app /* app.internal_id */,
+			:dat_id_detail as dat_id_detail /* record.id */
+		from
+			dual
+	)
+	""".strip()
+
 	def __init__(self, *, connection=None, connectstring=None, connection_postgres=None, connectstring_postgres=None, uploaddir=None, ide_account=None, ide_id=None, session_id=None):
 		"""
 		Create a new :class:`DBHandler`.
@@ -1617,6 +1629,234 @@ class DBHandler(Handler):
 				dump = la.attrdict(dump)
 			self.libraryparams = la.attrdict(dump)
 		return self.libraryparams
+
+	def count_records(self, app, filter):
+		q = vsql.Query(
+			f"Count records of app {app.name}",
+			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			r=app.vsqlfield_records("r", "g.tpl_id_app"),
+			app=app.vsqlfield_app("app", "g.tpl_id_app"),
+		)
+
+		# Add CTE with the parameters that we'll pass to the query
+		q.from_sql("v_globals", "g", "global variables")
+
+		# Make sure that the table for `r` gets joined
+		q.register_vsql("r")
+
+		# Count records
+		q.select_sql("count(*)", "c")
+
+		# Apply use specified filter
+		q.where_vsql(filter)
+
+		query = f"{self.query_prefix}\n{q.sqlsource()}"
+
+		c = self.cursor()
+		c.execute(query, ide_id_user=self.ide_id, tpl_id_app=app.internal_id, dat_id_detail=None, lang=app.globals.lang)
+		return c.fetchone()[0]
+
+	def delete_records(self, app, filter):
+		q = vsql.Query(
+			f"Delete records of app {app.name}",
+			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			r=app.vsqlfield_records("r", "g.tpl_id_app"),
+			app=app.vsqlfield_app("app", "g.tpl_id_app"),
+		)
+
+		# Add CTE with the parameters that we'll pass to the query
+		q.from_sql("v_globals", "g", "global variables")
+
+		# Make sure that the table for `r` gets joined
+		q.register_vsql("r")
+
+		# We need the pk of the record to be able to delete it.
+		# (Note that this makes the `register_vsql` call unnecessary.)
+		q.select_vsql("r.id", "dat_id")
+
+		# Apply use specified filter
+		q.where_vsql(filter)
+
+		c = self.cursor()
+
+		dat_ids = c.var(self.varchars)
+
+		query = f"""
+			declare
+				v_ide_id_user identity.ide_id%type := :ide_id_user;
+				v_lang varchar2(30) := :lang;
+				v_reqid varchar2(30) := :req_id;
+				v_tpl_uuid template.tpl_uuid%type := :tpl_uuid;
+				v_tpl_id template.tpl_id%type := :tpl_id;
+				v_deleted varchars := varchars();
+				v_errormessage varchar2(4000);
+			begin
+				for row in (
+					with v_globals as (
+						select
+							v_ide_id_user as ide_id_user /* user.id */,
+							v_lang as lang /* language */,
+							v_tpl_id as tpl_id_app /* app.internal_id */,
+							null as dat_id_detail /* record.id */
+						from
+							dual
+					)
+					{q.sqlsource()}
+				) loop
+					livingapi_pkg.data_delete(
+						c_user => v_ide_id_user,
+						p_reqid => null,
+						p_errormessage => v_errormessage,
+						p_dat_id => row.dat_id,
+						p_mode => 'livingapi'
+					);
+					varchars_pkg.append(v_deleted, row.dat_id);
+				end loop;
+
+				:dat_ids := v_deleted;
+			end;
+		"""
+
+		c.execute(
+			query,
+			ide_id_user=self.ide_id,
+			req_id=self.requestid,
+			tpl_uuid=app.id,
+			tpl_id=app.internal_id,
+			lang=app.globals.lang,
+			dat_ids=dat_ids,
+		)
+
+		for dat_id in dat_ids.getvalue().aslist():
+			record = self.ul4on_decoder.persistent_object("de.livinglogic.livingapi.record", dat_id)
+			if record is not None:
+				record._deleted = True
+				record.id = None
+
+	def fetch_records(self, app, filter:str, sorts:list[str], offset=None, limit=None):
+		q = vsql.Query(
+			f"Fetch records of app {app.name} ({app.id})",
+			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			r=app.vsqlfield_records("r", "g.tpl_id_app"),
+			app=app.vsqlfield_app("app", "g.tpl_id_app"),
+		)
+
+		# Add CTE with the parameters that we'll pass to the query
+		q.from_sql("v_globals", "g", "global variables")
+
+		# Make sure that the table for `r` gets joined
+		q.register_vsql("r")
+
+		# Add all the fields that we need
+		q.select_vsql("r.id", "dat_id")
+		q.select_vsql("r.app_internal_id", "tpl_id")
+		q.select_vsql("r.app", "tpl_uuid")
+		q.select_vsql("r.createdat", "dat_cdate")
+		q.select_vsql("r.createdby", "dat_cname")
+		q.select_vsql("r.updatedat", "dat_udate")
+		q.select_vsql("r.updatedby", "dat_uname")
+		q.select_vsql("r.updatecount", "dat_updatecount")
+		for control in app.controls.values():
+			q.select_vsql(f"r.v_{control.identifier}", control.fieldname)
+
+		# Apply use specified filter
+		q.where_vsql(filter)
+
+		# Add offset specified by the user
+		if offset is not None:
+			q.offset(offset)
+
+		# Add limit specified by the user
+		if limit is not None:
+			q.limit(limit)
+
+		# Add sort expressions specified by the user
+		for sort in sorts:
+			direction = None
+			nulls = None
+			while True:
+				if direction is None and sort.endswith(" asc"):
+					direction = "asc"
+					sort = sort[:-4].strip()
+				elif direction is None and sort.endswith(" desc"):
+					direction = "desc"
+					sort = sort[:-5].strip()
+				elif nulls is None and sort.endswith(" nulls last"):
+					nulls = "last"
+					sort = sort[:-11].strip()
+				elif nulls is None and sort.endswith(" nulls first"):
+					nulls = "first"
+					sort = sort[:-12].strip()
+				else:
+					break
+			q.orderby_vsql(sort, direction=direction, nulls=nulls)
+
+		c = self.cursor()
+
+		dat_ids = c.var(self.varchars)
+
+		field_statements = []
+		for control in app.controls.values():
+			field_statements.append(f"\t\t\t{control.sql_fetch_statement()}\n")
+
+		query = f"""
+			declare
+				v_ide_id_user identity.ide_id%type := :ide_id_user;
+				v_lang varchar2(30) := :lang;
+				v_reqid varchar2(30) := :req_id;
+				v_tpl_uuid template.tpl_uuid%type := :tpl_uuid;
+				v_tpl_id template.tpl_id%type := :tpl_id;
+				v_result blob;
+			begin
+				livingapi_pkg.records_inc_init;
+
+				for row in (
+					with v_globals as (
+						select
+							v_ide_id_user as ide_id_user /* user.id */,
+							v_lang as lang /* language */,
+							v_tpl_id as tpl_id_app /* app.internal_id */,
+							null as dat_id_detail /* record.id */
+						from
+							dual
+					)
+					{q.sqlsource()}
+				) loop
+					if livingapi_pkg.records_inc_begin_record(
+						row.dat_id,
+						row.tpl_id,
+						row.dat_cdate,
+						row.dat_cname,
+						row.dat_udate,
+						row.dat_uname,
+						row.dat_updatecount
+					) then
+						{''.join(field_statements)}
+						livingapi_pkg.records_inc_end_record;
+					end if;
+				end loop;
+				livingapi_pkg.records_inc_finish(v_result);
+				:dump := v_result;
+			end;
+		"""
+
+		print(query)
+
+		dump = c.var(orasql.BLOB)
+
+		c.execute(
+			query,
+			ide_id_user=self.ide_id,
+			lang=app.globals.lang,
+			req_id=self.requestid,
+			tpl_uuid=app.id,
+			tpl_id=app.internal_id,
+			dump=dump,
+		)
+
+		dump = dump.getvalue().read().decode("utf-8")
+		print(dump)
+		return self.ul4on_decoder.loads(dump)
 
 
 class HTTPHandler(Handler):
