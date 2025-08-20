@@ -856,7 +856,7 @@ class Attr:
 		getattr(instance, self._name_ul4ondefault)()
 
 	@property
-	def types(self) -> Tuple[Type, ...]:
+	def types(self) -> tuple[Type, ...]:
 		if self._realtypes is None:
 			if not isinstance(self._types, tuple):
 				self._realtypes = _resolve_type(self._types)
@@ -2484,13 +2484,13 @@ class Globals(CustomAttributes):
 		if self.app is not None:
 			yield from self.app._template_candidates()
 
-	def _templates_get(self) -> Dict[str, ul4c.Template]:
+	def _templates_get(self) -> dict[str, ul4c.Template]:
 		if self.app is not None:
 			return self.app.templates
 		else:
 			return attrdict()
 
-	def _template_params_get(self) -> Dict[str, "MutableAppParameter"]:
+	def _template_params_get(self) -> dict[str, "MutableAppParameter"]:
 		if self._template_params is None:
 			if self.handler is None:
 				raise NoHandlerError()
@@ -2506,7 +2506,7 @@ class Globals(CustomAttributes):
 		self._template_params = attrdict(value) if value else attrdict()
 
 	@property
-	def library_params(self) -> Dict[str, "AppParameter"]:
+	def library_params(self) -> dict[str, "AppParameter"]:
 		if self._library_params is None:
 			handler = self._gethandler()
 			self._library_params = attrdict()
@@ -2516,7 +2516,7 @@ class Globals(CustomAttributes):
 				self._library_params[p.identifier] = p
 		return self._library_params
 
-	def _params_get(self) -> Dict[str, "MutableAppParameter"]:
+	def _params_get(self) -> dict[str, "MutableAppParameter"]:
 		if self._params is None:
 			if self.template_params:
 				if self.app.params:
@@ -4238,7 +4238,7 @@ class LookupField(Field):
 	Adds the following attribute to instances:
 
 	.. attribute:: lookupdata
-		:type: dict[str, Union[str, LookupItem]]
+		:type: dict[str, str | LookupItem]
 
 		Custom lookup data for this field.
 
@@ -4286,7 +4286,7 @@ class LookupField(Field):
 	def has_custom_lookupdata(self):
 		return self._lookupdata is not None
 
-	def _find_lookupitem(self, value) -> Tuple[Union[None, "LookupItem", str], T_opt_str]:
+	def _find_lookupitem(self, value) -> tuple[Union[None, "LookupItem", str], T_opt_str]:
 		lookupdata = self.control.lookupdata
 		if isinstance(value, str):
 			if lookupdata is None:
@@ -4337,7 +4337,7 @@ class AppLookupField(Field):
 	Adds the following attribute to instances:
 
 	.. attribute:: lookupdata
-		:type: dict[str, Union[str, Record]]
+		:type: dict[str, str | Record]
 
 		Custom lookup data for this field.
 
@@ -4394,7 +4394,7 @@ class AppLookupField(Field):
 	def has_custom_lookupdata(self):
 		return self._lookupdata is not None
 
-	def _find_lookup_record(self, value) -> Tuple[Optional["Record"], T_opt_str]:
+	def _find_lookup_record(self, value) -> tuple[Optional["Record"], T_opt_str]:
 		if isinstance(value, str):
 			record = self.control.app.globals.handler.record_sync_data(value)
 			if record is None:
@@ -6271,7 +6271,7 @@ class ViewControl(Base):
 		Width of the label on screen.
 
 	.. attribute:: lookupdata
-		:type: Optional[dict[str, Union[str, LookupItem, Record]]
+		:type: Optional[dict[str, str | LookupItem | Record]
 
 		Lookup items for the control in this view.
 
@@ -8013,7 +8013,7 @@ class DataOrder(Base):
 		Unique database id
 
 	.. attribute:: parent
-		:type: Union[DataSourceConfig, DataSourceChildrenConfig]
+		:type: DataSourceConfig | DataSourceChildrenConfig
 
 		The :class:`DataSourceConfig` or :class:`DataSourceChildrenConfig` this object
 		belongs to
@@ -8293,7 +8293,7 @@ class DataActionCommand(Base):
 		Unique database id.
 
 	.. attribute:: parent
-		:type: Union[DataAction, DataActionCommand]
+		:type: DataAction | DataActionCommand
 
 		The data action this command belongs to or the command this comamnd is a
 		sub command of.
@@ -9422,7 +9422,7 @@ class Category(Base):
 	children = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id:str=None, identifier:str=None, name:str=None, order:int=None, parent:Optional["Category"]=None, children:Optional[List["Category"]]=None, apps:Optional[Dict[str, App]]=None):
+	def __init__(self, id:str=None, identifier:str=None, name:str=None, order:int=None, parent:Optional["Category"]=None, children:Optional[List["Category"]]=None, apps:Optional[dict[str, App]]=None):
 		self.id = id
 		self.identifier = identifier
 		self.name = name
@@ -10328,7 +10328,7 @@ class HTTPRequest(Base):
 		Request headers as a :class:`dict` with case-insensitive keys.
 
 	.. attribute:: params
-		:type: dict[str, Union[str, File, list[Union[str, File]]]
+		:type: dict[str, str | File | list[str | File]]
 
 		Request parameters.
 

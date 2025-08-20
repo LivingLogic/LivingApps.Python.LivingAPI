@@ -653,11 +653,11 @@ class Query(Repr):
 		"""
 		self.comment = comment
 		self.vars = vars
-		self._fields : Dict[str, Tuple["AST"|str, str | None]] = {}
-		self._from : Dict[str, "AST"|str] = {}
-		self._where : Dict[str, "AST"|str] = {}
-		self._orderby : List[Tuple[str, "AST"|str, str | None, str | None]] = []
-		self._identifier_aliases : Dict[str, str] = {}
+		self._fields : dict[str, Tuple["AST"|str, str | None]] = {}
+		self._from : dict[str, "AST"|str] = {}
+		self._where : dict[str, "AST"|str] = {}
+		self._orderby : list[tuple[str, "AST"|str, str | None, str | None]] = []
+		self._identifier_aliases : dict[str, str] = {}
 
 	def _vsql_register(self, fieldref:FieldRefAST) -> str | None:
 		"""
@@ -1045,7 +1045,7 @@ class Rule(Repr):
 
 		return f"addRule(rules, VSQLDataType.{self.result.name}, List.of({key}), List.of({source}));"
 
-	def oracle_fields(self) -> Dict[str, int | str | sqlliteral]:
+	def oracle_fields(self) -> dict[str, int | str | sqlliteral]:
 		fields = {}
 
 		fields["vr_nodetype"] = self.astcls.nodetype.value
