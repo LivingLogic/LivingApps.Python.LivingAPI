@@ -2909,6 +2909,7 @@ class App(CustomAttributes):
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	internal_id = Attr(str, get=True, ul4onget=True, ul4onset=True)
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2967,6 +2968,7 @@ class App(CustomAttributes):
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, installation=None, datamanagement_identifier=None):
 		super().__init__()
 		self.id = id
+		self.internal_id = None
 		self.superid = None
 		self.globals = None
 		self.handler = None
@@ -9083,6 +9085,20 @@ class DataSource(Base):
 		:type: list[DataSourceChildren]
 
 		The configurations for detail records of records in this data source.
+
+	.. attribute:: filter
+		:type: str | None
+
+		vSQL filter expression. Only records where this expression evaluated to
+		true will be included in ``app.records``.
+
+	.. attribute:: sort
+		:type: list[str]
+
+		vSQL sort expressions. Each item in the list is a vSQL expression
+		optionally followed by ``asc``/``desc`` and/or
+		``nulls first``/``nulls last``. Records are sorted lexicagraphically
+		by these expressions.
 	"""
 
 	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "app", "apps", "children"})
@@ -9093,13 +9109,17 @@ class DataSource(Base):
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	children = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	filter = Attr(str, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	sort = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id:str=None, identifier:str=None, app:Optional["App"]=None, apps:Dict[str, "App"]=None):
+	def __init__(self, id:str=None, identifier:str=None, app:Optional["App"]=None, apps:dict[str, "App"]=None):
 		self.id = id
 		self.identifier = identifier
 		self.app = app
 		self.apps = apps
 		self.children = []
+		self.filter = None
+		self.sort = []
 
 	@property
 	def ul4onid(self) -> str:
@@ -9195,6 +9215,20 @@ class DataSourceChildren(Base):
 		The :class:`AppLookupControl` object that references this app. All records
 		from the controls app that reference our record will be added to the
 		children dict.
+
+	.. attribute:: filter
+		:type: str | None
+
+		vSQL filter expression. Only records where this expression evaluated to
+		true will be included in ``app.records``.
+
+	.. attribute:: sort
+		:type: list[str]
+
+		vSQL sort expressions. Each item in the list is a vSQL expression
+		optionally followed by ``asc``/``desc`` and/or
+		``nulls first``/``nulls last``. Records are sorted lexicagraphically
+		by these expressions.
 	"""
 
 	ul4_attrs = Base.ul4_attrs.union({"id", "datasource", "identifier", "control"})
@@ -9204,12 +9238,16 @@ class DataSourceChildren(Base):
 	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	filter = Attr(str, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	sort = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, identifier=None, control=None, filter=None):
+	def __init__(self, id=None, identifier=None, control=None):
 		self.id = id
 		self.datasource = None
 		self.identifier = identifier
 		self.control = control
+		self.filter = None
+		self.sort = []
 
 	def __str__(self):
 		return f"{self.datasource or '?'}/datasourcechildren={self.identifier}"
