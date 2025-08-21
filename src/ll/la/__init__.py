@@ -136,12 +136,14 @@ def format_class(cls) -> str:
 		>>> format_class(int)
 		'int'
 	"""
-	if cls.__module__ not in ("builtins", "exceptions"):
-		return f"{cls.__module__}.{cls.__qualname__}"
-	elif cls is NoneType:
+	if cls is NoneType or cls is None:
 		return "None"
 	else:
-		return cls.__qualname__
+		mod = getattr(cls, "__module__", None)
+		if mod is not None and mod not in ("builtins", "exceptions"):
+			return f"{mod}.{cls.__qualname__}"
+		else:
+			return cls.__qualname__
 
 
 def format_list(items:List[str]) -> str:
@@ -202,12 +204,21 @@ def error_attribute_readonly(instance:Any, name:str) -> str:
 
 
 def error_attribute_wrong_type(instance:Any, name:str, value:Any, allowed_types:List[Type]) -> str:
-	if isinstance(allowed_types, tuple):
+	if isinstance(allowed_types, (tuple, list)):
 		allowed_types = format_list([format_class(t) for t in allowed_types])
 	else:
 		allowed_types = format_class(allowed_types)
 
 	return f"Value for attribute {name!r} of {misc.format_class(instance)!r} object must be {allowed_types}, but is {format_class(type(value))}."
+
+
+def error_argument_wrong_type(name:str, value:Any, allowed_types:List[Type]) -> str:
+	if isinstance(allowed_types, (tuple, list)):
+		allowed_types = format_list([format_class(t) for t in allowed_types])
+	else:
+		allowed_types = format_class(allowed_types)
+
+	return f"Argument {name!r} must be {allowed_types}, but is {format_class(type(value))}."
 
 
 def attribute_wrong_value(instance:Any, name:str, value:Any, allowed_values:Iterable) -> str:
@@ -856,7 +867,7 @@ class Attr:
 		getattr(instance, self._name_ul4ondefault)()
 
 	@property
-	def types(self) -> Tuple[Type, ...]:
+	def types(self) -> tuple[Type, ...]:
 		if self._realtypes is None:
 			if not isinstance(self._types, tuple):
 				self._realtypes = _resolve_type(self._types)
@@ -2052,6 +2063,7 @@ class Globals(CustomAttributes):
 		"id",
 		"version",
 		"hostname",
+		"free",
 		"platform",
 		"mode",
 		"form",
@@ -2138,6 +2150,7 @@ class Globals(CustomAttributes):
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	datasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	hostname = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	free = BoolAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	templates = Attr(get="", ul4get="_templates_get")
@@ -2157,6 +2170,7 @@ class Globals(CustomAttributes):
 		self.id = id
 		self.version = version
 		self.hostname = hostname
+		self.free = True
 		self.platform = platform
 		self.app = None
 		self.record = None
@@ -2484,13 +2498,13 @@ class Globals(CustomAttributes):
 		if self.app is not None:
 			yield from self.app._template_candidates()
 
-	def _templates_get(self) -> Dict[str, ul4c.Template]:
+	def _templates_get(self) -> dict[str, ul4c.Template]:
 		if self.app is not None:
 			return self.app.templates
 		else:
 			return attrdict()
 
-	def _template_params_get(self) -> Dict[str, "MutableAppParameter"]:
+	def _template_params_get(self) -> dict[str, "MutableAppParameter"]:
 		if self._template_params is None:
 			if self.handler is None:
 				raise NoHandlerError()
@@ -2506,7 +2520,7 @@ class Globals(CustomAttributes):
 		self._template_params = attrdict(value) if value else attrdict()
 
 	@property
-	def library_params(self) -> Dict[str, "AppParameter"]:
+	def library_params(self) -> dict[str, "AppParameter"]:
 		if self._library_params is None:
 			handler = self._gethandler()
 			self._library_params = attrdict()
@@ -2516,7 +2530,7 @@ class Globals(CustomAttributes):
 				self._library_params[p.identifier] = p
 		return self._library_params
 
-	def _params_get(self) -> Dict[str, "MutableAppParameter"]:
+	def _params_get(self) -> dict[str, "MutableAppParameter"]:
 		if self._params is None:
 			if self.template_params:
 				if self.app.params:
@@ -2902,6 +2916,9 @@ class App(CustomAttributes):
 		"seq",
 		"send_mail",
 		"save",
+		"count_records",
+		"delete_records",
+		"fetch_records",
 	})
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
@@ -2909,6 +2926,7 @@ class App(CustomAttributes):
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	internal_id = Attr(str, get=True, ul4onget=True, ul4onset=True)
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2967,6 +2985,7 @@ class App(CustomAttributes):
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, installation=None, datamanagement_identifier=None):
 		super().__init__()
 		self.id = id
+		self.internal_id = None
 		self.superid = None
 		self.globals = None
 		self.handler = None
@@ -3450,10 +3469,12 @@ class App(CustomAttributes):
 			self._vsqlgroup_records = g = vsql.Group("data_select_la")
 			g.add_field("id", vsql.DataType.STR, "{a}.dat_id")
 			g.add_field("app", vsql.DataType.STR, "{a}.tpl_uuid")
+			g.add_field("app_internal_id", vsql.DataType.INT, "{a}.tpl_id")
 			g.add_field("createdat", vsql.DataType.DATETIME, "{a}.dat_cdate")
 			g.add_field("createdby", vsql.DataType.STR, "{a}.dat_cname", "{m}.dat_cname = {d}.ide_id(+)", User.vsqlgroup)
 			g.add_field("updatedat", vsql.DataType.DATETIME, "{a}.dat_udate")
 			g.add_field("updatedby", vsql.DataType.STR, "{a}.dat_uname", "{m}.dat_uname = {d}.ide_id(+)", User.vsqlgroup)
+			g.add_field("updatecount", vsql.DataType.INT, "{a}.dat_updatecount")
 			g.add_field("url", vsql.DataType.STR, "'https://' || parameter_pkg.str_os('INGRESS_HOST') || '/gateway/apps/' || {a}.tpl_uuid || '/' || {a}.dat_id || '/edit'")
 			if self.controls is not None:
 				for control in self.controls.values():
@@ -3498,6 +3519,96 @@ class App(CustomAttributes):
 				if controls is None or control.priority:
 					result.extend(control.vsqlsortexpr(record, maxdepth-1))
 		return result
+
+	def count_records(self, filter:str) -> int:
+		"""
+		Return the number of records in this app matching the vSQL condition ``filter``.
+
+		For example::
+
+			app.count_records("r.v_createdat >= now() - days(30)")
+
+		will return the number of records created in the last 30 days.
+
+		.. hint::
+
+			To count all records you can use::
+
+				app.count_records("True")
+		"""
+
+		if not isinstance(filter, str):
+			raise TypeError(error_argument_wrong_type("filter", filter, str))
+		handler = self._gethandler()
+		return handler.count_records(self, filter)
+
+	def delete_records(self, filter:str) -> None:
+		"""
+		Delete records in this app matching the vSQL condition ``filter``.
+
+		Return the number of records deleted.
+
+		LivingAPI objects for records that have been deleted will be marked
+		as deleted.
+
+		For example::
+
+			app.delete_records("r.v_createdat < now() - days(30)")
+
+		will delete all records that weren't created in the last 30 days and
+		will return how many were deleted.
+
+		.. hint::
+
+			To delete all records you can use::
+
+				app.delete_records("True")
+		"""
+
+		if not isinstance(filter, str):
+			raise TypeError(error_argument_wrong_type("filter", filter, str))
+		handler = self._gethandler()
+		return handler.delete_records(self, filter)
+
+	def fetch_records(self, filter:str, sorts:str | list[str] = None, offset:int = None, limit:int = None) -> None:
+		"""
+		Return records in this app matching the vSQL condition ``filter``.
+
+		``sorts`` can be a string or list of strings specifying how records should
+		be sorted. If ``sorts`` is a list of multiple strings the records will be
+		sorted lexicographically. Each sort expression must be a valid vSQL
+		expression optionally followed by ``asc`` or ``desc`` optionally followed
+		by ``nulls first`` or ``nulls last``. If ``sorts`` is ``None`` or an empty
+		list records will be returned in "natural" order.
+
+		If ``offset`` is not ``None`` it must be a non-negative integer and
+		defines at which offset in the actual list of records output will begin.
+		I.e. passing ``offset=1`` will skip the first record.
+
+		If ``limit`` is not ``None`` it must be a positive integer and defines
+		how may records (starting at the record defined by ``offset``) should be
+		returned.
+
+		Records will be returned as a dictionary which record ids as the keys and
+		:class:`Record` objects as the value.
+		"""
+
+		if not isinstance(filter, str):
+			raise TypeError(error_argument_wrong_type("filter", filter, str))
+		if sorts is None:
+			sorts = []
+		elif isinstance(sorts, str):
+			sorts = [sorts]
+		for sort in sorts:
+			if not isinstance(sort, str):
+				raise TypeError(error_argument_wrong_type("sorts", sort, str))
+		if offset is not None and not isinstance(offset, int):
+			raise TypeError(error_argument_wrong_type("offset", offset, (int, None)))
+		if limit is not None and not isinstance(limit, int):
+			raise TypeError(error_argument_wrong_type("limit", limit, (int, None)))
+
+		handler = self._gethandler()
+		return handler.fetch_records(self, filter=filter, sorts=sorts, offset=offset, limit=limit)
 
 
 @register("appgroup")
@@ -4238,7 +4349,7 @@ class LookupField(Field):
 	Adds the following attribute to instances:
 
 	.. attribute:: lookupdata
-		:type: dict[str, Union[str, LookupItem]]
+		:type: dict[str, str | LookupItem]
 
 		Custom lookup data for this field.
 
@@ -4286,7 +4397,7 @@ class LookupField(Field):
 	def has_custom_lookupdata(self):
 		return self._lookupdata is not None
 
-	def _find_lookupitem(self, value) -> Tuple[Union[None, "LookupItem", str], T_opt_str]:
+	def _find_lookupitem(self, value) -> tuple[Union[None, "LookupItem", str], T_opt_str]:
 		lookupdata = self.control.lookupdata
 		if isinstance(value, str):
 			if lookupdata is None:
@@ -4337,7 +4448,7 @@ class AppLookupField(Field):
 	Adds the following attribute to instances:
 
 	.. attribute:: lookupdata
-		:type: dict[str, Union[str, Record]]
+		:type: dict[str, str | Record]
 
 		Custom lookup data for this field.
 
@@ -4394,7 +4505,7 @@ class AppLookupField(Field):
 	def has_custom_lookupdata(self):
 		return self._lookupdata is not None
 
-	def _find_lookup_record(self, value) -> Tuple[Optional["Record"], T_opt_str]:
+	def _find_lookup_record(self, value) -> tuple[Optional["Record"], T_opt_str]:
 		if isinstance(value, str):
 			record = self.control.app.globals.handler.record_sync_data(value)
 			if record is None:
@@ -4986,6 +5097,9 @@ class Control(CustomAttributes):
 	def vsqlsortexpr(self, record, maxdepth):
 		return [] # The default doesn't add any sort expressions
 
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
+
 
 class StringControl(Control):
 	"""
@@ -5023,7 +5137,7 @@ class StringControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5223,8 +5337,11 @@ class TextAreaControl(StringControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_textarea_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
 
 
 @register("htmlcontrol")
@@ -5243,7 +5360,7 @@ class HTMLControl(StringControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.CLOB, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 
@@ -5263,7 +5380,7 @@ class IntControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.INT, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.INT, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5305,7 +5422,7 @@ class NumberControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.NUMBER, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.NUMBER, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5400,7 +5517,7 @@ class DateControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATE, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATE, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 
@@ -5443,8 +5560,11 @@ class DatetimeMinuteControl(DateControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_datetime_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
 
 
 @register("datetimesecondcontrol")
@@ -5486,8 +5606,11 @@ class DatetimeSecondControl(DateControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.DATETIME, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_datetime_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
 
 
 @register("boolcontrol")
@@ -5512,7 +5635,7 @@ class BoolControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.BOOL, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.BOOL, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5618,7 +5741,7 @@ class LookupControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5634,6 +5757,9 @@ class LookupControl(Control):
 		return [
 			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower")
 		]
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, {vsql.sql(self.id)}, row.{self.fieldname});"
 
 
 @register("lookupselectcontrol")
@@ -5781,7 +5907,7 @@ class AppLookupControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}", f"{{m}}.{self.field} = {{d}}.dat_id(+)", self.lookup_app.vsqlgroup_records)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.fieldname}", f"{{m}}.{self.field} = {{d}}.dat_id(+)", self.lookup_app.vsqlgroup_records)
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -5795,6 +5921,9 @@ class AppLookupControl(Control):
 			vsql.FieldRefAST.make(record, f"v_{self.identifier}"),
 			maxdepth,
 		)
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, {vsql.sql(str(self.lookup_app.internal_id))}, row.{self.fieldname});"
 
 
 @register("applookupselectcontrol")
@@ -5892,8 +6021,8 @@ class MultipleLookupControl(LookupControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			id = self.field.removeprefix("lup_kennungs")
-			fieldsql = f"cast(multiset(select lup_kennung from data_lookup_select dl where d.dat_id = {{a}}.dat_id and dl.dl_i = {id}) as varchars)"
+			id = self.fieldname.removeprefix("lup_kennungs")
+			fieldsql = f"cast(multiset(select lup_kennung from data_lookup_select dl where dl.dat_id = {{a}}.dat_id and dl.dl_i = {id}) as varchars)"
 			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST, fieldsql)
 		return self._vsqlfield
 
@@ -5974,7 +6103,7 @@ class MultipleAppLookupControl(AppLookupControl):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			id = self.field.removeprefix("dat_ids_applookup")
+			id = self.fieldname.removeprefix("dat_ids_applookup")
 			fieldsql = f"cast(multiset(select dat_id_applookup from data_applookup dal where dal.dat_id = {{a}}.dat_id and dal.dal_i = {id}) as varchars)"
 			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STRLIST, fieldsql)
 		return self._vsqlfield
@@ -6049,7 +6178,7 @@ class FileControl(Control):
 	def vsqlfield(self):
 		if self._vsqlfield is None:
 			# FIXME: This should reference :class:`File`, but Oracle doesn't support this yet.
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -6076,6 +6205,9 @@ class FileControl(Control):
 		return [
 			vsql.MethAST.make(vsql.FieldRefAST.make(record, f"v_{self.identifier}"), "lower")
 		]
+
+	def sql_fetch_statement(self):
+		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, {vsql.sql(self.fieldname)}, row.dat_id, v_tpl_uuid, row.{self.fieldname});"
 
 
 @register("filesignaturecontrol")
@@ -6114,7 +6246,7 @@ class GeoControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.GEO, f"{{a}}.{self.field}")
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.GEO, f"{{a}}.{self.fieldname}")
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
@@ -6271,7 +6403,7 @@ class ViewControl(Base):
 		Width of the label on screen.
 
 	.. attribute:: lookupdata
-		:type: Optional[dict[str, Union[str, LookupItem, Record]]
+		:type: Optional[dict[str, str | LookupItem | Record]
 
 		Lookup items for the control in this view.
 
@@ -8013,7 +8145,7 @@ class DataOrder(Base):
 		Unique database id
 
 	.. attribute:: parent
-		:type: Union[DataSourceConfig, DataSourceChildrenConfig]
+		:type: DataSourceConfig | DataSourceChildrenConfig
 
 		The :class:`DataSourceConfig` or :class:`DataSourceChildrenConfig` this object
 		belongs to
@@ -8293,7 +8425,7 @@ class DataActionCommand(Base):
 		Unique database id.
 
 	.. attribute:: parent
-		:type: Union[DataAction, DataActionCommand]
+		:type: DataAction | DataActionCommand
 
 		The data action this command belongs to or the command this comamnd is a
 		sub command of.
@@ -9083,6 +9215,20 @@ class DataSource(Base):
 		:type: list[DataSourceChildren]
 
 		The configurations for detail records of records in this data source.
+
+	.. attribute:: filter
+		:type: str | None
+
+		vSQL filter expression. Only records where this expression evaluated to
+		true will be included in ``app.records``.
+
+	.. attribute:: sort
+		:type: list[str]
+
+		vSQL sort expressions. Each item in the list is a vSQL expression
+		optionally followed by ``asc``/``desc`` and/or
+		``nulls first``/``nulls last``. Records are sorted lexicagraphically
+		by these expressions.
 	"""
 
 	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "app", "apps", "children"})
@@ -9093,13 +9239,17 @@ class DataSource(Base):
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	children = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	filter = Attr(str, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	sort = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id:str=None, identifier:str=None, app:Optional["App"]=None, apps:Dict[str, "App"]=None):
+	def __init__(self, id:str=None, identifier:str=None, app:Optional["App"]=None, apps:dict[str, "App"]=None):
 		self.id = id
 		self.identifier = identifier
 		self.app = app
 		self.apps = apps
 		self.children = []
+		self.filter = None
+		self.sort = []
 
 	@property
 	def ul4onid(self) -> str:
@@ -9195,6 +9345,20 @@ class DataSourceChildren(Base):
 		The :class:`AppLookupControl` object that references this app. All records
 		from the controls app that reference our record will be added to the
 		children dict.
+
+	.. attribute:: filter
+		:type: str | None
+
+		vSQL filter expression. Only records where this expression evaluated to
+		true will be included in ``app.records``.
+
+	.. attribute:: sort
+		:type: list[str]
+
+		vSQL sort expressions. Each item in the list is a vSQL expression
+		optionally followed by ``asc``/``desc`` and/or
+		``nulls first``/``nulls last``. Records are sorted lexicagraphically
+		by these expressions.
 	"""
 
 	ul4_attrs = Base.ul4_attrs.union({"id", "datasource", "identifier", "control"})
@@ -9204,12 +9368,16 @@ class DataSourceChildren(Base):
 	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	filter = Attr(str, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	sort = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, identifier=None, control=None, filter=None):
+	def __init__(self, id=None, identifier=None, control=None):
 		self.id = id
 		self.datasource = None
 		self.identifier = identifier
 		self.control = control
+		self.filter = None
+		self.sort = []
 
 	def __str__(self):
 		return f"{self.datasource or '?'}/datasourcechildren={self.identifier}"
@@ -9422,7 +9590,7 @@ class Category(Base):
 	children = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id:str=None, identifier:str=None, name:str=None, order:int=None, parent:Optional["Category"]=None, children:Optional[List["Category"]]=None, apps:Optional[Dict[str, App]]=None):
+	def __init__(self, id:str=None, identifier:str=None, name:str=None, order:int=None, parent:Optional["Category"]=None, children:Optional[List["Category"]]=None, apps:Optional[dict[str, App]]=None):
 		self.id = id
 		self.identifier = identifier
 		self.name = name
@@ -10328,7 +10496,7 @@ class HTTPRequest(Base):
 		Request headers as a :class:`dict` with case-insensitive keys.
 
 	.. attribute:: params
-		:type: dict[str, Union[str, File, list[Union[str, File]]]
+		:type: dict[str, str | File | list[str | File]]
 
 		Request parameters.
 

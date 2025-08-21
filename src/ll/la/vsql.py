@@ -653,13 +653,15 @@ class Query(Repr):
 		"""
 		self.comment = comment
 		self.vars = vars
-		self._fields : Dict[str, Tuple["AST"|str, str | None]] = {}
-		self._from : Dict[str, "AST"|str] = {}
-		self._where : Dict[str, "AST"|str] = {}
-		self._orderby : List[Tuple[str, "AST"|str, str | None, str | None]] = []
-		self._identifier_aliases : Dict[str, str] = {}
+		self._fields : dict[str, Tuple["AST"|str, str | None]] = {}
+		self._from : dict[str, "AST"|str] = {}
+		self._where : dict[str, "AST"|str] = {}
+		self._orderby : list[tuple[str, "AST"|str, str | None, str | None]] = []
+		self._offset = None
+		self._limit = None
+		self._identifier_aliases : dict[str, str] = {}
 
-	def _vsql_register(self, fieldref:FieldRefAST) -> str | None:
+	def _register(self, fieldref:FieldRefAST) -> str | None:
 		"""
 		Registers the :class:`FieldRefAST` object `fieldref`.
 
@@ -678,7 +680,7 @@ class Query(Repr):
 			alias = self._identifier_aliases[identifier]
 			return alias
 
-		alias = self._vsql_register(fieldref.parent)
+		alias = self._register(fieldref.parent)
 
 		newalias = f"t{len(self._from)+1}"
 		joincond = fieldref.parent.field.joinsql
@@ -700,13 +702,45 @@ class Query(Repr):
 		self._from[f"{fieldref.parent.field.refgroup.tablesql} {newalias}"] = fieldref.parent
 		return newalias
 
+	def register_vsql(self, identifier:str) -> str | None:
+		"""
+		Registers the field identifier ``identifier``.
+
+		``identifier`` must belong to one of the fields passed to the constructor
+		and it should reference a table.
+
+		:func:`register_vsql` will then make sure that this referenced table will
+		be added to the "from" list, even if it is never referenced explicitely
+		in any of the "form" and "where" clauses.
+		"""
+		if identifier not in self.vars:
+			raise ValueError(f"Unknown field {identifier!r}!")
+		field = self.vars[identifier]
+		newalias = f"t{len(self._from)+1}"
+		joincond = field.joinsql
+		if joincond is not None:
+			# Only add to "where" if the join condition is not empty
+			joincond = joincond.replace("{d}", newalias)
+			self._where[joincond] = identifier
+
+		if field.refgroup.tablesql is None:
+			# If this field is not part of a table (which can happen e.g. for
+			# the request parameters, which we get from function calls),
+			# we don't add the table aliases to the list of table aliases
+			# and we don't add a table to the "from" list.
+			return None
+
+		self._identifier_aliases[identifier] = newalias
+		self._from[f"{field.refgroup.tablesql} {newalias}"] = identifier
+		return newalias
+
 	def _vsql(self, expr:str) -> None:
 		"""
 		Compiles ``expr`` to a vSQL :class:`AST` and register all field references in it.
 		"""
 		expr = AST.fromsource(expr, **self.vars)
 		for fieldref in expr.fieldrefs():
-			self._vsql_register(fieldref)
+			self._register(fieldref)
 		return expr
 
 	def select_vsql(self, expr:str, alias=None) -> "Query":
@@ -788,13 +822,13 @@ class Query(Repr):
 		return self
 
 	def orderby_vsql(self, expr:str, direction:T_sortdirection=None, nulls:T_sortnulls=None) -> "Query":
-		r"""
+		"""
 		Add the "order by" vSQL exprssion ``expr`` to this query.
 
 		"order by" specifications will be output in the query in the order they
 		have been added.
 
-		Note that this compiles ``expr`` and add the resulting SQL. To add an
+		Note that this compiles ``expr`` and adds the resulting SQL. To add an
 		SQL expression directly use :meth:`orderby_sql` instead.
 
 		Argument are:
@@ -808,14 +842,19 @@ class Query(Repr):
 			The default ``None`` adds neither ``asc`` nor ``desc`` (which is
 			equivalent to ``asc``.
 
+		``nulls`` : ``None``, ``"first"`` or ``"last"``
+			Output ``null`` values first or last.
+
+			The default ``None`` adds neither ``nulls first`` nor ``nulls last``.
+
 		Example::
 
 			>>> from ll import la
 			>>> from ll.la import vsql
 			>>> q = vsql.Query("Example query", user=la.User.vsqlfield())
-			>>> q.select("user.email") \
-			...  .orderby("user.firstname", "asc") \
-			...  .orderby("user.surname", "desc")
+			>>> q.select_vsql("user.email") \
+			...  .orderby_vsql("user.firstname", "asc", "first") \
+			...  .orderby_vsql("user.surname", "desc", "last")
 			>>> print(q.sqlsource())
 			/* Example query */
 			select
@@ -825,8 +864,8 @@ class Query(Repr):
 			where
 				livingapi_pkg.global_user = t1.ide_id(+) /* user */
 			order by
-				t1.ide_firstname /* user.firstname */ asc,
-				t1.ide_surname /* user.surname */ desc
+				t1.ide_firstname /* user.firstname */ asc nulls first,
+				t1.ide_surname /* user.surname */ desc nulls last
 		"""
 		expr = self._vsql(expr)
 		expr.check_valid("orderby")
@@ -835,7 +874,7 @@ class Query(Repr):
 		return self
 
 	def orderby_sql(self, expr:str, direction:T_sortdirection=None, nulls:T_sortnulls=None) -> "Query":
-		r"""
+		"""
 		Add the "order by" SQL exprssion ``expr`` to this query.
 
 		"order by" specifications will be output in the query in the order they
@@ -847,6 +886,14 @@ class Query(Repr):
 		For an explanation of the rest of the arguments see :meth:`select_vsql`.
 		"""
 		self._orderby.append((expr, None, direction, nulls))
+		return self
+
+	def offset(self, offset: int | None) -> "Query":
+		self._offset = offset
+		return self
+
+	def limit(self, limit: int | None) -> "Query":
+		self._limit = limit
 		return self
 
 	def sqlsource(self, indent="\t") -> str:
@@ -861,9 +908,9 @@ class Query(Repr):
 		def s(sqlsource, expr, alias=None):
 			tokens.append(sqlsource)
 			if isinstance(expr, AST):
-				vsqlsource = f" {comment(expr.source())} */"
+				vsqlsource = f" {comment(expr.source())}"
 			elif expr is not None:
-				vsqlsource = f" /* {comment(expr)} */"
+				vsqlsource = f" {comment(expr)}"
 			else:
 				vsqlsource = None
 			if vsqlsource is not None and not sqlsource.endswith(vsqlsource):
@@ -872,7 +919,7 @@ class Query(Repr):
 				tokens.append(f" as {alias}")
 
 		if self.comment:
-			a("/* ", self.comment.replace('/*', '/ *').replace('*/', '* /'), " */", None)
+			a(comment(self.comment), None)
 
 		a("select", None, +1)
 		first = True
@@ -917,6 +964,11 @@ class Query(Repr):
 				if nulls:
 					a(" nulls ", nulls)
 			a(None, -1)
+
+		if self._offset is not None:
+			a("offset ", str(self._offset), " rows", None)
+		if self._limit is not None:
+			a("fetch next ", str(self._limit), " rows only", None)
 
 		source = []
 		first = True
@@ -1045,7 +1097,7 @@ class Rule(Repr):
 
 		return f"addRule(rules, VSQLDataType.{self.result.name}, List.of({key}), List.of({source}));"
 
-	def oracle_fields(self) -> Dict[str, int | str | sqlliteral]:
+	def oracle_fields(self) -> dict[str, int | str | sqlliteral]:
 		fields = {}
 
 		fields["vr_nodetype"] = self.astcls.nodetype.value
@@ -2138,7 +2190,7 @@ class FieldRefAST(AST):
 		return FieldRefAST(parent, identifier, result_field, parent, ".", identifier)
 
 	def _sqlsource(self, query:Query) -> Generator[str, None, None]:
-		alias = query._vsql_register(self)
+		alias = query._register(self)
 		full_identifier = self.full_identifier
 		if full_identifier.startswith("params."):
 			# If the innermost field is "params" we need special treatment
