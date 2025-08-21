@@ -2,12 +2,13 @@ HEAD (2025-08-??)
 -----------------
 
 *	Added a vSQL method ``vsql.Query.register_vsql`` to force the table referenced
-	by a vSQL variable to be include in the "from" list.
-*	Added UL4 attribute ``App.internal_id``, ``Globals.free``, ``DataSource.filter``,
-	``DataSource.sort``, ``DataSourceChildren.filter`` and
+	by a vSQL variable to be included in the "from" list.
+*	Added UL4 attribute ``App.internal_id``, ``Globals.free``,
+	``DataSource.filter``, ``DataSource.sort``, ``DataSourceChildren.filter`` and
 	``DataSourceChildren.sort``.
 *	Added methods ``App.count_records()``, ``App.delete_records()`` and
-	``App.fetch_records()``.
+	``App.fetch_records()`` that use dynamic vSQL queries to count, delete and
+	fetch records of an app.
 *	Added support for "offset" and "limit" clauses to vSQL queries.
 
 
