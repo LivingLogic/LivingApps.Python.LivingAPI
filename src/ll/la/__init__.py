@@ -136,12 +136,14 @@ def format_class(cls) -> str:
 		>>> format_class(int)
 		'int'
 	"""
-	if cls.__module__ not in ("builtins", "exceptions"):
-		return f"{cls.__module__}.{cls.__qualname__}"
-	elif cls is NoneType:
+	if cls is NoneType or cls is None:
 		return "None"
 	else:
-		return cls.__qualname__
+		mod = getattr(cls, "__module__", None)
+		if mod is not None and mod not in ("builtins", "exceptions"):
+			return f"{mod}.{cls.__qualname__}"
+		else:
+			return cls.__qualname__
 
 
 def format_list(items:List[str]) -> str:
