@@ -1,5 +1,5 @@
-HEAD (2025-08-??)
------------------
+0.50.0 (2025-08-21)
+-------------------
 
 *	Added a vSQL method ``vsql.Query.register_vsql`` to force the table referenced
 	by a vSQL variable to be included in the "from" list.
