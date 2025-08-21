@@ -1727,11 +1727,13 @@ class DBHandler(Handler):
 			dat_ids=dat_ids,
 		)
 
-		for dat_id in dat_ids.getvalue().aslist():
+		dat_ids = dat_ids.getvalue().aslist()
+		for dat_id in dat_ids:
 			record = self.ul4on_decoder.persistent_object("de.livinglogic.livingapi.record", dat_id)
 			if record is not None:
 				record._deleted = True
 				record.id = None
+		return len(dat_ids)
 
 	def fetch_records(self, app, filter:str, sorts:list[str], offset=None, limit=None):
 		q = vsql.Query(

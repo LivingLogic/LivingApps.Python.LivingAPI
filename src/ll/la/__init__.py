@@ -3530,7 +3530,7 @@ class App(CustomAttributes):
 		if not isinstance(filter, str):
 			raise TypeError(error_argument_wrong_type("filter", filter, str))
 		handler = self._gethandler()
-		handler.delete_records(self, filter)
+		return handler.delete_records(self, filter)
 
 	def fetch_records(self, filter:str, sorts:str | list[str] = None, offset:int = None, limit:int = None) -> None:
 		if not isinstance(filter, str):
