@@ -204,7 +204,7 @@ def error_attribute_readonly(instance:Any, name:str) -> str:
 
 
 def error_attribute_wrong_type(instance:Any, name:str, value:Any, allowed_types:List[Type]) -> str:
-	if isinstance(allowed_types, tuple):
+	if isinstance(allowed_types, (tuple, list)):
 		allowed_types = format_list([format_class(t) for t in allowed_types])
 	else:
 		allowed_types = format_class(allowed_types)
