@@ -965,6 +965,11 @@ class Query(Repr):
 					a(" nulls ", nulls)
 			a(None, -1)
 
+		if self._offset is not None:
+			a("offset ", str(self._offset), " rows", None)
+		if self._limit is not None:
+			a("fetch next ", str(self._limit), " rows only", None)
+
 		source = []
 		first = True
 		level = 0
