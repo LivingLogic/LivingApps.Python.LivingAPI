@@ -212,6 +212,15 @@ def error_attribute_wrong_type(instance:Any, name:str, value:Any, allowed_types:
 	return f"Value for attribute {name!r} of {misc.format_class(instance)!r} object must be {allowed_types}, but is {format_class(type(value))}."
 
 
+def error_argument_wrong_type(name:str, value:Any, allowed_types:List[Type]) -> str:
+	if isinstance(allowed_types, (tuple, list)):
+		allowed_types = format_list([format_class(t) for t in allowed_types])
+	else:
+		allowed_types = format_class(allowed_types)
+
+	return f"Argument {name!r} must be {allowed_types}, but is {format_class(type(value))}."
+
+
 def attribute_wrong_value(instance:Any, name:str, value:Any, allowed_values:Iterable) -> str:
 	allowed_values = format_list([repr(value) for value in allowed_values])
 
