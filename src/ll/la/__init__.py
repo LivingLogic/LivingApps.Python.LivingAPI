@@ -3521,18 +3521,78 @@ class App(CustomAttributes):
 		return result
 
 	def count_records(self, filter:str) -> int:
+		"""
+		Return the number of records in this app matching the vSQL condition ``filter``.
+
+		For example::
+
+			app.count_records("r.v_createdat >= now() - days(30)")
+
+		will return the number of records created in the last 30 days.
+
+		.. hint::
+
+			To count all records you can use::
+
+				app.count_records("True")
+		"""
+
 		if not isinstance(filter, str):
 			raise TypeError(error_argument_wrong_type("filter", filter, str))
 		handler = self._gethandler()
 		return handler.count_records(self, filter)
 
 	def delete_records(self, filter:str) -> None:
+		"""
+		Delete records in this app matching the vSQL condition ``filter``.
+
+		Return the number of records deleted.
+
+		LivingAPI objects for records that have been deleted will be marked
+		as deleted.
+
+		For example::
+
+			app.delete_records("r.v_createdat < now() - days(30)")
+
+		will delete all records that weren't created in the last 30 days and
+		will return how many were deleted.
+
+		.. hint::
+
+			To delete all records you can use::
+
+				app.delete_records("True")
+		"""
+
 		if not isinstance(filter, str):
 			raise TypeError(error_argument_wrong_type("filter", filter, str))
 		handler = self._gethandler()
 		return handler.delete_records(self, filter)
 
 	def fetch_records(self, filter:str, sorts:str | list[str] = None, offset:int = None, limit:int = None) -> None:
+		"""
+		Return records in this app matching the vSQL condition ``filter``.
+
+		``sorts`` can be a string or list of strings specifying how records should
+		be sorted. If ``sorts`` is a list of multiple strings the records will be
+		sorted lexicographically. Each sort expression must be a valid vSQL
+		expression optionally followed by ``asc`` or ``desc`` optionally followed
+		by ``nulls first`` or ``nulls last``. If ``sorts`` is ``None`` or an empty
+		list records will be returned in "natural" order.
+
+		If ``offset`` is not ``None`` it must be a non-negative integer and
+		defines at which offset in the actual list of records output will begin.
+		I.e. passing ``offset=1`` will skip the first record.
+
+		If ``limit`` is not ``None`` it must be a positive integer and defines
+		how may records (starting at the record defined by ``offset``) should be
+		returned.
+
+		Records will be returned as a dictionary which record ids as the keys and
+		:class:`Record` objects as the value.
+		"""
+
 		if not isinstance(filter, str):
 			raise TypeError(error_argument_wrong_type("filter", filter, str))
 		if sorts is None:
