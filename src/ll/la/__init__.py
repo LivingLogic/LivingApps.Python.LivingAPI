@@ -3521,19 +3521,32 @@ class App(CustomAttributes):
 		return result
 
 	def count_records(self, filter:str) -> int:
+		if not isinstance(filter, str):
+			raise TypeError(error_argument_wrong_type("filter", filter, str))
 		handler = self._gethandler()
 		return handler.count_records(self, filter)
 
 	def delete_records(self, filter:str) -> None:
+		if not isinstance(filter, str):
+			raise TypeError(error_argument_wrong_type("filter", filter, str))
 		handler = self._gethandler()
 		handler.delete_records(self, filter)
 
 	def fetch_records(self, filter:str, sorts:str | list[str] = None, offset:int = None, limit:int = None) -> None:
+		if not isinstance(filter, str):
+			raise TypeError(error_argument_wrong_type("filter", filter, str))
 		handler = self._gethandler()
 		if sorts is None:
 			sorts = []
 		elif isinstance(sorts, str):
 			sorts = [sorts]
+		for sort in sorts:
+			if not isinstance(sort, str):
+				raise TypeError(error_argument_wrong_type("sorts", sort, str))
+		if offset is not None and not isinstance(offset, int):
+			raise TypeError(error_argument_wrong_type("offset", offset, (int, None)))
+		if limit is not None and not isinstance(limit, int):
+			raise TypeError(error_argument_wrong_type("limit", limit, (int, None)))
 		return handler.fetch_records(self, filter=filter, sorts=sorts, offset=offset, limit=limit)
 
 
