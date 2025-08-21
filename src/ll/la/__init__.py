@@ -3535,7 +3535,6 @@ class App(CustomAttributes):
 	def fetch_records(self, filter:str, sorts:str | list[str] = None, offset:int = None, limit:int = None) -> None:
 		if not isinstance(filter, str):
 			raise TypeError(error_argument_wrong_type("filter", filter, str))
-		handler = self._gethandler()
 		if sorts is None:
 			sorts = []
 		elif isinstance(sorts, str):
@@ -3547,6 +3546,8 @@ class App(CustomAttributes):
 			raise TypeError(error_argument_wrong_type("offset", offset, (int, None)))
 		if limit is not None and not isinstance(limit, int):
 			raise TypeError(error_argument_wrong_type("limit", limit, (int, None)))
+
+		handler = self._gethandler()
 		return handler.fetch_records(self, filter=filter, sorts=sorts, offset=offset, limit=limit)
 
 
