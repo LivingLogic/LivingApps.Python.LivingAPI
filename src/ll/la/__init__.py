@@ -3458,10 +3458,10 @@ class App(CustomAttributes):
 		return record
 
 	def vsqlfield_records(self, ul4var, sqlvar):
-		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.tpl_id(+)", self.vsqlgroup_records)
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.tpl_id", self.vsqlgroup_records)
 
 	def vsqlfield_app(self, ul4var, sqlvar):
-		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.tpl_id(+)", self.vsqlgroup_app)
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.tpl_id", self.vsqlgroup_app)
 
 	@property
 	def vsqlgroup_records(self):
@@ -5907,7 +5907,7 @@ class AppLookupControl(Control):
 	@property
 	def vsqlfield(self):
 		if self._vsqlfield is None:
-			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.fieldname}", f"{{m}}.{self.field} = {{d}}.dat_id(+)", self.lookup_app.vsqlgroup_records)
+			self._vsqlfield = vsql.Field(f"v_{self.identifier}", vsql.DataType.STR, f"{{a}}.{self.fieldname}", f"({{m}}.{self.field} = {{d}}.dat_id(+))", self.lookup_app.vsqlgroup_records)
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):

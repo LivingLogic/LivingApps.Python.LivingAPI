@@ -1,3 +1,10 @@
+HEAD (2025-??-??)
+-----------------
+
+*	Fixed join condition in ``App.vsqlfield_app`` and ``App.vsqlfield_records``
+	to use an inner join instead of an outer join.
+
+
 0.50.0 (2025-08-21)
 -------------------
 
