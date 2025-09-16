@@ -1,3 +1,10 @@
+0.50.2 (2025-09-16)
+-------------------
+
+*	Fixed attribute name in ``AppLookupControl.vsqlfield``
+*	Remove debug ``print``s.
+
+
 0.50.1 (2025-09-10)
 -------------------
 
