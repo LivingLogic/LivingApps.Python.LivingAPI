@@ -1842,8 +1842,6 @@ class DBHandler(Handler):
 			end;
 		"""
 
-		print(query)
-
 		dump = c.var(orasql.BLOB)
 
 		c.execute(
@@ -1857,7 +1855,6 @@ class DBHandler(Handler):
 		)
 
 		dump = dump.getvalue().read().decode("utf-8")
-		print(dump)
 		return self.ul4on_decoder.loads(dump)
 
 
