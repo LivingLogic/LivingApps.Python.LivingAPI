@@ -2707,7 +2707,7 @@ class App(CustomAttributes):
 		The definition of the fields of this app.
 
 	.. attribute:: child_controls
-		:type: list[Control]
+		:type: dict[str, Control]
 
 		All controls of type ``applookup`` or ``multipleapplookup`` whose target
 		app is this app.
