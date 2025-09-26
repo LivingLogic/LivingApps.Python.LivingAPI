@@ -7137,7 +7137,7 @@ class RecordChildren(Base):
 	"""
 
 	ul4_attrs = Base.ul4_attrs.union({"id", "record", "datasourcechildren", "records"})
-	ul4_type = ul4c.Type("la", "DataSourceChildren", "The detail records for a master record")
+	ul4_type = ul4c.Type("la", "RecordChildren", "The detail records for a master record")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	record = Attr(Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
