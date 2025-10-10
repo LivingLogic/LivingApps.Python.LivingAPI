@@ -1,3 +1,13 @@
+HEAD (2025-??-??)
+-----------------
+
+*	Added class ``Permissions`` and attribute ``App.permissions``.
+*	Added attribute ``App.recordpage``.
+*	Added attribute ``Globals.user_record``.
+*	Added attributes ``App.filter_default``, ``App.sort_default`` and
+	``App.filter_owndata``.
+
+
 0.50.2 (2025-09-16)
 -------------------
 

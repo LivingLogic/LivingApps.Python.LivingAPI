@@ -1735,7 +1735,7 @@ class DBHandler(Handler):
 				record.id = None
 		return len(dat_ids)
 
-	def fetch_records(self, app, filter:str, sorts:list[str], offset=None, limit=None):
+	def fetch_records(self, app, filter:str, sort:list[str], offset=0, limit=None):
 		q = vsql.Query(
 			f"Fetch records of app {app.name} ({app.id})",
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
@@ -1765,7 +1765,7 @@ class DBHandler(Handler):
 		q.where_vsql(filter)
 
 		# Add offset specified by the user
-		if offset is not None:
+		if offset is not None and offset > 0:
 			q.offset(offset)
 
 		# Add limit specified by the user
@@ -1773,25 +1773,25 @@ class DBHandler(Handler):
 			q.limit(limit)
 
 		# Add sort expressions specified by the user
-		for sort in sorts:
+		for s in sort:
 			direction = None
 			nulls = None
 			while True:
-				if direction is None and sort.endswith(" asc"):
+				if direction is None and s.endswith(" asc"):
 					direction = "asc"
-					sort = sort[:-4].strip()
-				elif direction is None and sort.endswith(" desc"):
+					s = s[:-4].strip()
+				elif direction is None and s.endswith(" desc"):
 					direction = "desc"
-					sort = sort[:-5].strip()
-				elif nulls is None and sort.endswith(" nulls last"):
+					s = s[:-5].strip()
+				elif nulls is None and s.endswith(" nulls last"):
 					nulls = "last"
-					sort = sort[:-11].strip()
-				elif nulls is None and sort.endswith(" nulls first"):
+					s = s[:-11].strip()
+				elif nulls is None and s.endswith(" nulls first"):
 					nulls = "first"
-					sort = sort[:-12].strip()
+					s = s[:-12].strip()
 				else:
 					break
-			q.orderby_vsql(sort, direction=direction, nulls=nulls)
+			q.orderby_vsql(s, direction=direction, nulls=nulls)
 
 		c = self.cursor()
 

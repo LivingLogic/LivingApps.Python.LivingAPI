@@ -1962,6 +1962,36 @@ class KeyView(Base):
 		return self.id
 
 
+@register("permission")
+class Permissions(Base):
+	ul4_attrs = {
+		"edit",
+		"config",
+		"delete",
+		"task_manage",
+		"data_edit",
+		"data_view",
+		"task_view",
+		"frontend",
+		"data_connect_external",
+		"perform_evaluation",
+		"to_catalog",
+		"data_import_export",
+		"mydata_view",
+		"mydata_edit",
+		"user_admin",
+	}
+	ul4_type = ul4c.Type("la", "Permission", "Permission information")
+
+	def __init__(self, permissions):
+		for (i, attrname) in enumerate(self.ul4_attrs):
+			setattr(self, attrname, permissions != 0)
+
+	def __repr__(self):
+		attrs = "".join(f" {attrname}=True" for attrname in self.ul4_attrs if getattr(self, attrname))
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__}{attrs} at {id(self):#x}>"
+
+
 @register("globals")
 class Globals(CustomAttributes):
 	r"""
@@ -1983,17 +2013,22 @@ class Globals(CustomAttributes):
 		A name for the platform we're running on.
 
 	.. attribute:: user
-		:type: Optional[User]
+		:type: User | None
 
-		The currently logging in user.
+		The currently logged in user.
+
+	.. attribute:: user_record
+		:type: Record | None
+
+		A record containing additional information specific to the currently logged in user.
 
 	.. attribute:: maxdbactions
-		:type: Optional[int]
+		:type: int | None
 
 		How many database actions may a template execute?.
 
 	.. attribute:: maxtemplateruntime
-		:type: Optional[int]
+		:type: int | None
 
 		How long is a template allowed to run?.
 
@@ -2028,7 +2063,7 @@ class Globals(CustomAttributes):
 		The app that the running template belongs to.
 
 	.. attribute:: record
-		:type: Optional[Record]
+		:type: Record | None
 
 		The detail record.
 
@@ -2073,6 +2108,7 @@ class Globals(CustomAttributes):
 		"externaldatasources",
 		"groups",
 		"user",
+		"user_record",
 		"lang",
 		"templates",
 		"params",
@@ -2145,6 +2181,7 @@ class Globals(CustomAttributes):
 	version = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	platform = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	user = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	user_record = Attr(lambda: Record, get=True, set=True, ul4get=True, ul4set=True)
 	maxdbactions = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	maxtemplateruntime = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2174,6 +2211,7 @@ class Globals(CustomAttributes):
 		self.platform = platform
 		self.app = None
 		self.record = None
+		self.user_record = None
 		self.datasources = attrdict()
 		self._groups = None
 		self.user = None
@@ -2853,6 +2891,12 @@ class App(CustomAttributes):
 		"lang",
 		"group",
 		"appgroup",
+		"main",
+		"ai_generated",
+		"filter_default",
+		"sort_default",
+		"filter_owndata",
+		"permissions",
 		"gramgen",
 		"typename_nom_sin",
 		"typename_gen_sin",
@@ -2919,6 +2963,7 @@ class App(CustomAttributes):
 		"count_records",
 		"delete_records",
 		"fetch_records",
+		"fetch_recordpage",
 	})
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
@@ -2948,6 +2993,7 @@ class App(CustomAttributes):
 	controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	layout_controls = AttrDictAttr(get="", ul4get="_layout_controls_get")
 	records = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	recordpage = Attr(lambda: RecordPage, get="", ul4get="_recordpage_get")
 	record_start = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record_count = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record_total = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
@@ -2974,6 +3020,10 @@ class App(CustomAttributes):
 	main = BoolAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	ai_generated = BoolAttr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplates = Attr(get="", ul4get="_viewtemplates_get", ul4onget="", ul4onset="")
+	filter_default = Attr(list, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	sort_default = Attr(list, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	filter_owndata = Attr(list, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	permissions = Attr(Permissions, get=True, ul4get=True, ul4onget=True, ul4onset="")
 	menus = Attr(get="", set="", ul4get="_menus_get")
 	panels = Attr(get="", set="", ul4get="_panels_get")
 	child_controls = Attr(get="", set="", ul4get="_child_controls_get")
@@ -3004,6 +3054,7 @@ class App(CustomAttributes):
 		self._menus = None
 		self._panels = None
 		self.records = None
+		self.__dict__["recordpage"] = None
 		self.record_start = None
 		self.record_count = None
 		self.record_total = None
@@ -3026,6 +3077,10 @@ class App(CustomAttributes):
 		self.datasource = None
 		self.main = False
 		self.ai_generated = False
+		self.filter_default = []
+		self.sort_default = []
+		self.filter_owndata = []
+		self.permissions = None
 		self.internaltemplates = None
 		self.viewtemplates_config = None
 		self.dataactions = None
@@ -3067,6 +3122,15 @@ class App(CustomAttributes):
 	def _record_total_ul4onset(self, value):
 		if value is not None:
 			self.record_total = value
+
+	def _recordpage_get(self):
+		if self.__dict__["recordpage"] is None:
+			rp = RecordPage(self, filter=self.filter_default, sort=self.sort_default, offset=self.record_start, limit=self.record_count)
+			rp._records = self.records
+			rp._count = len(rp._records)
+			rp._total = self.record_total
+			self.__dict__["recordpage"] = rp
+		return self.__dict__["recordpage"]
 
 	def _categories_ul4onset(self, value):
 		if value is not None:
@@ -3330,6 +3394,9 @@ class App(CustomAttributes):
 			self._params = params
 		return self._params
 
+	def _permissions_ul4onset(self, value):
+		self.__dict__["permissions"] = Permissions(value)
+
 	def _menus_get(self):
 		menus = self._menus
 		if menus is None:
@@ -3570,7 +3637,15 @@ class App(CustomAttributes):
 		handler = self._gethandler()
 		return handler.delete_records(self, filter)
 
-	def fetch_records(self, filter:str, sorts:str | list[str] = None, offset:int = None, limit:int = None) -> None:
+	def _make_sort(self, sort):
+		if sort is None:
+			return []
+		elif isinstance(sort, str):
+			return [sort]
+		else:
+			return sort
+
+	def fetch_records(self, filter:str, sort:str | list[str] = None, offset:int = 0, limit:int = None) -> dict[str, "Record"]:
 		"""
 		Return records in this app matching the vSQL condition ``filter``.
 
@@ -3595,20 +3670,53 @@ class App(CustomAttributes):
 
 		if not isinstance(filter, str):
 			raise TypeError(error_argument_wrong_type("filter", filter, str))
-		if sorts is None:
-			sorts = []
-		elif isinstance(sorts, str):
-			sorts = [sorts]
-		for sort in sorts:
-			if not isinstance(sort, str):
-				raise TypeError(error_argument_wrong_type("sorts", sort, str))
+		sort = self._make_sort(sort)
+		for s in sort:
+			if not isinstance(s, str):
+				raise TypeError(error_argument_wrong_type("sorts", s, str))
 		if offset is not None and not isinstance(offset, int):
 			raise TypeError(error_argument_wrong_type("offset", offset, (int, None)))
 		if limit is not None and not isinstance(limit, int):
 			raise TypeError(error_argument_wrong_type("limit", limit, (int, None)))
 
 		handler = self._gethandler()
-		return handler.fetch_records(self, filter=filter, sorts=sorts, offset=offset, limit=limit)
+		return handler.fetch_records(self, filter=filter, sort=sort, offset=offset, limit=limit)
+
+	def fetch_recordpage(self, filter:str, sort:str | list[str] = None, offset:int = 0, limit:int = None) -> "RecordPage":
+		"""
+		Return records in this app matching the vSQL condition ``filter``.
+
+		``sort`` can be a string or list of strings specifying how records should
+		be sorted. If ``sort`` is a list of multiple strings the records will be
+		sorted lexicographically. Each sort expression must be a valid vSQL
+		expression optionally followed by ``asc`` or ``desc`` optionally followed
+		by ``nulls first`` or ``nulls last``. If ``sort`` is ``None`` or an empty
+		list records will be returned in "natural" order.
+
+		If ``offset`` is not ``None`` it must be a non-negative integer and
+		defines at which offset in the actual list of records output will begin.
+		I.e. passing ``offset=1`` will skip the first record.
+
+		If ``limit`` is not ``None`` it must be a positive integer and defines
+		how may records (starting at the record defined by ``offset``) should be
+		returned.
+
+		Records will be returned as a dictionary which record ids as the keys and
+		:class:`Record` objects as the value.
+		"""
+
+		if not isinstance(filter, str):
+			raise TypeError(error_argument_wrong_type("filter", filter, str))
+		sort = self._make_sort(sort)
+		for s in sort:
+			if not isinstance(s, str):
+				raise TypeError(error_argument_wrong_type("sorts", s, str))
+		if offset is not None and not isinstance(offset, int):
+			raise TypeError(error_argument_wrong_type("offset", offset, (int, None)))
+		if limit is not None and not isinstance(limit, int):
+			raise TypeError(error_argument_wrong_type("limit", limit, (int, None)))
+
+		return RecordPage(self, filter=filter, sort=sort, offset=offset, limit=limit)
 
 
 @register("appgroup")
@@ -7146,12 +7254,14 @@ class RecordChildren(Base):
 	record_start = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record_count = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	record_total = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	recordpage = Attr(lambda: RecordPage, get=True, ul4get=True)
 
 	def __init__(self, id=None, record=None, datasourcechildren=None):
 		self.id = id
 		self.record = record
 		self.datasourcechildren = datasourcechildren
 		self.records = {}
+		self.__dict__["recordpage"] = None
 		self.record_start = None
 		self.record_count = None
 		self.record_total = None
@@ -7170,6 +7280,15 @@ class RecordChildren(Base):
 		if self.record is None:
 			raise NoHandlerError()
 		return self.record._gethandler()
+
+	def _recordpage_get(self):
+		if self.__dict__["recordpage"] is None:
+			rp = RecordPage(self, filter=None, sort=None, offset=self.record_start, limit=self.record_count)
+			rp._records = self.records
+			rp._count = len(rp._records)
+			rp._total = self.record_total
+			self.__dict__["recordpage"] = rp
+		return self.__dict__["recordpage"]
 
 
 class Attachment(Base):
@@ -7363,6 +7482,118 @@ class EMailAttachment(Base):
 
 	def _size_get(self):
 		return len(self.content) if self.content is not None else None
+
+
+@register("recordpage")
+class RecordPage(Base):
+	"""
+	A :class:RecordPage` object represents a subset of records retrieved from
+	a database query, defined by a given limit and offset, along with the total
+	number of matching records.
+
+	Instance attributes are:
+
+	.. attribute:: app
+		:type: App
+
+		The app to which the records belong.
+
+	.. attribute:: filter
+		:type: str
+
+		The vSQL filter expression that the records match. Only records where
+		this expression evaluated to true will be included in ``records``.
+
+	.. attribute:: sort
+		:type: :class:`list[str]`
+
+		vSQL sort expressions. Each item in the list is a vSQL expression
+		optionally followed by ``asc``/``desc`` and/or
+		``nulls first``/``nulls last``. Records are sorted lexicographically
+		by these expressions.
+
+	.. attribute:: offset
+		:type: int
+
+		The index of the first record to return, i.e. the number of matching
+		records (after applying ``filter`` and ``sort``) that are skipped before
+		the first record in ``records``.
+
+	.. attribute:: limit
+		:type: int | None
+
+		The maximum number of records to return, i.e. the upper bound on how many
+		matching records (after applying ``filter`` and ``sort``) can appear in
+		``records``.
+
+	.. attribute:: records
+		:type: dict[str, Record]
+
+		The records as a dictionary mapping database iD to :class:`Record` objects.
+		The dictioanry is sorted by the ``sort`` expr
+
+	.. attribute:: count
+		:type: int
+
+		The number of records in this object (i.e. the length of ``records``.
+
+	.. attribute:: total
+		:type: int
+
+		The total number of recors matching ``filter`` (i.e. then number of
+		records that would have been return without ``limit`` and ``offset``.
+	"""
+
+	ul4_attrs = Base.ul4_attrs.union({"filter", "sort", "offset", "limit", "records", "count", "total"})
+	ul4_type = ul4c.Type("la", "RecordPage", "A window of query results with pagination metadata (limit, offset, total count)")
+
+	filter = Attr(list, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	sort = Attr(list, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	offset = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	limit = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	records = Attr(dict, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	count = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	total = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, app, filter, sort=None, offset=0, limit=None):
+		self.app = app
+		self.filter = filter
+		self.sort = sort
+		self.offset = offset
+		self.limit = limit
+		self._records = None
+		self._count = None
+		self._total = None
+
+	def __repr__(self):
+		v = [f"<{self.__class__.__module__}.{self.__class__.__qualname__} filter={self.filter!r} sort={self.sort!r}"]
+		if self.offset is not None:
+			v.append(f" offset={self.offset}")
+		if self.limit is not None:
+			v.append(f" limit={self.limit}")
+		v.append(f" at {id(self):#x}>")
+		return "".join(v)
+
+	@property
+	def records(self):
+		if self._records is None:
+			self._records = self.app.fetch_records(self.filter, self.sort, self.offset, self.limit)
+		return self._records
+
+	@property
+	def count(self):
+		if self._count is None:
+			self._count = len(self.records)
+		return self._count
+
+	@property
+	def total(self):
+		if self._total is None:
+			if self.offset > 0 or self.limit is not None:
+				self._total = self.app.count_records(self.filter)
+			else:
+				self._total = self.count
+		return self._total
 
 
 class Template(Base):
@@ -9227,7 +9458,7 @@ class DataSource(Base):
 
 		vSQL sort expressions. Each item in the list is a vSQL expression
 		optionally followed by ``asc``/``desc`` and/or
-		``nulls first``/``nulls last``. Records are sorted lexicagraphically
+		``nulls first``/``nulls last``. Records are sorted lexicographically
 		by these expressions.
 	"""
 
@@ -9357,7 +9588,7 @@ class DataSourceChildren(Base):
 
 		vSQL sort expressions. Each item in the list is a vSQL expression
 		optionally followed by ``asc``/``desc`` and/or
-		``nulls first``/``nulls last``. Records are sorted lexicagraphically
+		``nulls first``/``nulls last``. Records are sorted lexicographically
 		by these expressions.
 	"""
 
