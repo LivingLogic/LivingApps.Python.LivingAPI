@@ -2142,7 +2142,7 @@ class Globals(CustomAttributes):
 
 	template_types = ((None, "app_instance"), (None, None))
 
-	supported_version = "135"
+	supported_version = "136"
 
 	class Mode(misc.Enum):
 		"""
@@ -3587,7 +3587,43 @@ class App(CustomAttributes):
 					result.extend(control.vsqlsortexpr(record, maxdepth-1))
 		return result
 
-	def count_records(self, filter:str) -> int:
+	def _make_filter(self, filter):
+		if filter is None:
+			return []
+		elif isinstance(filter, str):
+			return [filter]
+		elif isinstance(filter, list):
+			for f in filter:
+				if f is not None and not isinstance(f, str):
+					raise TypeError(error_argument_wrong_type("filter", f, str))
+			return [f for f in filter if f is not None]
+		else:
+			raise TypeError(error_argument_wrong_type("filter", filter, list))
+
+	def _make_sort(self, sort):
+		if sort is None:
+			return []
+		elif isinstance(sort, str):
+			return [sort]
+		elif isinstance(sort, list):
+			for s in sort:
+				if s is not None and not isinstance(s, str):
+					raise TypeError(error_argument_wrong_type("sort", s, str))
+			return [s for s in sort if s is not None]
+		else:
+			raise TypeError(error_argument_wrong_type("filter", filter, list))
+
+	def _make_offset(self, offset):
+		if offset is not None and not isinstance(offset, int):
+			raise TypeError(error_argument_wrong_type("offset", offset, (int, None)))
+		return offset
+
+	def _make_limit(self, limit):
+		if limit is not None and not isinstance(limit, int):
+			raise TypeError(error_argument_wrong_type("limit", limit, (int, None)))
+		return limit
+
+	def count_records(self, filter:str | list[str]) -> int:
 		"""
 		Return the number of records in this app matching the vSQL condition ``filter``.
 
@@ -3604,12 +3640,12 @@ class App(CustomAttributes):
 				app.count_records("True")
 		"""
 
-		if not isinstance(filter, str):
-			raise TypeError(error_argument_wrong_type("filter", filter, str))
+		filter = self._make_filter(filter)
+
 		handler = self._gethandler()
 		return handler.count_records(self, filter)
 
-	def delete_records(self, filter:str) -> None:
+	def delete_records(self, filter:str | list[str]) -> int:
 		"""
 		Delete records in this app matching the vSQL condition ``filter``.
 
@@ -3632,20 +3668,12 @@ class App(CustomAttributes):
 				app.delete_records("True")
 		"""
 
-		if not isinstance(filter, str):
-			raise TypeError(error_argument_wrong_type("filter", filter, str))
+		filter = self._make_filter(filter)
+
 		handler = self._gethandler()
 		return handler.delete_records(self, filter)
 
-	def _make_sort(self, sort):
-		if sort is None:
-			return []
-		elif isinstance(sort, str):
-			return [sort]
-		else:
-			return sort
-
-	def fetch_records(self, filter:str, sort:str | list[str] = None, offset:int = 0, limit:int = None) -> dict[str, "Record"]:
+	def fetch_records(self, filter:str | list[str], sort:str | list[str] = None, offset:int = 0, limit:int = None) -> dict[str, "Record"]:
 		"""
 		Return records in this app matching the vSQL condition ``filter``.
 
@@ -3668,21 +3696,15 @@ class App(CustomAttributes):
 		:class:`Record` objects as the value.
 		"""
 
-		if not isinstance(filter, str):
-			raise TypeError(error_argument_wrong_type("filter", filter, str))
+		filter = self._make_filter(filter)
 		sort = self._make_sort(sort)
-		for s in sort:
-			if not isinstance(s, str):
-				raise TypeError(error_argument_wrong_type("sorts", s, str))
-		if offset is not None and not isinstance(offset, int):
-			raise TypeError(error_argument_wrong_type("offset", offset, (int, None)))
-		if limit is not None and not isinstance(limit, int):
-			raise TypeError(error_argument_wrong_type("limit", limit, (int, None)))
+		offset = self._make_offset(offset)
+		limit = self._make_limit(limit)
 
 		handler = self._gethandler()
 		return handler.fetch_records(self, filter=filter, sort=sort, offset=offset, limit=limit)
 
-	def fetch_recordpage(self, filter:str, sort:str | list[str] = None, offset:int = 0, limit:int = None) -> "RecordPage":
+	def fetch_recordpage(self, filter:str | list[str], sort:str | list[str] = None, offset:int = 0, limit:int = None) -> "RecordPage":
 		"""
 		Return records in this app matching the vSQL condition ``filter``.
 
@@ -3705,16 +3727,10 @@ class App(CustomAttributes):
 		:class:`Record` objects as the value.
 		"""
 
-		if not isinstance(filter, str):
-			raise TypeError(error_argument_wrong_type("filter", filter, str))
+		filter = self._make_filter(filter)
 		sort = self._make_sort(sort)
-		for s in sort:
-			if not isinstance(s, str):
-				raise TypeError(error_argument_wrong_type("sorts", s, str))
-		if offset is not None and not isinstance(offset, int):
-			raise TypeError(error_argument_wrong_type("offset", offset, (int, None)))
-		if limit is not None and not isinstance(limit, int):
-			raise TypeError(error_argument_wrong_type("limit", limit, (int, None)))
+		offset = self._make_offset(offset)
+		limit = self._make_limit(limit)
 
 		return RecordPage(self, filter=filter, sort=sort, offset=offset, limit=limit)
 
@@ -6743,6 +6759,9 @@ class Record(CustomAttributes):
 		"display_standalone_url",
 		"display_url",
 		"send_mail",
+		"fetch_child_records",
+		"count_child_records",
+		"fetch_child_recordpage",
 	})
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
@@ -7138,6 +7157,15 @@ class Record(CustomAttributes):
 			body_html=body_html,
 			attachments=attachments,
 		)
+
+	def fetch_child_records(self, filter:str | list[str], sort:str | list[str] = None, offset:int = 0, limit:int = None) -> dict[str, "Record"]:
+		pass
+
+	def count_child_records(self, filter:str | list[str]) -> int:
+		pass
+
+	def fetch_child_recordpage(self, filter:str | list[str], sort:str | list[str] = None, offset:int = 0, limit:int = None) -> "RecordPage":
+		pass
 
 	def has_errors(self):
 		if self.errors:
@@ -7559,7 +7587,7 @@ class RecordPage(Base):
 		self.app = app
 		self.filter = filter
 		self.sort = sort
-		self.offset = offset
+		self.offset = offset or 0
 		self.limit = limit
 		self._records = None
 		self._count = None
@@ -7571,6 +7599,10 @@ class RecordPage(Base):
 			v.append(f" offset={self.offset}")
 		if self.limit is not None:
 			v.append(f" limit={self.limit}")
+		if self._count is not None:
+			v.append(f" count={self._count}")
+		if self._total is not None:
+			v.append(f" total={self._total}")
 		v.append(f" at {id(self):#x}>")
 		return "".join(v)
 

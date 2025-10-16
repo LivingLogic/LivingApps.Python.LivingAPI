@@ -1735,7 +1735,7 @@ class DBHandler(Handler):
 				record.id = None
 		return len(dat_ids)
 
-	def fetch_records(self, app, filter:str, sort:list[str], offset=0, limit=None):
+	def fetch_records(self, app, filter:list[str], sort:list[str], offset=0, limit=None):
 		q = vsql.Query(
 			f"Fetch records of app {app.name} ({app.id})",
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
@@ -1762,7 +1762,8 @@ class DBHandler(Handler):
 			q.select_vsql(f"r.v_{control.identifier}", control.fieldname)
 
 		# Apply use specified filter
-		q.where_vsql(filter)
+		for f in filter:
+			q.where_vsql(f)
 
 		# Add offset specified by the user
 		if offset is not None and offset > 0:
