@@ -652,7 +652,7 @@ class Query(Repr):
 			table, so it has a ``joinsql`` and a ``refgroup``.
 		"""
 		self.comment = comment
-		self.vars = vars
+		self.vars = {name: field for (name, field) in vars.items() if field is not None}
 		self._fields : dict[str, Tuple["AST"|str, str | None]] = {}
 		self._from : dict[str, "AST"|str] = {}
 		self._where : dict[str, "AST"|str] = {}
@@ -711,7 +711,7 @@ class Query(Repr):
 
 		:func:`register_vsql` will then make sure that this referenced table will
 		be added to the "from" list, even if it is never referenced explicitely
-		in any of the "form" and "where" clauses.
+		in any of the "from" and "where" clauses.
 		"""
 		if identifier not in self.vars:
 			raise ValueError(f"Unknown field {identifier!r}!")
@@ -3431,7 +3431,7 @@ FuncAST.add_rules(f"NUMBER <- random()", "dbms_random.value")
 FuncAST.add_rules(f"INT <- randrange(INT, INT)", "floor(dbms_random.value({s1}, {s2}))")
 
 # Function `seq()``
-FuncAST.add_rules(f"INT <- seq()", "livingapi_pkg.seq()")
+FuncAST.add_rules(f"INT <- seq()", "vsqlimpl_pkg.seq()")
 
 # Function `rgb()``
 FuncAST.add_rules(f"COLOR <- rgb({NUMBERLIKE}, {NUMBERLIKE}, {NUMBERLIKE})", "vsqlimpl_pkg.rgb({s1}, {s2}, {s3})")

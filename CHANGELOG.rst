@@ -1,8 +1,22 @@
+0.51.0 (2025-10-21)
+-------------------
+
+*	Python 3.14 is required now, since we're using type hints that only work
+	with deferred annotations.
+*	Added class ``Permissions`` and attribute ``App.permissions``.
+*	Added attribute ``App.recordpage``.
+*	Added attribute ``Globals.user_record``.
+*	Added attributes ``App.filter_default``, ``App.sort_default`` and
+	``App.filter_owndata``.
+*	Added methods ``Record.fetch_child_records``, ``Record.count_child_records``
+	and ``Record.fetch_child_recordpage``.
+
+
 0.50.2 (2025-09-16)
 -------------------
 
 *	Fixed attribute name in ``AppLookupControl.vsqlfield``
-*	Remove debug ``print``s.
+*	Remove debug ``print``\s.
 
 
 0.50.1 (2025-09-10)

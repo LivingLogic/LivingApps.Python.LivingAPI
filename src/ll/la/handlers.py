@@ -34,7 +34,7 @@ import datetime, pathlib, itertools, json, operator, warnings, random
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
-from ll import url, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
+from ll import misc, url, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
 try:
 	from ll import orasql
@@ -487,7 +487,7 @@ class DBHandler(Handler):
 		(value, r) = self.func_template_seq(c, app.id)
 		return int(value)
 
-	def send_mail(self, globals: "ll.la.Globals", app: Optional["ll.la.App"], record: Optional["ll.la.Record"], *, from_: T_opt_str = None, reply_to: T_opt_str = None, to: T_opt_str = None, cc: T_opt_str = None, bcc: T_opt_str = None, subject: T_opt_str = None, body_text: T_opt_str = None, body_html: T_opt_str = None, attachments: T_opt_file = None) -> None:
+	def send_mail(self, globals: la.Globals, app: la.App | None, record: la.Record | None, *, from_: T_opt_str = None, reply_to: T_opt_str = None, to: T_opt_str = None, cc: T_opt_str = None, bcc: T_opt_str = None, subject: T_opt_str = None, body_text: T_opt_str = None, body_html: T_opt_str = None, attachments: T_opt_file = None) -> None:
 		c = self.cursor()
 		self.proc_email_send(
 			c,
@@ -1200,7 +1200,7 @@ class DBHandler(Handler):
 			p_ag_id=appgroup.id,
 		)
 
-	def appgroups_incremental_data(self, globals):
+	def appgroups_incremental_data(self, globals) -> dict[str, la.AppGroup]:
 		return self._execute_incremental_ul4on_query(
 			self.cursor(),
 			globals,
@@ -1648,7 +1648,9 @@ class DBHandler(Handler):
 		q.select_sql("count(*)", "c")
 
 		# Apply use specified filter
-		q.where_vsql(filter)
+		for f in filter:
+			if f:
+				q.where_vsql(f)
 
 		query = f"{self.query_prefix}\n{q.sqlsource()}"
 
@@ -1675,7 +1677,9 @@ class DBHandler(Handler):
 		q.select_vsql("r.id", "dat_id")
 
 		# Apply use specified filter
-		q.where_vsql(filter)
+		for f in filter:
+			if f:
+				q.where_vsql(f)
 
 		c = self.cursor()
 
@@ -1735,7 +1739,7 @@ class DBHandler(Handler):
 				record.id = None
 		return len(dat_ids)
 
-	def fetch_records(self, app, filter:str, sorts:list[str], offset=None, limit=None):
+	def fetch_records(self, app, filter:list[str], sort:list[str], offset=0, limit=None):
 		q = vsql.Query(
 			f"Fetch records of app {app.name} ({app.id})",
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
@@ -1762,10 +1766,12 @@ class DBHandler(Handler):
 			q.select_vsql(f"r.v_{control.identifier}", control.fieldname)
 
 		# Apply use specified filter
-		q.where_vsql(filter)
+		for f in filter:
+			if f:
+				q.where_vsql(f)
 
 		# Add offset specified by the user
-		if offset is not None:
+		if offset is not None and offset > 0:
 			q.offset(offset)
 
 		# Add limit specified by the user
@@ -1773,25 +1779,25 @@ class DBHandler(Handler):
 			q.limit(limit)
 
 		# Add sort expressions specified by the user
-		for sort in sorts:
+		for s in sort:
 			direction = None
 			nulls = None
 			while True:
-				if direction is None and sort.endswith(" asc"):
+				if direction is None and s.endswith(" asc"):
 					direction = "asc"
-					sort = sort[:-4].strip()
-				elif direction is None and sort.endswith(" desc"):
+					s = s[:-4].strip()
+				elif direction is None and s.endswith(" desc"):
 					direction = "desc"
-					sort = sort[:-5].strip()
-				elif nulls is None and sort.endswith(" nulls last"):
+					s = s[:-5].strip()
+				elif nulls is None and s.endswith(" nulls last"):
 					nulls = "last"
-					sort = sort[:-11].strip()
-				elif nulls is None and sort.endswith(" nulls first"):
+					s = s[:-11].strip()
+				elif nulls is None and s.endswith(" nulls first"):
 					nulls = "first"
-					sort = sort[:-12].strip()
+					s = s[:-12].strip()
 				else:
 					break
-			q.orderby_vsql(sort, direction=direction, nulls=nulls)
+			q.orderby_vsql(s, direction=direction, nulls=nulls)
 
 		c = self.cursor()
 
@@ -1844,19 +1850,271 @@ class DBHandler(Handler):
 
 		dump = c.var(orasql.BLOB)
 
-		c.execute(
-			query,
+		args = dict(
 			ide_id_user=self.ide_id,
 			lang=app.globals.lang,
 			req_id=self.requestid,
 			tpl_uuid=app.id,
 			tpl_id=app.internal_id,
+		)
+		c.execute(
+			query,
+			dump=dump,
+			**args
+		)
+
+		dump = dump.getvalue()
+		if dump is None:
+			self._reinitialize_livingapi_db(c, app.globals)
+			dump = c.var(orasql.BLOB)
+			c.execute(query, dump=dump, **args)
+			dump = dump.getvalue()
+		dump = dump.read().decode("utf-8")
+		return self.ul4on_decoder.loads(dump)
+
+	def vsqlquery4fetch(self, app, filter, fields, record):
+		q = vsql.Query(
+			f"Fetch records of app {app.name} ({app.id})",
+			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			r=app.vsqlfield_records("r", vsql.sql(app.internal_id)),
+			app=app.vsqlfield_app("app", vsql.sql(app.globals.app.internal_id)),
+			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
+		)
+
+		# Add CTE with the parameters that we'll pass to the query
+		q.from_sql("v_globals", "g", "global variables")
+
+		# Force the table for `r` to be joined, even if we never reference it
+		table_alias = q.register_vsql("r")
+
+		# Add the fields we need
+		q.select_vsql("r.id", "dat_id")
+		q.select_vsql("r.app_internal_id", "tpl_id")
+		q.select_vsql("r.app", "tpl_uuid")
+		q.select_vsql("r.createdat", "dat_cdate")
+		q.select_vsql("r.createdby", "dat_cname")
+		q.select_vsql("r.updatedat", "dat_udate")
+		q.select_vsql("r.updatedby", "dat_uname")
+		q.select_vsql("r.updatecount", "dat_updatecount")
+
+		for (fieldname, field) in fields.items():
+			q.select_sql(field.fieldsql.replace("{a}", table_alias), fieldname, None)
+
+		# Add filter conditions
+		for f in filter:
+			if f:
+				q.where_vsql(f)
+		return q
+
+	def vsqlquery4count(self, app, filter, record):
+		q = vsql.Query(
+			f"Fetch records of app {app.name} ({app.id})",
+			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			r=app.vsqlfield_records("r", vsql.sql(app.internal_id)),
+			app=app.vsqlfield_app("app", vsql.sql(app.globals.app.internal_id)),
+			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
+		)
+
+		# Add CTE with the parameters that we'll pass to the query
+		q.from_sql("v_globals", "g", "global variables")
+
+		# Force the table for `r` to be joined, even if we never reference it
+		table_alias = q.register_vsql("r")
+
+		# Count records
+		q.select_sql("count(*)", "c", None)
+
+		# Add filter conditions
+		for f in filter:
+			if f:
+				q.where_vsql(f)
+		return q
+
+	def fetch_records_from_apps(self, globals:la.Globals, filter:dict[la.App, list[str]], sort:list[str], offset:int|None=0, limit:int|None=None, record:la.Record | None=None) -> dict[str, la.Record]:
+		if not filter:
+			return {}
+
+		record_app = record.app if record is not None else None
+
+		# Collect all fields from all apps
+		all_fields = {control.fieldname: control.vsqlfield for app in filter for control in app.controls.values()}
+
+		inner_q = "\n\n\t\t\t\t\tunion all\n\n".join(
+			self.vsqlquery4fetch(app, f, all_fields, record).sqlsource()
+			for (app, f) in filter.items()
+		)
+		inner_q = f"(\n{inner_q}\t\t\t\t)"
+
+		q = vsql.Query(
+			"Fetch records from multiple apps",
+			user=vsql.Field(
+				"user",
+				vsql.DataType.STR,
+				"v_globals.ide_id_user",
+				"g.ide_id_user = {d}.ide_id",
+				refgroup=la.User.vsqlgroup
+			),
+			r=vsql.Field(
+				"r",
+				vsql.DataType.STR,
+				"1 = 1",
+				"2 = 2",
+				la.App.vsqlgroup_records_common(inner_q),
+			),
+			app=globals.app.vsqlfield_app("r", vsql.sql(globals.app.internal_id)),
+			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
+		)
+
+		# Add CTE with the parameters that we'll pass to the query
+		q.from_sql("v_globals", "g", "global variables")
+
+		# Add the fields we need
+		q.select_vsql("r.id", "dat_id")
+		q.select_vsql("r.app_internal_id", "tpl_id")
+		q.select_vsql("r.app", "tpl_uuid")
+		q.select_vsql("r.createdat", "dat_cdate")
+		q.select_vsql("r.createdby", "dat_cname")
+		q.select_vsql("r.updatedat", "dat_udate")
+		q.select_vsql("r.updatedby", "dat_uname")
+		q.select_vsql("r.updatecount", "dat_updatecount")
+		for (fieldname, field) in all_fields.items():
+			# We using the field name here since field aliases for multiple lookups/applookups
+			# have been put into the inner queries
+			q.select_sql(f"t2.{fieldname}", fieldname, None)
+
+		# Add sort expressions specified by the user
+		for s in sort:
+			direction = None
+			nulls = None
+			while True:
+				if direction is None and s.endswith(" asc"):
+					direction = "asc"
+					s = s[:-4].strip()
+				elif direction is None and s.endswith(" desc"):
+					direction = "desc"
+					s = s[:-5].strip()
+				elif nulls is None and s.endswith(" nulls last"):
+					nulls = "last"
+					s = s[:-11].strip()
+				elif nulls is None and s.endswith(" nulls first"):
+					nulls = "first"
+					s = s[:-12].strip()
+				else:
+					break
+				q.orderby_vsql(s, direction=direction, nulls=nulls)
+
+		# Add offset specified by the user
+		if offset is not None and offset > 0:
+			q.offset(offset)
+
+		# Add limit specified by the user
+		if limit is not None:
+			q.limit(limit)
+
+		field_sql = []
+		for (i, app) in enumerate(filter):
+			field_sql.append(f"\t\t\t{'elsif' if i else 'if'} row.tpl_id = {app.internal_id} then\n")
+			for control in app.controls.values():
+				field_sql.append(f"\t\t\t\t\t{control.sql_fetch_statement()}\n")
+		field_sql.append("\t\t\t\tend if;\n")
+
+		sql = f"""
+		declare
+			v_ide_id_user identity.ide_id%type := :ide_id_user;
+			v_lang varchar2(30) := :lang;
+			v_reqid varchar2(30) := :req_id;
+			v_tpl_uuid varchar2(30) := null;
+			v_dat_id_detail varchar2(30) := :dat_id_detail;
+			v_result blob;
+		begin
+			-- Do nothing (and thus return `null`) if the UL4ON machinery
+			-- hasn't been initialized yet,
+			-- The client must then call `init` and pass `p_ul4onbackrefs`.
+			if livingapi_pkg.livingapi_is_initialized then
+				livingapi_pkg.records_inc_init;
+
+				for row in (
+					with v_globals as (
+						select
+							v_ide_id_user as ide_id_user /* user.id */,
+							v_lang as lang, /* language */
+							v_dat_id_detail as dat_id_detail /* detail record */
+						from
+							dual
+					)
+					{q.sqlsource()}
+				) loop
+					if livingapi_pkg.records_inc_begin_record(
+						row.dat_id,
+						row.tpl_id,
+						row.dat_cdate,
+						row.dat_cname,
+						row.dat_udate,
+						row.dat_uname,
+						row.dat_updatecount
+					) then
+						{''.join(field_sql)}
+						livingapi_pkg.records_inc_end_record;
+					end if;
+				end loop;
+				livingapi_pkg.records_inc_finish(v_result);
+			end if;
+			:dump := v_result;
+		end;
+		"""
+
+		c = self.cursor()
+
+		dump = c.var(orasql.BLOB)
+
+		c.execute(
+			sql,
+			ide_id_user=self.ide_id,
+			lang=globals.lang,
+			req_id=self.requestid,
+			dat_id_detail=record.id if record is not None else None,
 			dump=dump,
 		)
 
 		dump = dump.getvalue().read().decode("utf-8")
 		return self.ul4on_decoder.loads(dump)
 
+	def count_records_from_apps(self, globals:la.Globals, filter:dict[la.App, list[str]], record:la.Record | None=None) -> int:
+		if not filter:
+			return 0
+
+		inner_sql = "\n\n\tunion all\n\n".join(
+			self.vsqlquery4count(app, f, record).sqlsource()
+			for (app, f) in filter.items()
+		)
+
+		sql = f"""
+		with v_globals as (
+			select
+				:ide_id_user as ide_id_user /* user.id */,
+				:lang as lang, /* language */
+				:req_id as v_reqid, /* request id */
+				:dat_id_detail as dat_id_detail /* record.id */
+			from
+				dual
+		)
+		select sum(c) from (
+			{inner_sql}
+		)
+		"""
+
+		c = self.cursor()
+
+		dump = c.var(orasql.BLOB)
+
+		c.execute(
+			sql,
+			ide_id_user=self.ide_id,
+			lang=globals.lang,
+			req_id=self.requestid,
+			dat_id_detail=record.id if record is not None else None,
+		)
+		return c.fetchone()[0]
 
 class HTTPHandler(Handler):
 	def __init__(self, url, username=None, password=None, auth_token=None):
