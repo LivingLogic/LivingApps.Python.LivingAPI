@@ -1864,9 +1864,8 @@ class DBHandler(Handler):
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
 			r=app.vsqlfield_records("r", vsql.sql(app.internal_id)),
 			app=app.vsqlfield_app("app", vsql.sql(app.globals.app.internal_id)),
+			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
 		)
-		if record is not None:
-			q.vars["record"] = record.app.vsqlfield_records("record", "g.dat_id_detail")
 
 		# Add CTE with the parameters that we'll pass to the query
 		q.from_sql("v_globals", "g", "global variables")
@@ -1899,9 +1898,8 @@ class DBHandler(Handler):
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
 			r=app.vsqlfield_records("r", vsql.sql(app.internal_id)),
 			app=app.vsqlfield_app("app", vsql.sql(app.globals.app.internal_id)),
+			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
 		)
-		if record is not None:
-			q.vars["record"] = record.app.vsqlfield_records("record", "g.dat_id_detail")
 
 		# Add CTE with the parameters that we'll pass to the query
 		q.from_sql("v_globals", "g", "global variables")
@@ -1950,10 +1948,8 @@ class DBHandler(Handler):
 				la.App.vsqlgroup_records_common(inner_q),
 			),
 			app=globals.app.vsqlfield_app("r", vsql.sql(globals.app.internal_id)),
+			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
 		)
-
-		if record is not None:
-			q.vars["record"] = record_app.vsqlfield_records("record", "g.dat_id_detail")
 
 		# Add CTE with the parameters that we'll pass to the query
 		q.from_sql("v_globals", "g", "global variables")

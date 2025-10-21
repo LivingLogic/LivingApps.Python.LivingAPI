@@ -711,7 +711,7 @@ class Query(Repr):
 
 		:func:`register_vsql` will then make sure that this referenced table will
 		be added to the "from" list, even if it is never referenced explicitely
-		in any of the "form" and "where" clauses.
+		in any of the "from" and "where" clauses.
 		"""
 		if identifier not in self.vars:
 			raise ValueError(f"Unknown field {identifier!r}!")

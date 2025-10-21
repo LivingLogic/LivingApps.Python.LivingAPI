@@ -27,7 +27,7 @@ Operating System :: OS Independent
 Programming Language :: Python
 Programming Language :: Python :: 3 :: Only
 Programming Language :: Python :: 3
-Programming Language :: Python :: 3.10
+Programming Language :: Python :: 3.14
 Topic :: Software Development :: Libraries :: Python Modules
 Topic :: Internet :: WWW/HTTP
 """
@@ -61,13 +61,13 @@ args = dict(
 	author_email="walter@livinglogic.de",
 	url="http://github.com/LivingLogic/LivingApps.Python.LivingAPI",
 	license="MIT",
-	python_requires=">=3.10",
+	python_requires=">=3.14",
 	classifiers=sorted({c for c in CLASSIFIERS.strip().splitlines() if c.strip() and not c.strip().startswith("#")}),
 	keywords=", ".join(sorted({k.strip() for k in KEYWORDS.strip().splitlines() if k.strip() and not k.strip().startswith("#")})),
 	package_dir={"": "src"},
 	packages=["ll.la"],
 	install_requires=[
-		"ll-xist >= 5.79",
+		"ll-xist >= 5.80",
 		"requests >= 2.21.0",
 		"geocoder >= 1.30.1",
 		"Pillow >= 6.1.0",
