@@ -7350,7 +7350,7 @@ class RecordChildren(Base):
 
 	def _recordpage_get(self):
 		if self.__dict__["recordpage"] is None:
-			rp = RecordPage(self, filter=None, sort=None, offset=self.record_start, limit=self.record_count)
+			rp = RecordChildrenRecordPage(self, filter=None, sort=None, offset=self.record_start, limit=self.record_count)
 			rp._records = self.records
 			rp._count = len(rp._records)
 			rp._total = self.record_total
