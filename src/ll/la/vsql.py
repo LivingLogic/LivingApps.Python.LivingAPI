@@ -652,7 +652,7 @@ class Query(Repr):
 			table, so it has a ``joinsql`` and a ``refgroup``.
 		"""
 		self.comment = comment
-		self.vars = vars
+		self.vars = {name: field for (name, field) in vars.items() if field is not None}
 		self._fields : dict[str, Tuple["AST"|str, str | None]] = {}
 		self._from : dict[str, "AST"|str] = {}
 		self._where : dict[str, "AST"|str] = {}
