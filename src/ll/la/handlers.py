@@ -1648,7 +1648,9 @@ class DBHandler(Handler):
 		q.select_sql("count(*)", "c")
 
 		# Apply use specified filter
-		q.where_vsql(filter)
+		for f in filter:
+			if f:
+				q.where_vsql(f)
 
 		query = f"{self.query_prefix}\n{q.sqlsource()}"
 
@@ -1675,7 +1677,9 @@ class DBHandler(Handler):
 		q.select_vsql("r.id", "dat_id")
 
 		# Apply use specified filter
-		q.where_vsql(filter)
+		for f in filter:
+			if f:
+				q.where_vsql(f)
 
 		c = self.cursor()
 
@@ -1763,7 +1767,8 @@ class DBHandler(Handler):
 
 		# Apply use specified filter
 		for f in filter:
-			q.where_vsql(f)
+			if f:
+				q.where_vsql(f)
 
 		# Add offset specified by the user
 		if offset is not None and offset > 0:
