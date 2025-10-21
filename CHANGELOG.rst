@@ -1,5 +1,5 @@
-HEAD (2025-??-??)
------------------
+0.51.0 (2025-10-21)
+-------------------
 
 *	Python 3.14 is required now, since we're using type hints that only work
 	with deferred annotations.
