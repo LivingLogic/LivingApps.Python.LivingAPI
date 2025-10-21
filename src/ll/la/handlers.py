@@ -1845,17 +1845,26 @@ class DBHandler(Handler):
 
 		dump = c.var(orasql.BLOB)
 
-		c.execute(
-			query,
+		args = dict(
 			ide_id_user=self.ide_id,
 			lang=app.globals.lang,
 			req_id=self.requestid,
 			tpl_uuid=app.id,
 			tpl_id=app.internal_id,
+		)
+		c.execute(
+			query,
 			dump=dump,
+			**args
 		)
 
-		dump = dump.getvalue().read().decode("utf-8")
+		dump = dump.getvalue()
+		if dump is None:
+			self._reinitialize_livingapi_db(c, app.globals)
+			dump = c.var(orasql.BLOB)
+			c.execute(query, dump=dump, **args)
+			dump = dump.getvalue()
+		dump = dump.read().decode("utf-8")
 		return self.ul4on_decoder.loads(dump)
 
 	def vsqlquery4fetch(self, app, filter, fields, record):
