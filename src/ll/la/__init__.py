@@ -9714,7 +9714,7 @@ class DataSourceChildren(Base):
 		children dict.
 
 	.. attribute:: filter
-		:type: str | None
+		:type: list[str] | None
 
 		vSQL filter expression. Only records where this expression evaluated to
 		true will be included in ``app.records``.
@@ -9735,7 +9735,7 @@ class DataSourceChildren(Base):
 	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	filter = Attr(str, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	filter = Attr(list, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	sort = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, identifier=None, control=None):
@@ -9743,7 +9743,7 @@ class DataSourceChildren(Base):
 		self.datasource = None
 		self.identifier = identifier
 		self.control = control
-		self.filter = None
+		self.filter = []
 		self.sort = []
 
 	def __str__(self) -> str:
