@@ -3723,8 +3723,7 @@ class App(CustomAttributes):
 		how may records (starting at the record defined by ``offset``) should be
 		returned.
 
-		Records will be returned as a dictionary which record ids as the keys and
-		:class:`Record` objects as the value.
+		Records will be returned as an :class:`AppRecordPage`.
 		"""
 
 		filter = _make_filter(filter)
@@ -3778,7 +3777,7 @@ class AppGroup(Base):
 		Parameters of this app group.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps", "main_app", "params", "add_param"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps", "main_app", "params", "add_param", "count_records", "fetch_records", "fetch_recordpage"})
 	ul4_type = ul4c.Type("la", "AppGroup", "A group of LivingApps")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -3903,6 +3902,97 @@ class AppGroup(Base):
 		param = MutableAppParameter(appgroup=self, type=type, identifier=identifier, description=description, value=value)
 		self.params[param.identifier] = param
 		return param
+
+	def _make_filter(self, filter:dict[App, list[str] | str]) -> dict[App, list[str]]:
+		if not isinstance(filter, dict):
+			raise TypeError("`filter` must be a dict")
+
+		new_filter = {}
+
+		for (app, value) in filter.items():
+			if not isinstance(app, App):
+				raise TypeError("`filter` keys must be `App` objects")
+			if app.id not in self.apps:
+				raise TypeError("`filter` keys must be `App` objects that belong to the appgroup")
+			new_filter[app] = _make_filter(value)
+
+		return new_filter
+
+	def count_records(self, filter:dict[App, list[str] | str]) -> int:
+		"""
+		Return the number of records in this app group matching the vSQL condition ``filter``.
+
+		``filter`` must map apps of the app group to vSQL filter expressions
+		(or list of expressions, which will be ombined with ``and``).
+		"""
+
+		handler = self._gethandler()
+		filter = self._make_filter(filter)
+		return handler.count_records_from_apps(self.globals, filter)
+
+	def fetch_records(self, filter:dict[App, list[str] | str], sort:list[str] | str | None=None, offset:int | None = 0, limit: int | None=None) -> dict[str, Record]:
+		"""
+		Return records in this app group matching the vSQL conditions in ``filter``.
+
+		``filter`` must map apps of the app group to vSQL filter expressions
+		(or list of expressions, which will be ombined with ``and``).
+
+		``sort`` can be a string or list of strings specifying how records should
+		be sorted. If ``sort`` is a list of multiple strings the records will be
+		sorted lexicographically. Each sort expression must be a valid vSQL
+		expression optionally followed by ``asc`` or ``desc`` optionally followed
+		by ``nulls first`` or ``nulls last``. If ``sort`` is ``None`` or an empty
+		list records will be returned in "natural" order.
+
+		If ``offset`` is not ``None`` it must be a non-negative integer and
+		defines at which offset in the actual list of records output will begin.
+		I.e. passing ``offset=1`` will skip the first record.
+
+		If ``limit`` is not ``None`` it must be a positive integer and defines
+		how may records (starting at the record defined by ``offset``) should be
+		returned.
+
+		Records will be returned as a dictionary which record ids as the keys and
+		:class:`Record` objects as the value.
+		"""
+
+		handler = self._gethandler()
+		return handler.fetch_records_from_apps(
+			globals=self.globals,
+			filter=self._make_filter(filter),
+			sort=_make_sort(sort),
+			offset=_make_offset(offset),
+			limit=_make_limit(limit),
+		)
+
+	def fetch_recordpage(self, filter:dict[App, list[str] | str], sort:list[str] | str | None = None, offset: int | None = 0, limit: int | None = None) -> RecordPage:
+		"""
+		Return records in this app group matching the vSQL conditions in ``filter``.
+
+		``sort`` can be a string or list of strings specifying how records should
+		be sorted. If ``sort`` is a list of multiple strings the records will be
+		sorted lexicographically. Each sort expression must be a valid vSQL
+		expression optionally followed by ``asc`` or ``desc`` optionally followed
+		by ``nulls first`` or ``nulls last``. If ``sort`` is ``None`` or an empty
+		list records will be returned in "natural" order.
+
+		If ``offset`` is not ``None`` it must be a non-negative integer and
+		defines at which offset in the actual list of records output will begin.
+		I.e. passing ``offset=1`` will skip the first record.
+
+		If ``limit`` is not ``None`` it must be a positive integer and defines
+		how may records (starting at the record defined by ``offset``) should be
+		returned.
+
+		Records will be returned as an :class:`AppRecordPage`.
+		"""
+
+		filter = self._make_filter(filter)
+		sort = _make_sort(sort)
+		offset = _make_offset(offset)
+		limit = _make_limit(limit)
+
+		return AppGroupRecordPage(self, filter=filter, sort=sort, offset=offset, limit=limit)
 
 
 class Field(CustomAttributes):
@@ -7180,6 +7270,13 @@ class Record(CustomAttributes):
 					new_filter[control.app] = f
 		return new_filter
 
+	def count_child_records(self, filter:dict[App, list[str] | str]) -> int:
+		return self._gethandler().count_records_from_apps(
+			globals=self.app.globals,
+			filter=self._make_children_filter(filter),
+			record=self,
+		)
+
 	def fetch_child_records(self, filter: dict[App, list[str] | str], sort:list[str] | str | None=None, offset:int | None = 0, limit: int | None=None) -> dict[str, Record]:
 		return self._gethandler().fetch_records_from_apps(
 			globals=self.app.globals,
@@ -7187,13 +7284,6 @@ class Record(CustomAttributes):
 			sort=_make_sort(sort),
 			offset=_make_offset(offset),
 			limit=_make_limit(limit),
-			record=self,
-		)
-
-	def count_child_records(self, filter:dict[App, list[str] | str]) -> int:
-		return self._gethandler().count_records_from_apps(
-			globals=self.app.globals,
-			filter=self._make_children_filter(filter),
 			record=self,
 		)
 
@@ -7715,7 +7805,7 @@ class RecordChildrenRecordPage(RecordPage):
 		The parent record.
 	"""
 
-	ul4_attrs = RecordPage.ul4_attrs.union({"appfilter"})
+	ul4_attrs = RecordPage.ul4_attrs.union({"record"})
 	ul4_type = ul4c.Type("la", "AppRecordPage", "A window of query results fetched from a record with pagination metadata (limit, offset, total count)")
 
 	filter = Attr(dict, get=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -7730,6 +7820,36 @@ class RecordChildrenRecordPage(RecordPage):
 
 	def _count_records(self) -> int:
 		return self.record.count_child_records(self.filter)
+
+
+class AppGroupRecordPage(RecordPage):
+	"""
+	A subclass of :class:`RecordPage` where records are fetched from an
+	:class:`AppGroup`.
+
+	Relevant instance attributes are:
+
+	.. attribute:: appgroup
+		:type: AppGroup
+
+		The app group.
+	"""
+
+	ul4_attrs = RecordPage.ul4_attrs.union({"appgroup"})
+	ul4_type = ul4c.Type("la", "AppGroupRecordPage", "A window of query results fetched from the apps of an app group with pagination metadata (limit, offset, total count)")
+
+	filter = Attr(dict, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	appgroup = Attr(AppGroup, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, appgroup, filter, sort=None, offset=0, limit=None):
+		super().__init__(filter=filter, sort=sort, offset=offset, limit=limit)
+		self.appgroup = appgroup
+
+	def _fetch_records(self) -> dict[str, Record]:
+		return self.appgroup.fetch_records(self.filter, self.sort, self.offset, self.limit)
+
+	def _count_records(self) -> int:
+		return self.appgroup.count_records(self.filter)
 
 
 class Template(Base):
