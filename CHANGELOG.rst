@@ -4,6 +4,8 @@ HEAD (2025-11-??)
 *	Addded methods ``AppGroup.count_records``, ``AppGroup.fetch_records`` and
 	``AppGroup.fetch_recordpage``.
 
+*	Added support for ``AppGroup`` member templates.
+
 
 0.51.2 (2025-10-28)
 -------------------

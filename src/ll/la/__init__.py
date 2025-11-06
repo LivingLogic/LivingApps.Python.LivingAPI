@@ -3780,6 +3780,8 @@ class AppGroup(Base):
 	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps", "main_app", "params", "add_param", "count_records", "fetch_records", "fetch_recordpage"})
 	ul4_type = ul4c.Type("la", "AppGroup", "A group of LivingApps")
 
+	template_types = ((None, "appgroup_instance"),)
+
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -3814,6 +3816,11 @@ class AppGroup(Base):
 			identifier = name[3:]
 			if self.params and identifier in self.params:
 				return self.params[identifier].value
+		elif name.startswith("t_"):
+			identifier = name[2:]
+			template = self.globals._fetch_template(self, identifier)
+			if template is not None:
+				return template
 		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def __setattr__(self, name: str, value: Any) -> None:
@@ -3845,7 +3852,7 @@ class AppGroup(Base):
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name: str) -> Any:
-		if name.startswith(("p_", "pv_")):
+		if name.startswith(("p_", "pv_", "t_")):
 			return getattr(self, name)
 		elif self.ul4_hasattr(name):
 			return super().ul4_getattr(name)
