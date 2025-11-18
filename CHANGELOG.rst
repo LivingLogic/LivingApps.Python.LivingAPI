@@ -1,5 +1,5 @@
-HEAD (2025-11-??)
------------------
+0.52.0 (2025-11-18)
+-------------------
 
 *	Addded methods ``AppGroup.count_records``, ``AppGroup.fetch_records`` and
 	``AppGroup.fetch_recordpage``.
