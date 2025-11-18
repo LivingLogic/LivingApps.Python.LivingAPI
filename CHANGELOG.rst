@@ -1,7 +1,14 @@
+0.52.1 (2025-11-18)
+-------------------
+
+*	Fixed logic for determining whether a template is a bound member templates
+	for templates that are bound to a specific ``Field`` or ``Control`` instance.
+
+
 0.52.0 (2025-11-18)
 -------------------
 
-*	Addded methods ``AppGroup.count_records``, ``AppGroup.fetch_records`` and
+*	Added methods ``AppGroup.count_records``, ``AppGroup.fetch_records`` and
 	``AppGroup.fetch_recordpage``.
 
 *	Added support for ``AppGroup`` member templates.

@@ -1296,17 +1296,33 @@ class CustomAttributes(Base):
 
 	def _boundtemplate_candidates(self) -> Generator[dict[str, ul4c.Template | ul4c.BoundTemplate], None, None]:
 		for templates in self._template_candidates():
-			yield dict((identifier, ul4c.BoundTemplate(self, template) if template.namespace.endswith("_instance") else template) for (identifier, template) in templates.items())
+			yield dict((identifier, ul4c.BoundTemplate(self, template) if self._template_is_bound(template) else template) for (identifier, template) in templates.items())
 
 	@property
-	def templates(self):
+	def templates(self) -> Mapping[str, ul4c.Template | ul4c.BoundTemplate]:
 		return collections.ChainMap(*self._boundtemplate_candidates())
+
+	def _template_is_bound(self, template : ul4c.Template) -> bool:
+		"""
+		Return whether the template is supposed to be a bound member template.
+
+		A bound member template can be called as a method and implicitely passes
+		``self`` as the first argument.
+
+		A "unbound" member templates behaves like a global function (and can only
+		appear as attributes of :class:`App` or :class:`Globals`).
+
+		We can determine the result based on the templates ``namespace`` (and need
+		to overwrite this method for :class:`Field` or :class:`Control` member templates
+		bound to specific instances).
+		"""
+		return template.namespace.endswith("_instance")
 
 	def _fetch_template(self, identifier):
 		for templates in self._template_candidates():
 			if identifier in templates:
 				template = templates[identifier]
-				if template.namespace.endswith("_instance"):
+				if self._template_is_bound(template):
 					template = ul4c.BoundTemplate(self, template)
 				return template
 		return None
@@ -4109,6 +4125,9 @@ class Field(CustomAttributes):
 		yield handler.fetch_librarytemplates(f"field_{self.control.type}_instance")
 		yield handler.fetch_librarytemplates("field_instance")
 
+	def _template_is_bound(self, template):
+		return template.namespace.endswith(("_instance", f"_instance.{self.control.id}"))
+
 	@property
 	def label(self) -> str:
 		return self._label if self._label is not None else self.control.label
@@ -5119,6 +5138,9 @@ class Control(CustomAttributes):
 		yield handler.fetch_internaltemplates(app_id, f"control_instance", None)
 		yield handler.fetch_librarytemplates(f"control_{self.type}_instance")
 		yield handler.fetch_librarytemplates("control_instance")
+
+	def _template_is_bound(self, template):
+		return template.namespace.endswith(("_instance", f"_instance.{self.id}"))
 
 	@property
 	def ul4onid(self) -> str:
@@ -8103,27 +8125,27 @@ class ViewTemplateInfo(CustomAttributes):
 
 	.. attribute:: id
 		:type: str
-		
+
 		The database primary key of this view template.
 
 	.. attribute:: app
 		:type: App
-		
+
 		The app this view template belongs to.
 
 	.. attribute:: identifier
 		:type: str
-		
+
 		The database primary key of this view template.
 
 	.. attribute:: name
 		:type: str
-		
+
 		The name of this view template.
 
 	.. attribute:: icon
 		:type: str
-		
+
 		The icon of this view template.
 
 	.. attribute:: type
