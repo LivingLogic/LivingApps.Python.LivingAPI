@@ -1,3 +1,16 @@
+0.52.0 (2025-11-18)
+-------------------
+
+*	Addded methods ``AppGroup.count_records``, ``AppGroup.fetch_records`` and
+	``AppGroup.fetch_recordpage``.
+
+*	Added support for ``AppGroup`` member templates.
+
+*	Changed the way internal and library templates are fetched and cached:
+	Now they will be fetched and cached for each supported LivingAPI type
+	independently instead of all in one dictionary.
+
+
 0.51.2 (2025-10-28)
 -------------------
 

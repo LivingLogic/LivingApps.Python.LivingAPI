@@ -1290,14 +1290,25 @@ class CustomAttributes(Base):
 		super().__init__()
 		self.custom = None
 
-	def _fetch_template(self, instance, identifier):
+	@misc.notimplemented
+	def _template_candidates(self) -> Generator[dict[str, ul4c.Template], None, None]:
+		yield from []
+
+	def _boundtemplate_candidates(self) -> Generator[dict[str, ul4c.Template | ul4c.BoundTemplate], None, None]:
 		for templates in self._template_candidates():
-			for key in instance.template_types:
-				if key in templates and identifier in templates[key]:
-					template = templates[key][identifier]
-					if key[1] is not None:
-						template = ul4c.BoundTemplate(instance, template)
-					return template
+			yield dict((identifier, ul4c.BoundTemplate(self, template) if template.namespace.endswith("_instance") else template) for (identifier, template) in templates.items())
+
+	@property
+	def templates(self):
+		return collections.ChainMap(*self._boundtemplate_candidates())
+
+	def _fetch_template(self, identifier):
+		for templates in self._template_candidates():
+			if identifier in templates:
+				template = templates[identifier]
+				if template.namespace.endswith("_instance"):
+					template = ul4c.BoundTemplate(self, template)
+				return template
 		return None
 
 	def __dir__(self) -> set[str]:
@@ -1309,11 +1320,16 @@ class CustomAttributes(Base):
 			if attrname.startswith("x_"):
 				attrs.add(attrname)
 		for templates in self._template_candidates():
-			for key in self.template_types:
-				if key in templates:
-					for identifier in templates[key]:
-						attrs.add(f"t_{identifier}")
+			for identifier in templates:
+				attrs.add(f"t_{identifier}")
 		return attrs
+
+	def __getattr__(self, name):
+		if name.startswith("t_"):
+			template = self._fetch_template(name[2:])
+			if template is not None:
+				return template
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def ul4_dir(self):
 		return dir(self)
@@ -1324,10 +1340,10 @@ class CustomAttributes(Base):
 		elif name.startswith("x_"):
 			return name in self.__dict__
 		elif name.startswith("t_"):
+			identifier = name[2:]
 			for templates in self._template_candidates():
-				for key in self.template_types:
-					if key in templates and name[2:] in templates[key]:
-						return True
+				if identifier in templates:
+					return True
 			return False
 		else:
 			return super().ul4_hasattr(name)
@@ -1336,7 +1352,7 @@ class CustomAttributes(Base):
 		if name.startswith("x_"):
 			return getattr(self, name)
 		elif name.startswith("t_"):
-			template = self._fetch_template(self, name[2:])
+			template = self._fetch_template(name[2:])
 			if template is not None:
 				return template
 		return super().ul4_getattr(name)
@@ -1406,7 +1422,7 @@ class FlashMessage(Base):
 
 
 @register("file")
-class File(Base):
+class File(CustomAttributes):
 	"""
 	An uploaded file.
 
@@ -1478,10 +1494,8 @@ class File(Base):
 		When was this file uploaded?
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "url", "filename", "mimetype", "width", "height", "size", "recordedat", "createdat"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "url", "filename", "mimetype", "width", "height", "size", "recordedat", "createdat"})
 	ul4_type = ul4c.Type("la", "File", "An uploaded file")
-
-	template_types = ((None, "file_instance"),)
 
 	id = Attr(str, get=True, set=True, ul4get=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1502,6 +1516,7 @@ class File(Base):
 	context_id = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, filename=None, mimetype=None, width=None, height=None, size=None, duration=None, geo=None, recordedat=None, storagefilename=None, archive=None, internal_id=None, createdat=None, content=None):
+		super().__init__()
 		self.id = id
 		self.globals = None
 		self.filename = filename
@@ -1524,23 +1539,14 @@ class File(Base):
 				self.width = img.size[0]
 				self.height = img.size[1]
 
-	def _gethandler(self) -> Handler:
-		if self.globals is None:
-			raise NoHandlerError()
-		return self.globals._gethandler()
-
-	def __getattr__(self, name: str) -> Any:
-		if name.startswith("t_"):
-			template = self.globals._fetch_template(self, name[2:])
-			if template is not None:
-				return template
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+	def _template_candidates(self):
+		handler = self.globals._gethandler()
+		yield handler.fetch_internaltemplates(self.globals.app.id, "file_instance", None)
+		yield handler.fetch_librarytemplates("file_instance")
 
 	def ul4_getattr(self, name: str) -> Any:
 		if name == "internalid":
 			return self.internal_id
-		elif name.startswith("t_"):
-			return getattr(self, name)
 		else:
 			return super().ul4_getattr(name)
 
@@ -1568,7 +1574,7 @@ class File(Base):
 			return f"{self.archive.url}/{self.filename}"
 
 	def save_meta(self) -> None:
-		self._gethandler().save_file(self)
+		self.globals._gethandler().save_file(self)
 
 	def content(self) -> bytes:
 		"""
@@ -1576,7 +1582,7 @@ class File(Base):
 		"""
 		if self._content is not None:
 			return self._content
-		return self._gethandler().file_content(self)
+		return self.globals._gethandler().file_content(self)
 
 	vsqlgroup = vsql.Group(
 		"upload_ref_select",
@@ -1624,8 +1630,6 @@ class Geo(Base):
 	ul4_attrs = Base.ul4_attrs.union({"lat", "long", "info"})
 	ul4_type = ul4c.Type("la", "Geo", "Geographical coordinates and location information")
 
-	template_types = ((None, "geo_instance"),)
-
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lat = FloatAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	long = FloatAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1637,12 +1641,27 @@ class Geo(Base):
 		self.long = long
 		self.info = info
 
+	def _template_candidates(self):
+		handler = self.globals._gethandler()
+		yield handler.fetch_internaltemplates(self.globals.app.id, "geo_instance", None)
+		yield handler.fetch_librarytemplates("geo_instance")
+
 	def __getattr__(self, name: str) -> Any:
 		if name.startswith("t_"):
-			template = self.globals._fetch_template(self, name[2:])
+			template = self._fetch_template(name[2:])
 			if template is not None:
 				return template
 		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def ul4_hasattr(self, name: str) -> bool:
+		if name.startswith("t_"):
+			identifier = name[2:]
+			for templates in self._template_candidates():
+				if identifier in templates:
+					return True
+			return False
+		else:
+			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name: str) -> Any:
 		if name.startswith(("t_")):
@@ -1794,8 +1813,6 @@ class User(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "User", "A LivingApps user/account")
 
-	template_types = ((None, "user_instance"),)
-
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	publicid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	gender = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1866,15 +1883,9 @@ class User(CustomAttributes):
 		return self.image
 
 	def _template_candidates(self):
-		yield from self.globals._template_candidates()
-
-	def __getattr__(self, name: str) -> Any:
-		if name.startswith("t_"):
-			identifier = name[2:]
-			template = self.globals._fetch_template(self, identifier)
-			if template is not None:
-				return template
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		handler = self.globals._gethandler()
+		yield handler.fetch_internaltemplates(self.globals.app.id, "user_instance", None)
+		yield handler.fetch_librarytemplates("user_instance")
 
 	@classmethod
 	def vsqlfield(cls, ul4var: str="user", sqlvar: str="livingapi_pkg.global_user") -> vsql.Field:
@@ -2171,8 +2182,6 @@ class Globals(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
-	template_types = ((None, "app_instance"), (None, None))
-
 	supported_version = "136"
 
 	class Mode(misc.Enum):
@@ -2339,6 +2348,11 @@ class Globals(CustomAttributes):
 		return file
 
 	def geo(self, lat: float | None=None, long: float | None=None, info: str | None=None) -> Geo:
+		if lat is not None and long is not None and info is not None:
+			# If we have all the info for a ``Geo`` object, we can return it directly
+			geo = Geo(lat, long, info)
+			geo.globals = self
+			return geo
 		return self.handler.geo(lat, long, info)
 
 	def seq(self) -> int:
@@ -2630,12 +2644,6 @@ class Globals(CustomAttributes):
 			identifier = name[2:]
 			if self.externaldatasources and identifier in self.externaldatasources:
 				return self.externaldatasources[identifier]
-		elif name.startswith("t_"):
-			if self.app:
-				identifier = name[2:]
-				template = self.app._fetch_template(self.app, identifier)
-				if template is not None:
-					return template
 		elif name.startswith("p_"):
 			identifier = name[2:]
 			if self.app and identifier in self.params:
@@ -2644,7 +2652,8 @@ class Globals(CustomAttributes):
 			identifier = name[3:]
 			if self.app and identifier in self.params:
 				return self.params[identifier].value
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		else:
+			return super().__getattr__(name)
 
 	def __dir__(self) -> set[str]:
 		"""
@@ -2657,8 +2666,6 @@ class Globals(CustomAttributes):
 		if self.externaldatasources:
 			for identifier in self.externaldatasources:
 				attrs.add(f"e_{identifier}")
-		for identifier in self.templates:
-			attrs.add(f"t_{identifier}")
 		if self.app:
 			for identifier in self.app.params:
 				attrs.add(f"p_{identifier}")
@@ -2669,8 +2676,6 @@ class Globals(CustomAttributes):
 		if self.datasources and name.startswith("d_") and name[2:] in self.datasources:
 			return True
 		elif self.externaldatasources and name.startswith("e_") and name[2:] in self.externaldatasources:
-			return True
-		elif name.startswith("t_") and name[2:] in self.templates:
 			return True
 		elif self.app and name.startswith("p_") and name[2:] in self.params:
 			return True
@@ -2999,8 +3004,6 @@ class App(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
-	template_types = ((None, "app_instance"), (None, None))
-
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	internal_id = Attr(str, get=True, ul4onget=True, ul4onset=True)
@@ -3033,7 +3036,6 @@ class App(CustomAttributes):
 	categories = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
 	params = AttrDictAttr(get="", ul4get="_params_get")
-	templates = Attr(get="", ul4get="_templates_get")
 	views = Attr(get="", set="", ul4get="_views_get", ul4onget="_views_ul4onget", ul4onset="_views_set")
 	datamanagement_identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	basetable = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -3180,30 +3182,15 @@ class App(CustomAttributes):
 			raise AttributeError(error_attribute_wrong_type(self, "active_view", value, (View, str)))
 		self.__dict__["active_view"] = value
 
-	def _fetch_owntemplates(self):
-		if self._owntemplates is None:
-			self._owntemplates = self.globals.handler.loadinternaltemplates(self.id)
-		return self._owntemplates
-
 	def _template_candidates(self):
-		yield self._fetch_owntemplates()
+		handler = self._gethandler()
+		yield handler.fetch_internaltemplates(self.id, None, None)
+		yield handler.fetch_internaltemplates(self.id, "app_instance", None)
 		if "la" in self.ownparams and isinstance(self.ownparams["la"].value, App):
 			yield from self.ownparams["la"].value._template_candidates()
 		else:
-			yield self.globals.handler.fetch_librarytemplates()
-
-	def _templates_get(self):
-		if self._templates is None:
-			self._templates = attrdict()
-			for templates in self._template_candidates():
-				for key in self.template_types:
-					if key in templates:
-						for (identifier, template) in templates[key].items():
-							if key[-1] is not None:
-								template = ul4c.BoundTemplate(self, template)
-							if identifier not in self._templates:
-								self._templates[identifier] = template
-		return self._templates
+			yield handler.fetch_librarytemplates(None)
+			yield handler.fetch_librarytemplates("app_instance")
 
 	def _viewtemplates_get(self):
 		viewtemplates = self._viewtemplates
@@ -3304,11 +3291,6 @@ class App(CustomAttributes):
 			identifier = name[2:]
 			if self.controls and identifier in self.controls:
 				return self.controls[identifier]
-		elif name.startswith("t_"):
-			identifier = name[2:]
-			template = self._fetch_template(self, identifier)
-			if template is not None:
-				return template
 		elif name.startswith("lc_"):
 			identifier = name[3:]
 			if self.layout_controls and identifier in self.layout_controls:
@@ -3321,7 +3303,8 @@ class App(CustomAttributes):
 			identifier = name[3:]
 			if self.params and identifier in self.params:
 				return self.params[identifier].value
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		else:
+			return super().__getattr__(name)
 
 	def __setattr__(self, name: str, value: Any) -> None:
 		if name.startswith("pv_"):
@@ -3359,8 +3342,6 @@ class App(CustomAttributes):
 			return True
 		elif name.startswith("pv_") and name[3:] in self.params:
 			return True
-		elif name.startswith("t_") and name[2:] in self.templates:
-			return True
 		else:
 			return super().ul4_hasattr(name)
 
@@ -3383,17 +3364,17 @@ class App(CustomAttributes):
 			raise NoHandlerError()
 		return self.globals._gethandler()
 
-	def _params_inheritance_chain(self):
+	def _params_candidates(self):
 		yield self._ownparams_get()
 		if self.appgroup:
 			yield self.appgroup.ownparams
 		if "la" in self.ownparams and isinstance(self._ownparams["la"].value, App):
-			yield from self.ownparams["la"].value._params_inheritance_chain()
+			yield from self.ownparams["la"].value._params_candidates()
 		else:
 			yield self.globals.library_params
 
 	def _param(self, identifier: str) -> AppParameter:
-		for params in self._params_inheritance_chain():
+		for params in self._params_candidates():
 			if identifier in params:
 				return params[identifier]
 		return None
@@ -3420,9 +3401,7 @@ class App(CustomAttributes):
 
 	def _params_get(self):
 		if self._params is None:
-			params = attrdict()
-			for candidate in reversed(list(self._params_inheritance_chain())):
-				params.update(candidate)
+			params = collections.ChainMap(*self._params_candidates())
 			self._params = params
 		return self._params
 
@@ -3723,8 +3702,7 @@ class App(CustomAttributes):
 		how may records (starting at the record defined by ``offset``) should be
 		returned.
 
-		Records will be returned as a dictionary which record ids as the keys and
-		:class:`Record` objects as the value.
+		Records will be returned as an :class:`AppRecordPage`.
 		"""
 
 		filter = _make_filter(filter)
@@ -3736,7 +3714,7 @@ class App(CustomAttributes):
 
 
 @register("appgroup")
-class AppGroup(Base):
+class AppGroup(CustomAttributes):
 	"""
 	An :class:`!AppGroup` describes group of apps that together form an application.
 
@@ -3778,7 +3756,7 @@ class AppGroup(Base):
 		Parameters of this app group.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "globals", "name", "apps", "main_app", "params", "add_param"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "globals", "name", "apps", "main_app", "params", "add_param", "count_records", "fetch_records", "fetch_recordpage"})
 	ul4_type = ul4c.Type("la", "AppGroup", "A group of LivingApps")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -3792,6 +3770,7 @@ class AppGroup(Base):
 	params = AttrDictAttr(get="", ul4get="_params_get")
 
 	def __init__(self, id=None, globals=None, name=None, description=None):
+		super().__init__()
 		self.id = id
 		self.globals = globals
 		self.name = name
@@ -3801,6 +3780,11 @@ class AppGroup(Base):
 		self.main_app = None
 		self._ownparams = None
 		self._params = None
+
+	def _template_candidates(self):
+		handler = self.globals._gethandler()
+		yield handler.fetch_internaltemplates(self.globals.app.id, "appgroup_instance", None)
+		yield handler.fetch_librarytemplates("appgroup_instance")
 
 	@property
 	def ul4onid(self) -> str:
@@ -3815,7 +3799,8 @@ class AppGroup(Base):
 			identifier = name[3:]
 			if self.params and identifier in self.params:
 				return self.params[identifier].value
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		else:
+			return super().__getattr__(name)
 
 	def __setattr__(self, name: str, value: Any) -> None:
 		if name.startswith("pv_"):
@@ -3842,11 +3827,13 @@ class AppGroup(Base):
 			return True
 		elif name.startswith("pv_") and name[3:] in self.params:
 			return True
+		elif name.startswith("pv_") and name[3:] in self.params:
+			return True
 		else:
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name: str) -> Any:
-		if name.startswith(("p_", "pv_")):
+		if name.startswith(("p_", "pv_", "t_")):
 			return getattr(self, name)
 		elif self.ul4_hasattr(name):
 			return super().ul4_getattr(name)
@@ -3856,11 +3843,6 @@ class AppGroup(Base):
 			setattr(self, name, value)
 		else:
 			super().ul4_setattr(name, value)
-
-	def _gethandler(self) -> Handler:
-		if self.globals is None:
-			raise NoHandlerError()
-		return self.globals._gethandler()
 
 	def _apps_get(self):
 		apps = self._apps
@@ -3876,7 +3858,7 @@ class AppGroup(Base):
 	def _ownparams_get(self) -> dict[str, AppParameter]:
 		params = self._params
 		if params is None:
-			handler = self._gethandler()
+			handler = self.globals._gethandler()
 			params = handler.appgroup_params_incremental_data(self)
 			if params is not None:
 				params = attrdict(params)
@@ -3903,6 +3885,97 @@ class AppGroup(Base):
 		param = MutableAppParameter(appgroup=self, type=type, identifier=identifier, description=description, value=value)
 		self.params[param.identifier] = param
 		return param
+
+	def _make_filter(self, filter:dict[App, list[str] | str]) -> dict[App, list[str]]:
+		if not isinstance(filter, dict):
+			raise TypeError("`filter` must be a dict")
+
+		new_filter = {}
+
+		for (app, value) in filter.items():
+			if not isinstance(app, App):
+				raise TypeError("`filter` keys must be `App` objects")
+			if app.id not in self.apps:
+				raise TypeError("`filter` keys must be `App` objects that belong to the appgroup")
+			new_filter[app] = _make_filter(value)
+
+		return new_filter
+
+	def count_records(self, filter:dict[App, list[str] | str]) -> int:
+		"""
+		Return the number of records in this app group matching the vSQL condition ``filter``.
+
+		``filter`` must map apps of the app group to vSQL filter expressions
+		(or list of expressions, which will be ombined with ``and``).
+		"""
+
+		handler = self.globals._gethandler()
+		filter = self._make_filter(filter)
+		return handler.count_records_from_apps(self.globals, filter)
+
+	def fetch_records(self, filter:dict[App, list[str] | str], sort:list[str] | str | None=None, offset:int | None = 0, limit: int | None=None) -> dict[str, Record]:
+		"""
+		Return records in this app group matching the vSQL conditions in ``filter``.
+
+		``filter`` must map apps of the app group to vSQL filter expressions
+		(or list of expressions, which will be ombined with ``and``).
+
+		``sort`` can be a string or list of strings specifying how records should
+		be sorted. If ``sort`` is a list of multiple strings the records will be
+		sorted lexicographically. Each sort expression must be a valid vSQL
+		expression optionally followed by ``asc`` or ``desc`` optionally followed
+		by ``nulls first`` or ``nulls last``. If ``sort`` is ``None`` or an empty
+		list records will be returned in "natural" order.
+
+		If ``offset`` is not ``None`` it must be a non-negative integer and
+		defines at which offset in the actual list of records output will begin.
+		I.e. passing ``offset=1`` will skip the first record.
+
+		If ``limit`` is not ``None`` it must be a positive integer and defines
+		how may records (starting at the record defined by ``offset``) should be
+		returned.
+
+		Records will be returned as a dictionary which record ids as the keys and
+		:class:`Record` objects as the value.
+		"""
+
+		handler = self.globals._gethandler()
+		return handler.fetch_records_from_apps(
+			globals=self.globals,
+			filter=self._make_filter(filter),
+			sort=_make_sort(sort),
+			offset=_make_offset(offset),
+			limit=_make_limit(limit),
+		)
+
+	def fetch_recordpage(self, filter:dict[App, list[str] | str], sort:list[str] | str | None = None, offset: int | None = 0, limit: int | None = None) -> RecordPage:
+		"""
+		Return records in this app group matching the vSQL conditions in ``filter``.
+
+		``sort`` can be a string or list of strings specifying how records should
+		be sorted. If ``sort`` is a list of multiple strings the records will be
+		sorted lexicographically. Each sort expression must be a valid vSQL
+		expression optionally followed by ``asc`` or ``desc`` optionally followed
+		by ``nulls first`` or ``nulls last``. If ``sort`` is ``None`` or an empty
+		list records will be returned in "natural" order.
+
+		If ``offset`` is not ``None`` it must be a non-negative integer and
+		defines at which offset in the actual list of records output will begin.
+		I.e. passing ``offset=1`` will skip the first record.
+
+		If ``limit`` is not ``None`` it must be a positive integer and defines
+		how may records (starting at the record defined by ``offset``) should be
+		returned.
+
+		Records will be returned as an :class:`AppRecordPage`.
+		"""
+
+		filter = self._make_filter(filter)
+		sort = _make_sort(sort)
+		offset = _make_offset(offset)
+		limit = _make_limit(limit)
+
+		return AppGroupRecordPage(self, filter=filter, sort=sort, offset=offset, limit=limit)
 
 
 class Field(CustomAttributes):
@@ -4008,14 +4081,6 @@ class Field(CustomAttributes):
 	ul4_attrs = CustomAttributes.ul4_attrs.union({"control", "record", "label", "description", "value", "is_empty", "is_dirty", "errors", "priority", "in_list", "in_mobile_list", "in_text", "required", "mode", "has_errors", "add_error", "set_error", "clear_errors", "enabled", "writable", "visible"})
 	ul4_type = ul4c.Type("la", "Field", "The value of a field of a record (and related information)")
 
-	@property
-	def template_types(self):
-		return (
-			(self.control.id, "field_instance"),
-			(None, f"field_{self.control.type}_instance"),
-			(None, "field_instance"),
-		)
-
 	def __init__(self, control, record, value):
 		super().__init__()
 		self.control = control
@@ -4036,7 +4101,13 @@ class Field(CustomAttributes):
 		self._dirty = False
 
 	def _template_candidates(self):
-		yield from self.record._template_candidates()
+		handler = self.record.app.globals._gethandler()
+		app_id = self.record.app.id
+		yield handler.fetch_internaltemplates(app_id, "field_instance", self.control.id)
+		yield handler.fetch_internaltemplates(app_id, f"field_{self.control.type}_instance", None)
+		yield handler.fetch_internaltemplates(app_id, f"field_instance", None)
+		yield handler.fetch_librarytemplates(f"field_{self.control.type}_instance")
+		yield handler.fetch_librarytemplates("field_instance")
 
 	@property
 	def label(self) -> str:
@@ -4151,14 +4222,6 @@ class Field(CustomAttributes):
 			s += " has_errors()=True"
 		s += f" at {id(self):#x}>"
 		return s
-
-	def __getattr__(self, name: str) -> Any:
-		if name.startswith("t_"):
-			identifier = name[2:]
-			template = self.control._fetch_template(self, identifier)
-			if template is not None:
-				return template
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
 	def ul4ondump(self, encoder: ul4on.Encoder) -> None:
 		encoder.dump(self.control)
@@ -5048,16 +5111,14 @@ class Control(CustomAttributes):
 	def _gethandler(self) -> Handler:
 		return self.app._gethandler()
 
-	@property
-	def template_types(self):
-		return (
-			(self.id, "control_instance"),
-			(None, f"control_{self.type}_instance"),
-			(None, "control_instance"),
-		)
-
 	def _template_candidates(self):
-		yield from self.app._template_candidates()
+		handler = self.app.globals._gethandler()
+		app_id = self.app.id
+		yield handler.fetch_internaltemplates(app_id, "control_instance", self.id)
+		yield handler.fetch_internaltemplates(app_id, f"control_{self.type}_instance", None)
+		yield handler.fetch_internaltemplates(app_id, f"control_instance", None)
+		yield handler.fetch_librarytemplates(f"control_{self.type}_instance")
+		yield handler.fetch_librarytemplates("control_instance")
 
 	@property
 	def ul4onid(self) -> str:
@@ -6765,8 +6826,6 @@ class Record(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
-	template_types = ((None, "record_instance"),)
-
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	state = EnumAttr(State, get="", required=True, repr=True, ul4get="")
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -6835,7 +6894,9 @@ class Record(CustomAttributes):
 		self._sparse_lookupdata = None
 
 	def _template_candidates(self):
-		yield from self.app._template_candidates()
+		handler = self.app.globals._gethandler()
+		yield handler.fetch_internaltemplates(self.app.id, "record_instance", None)
+		yield handler.fetch_librarytemplates("record_instance")
 
 	def _fields_get(self):
 		if self.__dict__["fields"] is None:
@@ -7003,12 +7064,8 @@ class Record(CustomAttributes):
 			identifier = name[2:]
 			if identifier in self.details:
 				return self.details[identifier].records
-		elif name.startswith("t_"):
-			identifier = name[2:]
-			template = self.app._fetch_template(self, identifier)
-			if template is not None:
-				return template
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		else:
+			return super().__getattr__(name)
 
 	def __dir__(self) -> set[str]:
 		"""
@@ -7180,6 +7237,13 @@ class Record(CustomAttributes):
 					new_filter[control.app] = f
 		return new_filter
 
+	def count_child_records(self, filter:dict[App, list[str] | str]) -> int:
+		return self._gethandler().count_records_from_apps(
+			globals=self.app.globals,
+			filter=self._make_children_filter(filter),
+			record=self,
+		)
+
 	def fetch_child_records(self, filter: dict[App, list[str] | str], sort:list[str] | str | None=None, offset:int | None = 0, limit: int | None=None) -> dict[str, Record]:
 		return self._gethandler().fetch_records_from_apps(
 			globals=self.app.globals,
@@ -7187,13 +7251,6 @@ class Record(CustomAttributes):
 			sort=_make_sort(sort),
 			offset=_make_offset(offset),
 			limit=_make_limit(limit),
-			record=self,
-		)
-
-	def count_child_records(self, filter:dict[App, list[str] | str]) -> int:
-		return self._gethandler().count_records_from_apps(
-			globals=self.app.globals,
-			filter=self._make_children_filter(filter),
 			record=self,
 		)
 
@@ -7715,7 +7772,7 @@ class RecordChildrenRecordPage(RecordPage):
 		The parent record.
 	"""
 
-	ul4_attrs = RecordPage.ul4_attrs.union({"appfilter"})
+	ul4_attrs = RecordPage.ul4_attrs.union({"record"})
 	ul4_type = ul4c.Type("la", "AppRecordPage", "A window of query results fetched from a record with pagination metadata (limit, offset, total count)")
 
 	filter = Attr(dict, get=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -7730,6 +7787,36 @@ class RecordChildrenRecordPage(RecordPage):
 
 	def _count_records(self) -> int:
 		return self.record.count_child_records(self.filter)
+
+
+class AppGroupRecordPage(RecordPage):
+	"""
+	A subclass of :class:`RecordPage` where records are fetched from an
+	:class:`AppGroup`.
+
+	Relevant instance attributes are:
+
+	.. attribute:: appgroup
+		:type: AppGroup
+
+		The app group.
+	"""
+
+	ul4_attrs = RecordPage.ul4_attrs.union({"appgroup"})
+	ul4_type = ul4c.Type("la", "AppGroupRecordPage", "A window of query results fetched from the apps of an app group with pagination metadata (limit, offset, total count)")
+
+	filter = Attr(dict, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	appgroup = Attr(AppGroup, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, appgroup, filter, sort=None, offset=0, limit=None):
+		super().__init__(filter=filter, sort=sort, offset=offset, limit=limit)
+		self.appgroup = appgroup
+
+	def _fetch_records(self) -> dict[str, Record]:
+		return self.appgroup.fetch_records(self.filter, self.sort, self.offset, self.limit)
+
+	def _count_records(self) -> int:
+		return self.appgroup.count_records(self.filter)
 
 
 class Template(Base):
@@ -9242,15 +9329,13 @@ class LayoutControl(CustomAttributes):
 		self.z_index = None
 		self.visible = True
 
-	@property
-	def template_types(self):
-		return (
-			(None, f"layoutcontrol_{self.type}_instance"),
-			(None, "layoutcontrol_instance"),
-		)
-
 	def _template_candidates(self):
-		yield from self.view.app._template_candidates()
+		handler = self.view.app.globals._gethandler()
+		app_id = self.view.app.id
+		yield handler.fetch_internaltemplates(app_id, f"layoutcontrol_{self.type}_instance", None)
+		yield handler.fetch_internaltemplates(app_id, f"layoutcontrol_instance", None)
+		yield handler.fetch_librarytemplates(f"layoutcontrol_{self.type}_instance")
+		yield handler.fetch_librarytemplates("layoutcontrol_instance")
 
 	@property
 	def ul4onid(self) -> str:
@@ -9422,8 +9507,6 @@ class View(CustomAttributes):
 	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "name", "combined_type", "app", "order", "width", "height", "start", "end", "lang", "login_required", "result_page", "use_geo", "controls", "layout_controls", "focus_control", "focus_first_control"})
 	ul4_type = ul4c.Type("la", "View", "An input form for a LivingApps application")
 
-	template_types = ()
-
 	class CombinedType(misc.Enum):
 		"""
 		If this is a combined view, the type of the combined view.
@@ -9480,9 +9563,6 @@ class View(CustomAttributes):
 	def ul4onid(self) -> str:
 		return self.id
 
-	def _template_candidates(self):
-		yield from ()
-
 	def _result_page_ul4onset(self, value):
 		self.use_use = not value
 
@@ -9510,7 +9590,8 @@ class View(CustomAttributes):
 			identifier = name[3:]
 			if identifier in self.layout_controls:
 				return self.layout_controls[identifier]
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		else:
+			return super().__getattr__(name)
 
 	def __dir__(self) -> set[str]:
 		"""
@@ -10114,13 +10195,6 @@ class AppParameter(CustomAttributes):
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	@property
-	def template_types(self):
-		return (
-			(None, f"parameter_{self.type.value}_instance"),
-			(None, "parameter_instance"),
-		)
-
 	def __init__(self, id=None, parent=None, app=None, appgroup=None, type=None, order=None, identifier=None, description=None, value=None):
 		super().__init__()
 		self.id = id
@@ -10155,20 +10229,14 @@ class AppParameter(CustomAttributes):
 			return self._globals
 
 	def _template_candidates(self):
-		if self.appgroup is not None:
-			yield from self.globals._template_candidates()
-		elif self.app is not None:
-			yield from self.app._template_candidates()
-		elif self._globals is not None:
-			yield from self._globals._template_candidates()
+		globals = self.globals
+		handler = globals._gethandler()
 
-	def __getattr__(self, name: str) -> Any:
-		if name.startswith("t_"):
-			identifier = name[2:]
-			template = self._fetch_template(self, identifier)
-			if template is not None:
-				return template
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		app = self.app if self.app is not None else globals.app
+		yield handler.fetch_internaltemplates(app.id, f"parameter_{self.type.value}_instance", None)
+		yield handler.fetch_internaltemplates(app.id, "parameter_instance", None)
+		yield handler.fetch_librarytemplates(f"parameter_{self.type.value}_instance")
+		yield handler.fetch_librarytemplates("parameter_instance")
 
 
 @register("mutableappparameter")
@@ -10541,8 +10609,6 @@ class MenuItem(CustomAttributes):
 	ul4_attrs = Base.ul4_attrs.union({"id", "identifier", "label", "parent", "app", "type", "icon", "title", "target", "cssclass", "url", "order", "start_time", "end_time", "on_app_overview_page", "on_app_detail_page", "on_form_page", "on_iframe_page", "on_custom_overview_page", "on_view_template", "accessible", "children", "createdat", "createdby", "updatedat", "updatedby"})
 	ul4_type = ul4c.Type("la", "MenuItem", "An additional menu item in an app that links to a target page.")
 
-	template_types = ((None, "menuitem_instance"),)
-
 	class Type(misc.Enum):
 		"""
 		What is the target of the link? Possible values are:
@@ -10642,19 +10708,16 @@ class MenuItem(CustomAttributes):
 		return self.id
 
 	def _template_candidates(self):
-		yield from self.app._template_candidates()
+		handler = self.app.globals._gethandler()
+		yield handler.fetch_internaltemplates(self.app.id, "menuitem_instance", None)
+		yield handler.fetch_librarytemplates("menuitem_instance")
 
 	def __getattr__(self, name: str) -> Any:
 		if name.startswith("c_"):
 			identifier = name[2:]
 			if identifier in self.children:
 				return self.children[identifier]
-		elif name.startswith("t_"):
-			identifier = name[2:]
-			template = self.app._fetch_template(self, identifier)
-			if template is not None:
-				return template
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+		return super().__getattr__(name)
 
 	def __dir__(self) -> set[str]:
 		"""
@@ -10675,8 +10738,6 @@ class MenuItem(CustomAttributes):
 
 	def ul4_getattr(self, name: str) -> Any:
 		if name.startswith("c_"):
-			return getattr(self, name)
-		elif name.startswith("t_"):
 			return getattr(self, name)
 		elif self.ul4_hasattr(name):
 			return super().ul4_getattr(name)
@@ -10756,8 +10817,6 @@ class Panel(MenuItem):
 	ul4_attrs = MenuItem.ul4_attrs.union({"description", "description_url", "image", "row", "column", "width", "height", "header_type", "header_background", "text_color", "background_color1", "background_color2"})
 	ul4_type = ul4c.Type("la", "Panel", "An additional panel in an app that is displayed on various LivingApps pages and links to a target page.")
 
-	template_types = ((None, "panel_instance"), (None, "menuitem_instance"))
-
 	class HeaderType(misc.Enum):
 		"""
 		How to display the panel header.
@@ -10825,6 +10884,13 @@ class Panel(MenuItem):
 		self.text_color = None
 		self.background_color1 = None
 		self.background_color2 = None
+
+	def _template_candidates(self):
+		handler = self.app.globals._gethandler()
+		yield handler.fetch_internaltemplates(self.app.id, "panel_instance", None)
+		yield handler.fetch_internaltemplates(self.app.id, "menuitem_instance", None)
+		yield handler.fetch_librarytemplates("panel_instance")
+		yield handler.fetch_librarytemplates("menuitem_instance")
 
 	def __dir__(self) -> set[str]:
 		"""

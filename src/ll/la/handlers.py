@@ -143,7 +143,7 @@ class Handler:
 	def viewtemplate_data(self, *path, **params):
 		raise NotImplementedError
 
-	def loadinternaltemplates(self, tpl_uuid):
+	def fetch_internaltemplates(self, tpl_uuid, type, control_id):
 		raise NotImplementedError
 
 	def viewtemplate_params_incremental_data(self, globals, id):
@@ -281,10 +281,7 @@ class Handler:
 	def change_user(self, lang, oldpassword, newpassword, newemail):
 		raise NotImplementedError
 
-	def fetch_templates(self, app):
-		return la.attrdict()
-
-	def fetch_librarytemplates(self):
+	def fetch_librarytemplates(self, type : str):
 		return la.attrdict()
 
 	def fetch_libraryparams(self):
@@ -403,7 +400,7 @@ class DBHandler(Handler):
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
 		self.viewtemplate_params = {} # Maps ``vt_id`` to parameter dictionary
 		self.emailtemplate_params = {} # Maps ``et_id`` to parameter dictionary
-		self.librarytemplates = None # Maps ``lt_id`` to templates
+		self.librarytemplates = {} # Maps ``lt_id`` to templates
 		self.libraryparams = None # Maps ``lp_id`` to :class:`AppParameter`
 
 		if ide_id is not None:
@@ -1540,45 +1537,29 @@ class DBHandler(Handler):
 			self.custom_procs[procname] = proc
 			return proc
 
-	def loadinternaltemplates(self, tpl_uuid):
-		if tpl_uuid in self.internaltemplates:
-			return self.internaltemplates[tpl_uuid]
+	def fetch_internaltemplates(self, tpl_uuid, type, control_id):
+		key = (tpl_uuid, type, control_id)
+		if key in self.internaltemplates:
+			return self.internaltemplates[key]
 		c = self.cursor_pg()
-		c.execute("""
-			select
-				ctl_id,
-				it_identifier,
-				tmt_key,
-				utv_source
-			from
-				internaltemplate.internaltemplate_select
-			where
-				app_id=%s
-		""", [tpl_uuid])
+		if type is None:
+			c.execute("select it_identifier, utv_source from internaltemplate.internaltemplate_select where app_id = %s and tmt_key is null and ctl_id is null", [tpl_uuid])
+		elif control_id is None:
+			c.execute("select it_identifier, utv_source from internaltemplate.internaltemplate_select where app_id = %s and tmt_key = %s and ctl_id is null", [tpl_uuid, type])
+		else:
+			c.execute("select it_identifier, utv_source from internaltemplate.internaltemplate_select where app_id = %s and tmt_key = %s and ctl_id = %s", [tpl_uuid, type, control_id])
 		templates = la.attrdict()
 		for r in c:
-			(control_id, identifier, type, source) = r
+			(identifier, source) = r
 			namespace = f"app_{tpl_uuid}.internaltemplates"
 			if type:
 				namespace += f".{type}"
 			if control_id:
 				namespace += f".{control_id}"
 			template = ul4c.Template(source, name=identifier, namespace=namespace)
-			key = (control_id, type)
-			if key not in templates:
-				templates[key] = la.attrdict()
-			templates[key][template.name] = template
-		self.internaltemplates[tpl_uuid] = templates
+			templates[template.name] = template
+		self.internaltemplates[key] = templates
 		return templates
-
-	def fetch_templates(self, app):
-		if app.superid is None:
-			return self.loadinternaltemplates(app.id)
-		else:
-			return {
-				**self.loadinternaltemplates(app.superid),
-				**self.loadinternaltemplates(app.id),
-			}
 
 	def fetch_viewtemplate_params(self, globals):
 		id = globals.viewtemplate_id
@@ -1592,28 +1573,22 @@ class DBHandler(Handler):
 			self.emailtemplate_params[id] = self.emailtemplate_params_incremental_data(globals, id)
 		return self.emailtemplate_params[id]
 
-	def fetch_librarytemplates(self):
-		if self.librarytemplates is None:
+	def fetch_librarytemplates(self, type : str):
+		if type not in self.librarytemplates:
 			c = self.cursor_pg(row_factory=rows.tuple_row)
-			c.execute("""
-				select
-					lt_identifier,
-					tmt_key,
-					utv_source
-				from
-					templatelibrary.librarytemplate_select
-			""")
+			if type is None:
+				c.execute("select lt_identifier, utv_source from templatelibrary.librarytemplate_select where tmt_key is null")
+			else:
+				c.execute("select lt_identifier, utv_source from templatelibrary.librarytemplate_select where tmt_key = %s", [type])
+
 			templates = la.attrdict()
 			for r in c:
-				(identifier, type, source) = r
+				(identifier, source) = r
 				namespace = f"templatelibrary.{type}" if type else f"templatelibrary"
 				template = ul4c.Template(source, name=identifier, namespace=namespace)
-				key = (None, type)
-				if key not in templates:
-					templates[key] = la.attrdict()
-				templates[key][template.name] = template
-			self.librarytemplates = templates
-		return self.librarytemplates
+				templates[template.name] = template
+			self.librarytemplates[type] = templates
+		return self.librarytemplates[type]
 
 	def fetch_libraryparams(self):
 		if self.libraryparams is None:
@@ -2323,41 +2298,10 @@ class FileHandler(Handler):
 			basepath = pathlib.Path()
 		self.basepath = pathlib.Path(basepath)
 
-	def meta_data(self, *appids, records=False):
-		apps = {}
-		for childpath in self.basepath.iterdir():
-			if childpath.is_dir() and childpath.name.endswith(")") and " (" in childpath.name:
-				pos = childpath.name.rfind(" (")
-				id = childpath.name[pos+2:-1]
-				name = childpath.name[:pos]
-				app = la.App(name=name)
-				app.id = id
-				self._loadcontrols(app)
-				self.loadinternaltemplates(app)
-				apps[app.id] = app
-		return attrdict(apps)
-
 	def _loadcontrols(self, app):
 		path = self.basepath/f"{app.name} ({app.id})/index.json"
 		if path.exists():
 			dump = json.loads(path.read_text(encoding="utf-8"))
-
-
-	def loadinternaltemplates(self, app):
-		dir = self.basepath/f"{app.name} ({app.id})/internaltemplates"
-		if dir.exists():
-			for filepath in dir.iterdir():
-				identifier = filepath.with_suffix("").name
-				source = filepath.read_text(encoding="utf-8")
-				template = ul4c.Template(source, name=identifier)
-				internaltemplate = la.InternalTemplate(
-					identifier=identifier,
-					source=source,
-					signature=str(template.signature) if template.signature is not None else None,
-					whitespace=template.whitespace,
-					doc=template.doc
-				)
-				app.addtemplate(internaltemplate)
 
 	def save_app_config(self, app, recursive=True):
 		configcontrols = self._controls_as_json(app)

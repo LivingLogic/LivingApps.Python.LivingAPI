@@ -8,6 +8,8 @@ from ll.xist.ns import html
 
 from ll import la
 
+dir = pathlib.Path(__file__).absolute().parent
+
 
 ###
 ### Data and helper functions
@@ -177,7 +179,7 @@ class PythonHTTP(LocalTemplateHandler):
 			vars = self.testhandler.viewtemplate_data(*path, **params)
 			# We don't have to call the following code inside the ``with`` block
 			# since the data was fetched by the ``HTTPHandler`` which doesn't support
-			# loading data incrementally anyway. But this means that test might fail
+			# loading data incrementally anyway. But this means that tests might fail
 			# for these dynamic attributes (or have to be skipped).
 			# But note that we *do* have to call it inside a separate ``with`` block
 			# so that the backref registry gets reset afterwards.
@@ -322,10 +324,10 @@ def handler(request):
 
 def create_data():
 	with la.DBHandler(connectstring=connect(), connectstring_postgres=connect_postgres(), uploaddir=uploaddir(), ide_account=user()) as handler:
-		vars = handler.meta_data(person_app_id(), fields_app_id(), records=True)
+		vars = handler.viewtemplate_data(person_app_id(), template="livingapi_datasources")
 
-		persons_app = vars["apps"][person_app_id()]
-		fields_app = vars["apps"][fields_app_id()]
+		persons_app = vars.datasources.persons.app
+		fields_app = vars.datasources.fieldsofactivity.app
 		globals = vars["globals"]
 
 		# Remove all persons
@@ -370,18 +372,19 @@ def create_data():
 
 		def p(**values):
 			p = persons_app(**values)
-			if "url" in values:
-				page_url = values["url"]
-				e = parse.tree(
-					parse.URL(page_url),
-					parse.Tidy(),
-					parse.NS(html),
-					parse.Node(pool=xsc.Pool(html)),
-				)
-				selector = xfind.hasclass('mw-parser-output') / html.p
-				notes = misc.first(e.walknodes(selector))
-				notes = notes.mapped(lambda n, c: xsc.Null if isinstance(n, html.sup) else n)
-				p.v_notes = notes.string()
+			if 0:
+				if "url" in values:
+					page_url = values["url"]
+					e = parse.tree(
+						parse.URL(page_url),
+						parse.Tidy(),
+						parse.NS(html),
+						parse.Node(pool=xsc.Pool(html)),
+					)
+					selector = xfind.hasclass('mw-parser-output') / html.p
+					notes = misc.first(e.walknodes(selector))
+					notes = notes.mapped(lambda n, c: xsc.Null if isinstance(n, html.sup) else n)
+					p.v_notes = notes.string()
 
 			if p.v_portrait is not None and p.v_portrait.id is None:
 				handler.save_file(p.v_portrait)
@@ -391,7 +394,7 @@ def create_data():
 			return p
 
 		def u(u):
-			return globals.file(url_.URL(u))
+			return globals.file(dir / u)
 
 		def g(lat=None, long=None, info=None):
 			return globals.geo(lat, long, info)
@@ -404,10 +407,10 @@ def create_data():
 			country_of_birth="germany",
 			date_of_birth=datetime.date(1879, 3, 14),
 			date_of_death=datetime.date(1955, 4, 15),
-			grave=g(40.216085, -74.7917151),
+			grave=g(40.216085, -74.7917151, "Grave of Albery Einstein"),
 			nobel_prize=False,
 			url="https://de.wikipedia.org/wiki/Albert_Einstein",
-			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Einstein_1921_portrait2.jpg/330px-Einstein_1921_portrait2.jpg"),
+			portrait=u("images/Albert_Einstein.jpg"),
 		)
 
 		persons.mc = p(
@@ -418,10 +421,10 @@ def create_data():
 			country_of_birth="poland",
 			date_of_birth=datetime.date(1867, 11, 7),
 			date_of_death=datetime.date(1934, 7, 4),
-			grave=g(48.84672, 2.34631),
+			grave=g(48.84672, 2.34631, "Grave of Marie Curie"),
 			nobel_prize=True,
 			url="https://de.wikipedia.org/wiki/Marie_Curie",
-			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Marie_Curie_%28Nobel-Chem%29.jpg/170px-Marie_Curie_%28Nobel-Chem%29.jpg"),
+			portrait=u("images/Marie_Curie.jpg"),
 		)
 
 		persons.ma = p(
@@ -432,10 +435,10 @@ def create_data():
 			country_of_birth="usa",
 			date_of_birth=datetime.date(1942, 1, 17),
 			date_of_death=datetime.date(2016, 6, 3),
-			grave=g(38.2454051, -85.7170115),
+			grave=g(38.2454051, -85.7170115, "Grave of Muhammad Ali"),
 			nobel_prize=False,
 			url="https://de.wikipedia.org/wiki/Muhammad_Ali",
-			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Muhammad_Ali_NYWTS.jpg/200px-Muhammad_Ali_NYWTS.jpg"),
+			portrait=u("images/Muhammad_Ali.jpg"),
 		)
 
 		persons.mm = p(
@@ -446,10 +449,10 @@ def create_data():
 			country_of_birth="usa",
 			date_of_birth=datetime.date(1926, 6, 1),
 			date_of_death=datetime.date(1962, 8, 4),
-			grave=g(34.05827, -118.44096),
+			grave=g(34.05827, -118.44096, "Grave of Marilyn Monroe"),
 			nobel_prize=False,
 			url="https://de.wikipedia.org/wiki/Marilyn_Monroe",
-			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg/220px-Marilyn_Monroe%2C_Korea%2C_1954_cropped.jpg"),
+			portrait=u("images/Marilyn_Monroe.jpg"),
 		)
 
 		persons.ep = p(
@@ -460,10 +463,10 @@ def create_data():
 			country_of_birth="usa",
 			date_of_birth=datetime.date(1935, 1, 8),
 			date_of_death=datetime.date(1977, 8, 16),
-			grave=g(35.04522870295311, -90.02283096313477),
+			grave=g(35.04522870295311, -90.02283096313477, "Grave of Elvis Presley"),
 			nobel_prize=False,
 			url="https://de.wikipedia.org/wiki/Elvis_Presley",
-			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Elvis_Presley_1970.jpg/170px-Elvis_Presley_1970.jpg"),
+			portrait=u("images/Elvis_Presley.jpg"),
 		)
 
 		persons.br = p(
@@ -474,10 +477,10 @@ def create_data():
 			country_of_birth="germany",
 			date_of_birth=datetime.date(1826, 6, 17),
 			date_of_death=datetime.date(1866, 6, 20),
-			grave=g(45.942127, 8.5870263),
+			grave=g(45.942127, 8.5870263, "Grave of Bernhard Riemann"),
 			nobel_prize=False,
 			url="https://de.wikipedia.org/wiki/Bernhard_Riemann",
-			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/BernhardRiemannAWeger.jpg/330px-BernhardRiemannAWeger.jpg"),
+			portrait=u("images/Bernhard_Riemann.jpg"),
 		)
 
 		persons.cfg = p(
@@ -488,10 +491,10 @@ def create_data():
 			country_of_birth="germany",
 			date_of_birth=datetime.date(1777, 4, 30),
 			date_of_death=datetime.date(1855, 2, 23),
-			grave=g(51.53157404627684, 9.94189739227295),
+			grave=g(51.53157404627684, 9.94189739227295, "Grave of Carl Friedrich Gauß"),
 			nobel_prize=False,
 			url="https://de.wikipedia.org/wiki/Carl_Friedrich_Gau%C3%9F",
-			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Carl_Friedrich_Gauss.jpg/255px-Carl_Friedrich_Gauss.jpg"),
+			portrait=u("images/Carl_Friedrich_Gauss.jpg"),
 		)
 
 		persons.dk = p(
@@ -502,7 +505,7 @@ def create_data():
 			country_of_birth="usa",
 			date_of_birth=datetime.date(1938, 1, 10),
 			url="https://de.wikipedia.org/wiki/Donald_E._Knuth",
-			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/KnuthAtOpenContentAlliance.jpg/255px-KnuthAtOpenContentAlliance.jpg"),
+			portrait=u("images/Donald_Knuth.jpg"),
 		)
 
 		persons.rr = p(
@@ -513,10 +516,10 @@ def create_data():
 			country_of_birth="usa",
 			date_of_birth=datetime.date(1911, 2, 6),
 			date_of_death=datetime.date(2004, 6, 5),
-			grave=g(34.2590025, -118.8226249),
+			grave=g(34.2590025, -118.8226249, "Grave of Roland Reagan"),
 			nobel_prize=False,
 			url="https://de.wikipedia.org/wiki/Ronald_Reagan",
-			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Official_Portrait_of_President_Reagan_1981.jpg/220px-Official_Portrait_of_President_Reagan_1981.jpg"),
+			portrait=u("images/Ronald_Reagan.jpg"),
 		)
 
 		persons.am = p(
@@ -530,7 +533,7 @@ def create_data():
 			grave=None,
 			nobel_prize=False,
 			url="https://de.wikipedia.org/wiki/Angela_Merkel",
-			portrait=u("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg/220px-2018-03-12_Unterzeichnung_des_Koalitionsvertrages_der_19._Wahlperiode_des_Bundestages_by_Sandro_Halank%E2%80%93026_%28cropped%29.jpg"),
+			portrait=u("images/Angela_Merkel.jpg"),
 		)
 
 		handler.reset()
@@ -549,10 +552,10 @@ def create_data():
 
 def fetch_data():
 	with la.DBHandler(connectstring=connect(), connectstring_postgres=connect_postgres(), uploaddir=uploaddir(), ide_account=user()) as handler:
-		vars = handler.meta_data(person_app_id(), fields_app_id(), records=True)
+		vars = handler.viewtemplate_data(person_app_id(), template="livingapi_datasources")
 
-		persons_app = vars["apps"][person_app_id()]
-		fields_app = vars["apps"][fields_app_id()]
+		persons_app = vars.datasources.persons.app
+		fields_app = vars.datasources.fieldsofactivity.app
 		globals = vars["globals"]
 
 		return attrdict(
