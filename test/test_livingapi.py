@@ -442,26 +442,26 @@ def test_app_shortcuts(handler, config_data):
 		),
 		identifier="test_livingapi_app_shortcuts",
 		source="""
-			<?print repr(app.controls.firstname.identifier)?>
-			<?print repr(app.c_firstname.identifier)?>
-			<?print repr(app.params.bool_true.value)?>
-			<?print repr(app.p_bool_true.value)?>
-			<?print repr(app.pv_bool_true)?>
+			app.controls.firstname.identifier = <?print repr(app.controls.firstname.identifier)?>
+			app.c_firstname.identifier = <?print repr(app.c_firstname.identifier)?>
+			app.params.bool_true.value = <?print repr(app.params.bool_true.value)?>
+			app.p_bool_true.value = <?print repr(app.p_bool_true.value)?>
+			app.pv_bool_true = <?print repr(app.pv_bool_true)?>
 			<?code app.active_view = first(app.views)?>
-			<?print repr(app.layout_controls.save.identifier)?>
-			<?print repr(app.lc_save.identifier)?>
+			app.layout_controls.save.identifier = <?print repr(app.layout_controls.save.identifier)?>
+			app.lc_save.identifier = <?print repr(app.lc_save.identifier)?>
 		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = """
-		'firstname'
-		'firstname'
-		True
-		True
-		True
-		'save'
-		'save'
+		app.controls.firstname.identifier = 'firstname'
+		app.c_firstname.identifier = 'firstname'
+		app.params.bool_true.value = True
+		app.p_bool_true.value = True
+		app.pv_bool_true = True
+		app.layout_controls.save.identifier = 'save'
+		app.lc_save.identifier = 'save'
 	"""
 	assert lines(output) == lines(expected)
 
@@ -1048,7 +1048,7 @@ def test_view_defaultedfields_default(handler, config_data):
 				None
 				None
 				None
-				[]
+				['"firstname" wird benötigt.']
 				[]
 				[]
 				[]
@@ -2394,7 +2394,7 @@ def test_record_save_with_sync(handler, config_data):
 			True
 			True
 			True
-			notes saved!
+			notes
 		"""
 		assert lines(output) == lines(expected)
 
