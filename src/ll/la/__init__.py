@@ -1257,7 +1257,10 @@ class Base:
 		"""
 		Make keys completeable in IPython.
 		"""
-		return {name for name in self.__dict__ if name.startswith("x_")}
+		return self.ul4_attrs
+
+	def ul4_dir(self):
+		return self.ul4_attrs
 
 	def ul4_getattr(self, name: str) -> Any:
 		attr = getattr(self.__class__, name, None)
@@ -1270,7 +1273,7 @@ class Base:
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 	def ul4_hasattr(self, name: str) -> Any:
-		return name in self.ul4_attrs or name.startswith("x_")
+		return name in self.ul4_attrs
 
 	def ul4_setattr(self, name: str, value: Any) -> None:
 		attr = getattr(self.__class__, name, None)
@@ -1278,18 +1281,10 @@ class Base:
 			return attr.ul4set(self, value)
 		elif isinstance(attr, property):
 			return attr.fset(self, value)
-		elif name.startswith("x_"):
-			return setattr(self, name, value)
 		raise AttributeError(error_attribute_doesnt_exist(self, name))
 
 
-class CustomAttributes(Base):
-	ul4_attrs = Base.ul4_attrs.union({"custom"})
-
-	def __init__(self):
-		super().__init__()
-		self.custom = None
-
+class WithTemplates(Base):
 	@misc.notimplemented
 	def _template_candidates(self) -> Generator[dict[str, ul4c.Template], None, None]:
 		yield from []
@@ -1310,7 +1305,7 @@ class CustomAttributes(Base):
 		``self`` as the first argument.
 
 		A "unbound" member templates behaves like a global function (and can only
-		appear as attributes of :class:`App` or :class:`Globals`).
+		appear as an attribute of :class:`App` or :class:`Globals`).
 
 		We can determine the result based on the templates ``namespace`` (and need
 		to overwrite this method for :class:`Field` or :class:`Control` member templates
@@ -1331,10 +1326,14 @@ class CustomAttributes(Base):
 		"""
 		Make keys completeable in IPython.
 		"""
-		attrs = set(self.ul4_attrs)
-		for attrname in self.__dict__:
-			if attrname.startswith("x_"):
-				attrs.add(attrname)
+		attrs = set(super().__dir__())
+		for templates in self._template_candidates():
+			for identifier in templates:
+				attrs.add(f"t_{identifier}")
+		return attrs
+
+	def ul4_dir(self):
+		attrs = set(super().ul4_dir())
 		for templates in self._template_candidates():
 			for identifier in templates:
 				attrs.add(f"t_{identifier}")
@@ -1347,15 +1346,8 @@ class CustomAttributes(Base):
 				return template
 		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
 
-	def ul4_dir(self):
-		return dir(self)
-
 	def ul4_hasattr(self, name: str) -> bool:
-		if name in self.ul4_attrs:
-			return True
-		elif name.startswith("x_"):
-			return name in self.__dict__
-		elif name.startswith("t_"):
+		if name.startswith("t_"):
 			identifier = name[2:]
 			for templates in self._template_candidates():
 				if identifier in templates:
@@ -1365,13 +1357,41 @@ class CustomAttributes(Base):
 			return super().ul4_hasattr(name)
 
 	def ul4_getattr(self, name: str) -> Any:
-		if name.startswith("x_"):
-			return getattr(self, name)
-		elif name.startswith("t_"):
+		if name.startswith("t_"):
 			template = self._fetch_template(name[2:])
 			if template is not None:
 				return template
 		return super().ul4_getattr(name)
+
+
+class CustomAttributes(WithTemplates):
+	ul4_attrs = WithTemplates.ul4_attrs.union({"custom"})
+
+	def __init__(self):
+		super().__init__()
+		self.custom = None
+
+	def __dir__(self) -> set[str]:
+		"""
+		Make keys completeable in IPython.
+		"""
+		attrs = set(super().__dir__())
+		for attrname in self.__dict__:
+			if attrname.startswith("x_"):
+				attrs.add(attrname)
+		return attrs
+
+	def ul4_hasattr(self, name: str) -> bool:
+		if name.startswith("x_"):
+			return name in self.__dict__
+		else:
+			return super().ul4_hasattr(name)
+
+	def ul4_getattr(self, name: str) -> Any:
+		if name.startswith("x_"):
+			return getattr(self, name)
+		else:
+			return super().ul4_getattr(name)
 
 	def ul4_setattr(self, name: str, value: Any) -> None:
 		if name.startswith("x_") or name == "custom":
@@ -1616,7 +1636,7 @@ class File(CustomAttributes):
 
 
 @register("geo")
-class Geo(Base):
+class Geo(WithTemplates):
 	"""
 	Geolocation information.
 
@@ -1643,7 +1663,7 @@ class Geo(Base):
 		Description of the location.
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"lat", "long", "info"})
+	ul4_attrs = WithTemplates.ul4_attrs.union({"lat", "long", "info"})
 	ul4_type = ul4c.Type("la", "Geo", "Geographical coordinates and location information")
 
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1661,29 +1681,6 @@ class Geo(Base):
 		handler = self.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.globals.app.id, "geo_instance", None)
 		yield handler.fetch_librarytemplates("geo_instance")
-
-	def __getattr__(self, name: str) -> Any:
-		if name.startswith("t_"):
-			template = self._fetch_template(name[2:])
-			if template is not None:
-				return template
-		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
-
-	def ul4_hasattr(self, name: str) -> bool:
-		if name.startswith("t_"):
-			identifier = name[2:]
-			for templates in self._template_candidates():
-				if identifier in templates:
-					return True
-			return False
-		else:
-			return super().ul4_hasattr(name)
-
-	def ul4_getattr(self, name: str) -> Any:
-		if name.startswith(("t_")):
-			return getattr(self, name)
-		else:
-			return super().ul4_getattr(name)
 
 	@classmethod
 	def ul4oncreate(cls, id: str | None=None) -> Geo:
