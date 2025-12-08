@@ -1,3 +1,11 @@
+0.53.0 (2025-12-08)
+-------------------
+
+*	Update to XIST 5.82.1 and use the vSQL defined there (instead of our own).
+
+*	Add the method ``App.aggregate_records``.
+
+
 0.52.2 (2025-11-26)
 -------------------
 

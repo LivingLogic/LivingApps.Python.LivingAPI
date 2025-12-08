@@ -34,7 +34,7 @@ import datetime, pathlib, itertools, json, operator, warnings, random
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
-from ll import misc, url, ul4c, ul4on # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
+from ll import url, ul4c, ul4on, vsql # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
 try:
 	from ll import orasql
@@ -56,8 +56,6 @@ except ImportError:
 psycopg_required_message = "psycopg required (install via `pip install 'psycopg[binary]'`)"
 
 from ll import la
-
-from ll.la import vsql
 
 
 __docformat__ = "reStructuredText"
@@ -1614,15 +1612,15 @@ class DBHandler(Handler):
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
-		q.from_sql("v_globals", "g", "global variables")
+		q.from_sql("v_globals", "global variables", "g")
 
 		# Make sure that the table for `r` gets joined
-		q.register_vsql("r")
+		q.from_vsql("r")
 
 		# Count records
 		q.select_sql("count(*)", "c")
 
-		# Apply use specified filter
+		# Apply user specified filter
 		for f in filter:
 			if f:
 				q.where_vsql(f)
@@ -1642,16 +1640,16 @@ class DBHandler(Handler):
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
-		q.from_sql("v_globals", "g", "global variables")
+		q.from_sql("v_globals", "global variables", "g")
 
 		# Make sure that the table for `r` gets joined
-		q.register_vsql("r")
+		q.from_vsql("r")
 
 		# We need the pk of the record to be able to delete it.
-		# (Note that this makes the `register_vsql` call unnecessary.)
-		q.select_vsql("r.id", "dat_id")
+		# (Note that this makes the `from_vsql` call unnecessary.)
+		q.select_vsql("r.id", None, "dat_id")
 
-		# Apply use specified filter
+		# Apply user specified filter
 		for f in filter:
 			if f:
 				q.where_vsql(f)
@@ -1723,24 +1721,24 @@ class DBHandler(Handler):
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
-		q.from_sql("v_globals", "g", "global variables")
+		q.from_sql("v_globals", "global variables", "g")
 
 		# Make sure that the table for `r` gets joined
-		q.register_vsql("r")
+		q.from_vsql("r")
 
 		# Add all the fields that we need
-		q.select_vsql("r.id", "dat_id")
-		q.select_vsql("r.app_internal_id", "tpl_id")
-		q.select_vsql("r.app", "tpl_uuid")
-		q.select_vsql("r.createdat", "dat_cdate")
-		q.select_vsql("r.createdby", "dat_cname")
-		q.select_vsql("r.updatedat", "dat_udate")
-		q.select_vsql("r.updatedby", "dat_uname")
-		q.select_vsql("r.updatecount", "dat_updatecount")
+		q.select_vsql("r.id", None, "dat_id")
+		q.select_vsql("r.app_internal_id", None, "tpl_id")
+		q.select_vsql("r.app", None, "tpl_uuid")
+		q.select_vsql("r.createdat", None, "dat_cdate")
+		q.select_vsql("r.createdby", None, "dat_cname")
+		q.select_vsql("r.updatedat", None, "dat_udate")
+		q.select_vsql("r.updatedby", None, "dat_uname")
+		q.select_vsql("r.updatecount", None, "dat_updatecount")
 		for control in app.controls.values():
-			q.select_vsql(f"r.v_{control.identifier}", control.fieldname)
+			q.select_vsql(f"r.v_{control.identifier}", None, control.fieldname)
 
-		# Apply use specified filter
+		# Apply user specified filter
 		for f in filter:
 			if f:
 				q.where_vsql(f)
@@ -1755,24 +1753,7 @@ class DBHandler(Handler):
 
 		# Add sort expressions specified by the user
 		for s in sort:
-			direction = None
-			nulls = None
-			while True:
-				if direction is None and s.endswith(" asc"):
-					direction = "asc"
-					s = s[:-4].strip()
-				elif direction is None and s.endswith(" desc"):
-					direction = "desc"
-					s = s[:-5].strip()
-				elif nulls is None and s.endswith(" nulls last"):
-					nulls = "last"
-					s = s[:-11].strip()
-				elif nulls is None and s.endswith(" nulls first"):
-					nulls = "first"
-					s = s[:-12].strip()
-				else:
-					break
-			q.orderby_vsql(s, direction=direction, nulls=nulls)
+			q.orderby_vsql(s)
 
 		c = self.cursor()
 
@@ -1857,23 +1838,23 @@ class DBHandler(Handler):
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
-		q.from_sql("v_globals", "g", "global variables")
+		q.from_sql("v_globals", "global variables", "g")
 
 		# Force the table for `r` to be joined, even if we never reference it
-		table_alias = q.register_vsql("r")
+		table_alias = q.from_vsql("r")
 
 		# Add the fields we need
-		q.select_vsql("r.id", "dat_id")
-		q.select_vsql("r.app_internal_id", "tpl_id")
-		q.select_vsql("r.app", "tpl_uuid")
-		q.select_vsql("r.createdat", "dat_cdate")
-		q.select_vsql("r.createdby", "dat_cname")
-		q.select_vsql("r.updatedat", "dat_udate")
-		q.select_vsql("r.updatedby", "dat_uname")
-		q.select_vsql("r.updatecount", "dat_updatecount")
+		q.select_vsql("r.id", None, "dat_id")
+		q.select_vsql("r.app_internal_id", None, "tpl_id")
+		q.select_vsql("r.app", None, "tpl_uuid")
+		q.select_vsql("r.createdat", None, "dat_cdate")
+		q.select_vsql("r.createdby", None, "dat_cname")
+		q.select_vsql("r.updatedat", None, "dat_udate")
+		q.select_vsql("r.updatedby", None, "dat_uname")
+		q.select_vsql("r.updatecount", None, "dat_updatecount")
 
 		for (fieldname, field) in fields.items():
-			q.select_sql(field.fieldsql.replace("{a}", table_alias), fieldname, None)
+			q.select_sql(field.fieldsql.replace("{a}", table_alias), None, fieldname)
 
 		# Add filter conditions
 		for f in filter:
@@ -1891,13 +1872,13 @@ class DBHandler(Handler):
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
-		q.from_sql("v_globals", "g", "global variables")
+		q.from_sql("v_globals", "global variables", "g")
 
 		# Force the table for `r` to be joined, even if we never reference it
-		table_alias = q.register_vsql("r")
+		table_alias = q.from_vsql("r")
 
 		# Count records
-		q.select_sql("count(*)", "c", None)
+		q.select_sql("count(*)", None, "c")
 
 		# Add filter conditions
 		for f in filter:
@@ -1941,42 +1922,25 @@ class DBHandler(Handler):
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
-		q.from_sql("v_globals", "g", "global variables")
+		q.from_sql("v_globals", "global variables", "g")
 
 		# Add the fields we need
-		q.select_vsql("r.id", "dat_id")
-		q.select_vsql("r.app_internal_id", "tpl_id")
-		q.select_vsql("r.app", "tpl_uuid")
-		q.select_vsql("r.createdat", "dat_cdate")
-		q.select_vsql("r.createdby", "dat_cname")
-		q.select_vsql("r.updatedat", "dat_udate")
-		q.select_vsql("r.updatedby", "dat_uname")
-		q.select_vsql("r.updatecount", "dat_updatecount")
+		q.select_vsql("r.id", None, "dat_id")
+		q.select_vsql("r.app_internal_id", None, "tpl_id")
+		q.select_vsql("r.app", None, "tpl_uuid")
+		q.select_vsql("r.createdat", None, "dat_cdate")
+		q.select_vsql("r.createdby", None, "dat_cname")
+		q.select_vsql("r.updatedat", None, "dat_udate")
+		q.select_vsql("r.updatedby", None, "dat_uname")
+		q.select_vsql("r.updatecount", None, "dat_updatecount")
 		for (fieldname, field) in all_fields.items():
 			# We using the field name here since field aliases for multiple lookups/applookups
 			# have been put into the inner queries
-			q.select_sql(f"t2.{fieldname}", fieldname, None)
+			q.select_sql(f"t2.{fieldname}", None, fieldname)
 
 		# Add sort expressions specified by the user
 		for s in sort:
-			direction = None
-			nulls = None
-			while True:
-				if direction is None and s.endswith(" asc"):
-					direction = "asc"
-					s = s[:-4].strip()
-				elif direction is None and s.endswith(" desc"):
-					direction = "desc"
-					s = s[:-5].strip()
-				elif nulls is None and s.endswith(" nulls last"):
-					nulls = "last"
-					s = s[:-11].strip()
-				elif nulls is None and s.endswith(" nulls first"):
-					nulls = "first"
-					s = s[:-12].strip()
-				else:
-					break
-				q.orderby_vsql(s, direction=direction, nulls=nulls)
+			q.orderby_vsql(s)
 
 		# Add offset specified by the user
 		if offset is not None and offset > 0:
@@ -2090,6 +2054,40 @@ class DBHandler(Handler):
 			dat_id_detail=record.id if record is not None else None,
 		)
 		return c.fetchone()[0]
+
+
+	def aggregate_records(self, app, filter:list[str], value:list[str]):
+		q = vsql.Query(
+			f"Aggregate records of app {app.name} ({app.id})",
+			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			r=app.vsqlfield_records("r", "g.tpl_id_app"),
+			app=app.vsqlfield_app("app", "g.tpl_id_app"),
+		)
+
+		# Add CTE with the parameters that we'll pass to the query
+		q.from_sql("v_globals", "global variables", "g")
+
+		# Make sure that the table for `r` gets joined
+		q.from_vsql("r")
+
+		# Apply user specified filter
+		for f in filter:
+			if f:
+				q.where_vsql(f)
+
+		# Apply user specified grouping/aggregation functions
+		for v in value:
+			if v:
+				q.aggregate_vsql(v)
+
+		c = self.cursor()
+
+		query = f"{self.query_prefix}\n{q.sqlsource()}"
+
+		c = self.cursor()
+		c.execute(query, ide_id_user=self.ide_id, tpl_id_app=app.internal_id, dat_id_detail=None, lang=app.globals.lang)
+		return [list(r) for r in c]
+
 
 class HTTPHandler(Handler):
 	def __init__(self, url, username=None, password=None, auth_token=None):

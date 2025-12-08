@@ -22,9 +22,7 @@ from PIL import Image
 import requests.structures
 import validators
 
-from ll import misc, url, ul4c, ul4on, color # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
-
-from ll.la import vsql
+from ll import misc, url, ul4c, ul4on, vsql, color # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
 
 __docformat__ = "reStructuredText"
@@ -3724,6 +3722,57 @@ class App(CustomAttributes):
 		limit = _make_limit(limit)
 
 		return AppRecordPage(self, filter=filter, sort=sort, offset=offset, limit=limit)
+
+	def aggregate_records(self, filter:list[str] | str, value:list[str] | str | None = None) -> list[list[Any]]:
+		"""
+		Aggregate values of records in this app matching the vSQL condition ``filter``.
+
+		Only records matching all conditions in ``filter`` will be considered.
+
+		``value`` must be a list of grouping and/or aggregation expressions. The following
+		functions are supported:
+
+		``group(expr)``
+			Group all records where ``expr`` has the same value together. Multiple
+			``group()`` expressions are supported.
+
+		``count()``
+			Count the number of records in the group.
+
+		``min(expr)``
+			Return the minimum value of ``expr`` for all records in the group.
+
+		``max(expr)``
+			Return the maximum value of ``expr`` for all records in the group.
+
+		``sum(expr)``
+			Return the sum of of the value of ``expr`` over all records in the group.
+
+		Example:
+
+			app.aggregate_records(
+				filter=["r.v_date_of_births.year//100 == today().year//100"],
+				value=[
+					"group(r.v_gender)",
+					"count()",
+					"min(r.v_date_of_birth)",
+					"max(r.v_date_of_birth)",
+				],
+			)
+
+		This will group of persons that are born this century by gender and returns
+		the number of persons and the birthday of the oldest and youngest person
+		in each group.
+
+		The result will be a list of lists of values. Values in the inner list will
+		be returned in the order of the expressions in the ``value`` parameter.
+		"""
+
+		filter = _make_filter(filter)
+		value = _make_filter(value)
+
+		handler = self._gethandler()
+		return handler.aggregate_records(self, filter=filter, value=value)
 
 
 @register("appgroup")
