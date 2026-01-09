@@ -5030,6 +5030,27 @@ class Control(CustomAttributes):
 
 		This attribute is settable.
 
+	.. attribute:: in_search
+		:type: bool
+
+		Should the list in viewtemplates and the datamanagement use a separate search field for this control?
+
+		This attribute is settable.
+
+	.. attribute:: in_fulltext_search
+		:type: bool
+
+		Should the list in viewtemplates and the datamanagement honor this control in the fulltext search?
+
+		This attribute is settable.
+
+	.. attribute:: in_expert_search
+		:type: bool
+
+		Should the list in the datamanagement provided a search field for this control in the expert search?
+
+		This attribute is settable.
+
 	.. attribute:: order
 		:type: bool
 
@@ -5139,6 +5160,9 @@ class Control(CustomAttributes):
 	in_list = BoolAttr(get="_in_list_get", set="_in_list_set", ul4get="_in_list_get", ul4set="_in_list_set")
 	in_mobile_list = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	in_text = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	in_search = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	in_fulltext_search = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	in_expert_search = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	required = BoolAttr(get="", set="", ul4get="_required_get", ul4onset=True, ul4onget=True)
 	required_in_view = BoolAttr(ul4onset=True, ul4onget=True)
 	order = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
