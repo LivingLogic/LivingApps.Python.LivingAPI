@@ -1,5 +1,7 @@
-HEAD (2026-??-??)
------------------
+0.54.0 (2026-01-14)
+-------------------
+
+*	Update internal version number of the LivingAPI to 138.
 
 *	Added the ``Control`` attributes ``in_structured_search``, ``in_fulltext_search``
 	and ``in_expert_search``.
