@@ -1,8 +1,8 @@
 HEAD (2026-??-??)
 -----------------
 
-*	Added the ``Control`` attributes ``in_search``, ``in_fulltext_search`` and
-	``in_expert_search``.
+*	Added the ``Control`` attributes ``in_structured_search``, ``in_fulltext_search``
+	and ``in_expert_search``.
 
 
 0.53.1 (2025-12-15)
