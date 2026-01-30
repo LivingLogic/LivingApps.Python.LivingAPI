@@ -4394,6 +4394,20 @@ class NumberField(Field):
 
 
 class StringField(Field):
+	ul4_attrs = Field.ul4_attrs.union({"placeholder"})
+
+	def __init__(self, control, record, value):
+		self._placeholder = None
+		super().__init__(control, record, value)
+
+	@property
+	def placeholder(self) -> str:
+		return self._placeholder if self._placeholder is not None else self.control.placeholder
+
+	@placeholder.setter
+	def placeholder(self, placeholder: str | None) -> None:
+		self._placeholder = placeholder
+
 	def _set_value(self, value):
 		if value is None or value == "":
 			if self.required:
