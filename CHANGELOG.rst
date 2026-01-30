@@ -1,3 +1,12 @@
+HEAD (2026-??-??)
+-------------------
+
+*	Update internal version number of the LivingAPI to 139.
+
+*	Made the attribute ``Stringcontrol.placeholder`` settable and mirror the
+	attribute in ``StringField`` (where	the attribute is settable too).
+
+
 0.54.0 (2026-01-14)
 -------------------
 

@@ -2193,7 +2193,7 @@ class Globals(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
-	supported_version = "138"
+	supported_version = "139"
 
 	class Mode(misc.Enum):
 		"""
@@ -5410,7 +5410,7 @@ class StringControl(Control):
 
 	minlength = Attr(int, get="", ul4get="_minlength_get")
 	maxlength = Attr(int, get="", ul4get="_maxlength_get")
-	placeholder = Attr(str, get="", ul4get="_placeholder_get")
+	placeholder = Attr(str, get="", set=True, ul4get="_placeholder_get", ul4set=True)
 
 	fieldtype = StringField
 
