@@ -7,6 +7,11 @@ HEAD (2026-??-??)
 	attribute in ``StringField`` (where	the attribute is settable too and
 	inherits the controls value).
 
+*	Renamed the grammatical UL4 field names to ``typename_grammatical_gender``,
+	``typename_nominative_singular``, ``typename_genitive_singular``, ``typename_dative_singular``,
+	``typename_accusative_singular``, ``typename_nominative_plural``, ``typename_genitive_plural``,
+	``typename_dative_plural`` and ``typename_accusative_plural``.
+
 
 0.54.0 (2026-01-14)
 -------------------
