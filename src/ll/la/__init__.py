@@ -2193,7 +2193,7 @@ class Globals(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
-	supported_version = "138"
+	supported_version = "139"
 
 	class Mode(misc.Enum):
 		"""
@@ -2944,15 +2944,15 @@ class App(CustomAttributes):
 		"sort_default",
 		"filter_owndata",
 		"permissions",
-		"gramgen",
-		"typename_nom_sin",
-		"typename_gen_sin",
-		"typename_dat_sin",
-		"typename_acc_sin",
-		"typename_nom_plu",
-		"typename_gen_plu",
-		"typename_dat_plu",
-		"typename_acc_plu",
+		"typename_grammatical_gender",
+		"typename_nominative_singular",
+		"typename_genitive_singular",
+		"typename_dative_singular",
+		"typename_accusative_singular",
+		"typename_nominative_plural",
+		"typename_genitive_plural",
+		"typename_dative_plural",
+		"typename_accusative_plural",
 		"startlink",
 		"image",
 		"iconlarge",
@@ -3022,15 +3022,15 @@ class App(CustomAttributes):
 	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	appgroup = Attr(lambda: AppGroup, get=True, ul4get=True, ul4onget=True, ul4onset=True)
-	gramgen = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_nom_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_gen_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_dat_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_acc_sin = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_nom_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_gen_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_dat_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_acc_plu = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_grammatical_gender = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_nominative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_genitive_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_dative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_accusative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_nominative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_genitive_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_dative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_accusative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	startlink = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	image = Attr(File, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	iconlarge = Attr(File, get="_image_get", ul4get="_image_get")
@@ -4394,6 +4394,20 @@ class NumberField(Field):
 
 
 class StringField(Field):
+	ul4_attrs = Field.ul4_attrs.union({"placeholder"})
+
+	def __init__(self, control, record, value):
+		self._placeholder = None
+		super().__init__(control, record, value)
+
+	@property
+	def placeholder(self) -> str:
+		return self._placeholder if self._placeholder is not None else self.control.placeholder
+
+	@placeholder.setter
+	def placeholder(self, placeholder: str | None) -> None:
+		self._placeholder = placeholder
+
 	def _set_value(self, value):
 		if value is None or value == "":
 			if self.required:
@@ -5410,7 +5424,7 @@ class StringControl(Control):
 
 	minlength = Attr(int, get="", ul4get="_minlength_get")
 	maxlength = Attr(int, get="", ul4get="_maxlength_get")
-	placeholder = Attr(str, get="", ul4get="_placeholder_get")
+	placeholder = Attr(str, get="", set=True, ul4get="_placeholder_get", ul4set=True)
 
 	fieldtype = StringField
 
