@@ -1,4 +1,4 @@
-HEAD (2026-??-??)
+0.55.0 (2026-03-03)
 -------------------
 
 *	Update internal version number of the LivingAPI to 139.
@@ -8,8 +8,9 @@ HEAD (2026-??-??)
 	inherits the controls value).
 
 *	Renamed the grammatical UL4 field names to ``typename_grammatical_gender``,
-	``typename_nominative_singular``, ``typename_genitive_singular``, ``typename_dative_singular``,
-	``typename_accusative_singular``, ``typename_nominative_plural``, ``typename_genitive_plural``,
+	``typename_nominative_singular``, ``typename_genitive_singular``,
+	``typename_dative_singular``, ``typename_accusative_singular``,
+	``typename_nominative_plural``, ``typename_genitive_plural``,
 	``typename_dative_plural`` and ``typename_accusative_plural``.
 
 
