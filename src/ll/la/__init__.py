@@ -5068,6 +5068,14 @@ class Control(CustomAttributes):
 
 		This attribute is settable.
 
+	.. attribute:: in_sum
+		:type: bool
+
+		Should the list display a sum value for this control (in the
+		datamanagement and the standard view templates)?
+
+		This attribute is settable.
+
 	.. attribute:: order
 		:type: bool
 
@@ -5128,11 +5136,17 @@ class Control(CustomAttributes):
 		This attribute is settable (but the value will be shadowd unless/until
 		there's no active view).
 
+	.. attribute:: base_mode
+		:type: Mode
+
+		How to display this control as configured by the user This will influence
+		useful values for ``mode``.
+
 	.. attribute:: mode
 		:type: Mode
 
 		How to display this control in this view? (from the active view,
-		else ``EDIT``).
+		else ``EDIT``, or whatever is appropriate for the current situation).
 
 	.. attribute:: labelpos
 		:type: LabelPos
@@ -5173,6 +5187,8 @@ class Control(CustomAttributes):
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	label = Attr(str, get="", set=True, ul4get="_label_get", ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	base_mode = EnumAttr(Mode, get=True, set=True, ul4get=True, ul4set=True, ul4onget="_base_mode_ul4onget", ul4onset="_base_mode_ul4onset")
+	in_sum = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	priority = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	in_list = BoolAttr(get="_in_list_get", set="_in_list_set", ul4get="_in_list_get", ul4set="_in_list_set")
 	in_mobile_list = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
@@ -5261,6 +5277,26 @@ class Control(CustomAttributes):
 		if vc is not None:
 			return vc.label
 		return self.__dict__["label"]
+
+	def _base_mode_ul4onget(self):
+		match self.base_mode:
+			case self.Mode.ABSENT:
+				return 1
+			case self.Mode.HIDDEN:
+				return 1
+			case self.Mode.DISPLAY:
+				return 2
+			case _:
+				return 0
+
+	def _base_mode_ul4onset(self, value):
+		match value:
+			case 1:
+				self.base_mode = self.Mode.ABSENT
+			case 2:
+				self.base_mode = self.Mode.DISPLAY
+			case _:
+				self.base_mode = self.Mode.EDIT
 
 	def _in_list_get(self):
 		return self.priority
