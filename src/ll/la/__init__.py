@@ -10296,6 +10296,8 @@ class AppParameter(CustomAttributes):
 		*	``NUMBER``
 		*	``STR``
 		*	``HTML``
+		*	``JSON``
+		*	``CODE``
 		*	``COLOR``
 		*	``DATE``
 		*	``DATETIME``
@@ -10314,6 +10316,8 @@ class AppParameter(CustomAttributes):
 		NUMBER = "number"
 		STRING = "string"
 		HTML = "html"
+		JSON = "json"
+		CODE = "code"
 		COLOR = "color"
 		DATE = "date"
 		DATETIME = "datetime"

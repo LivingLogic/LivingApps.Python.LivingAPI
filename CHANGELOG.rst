@@ -1,3 +1,9 @@
+0.57.0 (2026-03-18)
+-------------------
+
+*	Added the appparameter types ``JSON`` and ``CODE``.
+
+
 0.56.0 (2026-03-18)
 -------------------
 
@@ -9,7 +15,7 @@
 
 *	Update internal version number of the LivingAPI to 139.
 
-*	Made the attribute ``Stringcontrol.placeholder`` settable and mirror the
+*	Made the attribute ``StringControl.placeholder`` settable and mirror the
 	attribute in ``StringField`` (where	the attribute is settable too and
 	inherits the controls value).
 
