@@ -1,3 +1,10 @@
+0.57.1 (2026-03-18)
+-------------------
+
+*	Fixed handling of ``Control.base_mode`` (since it already is a string
+	in the UL4ON dump).
+
+
 0.57.0 (2026-03-18)
 -------------------
 
