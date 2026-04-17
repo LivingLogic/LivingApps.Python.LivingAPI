@@ -1,3 +1,13 @@
+HEAD (2026-04-??)
+-----------------
+
+*	The ``Attachment`` attributes ``label``, ``active`` and ``value`` are settable
+	now. Attachments can be created with the ``Record`` methods
+	``add_note_attachment()``, ``add_url_attachment()``, ``add_json_attachment()``
+	and ``add_file_attachment()``. Attachments can be save with the method
+	``save()`` and deleted with the method ``delete()``.
+
+
 0.57.1 (2026-03-18)
 -------------------
 

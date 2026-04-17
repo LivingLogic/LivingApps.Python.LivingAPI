@@ -258,6 +258,12 @@ class Handler:
 	def save_parameter(self, parameter, recursive=True):
 		raise NotImplementedError
 
+	def save_attachment(self, attachment) -> None:
+		raise NotImplementedError
+
+	def delete_attachment(self, attachment) -> None:
+		raise NotImplementedError
+
 	def save_internaltemplate(self, internaltemplate, recursive=True):
 		raise NotImplementedError
 
@@ -376,6 +382,8 @@ class DBHandler(Handler):
 		self.proc_template_update = orasql.Procedure("LIVINGAPI_PKG.TEMPLATE_UPDATE")
 		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
 		self.proc_appparameter_delete = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_DELETE")
+		self.proc_attachment_save = orasql.Procedure("ATTACHMENT_PKG.ATTACHMENT_SAVE_LA")
+		self.proc_attachment_delete = orasql.Procedure("ATTACHMENT_PKG.ATTACHMENT_DELETE")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
 		self.proc_upload_upr_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_UPR_INSERT")
 		self.proc_appparameter_import_waf = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_IMPORT")
@@ -1330,15 +1338,32 @@ class DBHandler(Handler):
 		required = control.__dict__["required"] # Use the "raw" value
 		if required is not None:
 			required = int(required)
+		match control.base_mode:
+			case la.Control.Mode.DISPLAY:
+				dm_hidden = 2
+			case la.Control.Mode.READONLY:
+				dm_hidden = 2
+			case la.Control.Mode.HIDDEN:
+				dm_hidden = 1
+			case la.Control.Mode.ABSENT:
+				dm_hidden = 1
+			case _:
+				dm_hidden = 0
+
 		self.proc_control_update(
 			c,
 			c_user=self.ide_id,
 			p_ctl_id=control.id,
 			p_ctl_name=control.label,
 			p_ctl_description=control.description,
+			p_ctl_dm_hidden=dm_hidden,
+			p_ctl_dm_sum=int(control.in_sum),
 			p_ctl_priority=int(control.priority),
 			p_ctl_inmobilelist=int(control.in_mobile_list),
 			p_ctl_intext=int(control.in_text),
+			p_ctl_infulltextsearch=int(control.in_fulltext_search),
+			p_ctl_instructuredsearch=int(control.in_structured_search),
+			p_ctl_inexpertsearch=int(control.in_expert_search),
 			p_ctl_required=required,
 		)
 		return True
@@ -1368,6 +1393,32 @@ class DBHandler(Handler):
 			p_tpl_typename_acc_plu=app.typename_acc_plu,
 		)
 		return True
+
+	def save_attachment(self, attachment) -> None:
+		if not attachment._deleted:
+			c = self.cursor()
+			r = self.proc_attachment_save(
+				c,
+				c_user=self.ide_id,
+				p_atm_id=attachment.id,
+				p_atm_type=attachment.type.removesuffix("attachment"),
+				p_dat_id=attachment.record.id,
+				p_tpl_id=attachment.record.app.internal_id,
+				p_atm_label=attachment.label,
+				p_atm_active=int(attachment.active),
+				p_atm_text=attachment.text_for_save(),
+				p_upl_id_original=attachment.uplid_for_save(),
+			)
+
+	def delete_attachment(self, attachment) -> None:
+		if not attachment._deleted:
+			c = self.cursor()
+			r = self.proc_attachment_delete(
+				c,
+				c_user=self.ide_id,
+				p_atm_id=attachment.id,
+			)
+			attachment._deleted = True
 
 	def save_parameter(self, parameter, recursive=True):
 		if not parameter._deleted:

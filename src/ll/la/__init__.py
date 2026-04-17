@@ -6948,6 +6948,10 @@ class Record(CustomAttributes):
 		"fetch_child_records",
 		"count_child_records",
 		"fetch_child_recordpage",
+		"add_note_attachment",
+		"add_url_attachment",
+		"add_json_attachment",
+		"add_file_attachment",
 	})
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
@@ -6967,6 +6971,8 @@ class Record(CustomAttributes):
 	fielderrors = AttrDictAttr(ul4onget="", ul4onset="")
 	lookupdata = AttrDictAttr(ul4onget="", ul4onset="")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
+
+	next_attachment_id = 0
 
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
 		super().__init__()
@@ -7446,6 +7452,27 @@ class Record(CustomAttributes):
 	def is_new(self):
 		return self._new
 
+	def _add_attachment(self, attachment):
+		self.attachments[f"new_{self.next_attachment_id}"] = attachment
+		self.next_attachment_id += 1
+		return attachment
+
+	def add_note_attachment(self, label, active, value):
+		attachment = NoteAttachment(record=self, label=label, active=active, value=value)
+		return self._add_attachment(attachment)
+
+	def add_url_attachment(self, label, active, value):
+		attachment = URLAttachment(record=self, label=label, active=active, value=value)
+		return self._add_attachment(attachment)
+
+	def add_json_attachment(self, label, active, value):
+		attachment = JSONAttachment(record=self, label=label, active=active, value=value)
+		return self._add_attachment(attachment)
+
+	def add_file_attachment(self, label, active, value):
+		attachment = FileAttachment(record=self, label=label, active=active, value=value)
+		return self._add_attachment(attachment)
+
 
 @register("recordchildren")
 class RecordChildren(Base):
@@ -7567,23 +7594,39 @@ class Attachment(Base):
 		Is this attachment active?
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "type", "record", "label", "active"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "type", "record", "label", "active", "save", "delete"})
 	ul4_type = ul4c.Type("la", "Attachment", "An attachment of a record")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	record = Attr(Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	label = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	active = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	label = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	active = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, record=None, label=None, active=None):
 		self.id = id
 		self.record = record
 		self.label = label
 		self.active = active
+		self._deleted = False
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def _gethandler(self) -> Handler:
+		return self.record._gethandler()
+
+	def delete(self):
+		self._gethandler().delete_attachment(self)
+
+	def save(self):
+		self._gethandler().save_attachment(self)
+
+	def text_for_save(self):
+		return None
+
+	def uplid_for_save(self):
+		return None
 
 
 class SimpleAttachment(Attachment):
@@ -7594,11 +7637,14 @@ class SimpleAttachment(Attachment):
 	ul4_attrs = Attachment.ul4_attrs.union({"value"})
 	ul4_type = ul4c.Type("la", "SimpleAttachment", "A simple attachment of a record")
 
-	value = Attr(repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(repr=True, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, record=None, label=None, active=None, value=None):
 		super().__init__(id=id, record=record, label=label, active=active)
 		self.value = value
+
+	def text_for_save(self):
+		return self.value
 
 
 @register("fileattachment")
@@ -7618,7 +7664,17 @@ class FileAttachment(SimpleAttachment):
 
 	type = "fileattachment"
 
-	value = Attr(File, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(File, repr=True, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+
+	def text_for_save(self):
+		return None
+
+	def uplid_for_save(self):
+		if self.value is None:
+			return None
+		if self.value.internal_id is None:
+			raise UnsavedObjectError(self.value)
+		return self.value.internal_id
 
 
 @register("urlattachment")
@@ -7638,7 +7694,7 @@ class URLAttachment(SimpleAttachment):
 
 	type = "urlattachment"
 
-	value = Attr(str, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(str, repr=True, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 
 
 @register("noteattachment")
@@ -7658,7 +7714,7 @@ class NoteAttachment(SimpleAttachment):
 
 	type = "noteattachment"
 
-	value = Attr(str, repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	value = Attr(str, repr=True, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 
 
 @register("jsonattachment")
@@ -7677,12 +7733,18 @@ class JSONAttachment(SimpleAttachment):
 
 	type = "jsonattachment"
 
-	value = Attr(repr=True, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
+	value = Attr(repr=True, get=True, set=True, ul4get=True, ul4set=True, ul4onget="", ul4onset="")
+
+	def _value_ul4onget(self, value):
+		return json.dumps(self.value)
 
 	def _value_ul4onset(self, value):
 		if value is not None:
 			value = json.loads(value)
 		self.value = value
+
+	def text_for_save(self):
+		return json.dumps(self.value) if self.value is not None else None
 
 
 @register(None)
