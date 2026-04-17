@@ -8902,7 +8902,7 @@ class DataOrder(Base):
 
 
 @register("dataaction")
-class DataAction(Base):
+class DataAction(CustomAttributes):
 	"""
 	A :class:`DataAction` object contains the configuration of a data action.
 
@@ -9075,6 +9075,15 @@ class DataAction(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def _gethandler(self) -> Handler:
+		return self.app._gethandler()
+
+	def _template_candidates(self):
+		handler = self._gethandler()
+		app_id = self.app.id
+		yield handler.fetch_internaltemplates(app_id, "dataaction_instance", None)
+		yield handler.fetch_librarytemplates("dataaction_instance")
 
 
 # We don't have to register this class, since only subclasses will be put into
