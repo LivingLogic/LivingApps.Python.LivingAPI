@@ -153,6 +153,9 @@ class Handler:
 	def app_params_incremental_data(self, app):
 		return None
 
+	def app_dataactions_incremental_data(self, app):
+		return None
+
 	def view_layout_controls_incremental_data(self, view):
 		return None
 
@@ -1133,6 +1136,14 @@ class DBHandler(Handler):
 			self.cursor(),
 			app.globals,
 			"select livingapi_pkg.app_params_inc_ful4on(:p_tpl_uuid) from dual",
+			p_tpl_uuid=app.id,
+		)
+
+	def app_dataactions_incremental_data(self, app):
+		return self._execute_incremental_ul4on_query(
+			self.cursor(),
+			app.globals,
+			"select livingapi_pkg.app_dataactions_inc_ful4on(:p_tpl_uuid) from dual",
 			p_tpl_uuid=app.id,
 		)
 

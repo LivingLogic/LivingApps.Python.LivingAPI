@@ -2924,7 +2924,7 @@ class App(CustomAttributes):
 
 		View templates of this app.
 
-	.. attribute:: dataactions
+	.. attribute:: data_actions
 		:type: Optional[dict[str, DataAction]]
 
 		Data actions of this app.
@@ -2990,7 +2990,7 @@ class App(CustomAttributes):
 		"datasource",
 		# "internaltemplates",
 		# "viewtemplates",
-		# "dataactions",
+		"data_actions",
 		"add_param",
 		"template_url",
 		"new_embedded_url",
@@ -3074,7 +3074,7 @@ class App(CustomAttributes):
 	child_controls = Attr(get="", set="", ul4get="_child_controls_get")
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplates_config = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	dataactions = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	data_actions = AttrDictAttr(get="", ul4get="_data_actions_get", ul4onget="_data_actions_ul4onget", ul4onset="_data_actions_ul4onset")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, installation=None, datamanagement_identifier=None):
@@ -3128,7 +3128,7 @@ class App(CustomAttributes):
 		self.permissions = None
 		self.internaltemplates = None
 		self.viewtemplates_config = None
-		self.dataactions = None
+		self._data_actions = None
 		self._vsqlgroup_records = None
 		self._vsqlgroup_app = None
 		self._add_param(*args)
@@ -3222,6 +3222,23 @@ class App(CustomAttributes):
 
 	def _viewtemplates_ul4ondefault(self):
 		self._viewtemplates = None
+
+	def _data_actions_get(self):
+		data_actions = self._data_actions
+		if data_actions is None and self.id is not None:
+			handler = self.globals.handler
+			if handler is not None:
+				data_actions = handler.app_dataactions_incremental_data(self)
+				if data_actions is not None:
+					data_actions = attrdict(data_actions)
+					self._data_actions = data_actions
+		return data_actions
+
+	def _data_actions_ul4onset(self, value):
+		self._data_actions = value
+
+	def _data_actions_ul4onget(self):
+		return self._data_actions
 
 	def template_url(self, identifier, record=None, /, **params) -> str:
 		url = f"https://{self.globals.hostname}/gateway/apps/{self.id}"
@@ -8887,7 +8904,7 @@ class DataOrder(Base):
 @register("dataaction")
 class DataAction(Base):
 	"""
-	A :class:`DataAction` object contains the -> None configuration of a data action.
+	A :class:`DataAction` object contains the configuration of a data action.
 
 	A data action gets executed on a record in certain situation automatically
 	or on user demand.
@@ -8918,6 +8935,11 @@ class DataAction(Base):
 		:type: int
 
 		Used to sort the actions for display
+
+	.. attribute:: permission
+		:type: DataAction.Permission
+
+		What permission must the user have to be ablte to execute this data action?
 
 	.. attribute:: active
 		:type: bool
@@ -8963,52 +8985,62 @@ class DataAction(Base):
 		Can this action be used as an email link (where clicking on the link in
 		the email executes the action)?
 
-	.. attribute:: before_update
+	.. attribute:: before_record_update_form
 		:type: bool
 
 		Execute before displaying an update form?
 
-	.. attribute:: after_update
+	.. attribute:: after_record_update
 		:type: bool
 
 		Execute after updating the record?
 
-	.. attribute:: before_insert
-		:type: bool
-
-		Execute before displaying an insert form?
-
-	.. attribute:: after_insert
+	.. attribute:: after_rcordd_insert
 		:type: bool
 
 		Execute after inserting the record?
 
-	.. attribute:: before_delete
+	.. attribute:: before_record_delete
 		:type: bool
 
 		Execute before deleting the record?
 	"""
 
+	class Permission(misc.IntEnum):
+		ALL = 0
+		LOGGEDIN = 1
+		APP = 2
+		APPEDIT = 3
+		APPADMIN = 4
+
 	ul4_attrs = Base.ul4_attrs.union({
 		"id",
 		"app",
 		"identifier",
-		"name",
+		"label",
 		"order",
+		"permission",
 		"active",
 		"icon",
 		"description",
 		"message",
 		"filter",
-		"commands",
+		"as_multiple_action",
+		"as_single_action",
+		"as_mail_link",
+		"before_record_update_form",
+		"after_record_update",
+		"after_record_insert",
+		"before_record_delete",
 	})
 	ul4_type = ul4c.Type("la", "DataAction", "An action executed by the system or user on a record")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	order = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	permission = IntEnumAttr(Permission, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	active = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	icon = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -9017,14 +9049,12 @@ class DataAction(Base):
 	as_multiple_action = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	as_single_action = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	as_mail_link = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
-	before_update = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
-	after_update = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
-	after_insert = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
-	before_delete = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
+	before_record_update_form = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
+	after_record_update = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
+	after_record_insert = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
+	before_record_delete = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 
-	commands = Attr(get=True, set=True, ul4onget=True, ul4onset=True)
-
-	def __init__(self, *args, id=None, identifier=None, name=None, order=None, active=True, icon=None, description=None, filter=None, as_multiple_action=None, as_single_action=None, as_mail_link=None, before_update=None, after_update=None, after_insert=None, before_delete=None):
+	def __init__(self, id=None, identifier=None, name=None, order=None, active=True, icon=None, description=None, filter=None, as_multiple_action=None, as_single_action=None, as_mail_link=None, before_record_update_form=None, after_record_update=None, after_record_insert=None, before_record_delete=None):
 		self.id = id
 		self.app = None
 		self.identifier = identifier
@@ -9037,25 +9067,14 @@ class DataAction(Base):
 		self.as_multiple_action = as_multiple_action
 		self.as_single_action = as_single_action
 		self.as_mail_link = as_mail_link
-		self.before_update = before_update
-		self.after_update = after_update
-		self.after_insert = after_insert
-		self.before_delete = before_delete
-		self.commands = []
-		self.add(*args)
+		self.before_record_update_form = before_record_update_form
+		self.after_record_update = after_record_update
+		self.after_record_insert = after_record_insert
+		self.before_record_delete = before_record_delete
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
-
-	def add(self, *items):
-		for item in items:
-			if isinstance(item, DataActionCommand):
-				item.parent = self
-				self.commands.append(item)
-			else:
-				raise TypeError(f"don't know what to do with positional argument {item!r}")
-		return self
 
 
 # We don't have to register this class, since only subclasses will be put into
