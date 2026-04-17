@@ -10299,6 +10299,17 @@ class AppParameter(CustomAttributes):
 
 		Human readable identifier
 
+	.. attribute:: namespace
+		:type: Optional[str]
+
+		Additional optional namespace. The combination of ``identifier`` and
+		``namespace`` must be unique.
+
+	.. attribute:: full_identifier
+		:type: Optional[str]
+
+		Namespace + Identifier
+
 	.. attribute:: description
 		:type: str
 
@@ -10394,8 +10405,9 @@ class AppParameter(CustomAttributes):
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	namespace = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, parent=None, app=None, appgroup=None, type=None, order=None, identifier=None, description=None, value=None):
+	def __init__(self, id=None, parent=None, app=None, appgroup=None, type=None, order=None, identifier=None, namespace=None, description=None, value=None):
 		super().__init__()
 		self.id = id
 		self._globals = None
@@ -10404,6 +10416,7 @@ class AppParameter(CustomAttributes):
 		self.parent = parent
 		self.order = order
 		self.identifier = identifier
+		self.namespace = namespace
 		self.description = description
 		self.createdat = None
 		self.createdby = None
@@ -10427,6 +10440,13 @@ class AppParameter(CustomAttributes):
 			return self.appgroup.globals
 		else:
 			return self._globals
+
+	@property
+	def full_identifier(self):
+		if self.namespace is None or self.namespace is None:
+			return self.identifier
+		else:
+			return f"{self.namespace}.{self.identifier}"
 
 	def _template_candidates(self):
 		globals = self.globals
