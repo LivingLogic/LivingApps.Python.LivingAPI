@@ -7,6 +7,14 @@ HEAD (2026-04-??)
 	and ``add_file_attachment()``. Attachments can be save with the method
 	``save()`` and deleted with the method ``delete()``.
 
+*	Add the attribute ``App.data_actions`` which will be incrementally loaded.
+	This are the data actions without their definitions (i.e. without data
+	action commands).
+
+*	Attachments and data actions can have memeber templates.
+
+*	Add ``AppParameter`` attributes ``namespace`` and ``full_identifier``.
+
 
 0.57.1 (2026-03-18)
 -------------------
