@@ -11,7 +11,7 @@ HEAD (2026-04-??)
 	This are the data actions without their definitions (i.e. without data
 	action commands).
 
-*	Attachments and data actions can have memeber templates.
+*	Attachments and data actions can have member templates.
 
 *	Add ``AppParameter`` attributes ``namespace`` and ``full_identifier``.
 
