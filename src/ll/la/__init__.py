@@ -7025,7 +7025,7 @@ class Record(CustomAttributes):
 		self._sparse_lookupdata = None
 
 	def _template_candidates(self):
-		handler = self.app.globals._gethandler()
+		handler = self._gethandler()
 		yield handler.fetch_internaltemplates(self.app.id, "record_instance", None)
 		yield handler.fetch_librarytemplates("record_instance")
 
@@ -7567,7 +7567,7 @@ class RecordChildren(Base):
 		return self.__dict__["recordpage"]
 
 
-class Attachment(Base):
+class Attachment(CustomAttributes):
 	"""
 	An attachment for a :class:`Record`.
 
@@ -7615,6 +7615,15 @@ class Attachment(Base):
 
 	def _gethandler(self) -> Handler:
 		return self.record._gethandler()
+
+	def _template_candidates(self):
+		handler = self._gethandler()
+		app_id = self.record.app.id
+		type = self.type.removesuffix("attachment")
+		yield handler.fetch_internaltemplates(app_id, f"attachment_{type}_instance", None)
+		yield handler.fetch_internaltemplates(app_id, "attachment_instance", None)
+		yield handler.fetch_librarytemplates(f"attachment_{type}_instance")
+		yield handler.fetch_librarytemplates("attachment_instance")
 
 	def delete(self):
 		self._gethandler().delete_attachment(self)
