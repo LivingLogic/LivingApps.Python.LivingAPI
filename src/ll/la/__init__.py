@@ -581,7 +581,7 @@ def error_control_not_in_view(control: Control, view: View) -> str:
 
 
 def _resolve_type(t: Type | Callable[[], Type]) -> Type:
-	if not isinstance(t, type):
+	if isinstance(t, types.FunctionType):
 		t = t()
 	return t
 
@@ -2281,6 +2281,7 @@ class Globals(CustomAttributes):
 		self._template_params = {}
 		self._library_params = None
 		self._params = None
+		self._next_attachment_id = 0
 
 	@property
 	def ul4onid(self) -> str:
@@ -2598,6 +2599,11 @@ class Globals(CustomAttributes):
 		else:
 			return attrdict()
 
+	def _incremental_data(self, query, **kwargs):
+		if self.handler is None:
+			raise NoHandlerError()
+		return self.handler._execute_incremental_ul4on_query(self, query, **kwargs)
+
 	def _template_params_get(self) -> dict[str, MutableAppParameter]:
 		if self._template_params is None:
 			if self.handler is None:
@@ -2731,8 +2737,126 @@ class Globals(CustomAttributes):
 		return f"https://{self.hostname}/login.htm?logout=standardCug"
 
 
+class WithParams:
+	"""
+	Mixin class for all classes that have parameters
+	(i.e. :class:`App` and :class:`AppGroup`).
+
+	These objects have the following attribute:
+
+	.. attribute:: params
+		:type: Optional[dict[str, AppParameter]]
+
+		App or app group specific configuration parameters.
+	"""
+
+	ul4_attrs = {"params"}
+
+	def _ownparams_get(self) -> dict[str, AppParameter]:
+		params = self._ownparams
+		if params is None:
+			params = self._ownparams_fetch()
+			if params is not None:
+				params = attrdict(params)
+				self._ownparams = params
+		return params
+
+	def _ownparams_fetch(self):
+		return None
+
+	def _ownparams_set(self, value):
+		self._ownparams = value
+
+	def _ownparams_ul4onget(self):
+		# Bypass the logic that fetches the parameters from the database
+		return self._ownparams
+
+	def _ownparams_ul4onset(self, value):
+		if value is not None:
+			self._ownparams = value
+
+
+class WithAttachments:
+	"""
+	Mixin class for all classes that have attachments
+	(i.e. :class:`App`, a:class:`AppGroup` and  :class:`Record`).
+
+	These objects have the following attribute:
+
+	.. attribute:: attachments
+		:type: Optional[dict[str, Attachment]]
+
+		Attachments for this record, app, or app group.
+	"""
+
+	ul4_attrs = {"attachments"}
+
+	def _attachments_get(self):
+		attachments = self._attachments
+		if attachments is None and self.id is not None:
+			attachments = self._attachments_fetch()
+			if attachments is not None:
+				attachments = attrdict(attachments)
+				self._attachments = attachments
+		return attachments
+
+	def _attachments_fetch(self):
+		return None
+
+	def _attachments_set(self, value):
+		self._attachments = value
+
+	def _attachments_ul4onget(self):
+		return self._attachments
+
+	def _add_attachment(self, attachment):
+		self.attachments[f"attachment_{self.globals._next_attachment_id}"] = attachment
+		self.globals._next_attachment_id += 1
+		return attachment
+
+	def add_note_attachment(self, label, namespace, active, value):
+		attachment = NoteAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+	def add_url_attachment(self, label, namespace, active, value):
+		attachment = URLAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+	def add_json_attachment(self, label, namespace, active, value):
+		attachment = JSONAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+	def add_file_attachment(self, label, namespace, active, value):
+		attachment = FileAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+
 @register("app")
-class App(CustomAttributes):
+class App(CustomAttributes, WithParams, WithAttachments):
 	"""
 	A LivingApp.
 
@@ -2842,11 +2966,6 @@ class App(CustomAttributes):
 
 		The navigation categories the currently logged in user put this app in.
 
-	.. attribute:: params
-		:type: Optional[dict[str, AppParameter]]
-
-		Application specific configuration parameters.
-
 	.. attribute:: views
 		:type: Optional[dict[str, View]
 
@@ -2930,89 +3049,92 @@ class App(CustomAttributes):
 		Data actions of this app.
 	"""
 
-	ul4_attrs = CustomAttributes.ul4_attrs.union({
-		"id",
-		"globals",
-		"name",
-		"description",
-		"lang",
-		"group",
-		"appgroup",
-		"main",
-		"ai_generated",
-		"filter_default",
-		"sort_default",
-		"filter_owndata",
-		"permissions",
-		"typename_grammatical_gender",
-		"typename_nominative_singular",
-		"typename_genitive_singular",
-		"typename_dative_singular",
-		"typename_accusative_singular",
-		"typename_nominative_plural",
-		"typename_genitive_plural",
-		"typename_dative_plural",
-		"typename_accusative_plural",
-		"startlink",
-		"image",
-		"iconlarge",
-		"iconsmall",
-		"createdat",
-		"createdby",
-		"updatedat",
-		"updatedby",
-		"controls",
-		"layout_controls",
-		"child_controls",
-		"menus",
-		"panels",
-		"records",
-		"recordpage",
-		"record_start",
-		"record_count",
-		"record_total",
-		"installation",
-		"categories",
-		"params",
-		"views",
-		"datamanagement_identifier",
-		"custom",
-		# "basetable",
-		# "primarykey",
-		# "insertprocedure",
-		# "updateprocedure",
-		# "deleteprocedure",
-		"templates",
-		"viewtemplates",
-		"insert",
-		"favorite",
-		"active_view",
-		"datasource",
-		# "internaltemplates",
-		# "viewtemplates",
-		"data_actions",
-		"add_param",
-		"template_url",
-		"new_embedded_url",
-		"new_standalone_url",
-		"new_url",
-		"home_url",
-		"datamanagement_url",
-		"import_url",
-		"tasks_url",
-		# "formbuilder_url",
-		# "tasks_config_url",
-		"datamanagement_config_url",
-		"permissions_url",
-		"datamanageview_url",
-		"seq",
-		"send_mail",
-		"save",
-		"count_records",
-		"delete_records",
-		"fetch_records",
-		"fetch_recordpage",
-	})
+	ul4_attrs = CustomAttributes.ul4_attrs.union(
+		WithParams.ul4_attrs,
+		WithAttachments.ul4_attrs,
+		{
+			"id",
+			"globals",
+			"name",
+			"description",
+			"lang",
+			"group",
+			"appgroup",
+			"main",
+			"ai_generated",
+			"filter_default",
+			"sort_default",
+			"filter_owndata",
+			"permissions",
+			"typename_grammatical_gender",
+			"typename_nominative_singular",
+			"typename_genitive_singular",
+			"typename_dative_singular",
+			"typename_accusative_singular",
+			"typename_nominative_plural",
+			"typename_genitive_plural",
+			"typename_dative_plural",
+			"typename_accusative_plural",
+			"startlink",
+			"image",
+			"iconlarge",
+			"iconsmall",
+			"createdat",
+			"createdby",
+			"updatedat",
+			"updatedby",
+			"controls",
+			"layout_controls",
+			"child_controls",
+			"menus",
+			"panels",
+			"records",
+			"recordpage",
+			"record_start",
+			"record_count",
+			"record_total",
+			"installation",
+			"categories",
+			"views",
+			"datamanagement_identifier",
+			"custom",
+			# "basetable",
+			# "primarykey",
+			# "insertprocedure",
+			# "updateprocedure",
+			# "deleteprocedure",
+			"templates",
+			"viewtemplates",
+			"insert",
+			"favorite",
+			"active_view",
+			"datasource",
+			# "internaltemplates",
+			# "viewtemplates",
+			"data_actions",
+			"add_param",
+			"template_url",
+			"new_embedded_url",
+			"new_standalone_url",
+			"new_url",
+			"home_url",
+			"datamanagement_url",
+			"import_url",
+			"tasks_url",
+			# "formbuilder_url",
+			# "tasks_config_url",
+			"datamanagement_config_url",
+			"permissions_url",
+			"datamanageview_url",
+			"seq",
+			"send_mail",
+			"save",
+			"count_records",
+			"delete_records",
+			"fetch_records",
+			"fetch_recordpage",
+		}
+	)
 	ul4_type = ul4c.Type("la", "App", "A LivingApps application")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -3075,6 +3197,7 @@ class App(CustomAttributes):
 	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	viewtemplates_config = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	data_actions = AttrDictAttr(get="", ul4get="_data_actions_get", ul4onget="_data_actions_ul4onget", ul4onset="_data_actions_ul4onset")
+	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, installation=None, datamanagement_identifier=None):
@@ -3099,6 +3222,7 @@ class App(CustomAttributes):
 		self._menus = None
 		self._panels = None
 		self.records = None
+		self._attachments = None
 		self.__dict__["recordpage"] = None
 		self.record_start = None
 		self.record_count = None
@@ -3143,6 +3267,12 @@ class App(CustomAttributes):
 	@property
 	def group(self) -> AppGroup:
 		return self.appgroup
+
+	def _ownparams_fetch(self):
+		return self.globals._incremental_data(
+			"select livingapi_pkg.app_params_inc_ful4on(:p_tpl_uuid) from dual",
+			p_tpl_uuid=self.id,
+		)
 
 	def _add_param(self, *params):
 		for param in params:
@@ -3239,6 +3369,12 @@ class App(CustomAttributes):
 
 	def _data_actions_ul4onget(self):
 		return self._data_actions
+
+	def _attachments_fetch(self):
+		return self.globals._incremental_data(
+			"select livingapi_pkg.app_attachments_inc_ful4on(:p_tpl_uuid) from dual",
+			p_tpl_uuid=self.id,
+		)
 
 	def template_url(self, identifier, record=None, /, **params) -> str:
 		url = f"https://{self.globals.hostname}/gateway/apps/{self.id}"
@@ -3393,10 +3529,10 @@ class App(CustomAttributes):
 		return self.globals._gethandler()
 
 	def _params_candidates(self):
-		yield self._ownparams_get()
+		yield self.ownparams
 		if self.appgroup:
 			yield self.appgroup.ownparams
-		if "la" in self.ownparams and isinstance(self._ownparams["la"].value, App):
+		if "la" in self.ownparams and isinstance(self.ownparams["la"].value, App):
 			yield from self.ownparams["la"].value._params_candidates()
 		else:
 			yield self.globals.library_params
@@ -3406,26 +3542,6 @@ class App(CustomAttributes):
 			if identifier in params:
 				return params[identifier]
 		return None
-
-	def _ownparams_get(self) -> dict[str, AppParameter]:
-		params = self._ownparams
-		if params is None:
-			handler = self._gethandler()
-			params = handler.app_params_incremental_data(self)
-			params = attrdict(params)
-			self._ownparams = params
-		return params
-
-	def _ownparams_set(self, value):
-		self._ownparams = value
-
-	def _ownparams_ul4onget(self):
-		# Bypass the logic that fetches the parameters from the database
-		return self._ownparams
-
-	def _ownparams_ul4onset(self, value):
-		if value is not None:
-			self._ownparams = value
 
 	def _params_get(self):
 		if self._params is None:
@@ -3793,7 +3909,7 @@ class App(CustomAttributes):
 
 
 @register("appgroup")
-class AppGroup(CustomAttributes):
+class AppGroup(CustomAttributes, WithParams, WithAttachments):
 	"""
 	An :class:`!AppGroup` describes group of apps that together form an application.
 
@@ -3828,14 +3944,23 @@ class AppGroup(CustomAttributes):
 		:type: dict[str, App]
 
 		The LivingApps that belong to this group.
-
-	.. attribute:: params
-		:type: dict[str, AppParameter]
-
-		Parameters of this app group.
 	"""
 
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "globals", "name", "apps", "main_app", "params", "add_param", "count_records", "fetch_records", "fetch_recordpage"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union(
+		WithParams.ul4_attrs,
+		WithAttachments.ul4_attrs,
+		{
+			"id",
+			"globals",
+			"name",
+			"apps",
+			"main_app",
+			"add_param",
+			"count_records",
+			"fetch_records",
+			"fetch_recordpage",
+		}
+	)
 	ul4_type = ul4c.Type("la", "AppGroup", "A group of LivingApps")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -3847,6 +3972,7 @@ class AppGroup(CustomAttributes):
 	main_app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
 	params = AttrDictAttr(get="", ul4get="_params_get")
+	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 
 	def __init__(self, id=None, globals=None, name=None, description=None):
 		super().__init__()
@@ -3859,6 +3985,7 @@ class AppGroup(CustomAttributes):
 		self.main_app = None
 		self._ownparams = None
 		self._params = None
+		self._attachments = None
 
 	def _template_candidates(self):
 		handler = self.globals._gethandler()
@@ -3923,37 +4050,24 @@ class AppGroup(CustomAttributes):
 		else:
 			super().ul4_setattr(name, value)
 
+	def _gethandler(self) -> Handler:
+		return self.globals._gethandler()
+
 	def _apps_get(self):
 		apps = self._apps
 		if apps is None:
-			handler = self.globals.handler
-			if handler is not None:
-				apps = handler.appgroup_apps_incremental_data(self)
-				if apps is not None:
-					apps = attrdict(apps)
-					self._apps = apps
+			handler = self._gethandler()
+			apps = handler.appgroup_apps_incremental_data(self)
+			if apps is not None:
+				apps = attrdict(apps)
+				self._apps = apps
 		return apps
 
-	def _ownparams_get(self) -> dict[str, AppParameter]:
-		params = self._params
-		if params is None:
-			handler = self.globals._gethandler()
-			params = handler.appgroup_params_incremental_data(self)
-			if params is not None:
-				params = attrdict(params)
-				self._ownparams = params
-		return params
-
-	def _ownparams_set(self, value):
-		self._ownparams = value
-
-	def _ownparams_ul4onget(self):
-		# Bypass the logic that fetches the parameters from the database
-		return self._ownparams
-
-	def _ownparams_ul4onset(self, value):
-		if value is not None:
-			self._ownparams = value
+	def _ownparams_fetch(self):
+		return self.globals._incremental_data(
+			"select livingapi_pkg.appgroup_params_inc_ful4on(:p_ag_id) from dual",
+			p_ag_id=self.id,
+		)
 
 	def _params_get(self) -> dict[str, AppParameter]:
 		if self._params is None:
@@ -3964,6 +4078,12 @@ class AppGroup(CustomAttributes):
 		param = MutableAppParameter(appgroup=self, type=type, identifier=identifier, description=description, value=value)
 		self.params[param.identifier] = param
 		return param
+
+	def _attachments_fetch(self):
+		return self.globals._incremental_data(
+			"select livingapi_pkg.appgroup_attachments_inc_ful4on(:p_ag_id) from dual",
+			p_ag_id=self.id,
+		)
 
 	def _make_filter(self, filter:dict[App, list[str] | str]) -> dict[App, list[str]]:
 		if not isinstance(filter, dict):
@@ -3988,7 +4108,7 @@ class AppGroup(CustomAttributes):
 		(or list of expressions, which will be ombined with ``and``).
 		"""
 
-		handler = self.globals._gethandler()
+		handler = self._gethandler()
 		filter = self._make_filter(filter)
 		return handler.count_records_from_apps(self.globals, filter)
 
@@ -4018,7 +4138,7 @@ class AppGroup(CustomAttributes):
 		:class:`Record` objects as the value.
 		"""
 
-		handler = self.globals._gethandler()
+		handler = self._gethandler()
 		return handler.fetch_records_from_apps(
 			globals=self.globals,
 			filter=self._make_filter(filter),
@@ -4073,7 +4193,7 @@ class Field(CustomAttributes):
 		:type: Record
 
 		The :class:`Record` for which this :class:`!Field` holds a value.
-
+a
 	.. attribute:: label
 		:type: str
 
@@ -6853,7 +6973,7 @@ class State(misc.Enum):
 
 
 @register("record")
-class Record(CustomAttributes):
+class Record(CustomAttributes, WithAttachments):
 	"""
 	A record from a LivingApp.
 
@@ -6915,11 +7035,6 @@ class Record(CustomAttributes):
 
 		List of error messages attached to the record.
 
-	.. attribute:: attachments
-		:type: Optional[dict[str, Attachment]]
-
-		Attachments for this record (if configured).
-
 	.. attribute:: details
 		:type: dict[str, RecordChildren]
 
@@ -6927,49 +7042,52 @@ class Record(CustomAttributes):
 		record.
 	"""
 
-	ul4_attrs = CustomAttributes.ul4_attrs.union({
-		"id",
-		"app",
-		"createdat",
-		"createdby",
-		"updatedat",
-		"updatedby",
-		"updatecount",
-		"fields",
-		"values",
-		"details",
-		"children",
-		"attachments",
-		"errors",
-		"custom",
-		"has_errors",
-		"has_errors_in_active_view",
-		"add_error",
-		"clear_errors",
-		"clear_all_errors",
-		"is_deleted",
-		"is_dirty",
-		"save",
-		"update",
-		"delete",
-		"executeaction",
-		"state",
-		"template_url",
-		"edit_embedded_url",
-		"edit_standalone_url",
-		"edit_url",
-		"display_embedded_url",
-		"display_standalone_url",
-		"display_url",
-		"send_mail",
-		"fetch_child_records",
-		"count_child_records",
-		"fetch_child_recordpage",
-		"add_note_attachment",
-		"add_url_attachment",
-		"add_json_attachment",
-		"add_file_attachment",
-	})
+	ul4_attrs = CustomAttributes.ul4_attrs.union(
+		WithAttachments.ul4_attrs,
+		{
+			"id",
+			"app",
+			"createdat",
+			"createdby",
+			"updatedat",
+			"updatedby",
+			"updatecount",
+			"fields",
+			"values",
+			"details",
+			"children",
+			"attachments",
+			"errors",
+			"custom",
+			"has_errors",
+			"has_errors_in_active_view",
+			"add_error",
+			"clear_errors",
+			"clear_all_errors",
+			"is_deleted",
+			"is_dirty",
+			"save",
+			"update",
+			"delete",
+			"executeaction",
+			"state",
+			"template_url",
+			"edit_embedded_url",
+			"edit_standalone_url",
+			"edit_url",
+			"display_embedded_url",
+			"display_standalone_url",
+			"display_url",
+			"send_mail",
+			"fetch_child_records",
+			"count_child_records",
+			"fetch_child_recordpage",
+			"add_note_attachment",
+			"add_url_attachment",
+			"add_json_attachment",
+			"add_file_attachment",
+		}
+	)
 	ul4_type = ul4c.Type("la", "Record", "A record of a LivingApp application")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
@@ -6989,8 +7107,6 @@ class Record(CustomAttributes):
 	lookupdata = AttrDictAttr(ul4onget="", ul4onset="")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
-	next_attachment_id = 0
-
 	def __init__(self, id=None, app=None, createdat=None, createdby=None, updatedat=None, updatedby=None, updatecount=None):
 		super().__init__()
 		self.id = id
@@ -7009,7 +7125,7 @@ class Record(CustomAttributes):
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
 		self.__dict__["details"] = None
-		self.attachments = None
+		self._attachments = None
 		self.errors = []
 		self._new = True
 		self._deleted = False
@@ -7024,6 +7140,10 @@ class Record(CustomAttributes):
 	def ul4onload_end(self, decoder:ul4on.Decoder) -> None:
 		self._new = False
 		self._deleted = False
+
+	@property
+	def globals(self):
+		return self.app.globals
 
 	def _make_fields(self, use_defaults, values, errors, lookupdata):
 		fields = attrdict()
@@ -7073,23 +7193,6 @@ class Record(CustomAttributes):
 		self.__dict__["values"] = None
 		self.__dict__["fields"] = None
 
-	def _attachments_get(self):
-		attachments = self._attachments
-		if attachments is None and self.id is not None:
-			handler = self.app.globals.handler
-			if handler is not None:
-				attachments = handler.record_attachments_incremental_data(self)
-				if attachments is not None:
-					attachments = attrdict(attachments)
-					self._attachments = attachments
-		return attachments
-
-	def _attachments_set(self, value):
-		self._attachments = value
-
-	def _attachments_ul4onget(self):
-		return self._attachments
-
 	def _fielderrors_ul4onget(self):
 		if self._sparse_fielderrors is not None:
 			return self._sparse_fielderrors
@@ -7123,6 +7226,12 @@ class Record(CustomAttributes):
 	@children.setter
 	def children(self, value):
 		pass # Ignore assignment, since this is now longer required
+
+	def _attachments_fetch(self):
+		return self.globals._incremental_data(
+			"select livingapi_pkg.record_attachments_inc_ful4on(:p_dat_id) from dual",
+			p_dat_id=self.id,
+		)
 
 	def _state_get(self):
 		if self._deleted:
@@ -7469,27 +7578,6 @@ class Record(CustomAttributes):
 	def is_new(self):
 		return self._new
 
-	def _add_attachment(self, attachment):
-		self.attachments[f"new_{self.next_attachment_id}"] = attachment
-		self.next_attachment_id += 1
-		return attachment
-
-	def add_note_attachment(self, label, active, value):
-		attachment = NoteAttachment(record=self, label=label, active=active, value=value)
-		return self._add_attachment(attachment)
-
-	def add_url_attachment(self, label, active, value):
-		attachment = URLAttachment(record=self, label=label, active=active, value=value)
-		return self._add_attachment(attachment)
-
-	def add_json_attachment(self, label, active, value):
-		attachment = JSONAttachment(record=self, label=label, active=active, value=value)
-		return self._add_attachment(attachment)
-
-	def add_file_attachment(self, label, active, value):
-		attachment = FileAttachment(record=self, label=label, active=active, value=value)
-		return self._add_attachment(attachment)
-
 
 @register("recordchildren")
 class RecordChildren(Base):
@@ -7586,7 +7674,7 @@ class RecordChildren(Base):
 
 class Attachment(CustomAttributes):
 	"""
-	An attachment for a :class:`Record`.
+	An attachment for a :class:`Record`, :class:`App` or `:class:`AppGroup`.
 
 	Relevant instance attributes are:
 
@@ -7595,15 +7683,20 @@ class Attachment(CustomAttributes):
 
 		Unique database id.
 
-	.. attribute:: record
-		:type: Record
+	.. attribute:: owner
+		:type: AppGroup | App | Record
 
-		The record this attachment belongs to.
+		The record, app or appgroup this attachment belongs to.
 
 	.. attribute:: label
 		:type: str
 
 		A human readable label.
+
+	.. attribute:: namespace
+		:type: str | None
+
+		An aditional namespace.
 
 	.. attribute:: active
 		:type: bool
@@ -7611,18 +7704,20 @@ class Attachment(CustomAttributes):
 		Is this attachment active?
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "type", "record", "label", "active", "save", "delete"})
-	ul4_type = ul4c.Type("la", "Attachment", "An attachment of a record")
+	ul4_attrs = Base.ul4_attrs.union({"id", "type", "owner", "record", "app", "appgroop", "label", "namespace", "active", "save", "delete"})
+	ul4_type = ul4c.Type("la", "Attachment", "An attachment of a record, app or appgroup")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	record = Attr(Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	label = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	owner = Attr(AppGroup | App | Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	namespace = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	active = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, record=None, label=None, active=None):
+	def __init__(self, id=None, owner=None, label=None, namespace=None, active=None):
 		self.id = id
-		self.record = record
+		self.owner = owner
 		self.label = label
+		self.namespace = namespace
 		self.active = active
 		self._deleted = False
 
@@ -7631,7 +7726,7 @@ class Attachment(CustomAttributes):
 		return self.id
 
 	def _gethandler(self) -> Handler:
-		return self.record._gethandler()
+		return self.owner._gethandler()
 
 	def _template_candidates(self):
 		handler = self._gethandler()
@@ -7665,8 +7760,8 @@ class SimpleAttachment(Attachment):
 
 	value = Attr(repr=True, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, record=None, label=None, active=None, value=None):
-		super().__init__(id=id, record=record, label=label, active=active)
+	def __init__(self, id=None, owner=None, label=None, namespace=None, active=None, value=None):
+		super().__init__(id=id, owner=owner, label=label, namespace=namespace, active=active)
 		self.value = value
 
 	def text_for_save(self):
@@ -10199,6 +10294,10 @@ class ViewLookupItem(Base):
 		self.key = key
 		self.label = label
 		self.visible = visible
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
 
 	def _visible_repr(self) -> str | None:
 		if self.visible:

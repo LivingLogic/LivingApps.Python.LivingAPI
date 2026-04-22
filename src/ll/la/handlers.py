@@ -150,7 +150,7 @@ class Handler:
 	def emailtemplate_params_incremental_data(self, globals, id):
 		return None
 
-	def app_params_incremental_data(self, app):
+	def params_incremental_data(self, owner: la.App | la.AppGroup):
 		return None
 
 	def app_dataactions_incremental_data(self, app):
@@ -168,7 +168,7 @@ class Handler:
 	def app_panels_incremental_data(self, app):
 		return None
 
-	def record_attachments_incremental_data(self, id):
+	def attachments_incremental_data(self, owner: la.Record | la.App | la.AppGroup):
 		return None
 
 	def meta_data(self, *appids, records=False):
@@ -908,7 +908,7 @@ class DBHandler(Handler):
 			args["p_sessionid"] = self.session_id
 		self.proc_init(cursor, **args)
 
-	def _execute_incremental_ul4on_query(self, cursor, globals, query, **args):
+	def _execute_incremental_ul4on_query(self, globals, query, **args):
 		"""
 		Returns the deserialized UL4ON data from executing a database function
 		that returns an "incremental" dump. ("incremental" means that it might
@@ -929,6 +929,7 @@ class DBHandler(Handler):
 		:meth:`_reinitialize_livingapi_db`) and try calling the database function
 		again.
 		"""
+		cursor = self.cursor()
 		cursor.execute(query, **args)
 		dump = cursor.fetchone()[0]
 		if dump is None:
@@ -1117,7 +1118,6 @@ class DBHandler(Handler):
 
 	def viewtemplate_params_incremental_data(self, globals, id):
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			globals,
 			"select livingapi_pkg.viewtemplate_params_inc_ful4on(:p_vt_id) from dual",
 			p_vt_id=id,
@@ -1125,55 +1125,27 @@ class DBHandler(Handler):
 
 	def emailtemplate_params_incremental_data(self, globals, id):
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			globals,
 			"select livingapi_pkg.emailtemplate_params_inc_ful4on(:p_et_id) from dual",
 			p_et_id=id,
 		)
 
-	def app_params_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
-			app.globals,
-			"select livingapi_pkg.app_params_inc_ful4on(:p_tpl_uuid) from dual",
-			p_tpl_uuid=app.id,
-		)
-
 	def app_dataactions_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			app.globals,
 			"select livingapi_pkg.app_dataactions_inc_ful4on(:p_tpl_uuid) from dual",
 			p_tpl_uuid=app.id,
 		)
 
-	def appgroup_params_incremental_data(self, appgroup):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
-			appgroup.globals,
-			"select livingapi_pkg.appgroup_params_inc_ful4on(:p_ag_id) from dual",
-			p_ag_id=appgroup.id,
-		)
-
 	def app_views_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			app.globals,
 			"select livingapi_pkg.app_views_inc_ful4on(:p_tpl_uuid) from dual",
 			p_tpl_uuid=app.id,
 		)
 
-	def record_attachments_incremental_data(self, record):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
-			record.app.globals,
-			"select livingapi_pkg.record_attachments_inc_ful4on(:p_dat_id) from dual",
-			p_dat_id=record.id,
-		)
-
 	def view_layout_controls_incremental_data(self, view):
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			view.app.globals,
 			"select livingapi_pkg.view_layoutcontrols_inc_ful4on(:p_vw_id) from dual",
 			p_vw_id=view.id,
@@ -1181,7 +1153,6 @@ class DBHandler(Handler):
 
 	def app_child_controls_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			app.globals,
 			"select livingapi_pkg.app_childcontrols_inc_ful4on(:p_tpl_uuid) from dual",
 			p_tpl_uuid=app.id,
@@ -1189,7 +1160,6 @@ class DBHandler(Handler):
 
 	def app_menus_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			app.globals,
 			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'menuitem') from dual",
 			c_user=self.ide_id,
@@ -1198,7 +1168,6 @@ class DBHandler(Handler):
 
 	def app_panels_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			app.globals,
 			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'panel') from dual",
 			c_user=self.ide_id,
@@ -1207,7 +1176,6 @@ class DBHandler(Handler):
 
 	def appgroup_apps_incremental_data(self, appgroup):
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			appgroup.globals,
 			"select livingapi_pkg.appgroup_apps_inc_ful4on(:c_user, :p_ag_id) from dual",
 			c_user=self.ide_id,
@@ -1216,7 +1184,6 @@ class DBHandler(Handler):
 
 	def appgroups_incremental_data(self, globals) -> dict[str, la.AppGroup]:
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			globals,
 			"select livingapi_pkg.appgroups_inc_ful4on(:c_user) from dual",
 			c_user=self.ide_id,
@@ -1224,7 +1191,6 @@ class DBHandler(Handler):
 
 	def app_viewtemplates_incremental_data(self, app):
 		return self._execute_incremental_ul4on_query(
-			self.cursor(),
 			app.globals,
 			"select livingapi_pkg.app_viewtemplates_inc_ful4on(:c_user, :p_tpl_uuid) from dual",
 			c_user=self.ide_id,
@@ -1413,13 +1379,22 @@ class DBHandler(Handler):
 				c_user=self.ide_id,
 				p_atm_id=attachment.id,
 				p_atm_type=attachment.type.removesuffix("attachment"),
-				p_dat_id=attachment.record.id,
-				p_tpl_id=attachment.record.app.internal_id,
+				p_dat_id=attachment.owner.id if isinstance(attachment.owner, la.Record) else None,
+				p_tpl_id=attachment.owner.internal_id if isinstance(attachment.owner, la.App) else None,
+				p_ag_id=attachment.owner.id if isinstance(attachment.owner, la.AppGroup) else None,
 				p_atm_label=attachment.label,
+				p_atm_namespace=attachment.namespace,
 				p_atm_active=int(attachment.active),
 				p_atm_text=attachment.text_for_save(),
 				p_upl_id_original=attachment.uplid_for_save(),
 			)
+			if attachment.id is None:
+				attachment.id = r.p_atm_id
+				for (identifier, a) in attachment.owner.attachments.items():
+					if a is attachment:
+						del attachment.owner.attachments[identifier]
+						attachment.owner.attachments[attachment.id] = attachment
+						break
 
 	def delete_attachment(self, attachment) -> None:
 		if not attachment._deleted:
