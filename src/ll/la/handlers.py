@@ -144,12 +144,6 @@ class Handler:
 	def fetch_internaltemplates(self, tpl_uuid, type, control_id):
 		raise NotImplementedError
 
-	def viewtemplate_params_incremental_data(self, globals, id):
-		return None
-
-	def emailtemplate_params_incremental_data(self, globals, id):
-		return None
-
 	def params_incremental_data(self, owner: la.App | la.AppGroup):
 		return None
 
@@ -1117,20 +1111,6 @@ class DBHandler(Handler):
 
 		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
 
-	def viewtemplate_params_incremental_data(self, globals, id):
-		return self._execute_incremental_ul4on_query(
-			globals,
-			"select livingapi_pkg.viewtemplate_params_inc_ful4on(:p_vt_id) from dual",
-			p_vt_id=id,
-		)
-
-	def emailtemplate_params_incremental_data(self, globals, id):
-		return self._execute_incremental_ul4on_call(
-			globals,
-			"livingapi_pkg.emailtemplate_params_inc_ful4on(:p_et_id)",
-			p_et_id=id,
-		)
-
 	def app_dataactions_incremental_data(self, app):
 		return self._execute_incremental_ul4on_call(
 			app.globals,
@@ -1598,16 +1578,22 @@ class DBHandler(Handler):
 		return templates
 
 	def fetch_viewtemplate_params(self, globals):
-		id = globals.viewtemplate_id
-		if id not in self.viewtemplate_params:
-			self.viewtemplate_params[id] = self.viewtemplate_params_incremental_data(globals, id)
-		return self.viewtemplate_params[id]
+		vt_id = globals.viewtemplate_id
+		if vt_id not in self.viewtemplate_params:
+			self.viewtemplate_params[vt_id] = self._execute_incremental_ul4on_call(
+				"livingapi_pkg.viewtemplate_params_inc_ful4on(:p_vt_id)",
+				p_vt_id=vt_id,
+			)
+		return self.viewtemplate_params[vt_id]
 
 	def fetch_emailtemplate_params(self, globals):
-		id = globals.emailtemplate_id
-		if id not in self.emailtemplate_params:
-			self.emailtemplate_params[id] = self.emailtemplate_params_incremental_data(globals, id)
-		return self.emailtemplate_params[id]
+		et_id = globals.emailtemplate_id
+		if et_id not in self.emailtemplate_params:
+			self.emailtemplate_params[et_id] = self._execute_incremental_ul4on_call(
+				"livingapi_pkg.emailtemplate_params_inc_ful4on(:p_et_id)",
+				p_et_id=et_id,
+			)
+		return self.emailtemplate_params[et_id]
 
 	def fetch_librarytemplates(self, type : str):
 		if type not in self.librarytemplates:
