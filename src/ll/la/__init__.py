@@ -10520,26 +10520,24 @@ class AppParameter(CustomAttributes):
 		DICT = "dict"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	appgroup = Attr(AppGroup, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	owner = Attr(App | AppGroup, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	parent = Attr(lambda: AppParameter, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	type = EnumAttr(Type, get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	order = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	namespace = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	value = Attr(get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	namespace = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, parent=None, app=None, appgroup=None, type=None, order=None, identifier=None, namespace=None, description=None, value=None):
+	def __init__(self, id=None, owner=None, parent=None, type=None, order=None, identifier=None, namespace=None, description=None, value=None):
 		super().__init__()
 		self.id = id
 		self._globals = None
-		self.app = app
-		self.appgroup = appgroup
+		self.owner = owner
 		self.parent = parent
 		self.order = order
 		self.identifier = identifier
@@ -10561,12 +10559,15 @@ class AppParameter(CustomAttributes):
 
 	@property
 	def globals(self) -> Globals:
-		if self.app is not None:
-			return self.app.globals
-		elif self.appgroup is not None:
-			return self.appgroup.globals
-		else:
-			return self._globals
+		return self.owner.globals
+
+	@property
+	def app(self) -> App:
+		return self.owner if isinstance(self.owner, App) else None
+
+	@property
+	def appgroup(self) -> Appgroup:
+		return self.owner if isinstance(self.owner, AppGroup) else None
 
 	@property
 	def full_identifier(self):
@@ -10601,8 +10602,8 @@ class MutableAppParameter(AppParameter):
 	type = EnumAttr(AppParameter.Type, get=True, set="", repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	value = Attr(get=True, set="", ul4get=True, ul4set="_value_set", ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, app=None, appgroup=None, parent=None, type=None, order=None, identifier=None, description=None, value=None):
-		super().__init__(id=id, app=app, appgroup=appgroup, parent=parent, type=type, order=order, identifier=identifier, description=description, value=value)
+	def __init__(self, id=None, owner=None, parent=None, type=None, order=None, identifier=None, description=None, value=None):
+		super().__init__(id=id, owner=owner, parent=parent, type=type, order=order, identifier=identifier, description=description, value=value)
 		self._new = True
 		self._deleted = False
 		self._dirty = True
