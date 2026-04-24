@@ -10393,47 +10393,47 @@ class AppParameter(CustomAttributes):
 
 		Unique database id.
 
-	.. attribute:: app
-		:type: App
+	.. attribute:: owner
+		:type: App | AppGroup
 
-		The app this parameter belong to.
+		The app or app group this parameter belong to.
+
+	.. attribute:: app
+		:type: App | None
+
+		The app this parameter belong to (if it belongs to app else ``None``).
 
 	.. attribute:: appgroup
-		:type: AppGroup
+		:type: AppGroup | None
 
-		The app group this parameter belong to.
-
-	.. attribute:: owner
-		:type: App
-
-		The app this parameter belong to.
+		The app group this parameter belong to (if it belongs to app group else ``None``).
 
 	.. attribute:: parent
-		:type: Optional[AppParameter]
+		:type: AppParameter | None
 
 		If this is a :class:`!AppParameter` object inside another
 		:class:`!AppParameter` object of type ``list`` or ``dict``, ``parent``
 		references this parent object.
 
 	.. attribute:: order
-		:type: Optional[int]
+		:type: int | None
 
 		Numeric value used to order the items in an :class:`!AppParameter` object
 		of type ``list``.
 
 	.. attribute:: identifier
-		:type: Optional[str]
+		:type: str | None
 
 		Human readable identifier
 
 	.. attribute:: namespace
-		:type: Optional[str]
+		:type: str | None
 
 		Additional optional namespace. The combination of ``identifier`` and
 		``namespace`` must be unique.
 
 	.. attribute:: full_identifier
-		:type: Optional[str]
+		:type: str | None
 
 		Namespace + Identifier
 
