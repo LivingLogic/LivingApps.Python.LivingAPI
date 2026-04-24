@@ -908,7 +908,7 @@ class DBHandler(Handler):
 			args["p_sessionid"] = self.session_id
 		self.proc_init(cursor, **args)
 
-	def _execute_incremental_ul4on_query(self, globals, query, **args):
+	def _execute_incremental_ul4on_call(self, globals, call, **args):
 		"""
 		Returns the deserialized UL4ON data from executing a database function
 		that returns an "incremental" dump. ("incremental" means that it might
@@ -929,6 +929,7 @@ class DBHandler(Handler):
 		:meth:`_reinitialize_livingapi_db`) and try calling the database function
 		again.
 		"""
+		query = f"select {call} from dual"
 		cursor = self.cursor()
 		cursor.execute(query, **args)
 		dump = cursor.fetchone()[0]
@@ -1124,75 +1125,75 @@ class DBHandler(Handler):
 		)
 
 	def emailtemplate_params_incremental_data(self, globals, id):
-		return self._execute_incremental_ul4on_query(
+		return self._execute_incremental_ul4on_call(
 			globals,
-			"select livingapi_pkg.emailtemplate_params_inc_ful4on(:p_et_id) from dual",
+			"livingapi_pkg.emailtemplate_params_inc_ful4on(:p_et_id)",
 			p_et_id=id,
 		)
 
 	def app_dataactions_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_dataactions_inc_ful4on(:p_tpl_uuid) from dual",
+			"livingapi_pkg.app_dataactions_inc_ful4on(:p_tpl_uuid)",
 			p_tpl_uuid=app.id,
 		)
 
 	def app_views_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_views_inc_ful4on(:p_tpl_uuid) from dual",
+			"livingapi_pkg.app_views_inc_ful4on(:p_tpl_uuid)",
 			p_tpl_uuid=app.id,
 		)
 
 	def view_layout_controls_incremental_data(self, view):
-		return self._execute_incremental_ul4on_query(
+		return self._execute_incremental_ul4on_call(
 			view.app.globals,
-			"select livingapi_pkg.view_layoutcontrols_inc_ful4on(:p_vw_id) from dual",
+			"livingapi_pkg.view_layoutcontrols_inc_ful4on(:p_vw_id)",
 			p_vw_id=view.id,
 		)
 
 	def app_child_controls_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_childcontrols_inc_ful4on(:p_tpl_uuid) from dual",
+			"livingapi_pkg.app_childcontrols_inc_ful4on(:p_tpl_uuid)",
 			p_tpl_uuid=app.id,
 		)
 
 	def app_menus_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'menuitem') from dual",
+			"livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'menuitem')",
 			c_user=self.ide_id,
 			p_tpl_uuid=app.id,
 		)
 
 	def app_panels_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'panel') from dual",
+			"livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'panel')",
 			c_user=self.ide_id,
 			p_tpl_uuid=app.id,
 		)
 
 	def appgroup_apps_incremental_data(self, appgroup):
-		return self._execute_incremental_ul4on_query(
+		return self._execute_incremental_ul4on_call(
 			appgroup.globals,
-			"select livingapi_pkg.appgroup_apps_inc_ful4on(:c_user, :p_ag_id) from dual",
+			"livingapi_pkg.appgroup_apps_inc_ful4on(:c_user, :p_ag_id)",
 			c_user=self.ide_id,
 			p_ag_id=appgroup.id,
 		)
 
 	def appgroups_incremental_data(self, globals) -> dict[str, la.AppGroup]:
-		return self._execute_incremental_ul4on_query(
+		return self._execute_incremental_ul4on_call(
 			globals,
-			"select livingapi_pkg.appgroups_inc_ful4on(:c_user) from dual",
+			"livingapi_pkg.appgroups_inc_ful4on(:c_user)",
 			c_user=self.ide_id,
 		)
 
 	def app_viewtemplates_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_viewtemplates_inc_ful4on(:c_user, :p_tpl_uuid) from dual",
+			"livingapi_pkg.app_viewtemplates_inc_ful4on(:c_user, :p_tpl_uuid)",
 			c_user=self.ide_id,
 			p_tpl_uuid=app.id,
 		)

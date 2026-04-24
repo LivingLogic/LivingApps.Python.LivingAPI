@@ -2599,10 +2599,10 @@ class Globals(CustomAttributes):
 		else:
 			return attrdict()
 
-	def _incremental_data(self, query, **kwargs):
+	def _incremental_data(self, call, **kwargs):
 		if self.handler is None:
 			raise NoHandlerError()
-		return self.handler._execute_incremental_ul4on_query(self, query, **kwargs)
+		return self.handler._execute_incremental_ul4on_call(self, call, **kwargs)
 
 	def _template_params_get(self) -> dict[str, MutableAppParameter]:
 		if self._template_params is None:
@@ -3270,7 +3270,7 @@ class App(CustomAttributes, WithParams, WithAttachments):
 
 	def _ownparams_fetch(self):
 		return self.globals._incremental_data(
-			"select livingapi_pkg.app_params_inc_ful4on(:p_tpl_uuid) from dual",
+			"livingapi_pkg.app_params_inc_ful4on(:p_tpl_uuid)",
 			p_tpl_uuid=self.id,
 		)
 
@@ -3372,7 +3372,7 @@ class App(CustomAttributes, WithParams, WithAttachments):
 
 	def _attachments_fetch(self):
 		return self.globals._incremental_data(
-			"select livingapi_pkg.app_attachments_inc_ful4on(:p_tpl_uuid) from dual",
+			"livingapi_pkg.app_attachments_inc_ful4on(:p_tpl_uuid)",
 			p_tpl_uuid=self.id,
 		)
 
@@ -4065,7 +4065,7 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments):
 
 	def _ownparams_fetch(self):
 		return self.globals._incremental_data(
-			"select livingapi_pkg.appgroup_params_inc_ful4on(:p_ag_id) from dual",
+			"livingapi_pkg.appgroup_params_inc_ful4on(:p_ag_id)",
 			p_ag_id=self.id,
 		)
 
@@ -4081,7 +4081,7 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments):
 
 	def _attachments_fetch(self):
 		return self.globals._incremental_data(
-			"select livingapi_pkg.appgroup_attachments_inc_ful4on(:p_ag_id) from dual",
+			"livingapi_pkg.appgroup_attachments_inc_ful4on(:p_ag_id)",
 			p_ag_id=self.id,
 		)
 
@@ -7229,7 +7229,7 @@ class Record(CustomAttributes, WithAttachments):
 
 	def _attachments_fetch(self):
 		return self.globals._incremental_data(
-			"select livingapi_pkg.record_attachments_inc_ful4on(:p_dat_id) from dual",
+			"livingapi_pkg.record_attachments_inc_ful4on(:p_dat_id)",
 			p_dat_id=self.id,
 		)
 
