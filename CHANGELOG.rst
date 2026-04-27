@@ -1,5 +1,5 @@
-HEAD (2026-04-??)
------------------
+0.58.0 (2026-04-27)
+-------------------
 
 *	Attachments can now be attached to app and appgroups too.
 
