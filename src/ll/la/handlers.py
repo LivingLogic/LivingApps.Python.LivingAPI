@@ -144,13 +144,10 @@ class Handler:
 	def fetch_internaltemplates(self, tpl_uuid, type, control_id):
 		raise NotImplementedError
 
-	def viewtemplate_params_incremental_data(self, globals, id):
+	def params_incremental_data(self, owner: la.App | la.AppGroup):
 		return None
 
-	def emailtemplate_params_incremental_data(self, globals, id):
-		return None
-
-	def app_params_incremental_data(self, app):
+	def app_dataactions_incremental_data(self, app):
 		return None
 
 	def view_layout_controls_incremental_data(self, view):
@@ -165,7 +162,7 @@ class Handler:
 	def app_panels_incremental_data(self, app):
 		return None
 
-	def record_attachments_incremental_data(self, id):
+	def attachments_incremental_data(self, owner: la.Record | la.App | la.AppGroup):
 		return None
 
 	def meta_data(self, *appids, records=False):
@@ -243,7 +240,7 @@ class Handler:
 	def save_control(self, control) -> bool:
 		raise NotImplementedError
 
-	def _executeaction(self, record, actionidentifier) -> None:
+	def _executeaction(self, record, actionidentifier, sync=False) -> None:
 		raise NotImplementedError
 
 	def file_content(self, file):
@@ -256,6 +253,12 @@ class Handler:
 		raise NotImplementedError
 
 	def save_parameter(self, parameter, recursive=True):
+		raise NotImplementedError
+
+	def save_attachment(self, attachment) -> None:
+		raise NotImplementedError
+
+	def delete_attachment(self, attachment) -> None:
 		raise NotImplementedError
 
 	def save_internaltemplate(self, internaltemplate, recursive=True):
@@ -376,6 +379,8 @@ class DBHandler(Handler):
 		self.proc_template_update = orasql.Procedure("LIVINGAPI_PKG.TEMPLATE_UPDATE")
 		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
 		self.proc_appparameter_delete = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_DELETE")
+		self.proc_attachment_save = orasql.Procedure("ATTACHMENT_PKG.ATTACHMENT_SAVE_LA")
+		self.proc_attachment_delete = orasql.Procedure("ATTACHMENT_PKG.ATTACHMENT_DELETE")
 		self.proc_dataaction_execute = orasql.Procedure("LIVINGAPI_PKG.DATAACTION_EXECUTE")
 		self.proc_upload_upr_insert = orasql.Procedure("UPLOAD_PKG.UPLOAD_UPR_INSERT")
 		self.proc_appparameter_import_waf = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_IMPORT")
@@ -897,7 +902,7 @@ class DBHandler(Handler):
 			args["p_sessionid"] = self.session_id
 		self.proc_init(cursor, **args)
 
-	def _execute_incremental_ul4on_query(self, cursor, globals, query, **args):
+	def _execute_incremental_ul4on_call(self, globals, call, **args):
 		"""
 		Returns the deserialized UL4ON data from executing a database function
 		that returns an "incremental" dump. ("incremental" means that it might
@@ -918,6 +923,8 @@ class DBHandler(Handler):
 		:meth:`_reinitialize_livingapi_db`) and try calling the database function
 		again.
 		"""
+		query = f"select {call} from dual"
+		cursor = self.cursor()
 		cursor.execute(query, **args)
 		dump = cursor.fetchone()[0]
 		if dump is None:
@@ -1104,110 +1111,69 @@ class DBHandler(Handler):
 
 		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
 
-	def viewtemplate_params_incremental_data(self, globals, id):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
-			globals,
-			"select livingapi_pkg.viewtemplate_params_inc_ful4on(:p_vt_id) from dual",
-			p_vt_id=id,
-		)
-
-	def emailtemplate_params_incremental_data(self, globals, id):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
-			globals,
-			"select livingapi_pkg.emailtemplate_params_inc_ful4on(:p_et_id) from dual",
-			p_et_id=id,
-		)
-
-	def app_params_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
+	def app_dataactions_incremental_data(self, app):
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_params_inc_ful4on(:p_tpl_uuid) from dual",
+			"livingapi_pkg.app_dataactions_inc_ful4on(:p_tpl_uuid)",
 			p_tpl_uuid=app.id,
-		)
-
-	def appgroup_params_incremental_data(self, appgroup):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
-			appgroup.globals,
-			"select livingapi_pkg.appgroup_params_inc_ful4on(:p_ag_id) from dual",
-			p_ag_id=appgroup.id,
 		)
 
 	def app_views_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_views_inc_ful4on(:p_tpl_uuid) from dual",
+			"livingapi_pkg.app_views_inc_ful4on(:p_tpl_uuid)",
 			p_tpl_uuid=app.id,
 		)
 
-	def record_attachments_incremental_data(self, record):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
-			record.app.globals,
-			"select livingapi_pkg.record_attachments_inc_ful4on(:p_dat_id) from dual",
-			p_dat_id=record.id,
-		)
-
 	def view_layout_controls_incremental_data(self, view):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
+		return self._execute_incremental_ul4on_call(
 			view.app.globals,
-			"select livingapi_pkg.view_layoutcontrols_inc_ful4on(:p_vw_id) from dual",
+			"livingapi_pkg.view_layoutcontrols_inc_ful4on(:p_vw_id)",
 			p_vw_id=view.id,
 		)
 
 	def app_child_controls_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_childcontrols_inc_ful4on(:p_tpl_uuid) from dual",
+			"livingapi_pkg.app_childcontrols_inc_ful4on(:p_tpl_uuid)",
 			p_tpl_uuid=app.id,
 		)
 
 	def app_menus_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'menuitem') from dual",
+			"livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'menuitem')",
 			c_user=self.ide_id,
 			p_tpl_uuid=app.id,
 		)
 
 	def app_panels_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'panel') from dual",
+			"livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'panel')",
 			c_user=self.ide_id,
 			p_tpl_uuid=app.id,
 		)
 
 	def appgroup_apps_incremental_data(self, appgroup):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
+		return self._execute_incremental_ul4on_call(
 			appgroup.globals,
-			"select livingapi_pkg.appgroup_apps_inc_ful4on(:c_user, :p_ag_id) from dual",
+			"livingapi_pkg.appgroup_apps_inc_ful4on(:c_user, :p_ag_id)",
 			c_user=self.ide_id,
 			p_ag_id=appgroup.id,
 		)
 
 	def appgroups_incremental_data(self, globals) -> dict[str, la.AppGroup]:
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
+		return self._execute_incremental_ul4on_call(
 			globals,
-			"select livingapi_pkg.appgroups_inc_ful4on(:c_user) from dual",
+			"livingapi_pkg.appgroups_inc_ful4on(:c_user)",
 			c_user=self.ide_id,
 		)
 
 	def app_viewtemplates_incremental_data(self, app):
-		return self._execute_incremental_ul4on_query(
-			self.cursor(),
+		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"select livingapi_pkg.app_viewtemplates_inc_ful4on(:c_user, :p_tpl_uuid) from dual",
+			"livingapi_pkg.app_viewtemplates_inc_ful4on(:c_user, :p_tpl_uuid)",
 			c_user=self.ide_id,
 			p_tpl_uuid=app.id,
 		)
@@ -1330,15 +1296,32 @@ class DBHandler(Handler):
 		required = control.__dict__["required"] # Use the "raw" value
 		if required is not None:
 			required = int(required)
+		match control.base_mode:
+			case la.Control.Mode.DISPLAY:
+				dm_hidden = 2
+			case la.Control.Mode.READONLY:
+				dm_hidden = 2
+			case la.Control.Mode.HIDDEN:
+				dm_hidden = 1
+			case la.Control.Mode.ABSENT:
+				dm_hidden = 1
+			case _:
+				dm_hidden = 0
+
 		self.proc_control_update(
 			c,
 			c_user=self.ide_id,
 			p_ctl_id=control.id,
 			p_ctl_name=control.label,
 			p_ctl_description=control.description,
+			p_ctl_dm_hidden=dm_hidden,
+			p_ctl_dm_sum=int(control.in_sum),
 			p_ctl_priority=int(control.priority),
 			p_ctl_inmobilelist=int(control.in_mobile_list),
 			p_ctl_intext=int(control.in_text),
+			p_ctl_infulltextsearch=int(control.in_fulltext_search),
+			p_ctl_instructuredsearch=int(control.in_structured_search),
+			p_ctl_inexpertsearch=int(control.in_expert_search),
 			p_ctl_required=required,
 		)
 		return True
@@ -1368,6 +1351,41 @@ class DBHandler(Handler):
 			p_tpl_typename_acc_plu=app.typename_acc_plu,
 		)
 		return True
+
+	def save_attachment(self, attachment) -> None:
+		if not attachment._deleted:
+			c = self.cursor()
+			r = self.proc_attachment_save(
+				c,
+				c_user=self.ide_id,
+				p_atm_id=attachment.id,
+				p_atm_type=attachment.type.removesuffix("attachment"),
+				p_dat_id=attachment.owner.id if isinstance(attachment.owner, la.Record) else None,
+				p_tpl_id=attachment.owner.internal_id if isinstance(attachment.owner, la.App) else None,
+				p_ag_id=attachment.owner.id if isinstance(attachment.owner, la.AppGroup) else None,
+				p_atm_label=attachment.label,
+				p_atm_namespace=attachment.namespace,
+				p_atm_active=int(attachment.active),
+				p_atm_text=attachment.text_for_save(),
+				p_upl_id_original=attachment.uplid_for_save(),
+			)
+			if attachment.id is None:
+				attachment.id = r.p_atm_id
+				for (identifier, a) in attachment.owner.attachments.items():
+					if a is attachment:
+						del attachment.owner.attachments[identifier]
+						attachment.owner.attachments[attachment.id] = attachment
+						break
+
+	def delete_attachment(self, attachment) -> None:
+		if not attachment._deleted:
+			c = self.cursor()
+			r = self.proc_attachment_delete(
+				c,
+				c_user=self.ide_id,
+				p_atm_id=attachment.id,
+			)
+			attachment._deleted = True
 
 	def save_parameter(self, parameter, recursive=True):
 		if not parameter._deleted:
@@ -1513,7 +1531,9 @@ class DBHandler(Handler):
 		)
 		return r.p_errormessage
 
-	def _executeaction(self, record, actionidentifier):
+	def _executeaction(self, record, actionidentifier, sync=False):
+		if record.id is None:
+			raise la.UnsavedObjectError(record)
 		c = self.cursor()
 		r = self.proc_dataaction_execute(
 			c,
@@ -1524,6 +1544,9 @@ class DBHandler(Handler):
 
 		if r.p_errormessage:
 			raise ValueError(r.p_errormessage)
+
+		if sync:
+			self.record_sync_data(record.id, force=True)
 
 	def _getproc(self, procname):
 		try:
@@ -1560,16 +1583,22 @@ class DBHandler(Handler):
 		return templates
 
 	def fetch_viewtemplate_params(self, globals):
-		id = globals.viewtemplate_id
-		if id not in self.viewtemplate_params:
-			self.viewtemplate_params[id] = self.viewtemplate_params_incremental_data(globals, id)
-		return self.viewtemplate_params[id]
+		vt_id = globals.viewtemplate_id
+		if vt_id not in self.viewtemplate_params:
+			self.viewtemplate_params[vt_id] = self._execute_incremental_ul4on_call(
+				"livingapi_pkg.viewtemplate_params_inc_ful4on(:p_vt_id)",
+				p_vt_id=vt_id,
+			)
+		return self.viewtemplate_params[vt_id]
 
 	def fetch_emailtemplate_params(self, globals):
-		id = globals.emailtemplate_id
-		if id not in self.emailtemplate_params:
-			self.emailtemplate_params[id] = self.emailtemplate_params_incremental_data(globals, id)
-		return self.emailtemplate_params[id]
+		et_id = globals.emailtemplate_id
+		if et_id not in self.emailtemplate_params:
+			self.emailtemplate_params[et_id] = self._execute_incremental_ul4on_call(
+				"livingapi_pkg.emailtemplate_params_inc_ful4on(:p_et_id)",
+				p_et_id=et_id,
+			)
+		return self.emailtemplate_params[et_id]
 
 	def fetch_librarytemplates(self, type : str):
 		if type not in self.librarytemplates:
@@ -2261,7 +2290,7 @@ class HTTPHandler(Handler):
 			raise TypeError(f"Unexpected response {r.text!r}")
 		record._deleted = True
 
-	def _executeaction(self, record, actionidentifier):
+	def _executeaction(self, record, actionidentifier, sync=False):
 		kwargs = {
 			"data": {"recid": record.id},
 		}

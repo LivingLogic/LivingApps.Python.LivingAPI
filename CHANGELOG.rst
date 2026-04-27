@@ -1,3 +1,31 @@
+0.58.0 (2026-04-27)
+-------------------
+
+*	Attachments can now be attached to app and appgroups too.
+
+*	Attachments now have a new attribute ``namespace``.
+
+*	The ``Attachment`` attributes ``label``, ``active`` and ``value`` are settable
+	now. Attachments can be created with the ``App``, ``AppGroup`` or ``Record``
+	methods ``add_note_attachment()``, ``add_url_attachment()``,
+	``add_json_attachment()`` and ``add_file_attachment()``. Attachments can be
+	saved with the method ``save()`` and deleted with the method ``delete()``.
+
+*	Add ``AppParameter`` attributes ``namespace`` and ``full_identifier``.
+
+*	Add the attribute ``App.data_actions`` which will be incrementally loaded.
+	These are the data actions without their definitions (i.e. without data
+	action commands). ``DataAction``\s can be executed with their method
+	``execute``.
+
+*	``DataAction.execute()`` and ``Record.executeaction()`` have a new argument
+	sync. Passing ``sync=True`` updates the record with any changes done by the
+	data action .
+
+*	Attachments and data actions can have member templates.
+
+
+
 0.57.1 (2026-03-18)
 -------------------
 
