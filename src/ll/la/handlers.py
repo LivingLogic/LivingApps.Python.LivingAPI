@@ -240,7 +240,7 @@ class Handler:
 	def save_control(self, control) -> bool:
 		raise NotImplementedError
 
-	def _executeaction(self, record, actionidentifier) -> None:
+	def _executeaction(self, record, actionidentifier, sync=False) -> None:
 		raise NotImplementedError
 
 	def file_content(self, file):
@@ -1531,7 +1531,9 @@ class DBHandler(Handler):
 		)
 		return r.p_errormessage
 
-	def _executeaction(self, record, actionidentifier):
+	def _executeaction(self, record, actionidentifier, sync=False):
+		if record.id is None:
+			raise la.UnsavedObjectError(record)
 		c = self.cursor()
 		r = self.proc_dataaction_execute(
 			c,
@@ -1542,6 +1544,9 @@ class DBHandler(Handler):
 
 		if r.p_errormessage:
 			raise ValueError(r.p_errormessage)
+
+		if sync:
+			self.record_sync_data(record.id, force=True)
 
 	def _getproc(self, procname):
 		try:
@@ -2285,7 +2290,7 @@ class HTTPHandler(Handler):
 			raise TypeError(f"Unexpected response {r.text!r}")
 		record._deleted = True
 
-	def _executeaction(self, record, actionidentifier):
+	def _executeaction(self, record, actionidentifier, sync=False):
 		kwargs = {
 			"data": {"recid": record.id},
 		}

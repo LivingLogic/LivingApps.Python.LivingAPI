@@ -7418,8 +7418,8 @@ class Record(CustomAttributes, WithAttachments):
 	def delete(self):
 		self._gethandler().delete_record(self)
 
-	def executeaction(self, identifier=None):
-		self._gethandler()._executeaction(self, identifier)
+	def executeaction(self, identifier, sync=False):
+		self._gethandler()._executeaction(self, identifier, sync=sync)
 
 	def ul4save(self, force=False, sync=False):
 		return self.save(force=force, sync=sync)
@@ -9127,6 +9127,7 @@ class DataAction(CustomAttributes):
 		"after_record_update",
 		"after_record_insert",
 		"before_record_delete",
+		"execute",
 	})
 	ul4_type = ul4c.Type("la", "DataAction", "An action executed by the system or user on a record")
 
@@ -9179,6 +9180,9 @@ class DataAction(CustomAttributes):
 		app_id = self.app.id
 		yield handler.fetch_internaltemplates(app_id, "dataaction_instance", None)
 		yield handler.fetch_librarytemplates("dataaction_instance")
+
+	def execute(self, record, sync=False):
+		self._gethandler()._executeaction(record, self.identifier, sync=sync)
 
 
 # We don't have to register this class, since only subclasses will be put into

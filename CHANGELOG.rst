@@ -11,13 +11,19 @@ HEAD (2026-04-??)
 	``add_json_attachment()`` and ``add_file_attachment()``. Attachments can be
 	saved with the method ``save()`` and deleted with the method ``delete()``.
 
+*	Add ``AppParameter`` attributes ``namespace`` and ``full_identifier``.
+
 *	Add the attribute ``App.data_actions`` which will be incrementally loaded.
 	These are the data actions without their definitions (i.e. without data
-	action commands).
+	action commands). ``DataAction``\s can be executed with their method
+	``execute``.
+
+*	``DataAction.execute()`` and ``Record.executeaction()`` have a new argument
+	sync. Passing ``sync=True`` updtes the record with any changes done by the
+	dataactions.
 
 *	Attachments and data actions can have member templates.
 
-*	Add ``AppParameter`` attributes ``namespace`` and ``full_identifier``.
 
 
 0.57.1 (2026-03-18)
