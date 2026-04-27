@@ -1,14 +1,18 @@
 HEAD (2026-04-??)
 -----------------
 
+*	Attachments can now be attached to app and appgroups too.
+
+*	Attachments now have a new attribute ``namespace``.
+
 *	The ``Attachment`` attributes ``label``, ``active`` and ``value`` are settable
-	now. Attachments can be created with the ``Record`` methods
-	``add_note_attachment()``, ``add_url_attachment()``, ``add_json_attachment()``
-	and ``add_file_attachment()``. Attachments can be save with the method
-	``save()`` and deleted with the method ``delete()``.
+	now. Attachments can be created with the ``App``, ``AppGroup`` or ``Record``
+	methods ``add_note_attachment()``, ``add_url_attachment()``,
+	``add_json_attachment()`` and ``add_file_attachment()``. Attachments can be
+	saved with the method ``save()`` and deleted with the method ``delete()``.
 
 *	Add the attribute ``App.data_actions`` which will be incrementally loaded.
-	This are the data actions without their definitions (i.e. without data
+	These are the data actions without their definitions (i.e. without data
 	action commands).
 
 *	Attachments and data actions can have member templates.
