@@ -20,7 +20,7 @@
 
 *	``DataAction.execute()`` and ``Record.executeaction()`` have a new argument
 	sync. Passing ``sync=True`` updates the record with any changes done by the
-	data action .
+	data action.
 
 *	Attachments and data actions can have member templates.
 
