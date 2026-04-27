@@ -19,8 +19,8 @@ HEAD (2026-04-??)
 	``execute``.
 
 *	``DataAction.execute()`` and ``Record.executeaction()`` have a new argument
-	sync. Passing ``sync=True`` updtes the record with any changes done by the
-	dataactions.
+	sync. Passing ``sync=True`` updates the record with any changes done by the
+	data action .
 
 *	Attachments and data actions can have member templates.
 
