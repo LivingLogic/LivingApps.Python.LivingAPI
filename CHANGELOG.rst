@@ -1,3 +1,9 @@
+0.58.1 (2026-05-19)
+-------------------
+
+*	Bump supported db version to 140.
+
+
 0.58.0 (2026-04-27)
 -------------------
 
@@ -20,7 +26,7 @@
 
 *	``DataAction.execute()`` and ``Record.executeaction()`` have a new argument
 	sync. Passing ``sync=True`` updates the record with any changes done by the
-	data action .
+	data action.
 
 *	Attachments and data actions can have member templates.
 
