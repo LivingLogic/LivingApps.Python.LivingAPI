@@ -616,7 +616,7 @@ class DBHandler(Handler):
 			cursor = self.cursor()
 
 		query = t"select {function:q}("
-		for (f, (k, v)) misc.isfirst(queryargs.items())
+		for (f, (k, v)) in misc.isfirst(queryargs.items()):
 			if not f:
 				query += t", "
 			query += t"{k:q} => {v}"
