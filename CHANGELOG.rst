@@ -1,3 +1,9 @@
+0.59.2 (2026-06-24)
+-------------------
+
+*	Fixed UL4ON reinitialization in ``DBHandler._execute_incremental_ul4on_call()``.
+
+
 0.59.1 (2026-06-24)
 -------------------
 

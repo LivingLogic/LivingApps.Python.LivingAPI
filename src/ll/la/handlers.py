@@ -920,7 +920,8 @@ class DBHandler(Handler):
 		`call` should be a t-string containing the function call.
 		"""
 		cursor = self.cursor()
-		cursor.execute(t"select {call:q} from dual")
+		query = t"select {call:q} from dual"
+		cursor.execute(query)
 		dump = cursor.fetchone()[0]
 		if dump is None:
 			self._reinitialize_livingapi_db(cursor, globals)
