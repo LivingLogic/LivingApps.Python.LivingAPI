@@ -1,3 +1,11 @@
+0.59.0 (2026-06-24)
+-------------------
+
+*	Added the ``App`` attribute ``order``.
+
+*	Update to XIST 5.87 and updated many queries to use t-strings.
+
+
 0.58.1 (2026-05-19)
 -------------------
 
