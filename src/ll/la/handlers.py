@@ -412,7 +412,7 @@ class DBHandler(Handler):
 			self.ide_id = ide_id
 		elif ide_account is not None:
 			c = self.cursor()
-			c.execute("select ide_id from identity where ide_account = :ide_account", ide_account=ide_account)
+			c.execute(t"select ide_id from identity where ide_account = {ide_account}")
 			r = c.fetchone()
 			if r is None:
 				raise ValueError(f"no user {ide_account!r}")
@@ -615,9 +615,13 @@ class DBHandler(Handler):
 		if cursor is None:
 			cursor = self.cursor()
 
-		args = ", ".join(f"{a}=>:{a}" for a in queryargs)
-		query = f"select {function}({args}) from dual"
-		cursor.execute(query, **queryargs)
+		query = t"select {function:q}("
+		for (f, (k, v)) misc.isfirst(queryargs.items())
+			if not f:
+				query += t", "
+			query += t"{k:q} => {v}"
+		query += t") from dual"
+		cursor.execute(query)
 		dump = cursor.fetchone()[0]
 		dump = dump.decode("utf-8")
 		vars = ul4on.loads(dump)
@@ -628,29 +632,18 @@ class DBHandler(Handler):
 		template = ul4c.Template(internaltemplate.source, name=internaltemplate.identifier)
 		cursor = self.cursor_pg()
 
-		cursor.execute(
-			"""
+		cursor.execute(t"""
 			call internaltemplate.internaltemplate_import(
-				c_user => %s,
+				c_user => {self.ide_id},
 				p_it_id => null,
-				p_app_id => %s,
-				p_it_identifier => %s,
-				p_utv_source => %s,
-				p_utv_signature => %s,
-				p_utv_whitespace => %s,
-				p_utv_doc => %s
+				p_app_id => {internaltemplate.app.id},
+				p_it_identifier => {template.name},
+				p_utv_source => {template.source},
+				p_utv_signature => {ul4c._str(template.signature) if template.signature is not None else None},
+				p_utv_whitespace => {template.whitespace},
+				p_utv_doc => {template.doc}
 			)
-			""",
-			[
-				self.ide_id,
-				internaltemplate.app.id,
-				template.name,
-				template.source,
-				ul4c._str(template.signature) if template.signature is not None else None,
-				template.whitespace,
-				template.doc,
-			]
-		)
+		""")
 
 	def save_viewtemplate_config(self, viewtemplate, recursive=True):
 		template = ul4c.Template(viewtemplate.source, name=viewtemplate.identifier)
@@ -750,23 +743,17 @@ class DBHandler(Handler):
 		cursor = self.cursor()
 
 		# Find the ``ctl_id`` for the target control
-		query = """
+		cursor.execute(t"""
 			select
 				ctl_id
 			from
 				template t,
 				control c
 			where
-				t.tpl_uuid = :tpl_uuid and
+				t.tpl_uuid = {datasourcechildrenconfig.control.app.id} and
 				t.tpl_id = c.tpl_id and
-				c.ctl_identifier = :ctl_identifier
-		"""
-
-		cursor.execute(
-			query,
-			tpl_uuid=datasourcechildrenconfig.control.app.id,
-			ctl_identifier=datasourcechildrenconfig.control.identifier,
-		)
+				c.ctl_identifier = {datasourcechildrenconfig.control.identifier}
+		""")
 		ctl_id = cursor.fetchone()[0]
 
 		# Compile and save the record filter
@@ -799,11 +786,18 @@ class DBHandler(Handler):
 			)
 
 	def _save_dataorders(self, cursor, orders, function, **kwargs):
-		queryargs = " and ".join(f"{k}=:{k}" for k in kwargs)
-		procargs = {"p_" + k: v for (k, v) in kwargs.items()}
-		query = f"select do_id, do_order from dataorder where {queryargs} order by do_order"
-		cursor.execute(query, **kwargs)
+		query = t"select do_id, do_order from dataorder where "
+		for (f, (k, v)) in misc.isfirst(kwargs.items()):
+			if not f:
+				query += t" and "
+			query += t"{k:q} = {v}"
+		query += t" order by do_order"
+
+		cursor.execute(query)
 		old_records = [(r2.do_id, r2.do_order) for r2 in cursor]
+
+		procargs = {"p_" + k: v for (k, v) in kwargs.items()}
+
 		last_order = 0
 		for (old_record, dataorder) in itertools.zip_longest(old_records, orders):
 			if old_record is not None:
@@ -902,7 +896,7 @@ class DBHandler(Handler):
 			args["p_sessionid"] = self.session_id
 		self.proc_init(cursor, **args)
 
-	def _execute_incremental_ul4on_call(self, globals, call, **args):
+	def _execute_incremental_ul4on_call(self, globals, call):
 		"""
 		Returns the deserialized UL4ON data from executing a database function
 		that returns an "incremental" dump. ("incremental" means that it might
@@ -922,14 +916,15 @@ class DBHandler(Handler):
 		In this case we have to reinitialize the UL4ON codec machinery (by calling
 		:meth:`_reinitialize_livingapi_db`) and try calling the database function
 		again.
+
+		`call` should be a t-string containing the function call.
 		"""
-		query = f"select {call} from dual"
 		cursor = self.cursor()
-		cursor.execute(query, **args)
+		cursor.execute(t"select {call:q} from dual")
 		dump = cursor.fetchone()[0]
 		if dump is None:
 			self._reinitialize_livingapi_db(cursor, globals)
-			cursor.execute(query, **args)
+			cursor.execute(query)
 			dump = cursor.fetchone()[0]
 		dump = dump.decode("utf-8")
 		dump = self._loaddump(dump)
@@ -937,13 +932,16 @@ class DBHandler(Handler):
 
 	def meta_data(self, *appids, records=False):
 		cursor = self.cursor()
-		tpl_uuids = self.varchars(appids)
-		cursor.execute(
-			"select livingapi_pkg.metadata_ful4on(c_user=>:ide_id, p_tpl_uuids=>:tpl_uuids, p_records=>:records) from dual",
-			ide_id=self.ide_id,
-			tpl_uuids=tpl_uuids,
-			records=int(bool(records))
-		)
+		cursor.execute(t"""
+			select
+				livingapi_pkg.metadata_ful4on(
+					c_user=>{self.ide_id},
+					p_tpl_uuids=>{self.varchars(appids)},
+					p_records=>{int(bool(records))}
+				)
+			from
+				dual
+		""")
 		dump = cursor.fetchone()[0]
 		dump = dump.decode("utf-8")
 		dump = self._loaddump(dump)
@@ -955,11 +953,15 @@ class DBHandler(Handler):
 			if result is not None:
 				return result
 		c = self.cursor()
-		c.execute(
-			"select livingapi_pkg.record_sync_ful4on(p_dat_id=>:dat_id, p_force=>:force) from dual",
-			dat_id=dat_id,
-			force=int(force),
-		)
+		c.execute(t"""
+			select
+				livingapi_pkg.record_sync_ful4on(
+					p_dat_id=>{dat_id},
+					p_force=>{int(force)}
+				)
+			from
+				dual
+		""")
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
 		record = self._loaddump(dump)
@@ -977,11 +979,15 @@ class DBHandler(Handler):
 				else:
 					found[dat_id] = record
 		c = self.cursor()
-		c.execute(
-			"select livingapi_pkg.records_sync_ful4on(p_dat_ids=>:dat_ids, p_force=>:force) from dual",
-			dat_ids=self.varchars(missing),
-			force=int(force),
-		)
+		c.execute(t"""
+			select
+				livingapi_pkg.records_sync_ful4on(
+					p_dat_ids=>{self.varchars(missing)},
+					p_force=>{int(force)}
+				)
+			from
+				dual
+		""")
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
 		records = self._loaddump(dump)
@@ -994,14 +1000,18 @@ class DBHandler(Handler):
 				return result
 		c = self.cursor()
 		path_parts = file_path.split("/")
-		c.execute(
-			"select livingapi_pkg.upload_sync_ful4on(p_upr_table=>:upr_table, p_upr_pkvalue=>:upr_pkvalue, p_upr_field=>:upr_field, p_upl_id=>:upl_id, p_force=>:force) from dual",
-			upr_table=path_parts[0] if len(path_parts) > 0 else None,
-			upr_pkvalue=path_parts[1] if len(path_parts) > 1 else None,
-			upr_field=path_parts[2] if len(path_parts) > 2 else None,
-			upl_id=path_parts[3] if len(path_parts) > 3 else None,
-			force=int(force),
-		)
+		c.execute(t"""
+			select
+				livingapi_pkg.upload_sync_ful4on(
+					p_upr_table=>{path_parts[0] if len(path_parts) > 0 else None},
+					p_upr_pkvalue=>{path_parts[1] if len(path_parts) > 1 else None},
+					p_upr_field=>{path_parts[2] if len(path_parts) > 2 else None},
+					p_upl_id=>{path_parts[3] if len(path_parts) > 3 else None},
+					p_force=>{int(force)}
+				)
+			from
+				dual
+		""")
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
 		record = self._loaddump(dump)
@@ -1019,7 +1029,6 @@ class DBHandler(Handler):
 						for subvalue in value:
 							paramslist.append(key)
 							paramslist.append(subvalue)
-		paramslist = self.varchars(paramslist)
 
 		c = self.cursor()
 
@@ -1027,46 +1036,28 @@ class DBHandler(Handler):
 		# (since the server will reset its UL4ON codec state too)
 		self.reset()
 
-		c.execute(
-			"""
-				select
-					livingapi_pkg.data_ful4on(
-						c_user => :c_user,
-						p_sessionid => :p_sessionid,
-						p_reqid => :p_reqid,
-						p_vt_id => :p_vt_id,
-						p_et_id => :p_et_id,
-						p_vw_id => :p_vw_id,
-						p_tpl_uuid => :p_tpl_uuid,
-						p_dat_id => :p_dat_id,
-						p_dat_ids => :p_dat_ids,
-						p_ctl_identifier => :p_ctl_identifier,
-						p_searchtext => :p_searchtext,
-						p_reqparams => :p_reqparams,
-						p_mode => :p_mode,
-						p_sync => :p_sync,
-						p_exportmeta => :p_exportmeta,
-						p_funcname => :p_funcname
-					)
-				from dual
-			""",
-			c_user=self.ide_id,
-			p_sessionid=self.session_id,
-			p_reqid=self.requestid,
-			p_vt_id=vt_id,
-			p_et_id=et_id,
-			p_vw_id=vw_id,
-			p_tpl_uuid=tpl_uuid,
-			p_dat_id=dat_id,
-			p_dat_ids=self.varchars(dat_ids or []),
-			p_ctl_identifier=ctl_identifier,
-			p_searchtext=searchtext,
-			p_reqparams=paramslist,
-			p_mode=mode,
-			p_sync=int(sync),
-			p_exportmeta=int(exportmeta),
-			p_funcname=funcname,
-		)
+		c.execute(t"""
+			select
+				livingapi_pkg.data_ful4on(
+					c_user => {self.ide_id},
+					p_sessionid => {self.session_id},
+					p_reqid => {self.requestid},
+					p_vt_id => {vt_id},
+					p_et_id => {et_id},
+					p_vw_id => {vw_id},
+					p_tpl_uuid => {tpl_uuid},
+					p_dat_id => {dat_id},
+					p_dat_ids => {self.varchars(dat_ids or [])},
+					p_ctl_identifier => {ctl_identifier},
+					p_searchtext => {searchtext},
+					p_reqparams => {self.varchars(paramslist)},
+					p_mode => {mode},
+					p_sync => {int(sync)},
+					p_exportmeta => {int(exportmeta)},
+					p_funcname => {funcname}
+				)
+			from dual
+		""")
 
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
@@ -1083,99 +1074,93 @@ class DBHandler(Handler):
 
 		c = self.cursor()
 
-		c.execute("select tpl_id from template where tpl_uuid = :appid", appid=appid)
+		c.execute(t"select tpl_id from template where tpl_uuid = {appid}")
 		r = c.fetchone()
 		if r is None:
 			raise ValueError(f"no app {appid!r}")
-		tpl_id = r.tpl_id
 		if "template" in params:
 			template = params.pop("template")
-			c.execute(
-				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_identifier = :identifier",
-				tpl_id=tpl_id,
-				identifier=template,
-			)
+			c.execute(t"""
+				select
+					vt_id
+				from
+					viewtemplate
+				where
+					tpl_id = {r.tpl_id} and
+					vt_identifier = {template}
+			""")
 		else:
 			template = None
-			c.execute(
-				"select vt_id from viewtemplate where tpl_id = :tpl_id and vt_type = 'listdefault'",
-				tpl_id=tpl_id,
-			)
+			c.execute(t"""
+				select
+					vt_id
+				from
+					viewtemplate
+				where
+					tpl_id = {r.tpl_id} and
+					vt_type = 'listdefault'
+			""")
 		r = c.fetchone()
 		if r is None:
 			if template is None:
 				raise ValueError(f"no default template for app {appid!r}")
 			else:
 				raise ValueError(f"no template named {template!r} for app {appid!r}")
-		vt_id = r.vt_id
 
 		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
 
 	def app_dataactions_incremental_data(self, app):
 		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"livingapi_pkg.app_dataactions_inc_ful4on(:p_tpl_uuid)",
-			p_tpl_uuid=app.id,
+			t"livingapi_pkg.app_dataactions_inc_ful4on({app.id})",
 		)
 
 	def app_views_incremental_data(self, app):
 		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"livingapi_pkg.app_views_inc_ful4on(:p_tpl_uuid)",
-			p_tpl_uuid=app.id,
+			t"livingapi_pkg.app_views_inc_ful4on({app.id})",
 		)
 
 	def view_layout_controls_incremental_data(self, view):
 		return self._execute_incremental_ul4on_call(
 			view.app.globals,
-			"livingapi_pkg.view_layoutcontrols_inc_ful4on(:p_vw_id)",
-			p_vw_id=view.id,
+			t"livingapi_pkg.view_layoutcontrols_inc_ful4on({view.id})",
 		)
 
 	def app_child_controls_incremental_data(self, app):
 		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"livingapi_pkg.app_childcontrols_inc_ful4on(:p_tpl_uuid)",
-			p_tpl_uuid=app.id,
+			t"livingapi_pkg.app_childcontrols_inc_ful4on({app.id})",
 		)
 
 	def app_menus_incremental_data(self, app):
 		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'menuitem')",
-			c_user=self.ide_id,
-			p_tpl_uuid=app.id,
+			t"livingapi_pkg.app_links_inc_ful4on({self.ide_id}, {app.id}, 'menuitem')",
 		)
 
 	def app_panels_incremental_data(self, app):
 		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"livingapi_pkg.app_links_inc_ful4on(:c_user, :p_tpl_uuid, 'panel')",
-			c_user=self.ide_id,
-			p_tpl_uuid=app.id,
+			t"livingapi_pkg.app_links_inc_ful4on({self.ide_id}, {app.id}, 'panel')",
 		)
 
 	def appgroup_apps_incremental_data(self, appgroup):
 		return self._execute_incremental_ul4on_call(
 			appgroup.globals,
-			"livingapi_pkg.appgroup_apps_inc_ful4on(:c_user, :p_ag_id)",
-			c_user=self.ide_id,
-			p_ag_id=appgroup.id,
+			t"livingapi_pkg.appgroup_apps_inc_ful4on({self.ide_id}, {appgroup.id})",
 		)
 
 	def appgroups_incremental_data(self, globals) -> dict[str, la.AppGroup]:
 		return self._execute_incremental_ul4on_call(
 			globals,
-			"livingapi_pkg.appgroups_inc_ful4on(:c_user)",
-			c_user=self.ide_id,
+			t"livingapi_pkg.appgroups_inc_ful4on({self.ide_id})",
 		)
 
 	def app_viewtemplates_incremental_data(self, app):
 		return self._execute_incremental_ul4on_call(
 			app.globals,
-			"livingapi_pkg.app_viewtemplates_inc_ful4on(:c_user, :p_tpl_uuid)",
-			c_user=self.ide_id,
-			p_tpl_uuid=app.id,
+			t"livingapi_pkg.app_viewtemplates_inc_ful4on({self.ide_id}, {app.id})",
 		)
 
 	def save_record(self, record, recursive=True):
@@ -1510,10 +1495,7 @@ class DBHandler(Handler):
 
 	def parameter_sync_data(self, ap_id):
 		c = self.cursor()
-		c.execute(
-			"select livingapi_pkg.appparam_sync_ful4on(p_ap_id=>:ap_id) from dual",
-			ap_id=ap_id,
-		)
+		c.execute(t"select livingapi_pkg.appparam_sync_ful4on(p_ap_id=>{ap_id}) from dual")
 		r = c.fetchone()
 		dump = r[0].decode("utf-8")
 		parameter = self._loaddump(dump)
@@ -1564,11 +1546,41 @@ class DBHandler(Handler):
 			return self.internaltemplates[key]
 		c = self.cursor_pg()
 		if type is None:
-			c.execute("select it_identifier, utv_source from internaltemplate.internaltemplate_select where app_id = %s and tmt_key is null and ctl_id is null", [tpl_uuid])
+			c.execute(t"""
+				select
+					it_identifier,
+					utv_source
+				from
+					internaltemplate.internaltemplate_select
+				where
+					app_id = {tpl_uuid} and
+					tmt_key is null
+					and ctl_id is null
+			""")
 		elif control_id is None:
-			c.execute("select it_identifier, utv_source from internaltemplate.internaltemplate_select where app_id = %s and tmt_key = %s and ctl_id is null", [tpl_uuid, type])
+			c.execute(t"""
+				select
+					it_identifier,
+					utv_source
+				from
+					internaltemplate.internaltemplate_select
+				where
+					app_id = {tpl_uuid} and
+					tmt_key = {type}
+					and ctl_id is null
+			""")
 		else:
-			c.execute("select it_identifier, utv_source from internaltemplate.internaltemplate_select where app_id = %s and tmt_key = %s and ctl_id = %s", [tpl_uuid, type, control_id])
+			c.execute(t"""
+				select
+					it_identifier,
+					utv_source
+				from
+					internaltemplate.internaltemplate_select
+				where
+					app_id = {tpl_uuid} and
+					tmt_key = {type} and
+					ctl_id = {control_id}
+			""")
 		templates = la.attrdict()
 		for r in c:
 			(identifier, source) = r
@@ -1586,8 +1598,7 @@ class DBHandler(Handler):
 		vt_id = globals.viewtemplate_id
 		if vt_id not in self.viewtemplate_params:
 			self.viewtemplate_params[vt_id] = self._execute_incremental_ul4on_call(
-				"livingapi_pkg.viewtemplate_params_inc_ful4on(:p_vt_id)",
-				p_vt_id=vt_id,
+				t"livingapi_pkg.viewtemplate_params_inc_ful4on({vt_id})",
 			)
 		return self.viewtemplate_params[vt_id]
 
@@ -1595,8 +1606,7 @@ class DBHandler(Handler):
 		et_id = globals.emailtemplate_id
 		if et_id not in self.emailtemplate_params:
 			self.emailtemplate_params[et_id] = self._execute_incremental_ul4on_call(
-				"livingapi_pkg.emailtemplate_params_inc_ful4on(:p_et_id)",
-				p_et_id=et_id,
+				t"livingapi_pkg.emailtemplate_params_inc_ful4on({et_id})",
 			)
 		return self.emailtemplate_params[et_id]
 
@@ -1604,9 +1614,25 @@ class DBHandler(Handler):
 		if type not in self.librarytemplates:
 			c = self.cursor_pg(row_factory=rows.tuple_row)
 			if type is None:
-				c.execute("select lt_identifier, utv_source from templatelibrary.librarytemplate_select where tmt_key is null")
+				c.execute(t"""
+					select
+						lt_identifier,
+						utv_source
+					from
+						templatelibrary.librarytemplate_select
+					where
+						tmt_key is null
+				""")
 			else:
-				c.execute("select lt_identifier, utv_source from templatelibrary.librarytemplate_select where tmt_key = %s", [type])
+				c.execute(t"""
+					select
+						lt_identifier,
+						utv_source
+					from
+						templatelibrary.librarytemplate_select
+					where
+						tmt_key = {type}
+				""")
 
 			templates = la.attrdict()
 			for r in c:

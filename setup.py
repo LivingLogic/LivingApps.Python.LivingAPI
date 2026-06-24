@@ -49,12 +49,12 @@ else:
 # Get rid of text roles PyPI doesn't know about
 description = re.subn(":[a-z]+:`~?([-a-zA-Z0-9_./]+)`", "``\\1``", description)[0]
 
-# Expand tabs (so they won't show up as 8 spaces in the Windows installer)
+# Expand tabs (so they won't show up as 8 spaces)
 description = description.expandtabs(2)
 
 args = dict(
 	name="ll-la",
-	version="0.58.1",
+	version="0.59.0",
 	description="Python API for LivingApps",
 	long_description=description,
 	author="Walter Doerwald",
@@ -67,7 +67,7 @@ args = dict(
 	package_dir={"": "src"},
 	packages=["ll.la"],
 	install_requires=[
-		"ll-xist >= 5.84",
+		"ll-xist >= 5.87",
 		"requests >= 2.21.0",
 		"geocoder >= 1.30.1",
 		"Pillow >= 6.1.0",

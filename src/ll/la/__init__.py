@@ -2274,6 +2274,7 @@ class Globals(CustomAttributes):
 		self.request = None
 		self.response = None
 		self.mode = mode
+		self.form = None
 		self.viewtemplate_id = None
 		self.emailtemplate_id = None
 		self.view_id = None
@@ -2599,10 +2600,10 @@ class Globals(CustomAttributes):
 		else:
 			return attrdict()
 
-	def _incremental_data(self, call, **kwargs):
+	def _incremental_data(self, call):
 		if self.handler is None:
 			raise NoHandlerError()
-		return self.handler._execute_incremental_ul4on_call(self, call, **kwargs)
+		return self.handler._execute_incremental_ul4on_call(self, call)
 
 	def _template_params_get(self) -> dict[str, MutableAppParameter]:
 		if self._template_params is None:
@@ -2892,6 +2893,11 @@ class App(CustomAttributes, WithParams, WithAttachments):
 
 		Is this app the main app of its app group?
 
+	.. attribute:: order
+		:type: int | None
+
+		Apps are ordered by this integer within their appgroup.
+
 	.. attribute:: ai_generated
 		:type: bool
 
@@ -3061,6 +3067,7 @@ class App(CustomAttributes, WithParams, WithAttachments):
 			"group",
 			"appgroup",
 			"main",
+			"order",
 			"ai_generated",
 			"filter_default",
 			"sort_default",
@@ -3194,10 +3201,10 @@ class App(CustomAttributes, WithParams, WithAttachments):
 	menus = Attr(get="", set="", ul4get="_menus_get")
 	panels = Attr(get="", set="", ul4get="_panels_get")
 	child_controls = Attr(get="", set="", ul4get="_child_controls_get")
-	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	viewtemplates_config = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	internaltemplates = AttrDictAttr(get=True, set=True, ul4get=True)
 	data_actions = AttrDictAttr(get="", ul4get="_data_actions_get", ul4onget="_data_actions_ul4onget", ul4onset="_data_actions_ul4onset")
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
+	order = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, installation=None, datamanagement_identifier=None):
@@ -3245,6 +3252,7 @@ class App(CustomAttributes, WithParams, WithAttachments):
 		self.active_view = None
 		self.datasource = None
 		self.main = False
+		self.order = None
 		self.ai_generated = False
 		self.filter_default = []
 		self.sort_default = []
@@ -3270,8 +3278,7 @@ class App(CustomAttributes, WithParams, WithAttachments):
 
 	def _ownparams_fetch(self):
 		return self.globals._incremental_data(
-			"livingapi_pkg.app_params_inc_ful4on(:p_tpl_uuid)",
-			p_tpl_uuid=self.id,
+			t"livingapi_pkg.app_params_inc_ful4on({self.id})",
 		)
 
 	def _add_param(self, *params):
@@ -3372,8 +3379,7 @@ class App(CustomAttributes, WithParams, WithAttachments):
 
 	def _attachments_fetch(self):
 		return self.globals._incremental_data(
-			"livingapi_pkg.app_attachments_inc_ful4on(:p_tpl_uuid)",
-			p_tpl_uuid=self.id,
+			t"livingapi_pkg.app_attachments_inc_ful4on({self.id})",
 		)
 
 	def template_url(self, identifier, record=None, /, **params) -> str:
@@ -4065,8 +4071,7 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments):
 
 	def _ownparams_fetch(self):
 		return self.globals._incremental_data(
-			"livingapi_pkg.appgroup_params_inc_ful4on(:p_ag_id)",
-			p_ag_id=self.id,
+			t"livingapi_pkg.appgroup_params_inc_ful4on({self.id})",
 		)
 
 	def _params_get(self) -> dict[str, AppParameter]:
@@ -4081,8 +4086,7 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments):
 
 	def _attachments_fetch(self):
 		return self.globals._incremental_data(
-			"livingapi_pkg.appgroup_attachments_inc_ful4on(:p_ag_id)",
-			p_ag_id=self.id,
+			t"livingapi_pkg.appgroup_attachments_inc_ful4on({self.id})",
 		)
 
 	def _make_filter(self, filter:dict[App, list[str] | str]) -> dict[App, list[str]]:
@@ -7229,8 +7233,7 @@ class Record(CustomAttributes, WithAttachments):
 
 	def _attachments_fetch(self):
 		return self.globals._incremental_data(
-			"livingapi_pkg.record_attachments_inc_ful4on(:p_dat_id)",
-			p_dat_id=self.id,
+			t"livingapi_pkg.record_attachments_inc_ful4on({self.id})",
 		)
 
 	def _state_get(self):
