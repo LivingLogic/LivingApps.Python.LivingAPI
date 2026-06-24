@@ -74,7 +74,7 @@ args = dict(
 		"validators >= 0.18.2",
 	],
 	extras_require={
-		"db": ["oracledb", "psycopg[binary] >= 3.0.5"],
+		"db": ["oracledb >= 4.0.1", "psycopg[binary] >= 3.0.5"],
 	},
 	zip_safe=False,
 )
