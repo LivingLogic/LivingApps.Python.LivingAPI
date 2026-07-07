@@ -6,7 +6,6 @@ See https://www.living-apps.de/ (in german) or https://www.living-apps.com/
 create new records, and update and delete existing records all from your Python
 prompt (or script).
 
-
 For more info about LivingApps and this Python SDK, see
 https://my.living-apps.de/docs/PythonSDK.html (in german).
 
