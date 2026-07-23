@@ -1,4 +1,4 @@
-0.60.1 (2026-07-23)
+0.61.0 (2026-07-23)
 -------------------
 
 *	``Control.in_structured_search`` is now an enum.
