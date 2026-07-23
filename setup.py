@@ -54,7 +54,7 @@ description = description.expandtabs(2)
 
 args = dict(
 	name="ll-la",
-	version="0.60.0",
+	version="0.61.0",
 	description="Python API for LivingApps",
 	long_description=description,
 	author="Walter Doerwald",

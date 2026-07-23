@@ -5186,7 +5186,7 @@ class Control(CustomAttributes):
 		This attribute is settable.
 
 	.. attribute:: in_structured_search
-		:type: bool
+		:type: InStructuredSearch
 
 		Should the list in viewtemplates and the datamanagement use a separate
 		search field for this control?
@@ -5313,6 +5313,10 @@ class Control(CustomAttributes):
 		HIDDEN = "hidden"
 		ABSENT = "absent"
 
+	class InStructuredSearch(misc.Enum):
+		SIMPLE = "simple"
+		EXTENDED = "extended"
+
 	class LabelPos(misc.Enum):
 		LEFT = "left"
 		RIGHT = "right"
@@ -5334,7 +5338,7 @@ class Control(CustomAttributes):
 	in_list = BoolAttr(get="_in_list_get", set="_in_list_set", ul4get="_in_list_get", ul4set="_in_list_set")
 	in_mobile_list = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	in_text = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	in_structured_search = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	in_structured_search = EnumAttr(InStructuredSearch, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	in_fulltext_search = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	in_expert_search = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	required = BoolAttr(get="", set="", ul4get="_required_get", ul4onset=True, ul4onget=True)

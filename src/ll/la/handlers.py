@@ -1293,6 +1293,13 @@ class DBHandler(Handler):
 				dm_hidden = 1
 			case _:
 				dm_hidden = 0
+		match control.in_structured_search:
+			case la.Control.InStructuredSearch.SIMPLE:
+				in_structured_search = 2
+			case la.Control.InStructuredSearch.EXTENDED:
+				in_structured_search = 1
+			case _:
+				in_structured_search = None
 
 		self.proc_control_update(
 			c,
@@ -1306,7 +1313,7 @@ class DBHandler(Handler):
 			p_ctl_inmobilelist=int(control.in_mobile_list),
 			p_ctl_intext=int(control.in_text),
 			p_ctl_infulltextsearch=int(control.in_fulltext_search),
-			p_ctl_instructuredsearch=int(control.in_structured_search),
+			p_ctl_instructuredsearch=in_structured_search,
 			p_ctl_inexpertsearch=int(control.in_expert_search),
 			p_ctl_required=required,
 		)
