@@ -1620,16 +1620,16 @@ class File(CustomAttributes):
 
 	vsqlgroup = vsql.Group(
 		"upload_ref_select",
-		internal_id=(vsql.DataType.STR, "upl_id"),
-		id=(vsql.DataType.STR, "upr_path"),
-		filename=(vsql.DataType.STR, "upl_orgname"),
-		mimetype=(vsql.DataType.STR, "upl_mimetype"),
-		width=(vsql.DataType.INT, "upl_width"),
-		height=(vsql.DataType.INT, "upl_height"),
-		size=(vsql.DataType.INT, "upl_size"),
-		duration=(vsql.DataType.INT, "upl_duration"),
-		recordedat=(vsql.DataType.DATETIME, "upl_recorddate"),
-		createdat=(vsql.DataType.DATETIME, "upl_ctimestamp"),
+		vsql.Field("internal_id", vsql.DataType.STR, "upl_id"),
+		vsql.Field("id", vsql.DataType.STR, "upr_path"),
+		vsql.Field("filename", vsql.DataType.STR, "upl_orgname"),
+		vsql.Field("mimetype", vsql.DataType.STR, "upl_mimetype"),
+		vsql.Field("width", vsql.DataType.INT, "upl_width"),
+		vsql.Field("height", vsql.DataType.INT, "upl_height"),
+		vsql.Field("size", vsql.DataType.INT, "upl_size"),
+		vsql.Field("duration", vsql.DataType.INT, "upl_duration"),
+		vsql.Field("recordedat", vsql.DataType.DATETIME, "upl_recorddate"),
+		vsql.Field("createdat", vsql.DataType.DATETIME, "upl_ctimestamp"),
 	)
 
 
@@ -1899,39 +1899,34 @@ class User(CustomAttributes):
 		yield handler.fetch_librarytemplates("user_instance")
 
 	@classmethod
-	def vsqlfield(cls, ul4var: str="user", sqlvar: str="livingapi_pkg.global_user") -> vsql.Field:
-		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.ide_id(+)", cls.vsqlgroup)
+	def vsqlfield(cls, ul4var: str="user", sqlvar: vsql.T_sql = "livingapi_pkg.global_user") -> vsql.Field:
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.ide_id(+)", cls.vsqlgroup)
 
 	vsqlgroup = vsql.Group(
 		"identity",
-		id=(vsql.DataType.STR, "ide_publicid"),
-		gender=(vsql.DataType.STR, "ide_gender"),
-		title=(vsql.DataType.STR, "ide_title"),
-		firstname=(vsql.DataType.STR, "ide_firstname"),
-		surname=(vsql.DataType.STR, "ide_surname"),
-		initials=(vsql.DataType.STR, "ide_initials"),
-		email=(vsql.DataType.STR, "ide_account"),
-		street=(vsql.DataType.STR, "ide_street"),
-		streetnumber=(vsql.DataType.STR, "ide_streetnumber"),
-		zip=(vsql.DataType.STR, "ide_zip"),
-		city=(vsql.DataType.STR, "ide_city"),
-		phone=(vsql.DataType.STR, "ide_phone"),
-		fax=(vsql.DataType.STR, "ide_fax"),
-		lang=(vsql.DataType.STR, "ide_lang"),
+		vsql.Field("id", vsql.DataType.STR, "ide_publicid"),
+		vsql.Field("gender", vsql.DataType.STR, "ide_gender"),
+		vsql.Field("title", vsql.DataType.STR, "ide_title"),
+		vsql.Field("firstname", vsql.DataType.STR, "ide_firstname"),
+		vsql.Field("surname", vsql.DataType.STR, "ide_surname"),
+		vsql.Field("initials", vsql.DataType.STR, "ide_initials"),
+		vsql.Field("email", vsql.DataType.STR, "ide_account"),
+		vsql.Field("street", vsql.DataType.STR, "ide_street"),
+		vsql.Field("streetnumber", vsql.DataType.STR, "ide_streetnumber"),
+		vsql.Field("zip", vsql.DataType.STR, "ide_zip"),
+		vsql.Field("city", vsql.DataType.STR, "ide_city"),
+		vsql.Field("phone", vsql.DataType.STR, "ide_phone"),
+		vsql.Field("fax", vsql.DataType.STR, "ide_fax"),
+		vsql.Field("lang", vsql.DataType.STR, "ide_lang"),
 		# FIXME: We can't add the uploads, because the Oracle side doesn't support it yet.
-		image=(
-			vsql.DataType.STR,
-			"upl_id_image",
-			"({m}.upl_id_image = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_image')",
-			File.vsqlgroup,
-		),
-		summary=(vsql.DataType.STR, "ide_summary"),
-		interests=(vsql.DataType.STR, "ide_interests"),
-		personal_website=(vsql.DataType.STR, "ide_personal_website"),
-		company_website=(vsql.DataType.STR, "ide_company_website"),
-		company=(vsql.DataType.STR, "ide_company"),
-		position=(vsql.DataType.STR, "ide_position"),
-		department=(vsql.DataType.STR, "ide_department"),
+		vsql.Field("image", vsql.DataType.STR, "upl_id_image", "({m}.upl_id_image = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_image')", File.vsqlgroup),
+		vsql.Field("summary", vsql.DataType.STR, "ide_summary"),
+		vsql.Field("interests", vsql.DataType.STR, "ide_interests"),
+		vsql.Field("personal_website", vsql.DataType.STR, "ide_personal_website"),
+		vsql.Field("company_website", vsql.DataType.STR, "ide_company_website"),
+		vsql.Field("company", vsql.DataType.STR, "ide_company"),
+		vsql.Field("position", vsql.DataType.STR, "ide_position"),
+		vsql.Field("department", vsql.DataType.STR, "ide_department"),
 	)
 
 	def isvalidemail(self, emailaddress: str) -> str | None:
@@ -2856,8 +2851,203 @@ class WithAttachments:
 		return self._add_attachment(attachment)
 
 
+@register(None)
+class Translations:
+	"""
+	The translations of the multilingual attributes of a LivingAPI object for
+	all languages.
+
+	The translations for a single language are accessible via attributes named
+	after the language code (e.g. ``control.translations.de`` is the
+	:class:`ControlLang` object containing the German translations of the
+	:class:`Control` attributes).
+
+	Accessing a known language for which no translations exist yet creates a
+	new empty translation object, so that translations can be created by
+	simply setting attributes on it and saving it (e.g.
+	``control.translations.en.label = "First name"`` followed by
+	``control.translations.en.save()``).
+
+	Calling :meth:`save` on the :class:`!Translations` object itself saves the
+	translations for all languages.
+	"""
+
+	ul4_attrs = {"save"}
+	ul4_type = ul4c.Type("la", "Translations", "The translations of the multilingual attributes of a LivingAPI object (one attribute per language)")
+
+	# The languages for which translations may be created
+	known_langs = {"de", "en", "fr", "it", "es", "cs"}
+
+	def __init__(self, owner, langs=None):
+		self.owner = owner
+		self.langs = langs
+
+	def __repr__(self) -> str:
+		langs = sorted(self.langs) if self.langs is not None else None
+		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} owner={self.owner!r} langs={langs!r} at {id(self):#x}>"
+
+	def get(self, lang=None) -> LangBase | None:
+		"""
+		Return the translations for the language ``lang`` (or for the current
+		language ``globals.lang`` if ``lang`` is ``None``).
+
+		Returns ``None`` if there are no translations for this language.
+		"""
+		if lang is None:
+			globals = self.owner.globals
+			if globals is None:
+				return None
+			lang = globals.lang
+		if self.langs is None or lang is None:
+			return None
+		return self.langs.get(lang)
+
+	def get_or_add(self, lang) -> LangBase | None:
+		"""
+		Return the translations for the language ``lang``, creating a new empty
+		translation object if there are none yet and ``lang`` is a known
+		language (for unknown languages ``None`` will be returned).
+		"""
+		if lang not in self.known_langs:
+			return None
+		if self.langs is None:
+			self.langs = {}
+		translation = self.langs.get(lang)
+		if translation is None:
+			translation = self.owner._create_translation(lang)
+			self.langs[lang] = translation
+		return translation
+
+	def save(self):
+		"""
+		Save the translations for all languages to the database.
+		"""
+		if self.langs is not None:
+			for translation in self.langs.values():
+				translation.save()
+
+	def __getattr__(self, name):
+		translation = self.get_or_add(name)
+		if translation is not None:
+			return translation
+		raise AttributeError(error_attribute_doesnt_exist(self, name)) from None
+
+	def __dir__(self) -> set[str]:
+		return self.ul4_attrs | self.known_langs
+
+	def ul4_dir(self):
+		return self.ul4_attrs | self.known_langs
+
+	def ul4_hasattr(self, name: str) -> bool:
+		return name in self.known_langs or name in self.ul4_attrs
+
+	def ul4_getattr(self, name: str) -> Any:
+		if name in self.ul4_attrs:
+			return getattr(self, name)
+		translation = self.get_or_add(name)
+		if translation is not None:
+			return translation
+		raise AttributeError(error_attribute_doesnt_exist(self, name))
+
+
+class LangBase(Base):
+	"""
+	Base class of all classes that contain the translations of the multilingual
+	attributes of another LivingAPI object for one language (so e.g. a
+	:class:`Control` has one :class:`ControlLang` object per language).
+
+	A translation object is either loaded from the database (as part of the
+	translations of its owner) or created empty by accessing a known language
+	via :class:`Translations` (e.g. ``control.translations.en``). In both cases
+	its attributes can be changed and the object can be saved with
+	:meth:`save`.
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: Optional[str]
+
+		Unique database id (or ``None`` if this translation hasn't been saved
+		yet).
+
+	.. attribute:: lang
+		:type: str
+
+		The language code of this translation.
+	"""
+
+	ul4_attrs = Base.ul4_attrs.union({"id", "lang", "save"})
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	@misc.notimplemented
+	def save(self):
+		"""
+		Save this translation to the database (by merging it into the
+		appropriate ``?LANG`` table, keyed on the owner and the language).
+		"""
+
+
+class WithTranslations:
+	"""
+	Mixin class for all classes that have multilingual attributes
+	(i.e. :class:`App`, :class:`AppGroup`, :class:`Control` and
+	:class:`LookupItem`).
+
+	These objects have the following attribute:
+
+	.. attribute:: translations
+		:type: Translations
+
+		The translations of the multilingual attributes (one attribute per
+		language).
+	"""
+
+	ul4_attrs = {"translations"}
+
+	def _translations_get(self) -> Translations:
+		translations = self._translations
+		if translations is None:
+			translations = self._translations = Translations(self)
+		return translations
+
+	def _translations_ul4onget(self):
+		translations = self._translations
+		return translations.langs if translations is not None else None
+
+	def _translations_ul4onset(self, value):
+		self._translations_get().langs = value
+
+	def _translations_ul4ondefault(self):
+		if self._translations is not None:
+			self._translations.langs = None
+
+	def _translated_get(self, name):
+		"""
+		Return the attribute ``name`` translated for the current language
+		(``globals.lang``) if such a translation exists, otherwise the
+		attribute of the object itself.
+		"""
+		translation = self._translations_get().get()
+		if translation is not None:
+			value = getattr(translation, name)
+			if value is not None:
+				return value
+		return self.__dict__[name]
+
+	@misc.notimplemented
+	def _create_translation(self, lang):
+		"""
+		Create a new empty translation object for the language ``lang``.
+		"""
+
+
 @register("app")
-class App(CustomAttributes, WithParams, WithAttachments):
+class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	"""
 	A LivingApp.
 
@@ -2882,6 +3072,12 @@ class App(CustomAttributes, WithParams, WithAttachments):
 		:type: Optional[str]
 
 		Description of the app.
+
+	.. attribute:: translations
+		:type: Translations
+
+		The translations of the multilingual attributes of this app (one
+		attribute per language).
 
 	.. attribute:: lang
 		:type: str
@@ -3058,6 +3254,7 @@ class App(CustomAttributes, WithParams, WithAttachments):
 	ul4_attrs = CustomAttributes.ul4_attrs.union(
 		WithParams.ul4_attrs,
 		WithAttachments.ul4_attrs,
+		WithTranslations.ul4_attrs,
 		{
 			"id",
 			"globals",
@@ -3147,19 +3344,19 @@ class App(CustomAttributes, WithParams, WithAttachments):
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	internal_id = Attr(str, get=True, ul4onget=True, ul4onset=True)
-	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	name = Attr(str, get="", set=True, repr=True, ul4get="_name_get", ul4set=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get="", set=True, ul4get="_description_get", ul4set=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	appgroup = Attr(lambda: AppGroup, get=True, ul4get=True, ul4onget=True, ul4onset=True)
-	typename_grammatical_gender = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_nominative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_genitive_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_dative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_accusative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_nominative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_genitive_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_dative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_accusative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_grammatical_gender = Attr(str, get="", set=True, ul4get="_typename_grammatical_gender_get", ul4set=True, ul4onget=True, ul4onset=True)
+	typename_nominative_singular = Attr(str, get="", set=True, ul4get="_typename_nominative_singular_get", ul4set=True, ul4onget=True, ul4onset=True)
+	typename_genitive_singular = Attr(str, get="", set=True, ul4get="_typename_genitive_singular_get", ul4set=True, ul4onget=True, ul4onset=True)
+	typename_dative_singular = Attr(str, get="", set=True, ul4get="_typename_dative_singular_get", ul4set=True, ul4onget=True, ul4onset=True)
+	typename_accusative_singular = Attr(str, get="", set=True, ul4get="_typename_accusative_singular_get", ul4set=True, ul4onget=True, ul4onset=True)
+	typename_nominative_plural = Attr(str, get="", set=True, ul4get="_typename_nominative_plural_get", ul4set=True, ul4onget=True, ul4onset=True)
+	typename_genitive_plural = Attr(str, get="", set=True, ul4get="_typename_genitive_plural_get", ul4set=True, ul4onget=True, ul4onset=True)
+	typename_dative_plural = Attr(str, get="", set=True, ul4get="_typename_dative_plural_get", ul4set=True, ul4onget=True, ul4onset=True)
+	typename_accusative_plural = Attr(str, get="", set=True, ul4get="_typename_accusative_plural_get", ul4set=True, ul4onget=True, ul4onset=True)
 	startlink = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	image = Attr(File, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	iconlarge = Attr(File, get="_image_get", ul4get="_image_get")
@@ -3205,6 +3402,7 @@ class App(CustomAttributes, WithParams, WithAttachments):
 	data_actions = AttrDictAttr(get="", ul4get="_data_actions_get", ul4onget="_data_actions_ul4onget", ul4onset="_data_actions_ul4onset")
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 	order = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True)
+	translations = Attr(Translations, get="", ul4get="_translations_get", ul4onget="", ul4onset="", ul4ondefault="")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, installation=None, datamanagement_identifier=None):
@@ -3214,10 +3412,20 @@ class App(CustomAttributes, WithParams, WithAttachments):
 		self.superid = None
 		self.globals = None
 		self.handler = None
+		self._translations = None
 		self.name = name
 		self.description = description
 		self.lang = lang
 		self.appgroup = None
+		self.typename_grammatical_gender = None
+		self.typename_nominative_singular = None
+		self.typename_genitive_singular = None
+		self.typename_dative_singular = None
+		self.typename_accusative_singular = None
+		self.typename_nominative_plural = None
+		self.typename_genitive_plural = None
+		self.typename_dative_plural = None
+		self.typename_accusative_plural = None
 		self.startlink = startlink
 		self.image = image
 		self.createdat = createdat
@@ -3296,6 +3504,42 @@ class App(CustomAttributes, WithParams, WithAttachments):
 
 	def _image_get(self) -> File | None:
 		return self.image
+
+	def _create_translation(self, lang):
+		return AppLang(app=self, lang=lang)
+
+	def _name_get(self):
+		return self._translated_get("name")
+
+	def _description_get(self):
+		return self._translated_get("description")
+
+	def _typename_grammatical_gender_get(self):
+		return self._translated_get("typename_grammatical_gender")
+
+	def _typename_nominative_singular_get(self):
+		return self._translated_get("typename_nominative_singular")
+
+	def _typename_genitive_singular_get(self):
+		return self._translated_get("typename_genitive_singular")
+
+	def _typename_dative_singular_get(self):
+		return self._translated_get("typename_dative_singular")
+
+	def _typename_accusative_singular_get(self):
+		return self._translated_get("typename_accusative_singular")
+
+	def _typename_nominative_plural_get(self):
+		return self._translated_get("typename_nominative_plural")
+
+	def _typename_genitive_plural_get(self):
+		return self._translated_get("typename_genitive_plural")
+
+	def _typename_dative_plural_get(self):
+		return self._translated_get("typename_dative_plural")
+
+	def _typename_accusative_plural_get(self):
+		return self._translated_get("typename_accusative_plural")
 
 	def _records_ul4onset(self, value):
 		if value is not None:
@@ -3685,25 +3929,26 @@ class App(CustomAttributes, WithParams, WithAttachments):
 		record._make_fields(True, kwargs, {}, {})
 		return record
 
-	def vsqlfield_records(self, ul4var: str, sqlvar: str) -> vsql.Field:
-		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.tpl_id", self.vsqlgroup_records)
+	def vsqlfield_records(self, ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", self.vsqlgroup_records)
 
-	def vsqlfield_app(self, ul4var: str, sqlvar: str) -> vsql>Field:
-		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, f"{sqlvar} = {{d}}.tpl_id", self.vsqlgroup_app)
+	def vsqlfield_app(self, ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", self.vsqlgroup_app)
 
 	@staticmethod
 	def vsqlgroup_records_common(base_query: str) -> vsql.Group:
-		g = vsql.Group(base_query)
-		g.add_field("id", vsql.DataType.STR, "{a}.dat_id")
-		g.add_field("app", vsql.DataType.STR, "{a}.tpl_uuid")
-		g.add_field("app_internal_id", vsql.DataType.INT, "{a}.tpl_id")
-		g.add_field("createdat", vsql.DataType.DATETIME, "{a}.dat_cdate")
-		g.add_field("createdby", vsql.DataType.STR, "{a}.dat_cname", "{m}.dat_cname = {d}.ide_id(+)", User.vsqlgroup)
-		g.add_field("updatedat", vsql.DataType.DATETIME, "{a}.dat_udate")
-		g.add_field("updatedby", vsql.DataType.STR, "{a}.dat_uname", "{m}.dat_uname = {d}.ide_id(+)", User.vsqlgroup)
-		g.add_field("updatecount", vsql.DataType.INT, "{a}.dat_updatecount")
-		g.add_field("url", vsql.DataType.STR, "'https://' || parameter_pkg.str_os('INGRESS_HOST') || '/gateway/apps/' || {a}.tpl_uuid || '/' || {a}.dat_id || '/edit'")
-		return g
+		return vsql.Group(
+			base_query,
+			vsql.Field("id", vsql.DataType.STR, "{a}.dat_id"),
+			vsql.Field("app", vsql.DataType.STR, "{a}.tpl_uuid"),
+			vsql.Field("app_internal_id", vsql.DataType.INT, "{a}.tpl_id"),
+			vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.dat_cdate"),
+			vsql.Field("createdby", vsql.DataType.STR, "{a}.dat_cname", "{m}.dat_cname = {d}.ide_id(+)", User.vsqlgroup),
+			vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.dat_udate"),
+			vsql.Field("updatedby", vsql.DataType.STR, "{a}.dat_uname", "{m}.dat_uname = {d}.ide_id(+)", User.vsqlgroup),
+			vsql.Field("updatecount", vsql.DataType.INT, "{a}.dat_updatecount"),
+			vsql.Field("url", vsql.DataType.STR, "'https://' || parameter_pkg.str_os('INGRESS_HOST') || '/gateway/apps/' || {a}.tpl_uuid || '/' || {a}.dat_id || '/edit'"),
+		)
 
 	@property
 	def vsqlgroup_records(self) -> vsql.Group:
@@ -3718,16 +3963,18 @@ class App(CustomAttributes, WithParams, WithAttachments):
 	@property
 	def vsqlgroup_app(self) -> vsql.Group:
 		if self._vsqlgroup_app is None:
-			self._vsqlgroup_app = g = vsql.Group("template")
-			g.add_field("id", vsql.DataType.STR, "{a}.tpl_uuid")
-			g.add_field("name", vsql.DataType.STR, "{a}.tpl_name")
-			g.add_field("description", vsql.DataType.STR, "{a}.tpl_description")
-			g.add_field("createdat", vsql.DataType.DATETIME, "{a}.tpl_ctimstamp")
-			g.add_field("createdby", vsql.DataType.STR, "{a}.tpl_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup)
-			g.add_field("updatedat", vsql.DataType.DATETIME, "{a}.tpl_utimstamp")
-			g.add_field("updatedby", vsql.DataType.STR, "{a}.tpl_uname", "{m}.tpl_uname = {d}.ide_id(+)", User.vsqlgroup)
-			g.add_field("installation", vsql.DataType.STR, "{a}.inl_id", "{m}.inl_id = {d}.inl_id(+)", Installation.vsqlgroup)
 			# FIXME: Add app parameters
+			self._vsqlgroup_app = vsql.Group(
+				"template",
+				vsql.Field("id", vsql.DataType.STR, "{a}.tpl_uuid"),
+				vsql.Field("name", vsql.DataType.STR, "{a}.tpl_name"),
+				vsql.Field("description", vsql.DataType.STR, "{a}.tpl_description"),
+				vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.tpl_ctimstamp"),
+				vsql.Field("createdby", vsql.DataType.STR, "{a}.tpl_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup),
+				vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.tpl_utimstamp"),
+				vsql.Field("updatedby", vsql.DataType.STR, "{a}.tpl_uname", "{m}.tpl_uname = {d}.ide_id(+)", User.vsqlgroup),
+				vsql.Field("installation", vsql.DataType.STR, "{a}.inl_id", "{m}.inl_id = {d}.inl_id(+)", Installation.vsqlgroup),
+			)
 		return self._vsqlgroup_app
 
 	def vsqlsearchexpr(self, record: Record, maxdepth: int, controls: dict[str, Control] | None=None):
@@ -3914,8 +4161,102 @@ class App(CustomAttributes, WithParams, WithAttachments):
 		return handler.aggregate_records(self, filter=filter, value=value)
 
 
+@register("applang")
+class AppLang(LangBase):
+	"""
+	The translations of the multilingual attributes of an :class:`App` for one
+	language.
+
+	Relevant instance attributes are:
+
+	.. attribute:: app
+		:type: App
+
+		The app whose attributes this object translates.
+
+	.. attribute:: name
+		:type: Optional[str]
+
+		The translated name of the app.
+
+	.. attribute:: description
+		:type: Optional[str]
+
+		The translated description of the app.
+
+	.. attribute:: typename_grammatical_gender
+		:type: Optional[str]
+
+		The grammatical gender of the translated type name.
+
+	.. attribute:: typename_nominative_singular
+	.. attribute:: typename_genitive_singular
+	.. attribute:: typename_dative_singular
+	.. attribute:: typename_accusative_singular
+	.. attribute:: typename_nominative_plural
+	.. attribute:: typename_genitive_plural
+	.. attribute:: typename_dative_plural
+	.. attribute:: typename_accusative_plural
+		:type: Optional[str]
+
+		The case forms of the translated type name.
+	"""
+
+	ul4_attrs = LangBase.ul4_attrs.union({
+		"app",
+		"name",
+		"description",
+		"typename_grammatical_gender",
+		"typename_nominative_singular",
+		"typename_genitive_singular",
+		"typename_dative_singular",
+		"typename_accusative_singular",
+		"typename_nominative_plural",
+		"typename_genitive_plural",
+		"typename_dative_plural",
+		"typename_accusative_plural",
+	})
+	ul4_type = ul4c.Type("la", "AppLang", "The translations of the multilingual attributes of an app for one language")
+
+	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_grammatical_gender = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_nominative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_genitive_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_dative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_accusative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_nominative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_genitive_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_dative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typename_accusative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, app=None, lang=None):
+		self.id = id
+		self.app = app
+		self.lang = lang
+		self.name = None
+		self.description = None
+		self.typename_grammatical_gender = None
+		self.typename_nominative_singular = None
+		self.typename_genitive_singular = None
+		self.typename_dative_singular = None
+		self.typename_accusative_singular = None
+		self.typename_nominative_plural = None
+		self.typename_genitive_plural = None
+		self.typename_dative_plural = None
+		self.typename_accusative_plural = None
+
+	def _gethandler(self) -> Handler:
+		return self.app._gethandler()
+
+	def save(self):
+		return self._gethandler().save_applang(self)
+
+
 @register("appgroup")
-class AppGroup(CustomAttributes, WithParams, WithAttachments):
+class AppGroup(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	"""
 	An :class:`!AppGroup` describes group of apps that together form an application.
 
@@ -3941,6 +4282,12 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments):
 
 		Description of the group.
 
+	.. attribute:: translations
+		:type: Translations
+
+		The translations of the multilingual attributes of this app group (one
+		attribute per language).
+
 	.. attribute:: image
 		:type: File
 
@@ -3955,10 +4302,13 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments):
 	ul4_attrs = CustomAttributes.ul4_attrs.union(
 		WithParams.ul4_attrs,
 		WithAttachments.ul4_attrs,
+		WithTranslations.ul4_attrs,
 		{
 			"id",
 			"globals",
 			"name",
+			"description",
+			"image",
 			"apps",
 			"main_app",
 			"add_param",
@@ -3971,19 +4321,21 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments):
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	name = Attr(str, get="", set=True, repr=True, ul4get="_name_get", ul4onget=True, ul4onset=True)
+	description = Attr(str, get="", set=True, ul4get="_description_get", ul4onget=True, ul4onset=True)
 	image = Attr(File, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = AttrDictAttr(get="", ul4get="_apps_get", ul4onget="_apps_get", ul4onset=True)
 	main_app = Attr(lambda: App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
 	params = AttrDictAttr(get="", ul4get="_params_get")
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
+	translations = Attr(Translations, get="", ul4get="_translations_get", ul4onget="", ul4onset="", ul4ondefault="")
 
 	def __init__(self, id=None, globals=None, name=None, description=None):
 		super().__init__()
 		self.id = id
 		self.globals = globals
+		self._translations = None
 		self.name = name
 		self.description = description
 		self.image = None
@@ -3992,6 +4344,15 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments):
 		self._ownparams = None
 		self._params = None
 		self._attachments = None
+
+	def _create_translation(self, lang):
+		return AppGroupLang(appgroup=self, lang=lang)
+
+	def _name_get(self):
+		return self._translated_get("name")
+
+	def _description_get(self):
+		return self._translated_get("description")
 
 	def _template_candidates(self):
 		handler = self.globals._gethandler()
@@ -4179,6 +4540,52 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments):
 		limit = _make_limit(limit)
 
 		return AppGroupRecordPage(self, filter=filter, sort=sort, offset=offset, limit=limit)
+
+
+@register("appgrouplang")
+class AppGroupLang(LangBase):
+	"""
+	The translations of the multilingual attributes of an :class:`AppGroup`
+	for one language.
+
+	Relevant instance attributes are:
+
+	.. attribute:: appgroup
+		:type: AppGroup
+
+		The app group whose attributes this object translates.
+
+	.. attribute:: name
+		:type: Optional[str]
+
+		The translated name of the app group.
+
+	.. attribute:: description
+		:type: Optional[str]
+
+		The translated description of the app group.
+	"""
+
+	ul4_attrs = LangBase.ul4_attrs.union({"appgroup", "name", "description"})
+	ul4_type = ul4c.Type("la", "AppGroupLang", "The translations of the multilingual attributes of an app group for one language")
+
+	appgroup = Attr(AppGroup, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, appgroup=None, lang=None):
+		self.id = id
+		self.appgroup = appgroup
+		self.lang = lang
+		self.name = None
+		self.description = None
+
+	def _gethandler(self) -> Handler:
+		return self.appgroup._gethandler()
+
+	def save(self):
+		return self._gethandler().save_appgrouplang(self)
 
 
 class Field(CustomAttributes):
@@ -5102,7 +5509,7 @@ class MultipleAppLookupChoiceField(MultipleAppLookupField):
 	pass
 
 
-class Control(CustomAttributes):
+class Control(CustomAttributes, WithTranslations):
 	"""
 	Describes a field in a LivingApp.
 
@@ -5158,6 +5565,12 @@ class Control(CustomAttributes):
 		Description of this control.
 
 		This attribute is settable.
+
+	.. attribute:: translations
+		:type: Translations
+
+		The translations of the multilingual attributes of this control (one
+		attribute per language).
 
 	.. attribute:: priority
 		:type: bool
@@ -5303,7 +5716,7 @@ class Control(CustomAttributes):
 
 	_type = None
 	_subtype = None
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "identifier", "type", "subtype", "fulltype", "app", "label", "description", "priority", "in_list", "in_mobile_list", "in_text", "required", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure", "save"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union(WithTranslations.ul4_attrs, {"id", "identifier", "type", "subtype", "fulltype", "app", "label", "description", "priority", "in_list", "in_mobile_list", "in_text", "required", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure", "save"})
 	ul4_type = ul4c.Type("la", "Control", "Metainformation about a field in a LivingApps application")
 
 	class Mode(misc.Enum):
@@ -5331,7 +5744,7 @@ class Control(CustomAttributes):
 	fieldname = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	label = Attr(str, get="", set=True, ul4get="_label_get", ul4onget=True, ul4onset=True)
-	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get="", set=True, ul4get="_description_get", ul4onget=True, ul4onset=True)
 	base_mode = EnumAttr(Mode, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	in_sum = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	priority = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
@@ -5347,6 +5760,7 @@ class Control(CustomAttributes):
 	default = Attr(get="", ul4get="_default_get")
 	ininsertprocedure = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	inupdateprocedure = BoolAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	translations = Attr(Translations, get="", ul4get="_translations_get", ul4onget="", ul4onset="", ul4ondefault="")
 	top = Attr(int, get="", ul4get="_top_get")
 	left = Attr(int, get="", ul4get="_left_get")
 	width = Attr(int, get="", ul4get="_width_get")
@@ -5364,6 +5778,7 @@ class Control(CustomAttributes):
 		super().__init__()
 		self.id = id
 		self.app = None
+		self._translations = None
 		self.identifier = identifier
 		self.fieldname = fieldname
 		self.label = label
@@ -5377,6 +5792,12 @@ class Control(CustomAttributes):
 
 	def _gethandler(self) -> Handler:
 		return self.app._gethandler()
+
+	@property
+	def globals(self) -> Globals | None:
+		if self.app is None:
+			return None
+		return self.app.globals
 
 	def _template_candidates(self):
 		handler = self.app.globals._gethandler()
@@ -5419,9 +5840,15 @@ class Control(CustomAttributes):
 
 	def _label_get(self):
 		vc = self._get_viewcontrol()
-		if vc is not None:
+		if vc is not None and vc.label is not None:
 			return vc.label
-		return self.__dict__["label"]
+		return self._translated_get("label")
+
+	def _description_get(self):
+		return self._translated_get("description")
+
+	def _create_translation(self, lang):
+		return ControlLang(control=self, lang=lang)
 
 	def _in_list_get(self):
 		return self.priority
@@ -5553,7 +5980,53 @@ class Control(CustomAttributes):
 		return [] # The default doesn't add any sort expressions
 
 	def sql_fetch_statement(self):
-		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
+		return t"livingapi_pkg.field_{self._type:q}_inc_ul4on({vsql.sql(self.identifier):q}, row.{self.fieldname:q});"
+
+
+@register("controllang")
+class ControlLang(LangBase):
+	"""
+	The translations of the multilingual attributes of a :class:`Control` for
+	one language.
+
+	Relevant instance attributes are:
+
+	.. attribute:: control
+		:type: Control
+
+		The control whose attributes this object translates.
+
+	.. attribute:: label
+		:type: Optional[str]
+
+		The translated label of the control.
+
+	.. attribute:: description
+		:type: Optional[str]
+
+		The translated description of the control.
+	"""
+
+	ul4_attrs = LangBase.ul4_attrs.union({"control", "label", "description"})
+	ul4_type = ul4c.Type("la", "ControlLang", "The translations of the multilingual attributes of a control for one language")
+
+	control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, control=None, lang=None):
+		self.id = id
+		self.control = control
+		self.lang = lang
+		self.label = None
+		self.description = None
+
+	def _gethandler(self) -> Handler:
+		return self.control._gethandler()
+
+	def save(self):
+		return self._gethandler().save_controllang(self)
 
 
 class StringControl(Control):
@@ -5796,7 +6269,7 @@ class TextAreaControl(StringControl):
 		return self._vsqlfield
 
 	def sql_fetch_statement(self):
-		return f"livingapi_pkg.field_textarea_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
+		return t"livingapi_pkg.field_textarea_inc_ul4on({vsql.sql(self.identifier):q}, row.{self.fieldname:q});"
 
 
 @register("htmlcontrol")
@@ -6019,7 +6492,7 @@ class DatetimeMinuteControl(DateControl):
 		return self._vsqlfield
 
 	def sql_fetch_statement(self):
-		return f"livingapi_pkg.field_datetime_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
+		return t"livingapi_pkg.field_datetime_inc_ul4on({vsql.sql(self.identifier):q}, row.{self.fieldname:q});"
 
 
 @register("datetimesecondcontrol")
@@ -6065,7 +6538,7 @@ class DatetimeSecondControl(DateControl):
 		return self._vsqlfield
 
 	def sql_fetch_statement(self):
-		return f"livingapi_pkg.field_datetime_inc_ul4on({vsql.sql(self.identifier)}, row.{self.fieldname});"
+		return t"livingapi_pkg.field_datetime_inc_ul4on({vsql.sql(self.identifier):q}, row.{self.fieldname:q});"
 
 
 @register("boolcontrol")
@@ -6214,7 +6687,7 @@ class LookupControl(Control):
 		]
 
 	def sql_fetch_statement(self):
-		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, {vsql.sql(self.id)}, row.{self.fieldname});"
+		return t"livingapi_pkg.field_{self._type:q}_inc_ul4on({vsql.sql(self.identifier):q}, {vsql.sql(self.id):q}, row.{self.fieldname:q});"
 
 
 @register("lookupselectcontrol")
@@ -6378,7 +6851,7 @@ class AppLookupControl(Control):
 		)
 
 	def sql_fetch_statement(self):
-		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, {vsql.sql(str(self.lookup_app.internal_id))}, row.{self.fieldname});"
+		return t"livingapi_pkg.field_{self._type:q}_inc_ul4on({vsql.sql(self.identifier):q}, {vsql.sql(str(self.lookup_app.internal_id)):q}, row.{self.fieldname:q});"
 
 
 @register("applookupselectcontrol")
@@ -6637,7 +7110,7 @@ class FileControl(Control):
 		return self._vsqlfield
 
 	def vsqlsearchexpr(self, record, maxdepth):
-		field = vsql.vsql.FieldRefAST.make(record, f"v_{self.identifier}")
+		field = vsql.FieldRefAST.make(record, f"v_{self.identifier}")
 
 		# FIXME: Oracle doesn't support this yet
 		# return vsql.OrAST.make(
@@ -6662,7 +7135,7 @@ class FileControl(Control):
 		]
 
 	def sql_fetch_statement(self):
-		return f"livingapi_pkg.field_{self._type}_inc_ul4on({vsql.sql(self.identifier)}, {vsql.sql(self.fieldname)}, row.dat_id, v_tpl_uuid, row.{self.fieldname});"
+		return t"livingapi_pkg.field_{self._type:q}_inc_ul4on({vsql.sql(self.identifier):q}, {vsql.sql(self.fieldname):q}, row.dat_id, v_tpl_uuid, row.{self.fieldname:q});"
 
 
 @register("filesignaturecontrol")
@@ -9568,9 +10041,9 @@ class Installation(Base):
 
 	vsqlgroup = vsql.Group(
 		"installation_link",
-		internalid=(vsql.DataType.STR, "upl_id"),
-		id=(vsql.DataType.STR, "inl_id"),
-		name=(vsql.DataType.STR, "inl_additional_name"),
+		vsql.Field("internalid", vsql.DataType.STR, "upl_id"),
+		vsql.Field("id", vsql.DataType.STR, "inl_id"),
+		vsql.Field("name", vsql.DataType.STR, "inl_additional_name"),
 	)
 
 
@@ -10174,7 +10647,7 @@ class DataSourceChildren(Base):
 
 
 @register("lookupitem")
-class LookupItem(Base):
+class LookupItem(Base, WithTranslations):
 	r"""
 	A :class:`!LookupItem` is the field value of :class:`LookupControl`\s and
 	:class:`MultipleLookupControl`\s fields.
@@ -10201,26 +10674,43 @@ class LookupItem(Base):
 
 		Label to be displayed for this lookup item
 
+	.. attribute:: translations
+		:type: Translations
+
+		The translations of the multilingual attributes of this lookup item
+		(one attribute per language).
+
 	.. attribute:: visible
 		:type: bool
 
 		Is this item visible in the currently active view?
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "control", "key", "label", "visible"})
+	ul4_attrs = Base.ul4_attrs.union(WithTranslations.ul4_attrs, {"id", "control", "key", "label", "visible"})
 	ul4_type = ul4c.Type("la", "LookupItem", "An option in a lookup control/field")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	control = Attr(lambda: LookupControl, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	key = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
-	label = Attr(str, get="", set="", repr=True, ul4get="_label_get", ul4onget="_label_get", ul4onset="_label_set", ul4ondefault="")
+	label = Attr(str, get="", set="", repr=True, ul4get="_label_get", ul4onget="", ul4onset="_label_set", ul4ondefault="")
+	translations = Attr(Translations, get="", ul4get="_translations_get", ul4onget="", ul4onset="", ul4ondefault="")
 	visible = BoolAttr(get="", repr="", ul4get="_visible_get")
 
 	def __init__(self, id=None, control=None, key=None, label=None):
 		self.id = id
 		self.control = control
+		self._translations = None
 		self.key = key
 		self._label = label
+
+	@property
+	def globals(self) -> Globals | None:
+		if self.control is None:
+			return None
+		return self.control.globals
+
+	def _create_translation(self, lang):
+		return LookupItemLang(lookup_item=self, lang=lang)
 
 	def _get_viewcontrol(self):
 		if self.control is None:
@@ -10241,12 +10731,18 @@ class LookupItem(Base):
 
 	def _label_get(self) -> str:
 		viewlookupitem = self._get_viewlookupitem()
-		if viewlookupitem is None:
-			return self._label
-		return viewlookupitem.label
+		if viewlookupitem is not None and viewlookupitem.label is not None:
+			return viewlookupitem.label
+		translation = self._translations_get().get()
+		if translation is not None and translation.label is not None:
+			return translation.label
+		return self._label
 
 	def _label_set(self, label:str | None) -> None:
 		self._label = label
+
+	def _label_ul4onget(self) -> str | None:
+		return self._label
 
 	def _label_ul4ondefault(self) -> None:
 		self._label = None
@@ -10266,6 +10762,45 @@ class LookupItem(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+
+@register("lookupitemlang")
+class LookupItemLang(LangBase):
+	"""
+	The translations of the multilingual attributes of a :class:`LookupItem`
+	for one language.
+
+	Relevant instance attributes are:
+
+	.. attribute:: lookup_item
+		:type: LookupItem
+
+		The lookup item whose attributes this object translates.
+
+	.. attribute:: label
+		:type: Optional[str]
+
+		The translated label of the lookup item.
+	"""
+
+	ul4_attrs = LangBase.ul4_attrs.union({"lookup_item", "label"})
+	ul4_type = ul4c.Type("la", "LookupItemLang", "The translations of the multilingual attributes of a lookup item for one language")
+
+	lookup_item = Attr(LookupItem, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, lookup_item=None, lang=None):
+		self.id = id
+		self.lookup_item = lookup_item
+		self.lang = lang
+		self.label = None
+
+	def _gethandler(self) -> Handler:
+		return self.lookup_item.control._gethandler()
+
+	def save(self):
+		return self._gethandler().save_lookupitemlang(self)
 
 
 @register("viewlookupitem")
@@ -11352,10 +11887,11 @@ class HTTPRequest(Base):
 	}
 
 	vsqlgroup = vsql.Group(
-		**{
-			dt.value: vsql.Field(refgroup=vsql.Group(**{"*": vsql.Field("*", dt)}))
+		None,
+		*(
+			vsql.Field(dt.value, refgroup=vsql.Group(None, vsql.Field("*", dt)))
 			for dt in datatypes
-		}
+		)
 	)
 
 	vsqlfield = vsql.Field("params", refgroup=vsqlgroup)
