@@ -240,6 +240,18 @@ class Handler:
 	def save_control(self, control) -> bool:
 		raise NotImplementedError
 
+	def save_applang(self, translation) -> bool:
+		raise NotImplementedError
+
+	def save_appgrouplang(self, translation) -> bool:
+		raise NotImplementedError
+
+	def save_controllang(self, translation) -> bool:
+		raise NotImplementedError
+
+	def save_lookupitemlang(self, translation) -> bool:
+		raise NotImplementedError
+
 	def _executeaction(self, record, actionidentifier, sync=False) -> None:
 		raise NotImplementedError
 
@@ -309,17 +321,18 @@ class Handler:
 
 
 class DBHandler(Handler):
-	query_prefix = """
-	with v_globals as (
-		select
-			:ide_id_user as ide_id_user /* user.id */,
-			:lang as lang /* language */,
-			:tpl_id_app as tpl_id_app /* app.internal_id */,
-			:dat_id_detail as dat_id_detail /* record.id */
-		from
-			dual
-	)
-	""".strip()
+	def query_prefix(self, app):
+		return t"""
+		with v_globals as (
+			select
+				{self.ide_id} as ide_id_user /* user.id */,
+				{app.globals.lang} as lang /* language */,
+				{app.internal_id} as tpl_id_app /* app.internal_id */,
+				{None} as dat_id_detail /* record.id */
+			from
+				dual
+		)
+		"""
 
 	def __init__(self, *, connection=None, connectstring=None, connection_postgres=None, connectstring_postgres=None, uploaddir=None, ide_account=None, ide_id=None, session_id=None):
 		"""
@@ -377,6 +390,10 @@ class DBHandler(Handler):
 		self.proc_data_delete = orasql.Procedure("LIVINGAPI_PKG.DATA_DELETE")
 		self.proc_control_update = orasql.Procedure("LIVINGAPI_PKG.CONTROL_UPDATE")
 		self.proc_template_update = orasql.Procedure("LIVINGAPI_PKG.TEMPLATE_UPDATE")
+		self.proc_templatelang_merge = orasql.Procedure("LIVINGAPI_PKG.TEMPLATELANG_MERGE")
+		self.proc_appgrouplang_merge = orasql.Procedure("LIVINGAPI_PKG.APPGROUPLANG_MERGE")
+		self.proc_controllang_merge = orasql.Procedure("LIVINGAPI_PKG.CONTROLLANG_MERGE")
+		self.proc_lookuplang_merge = orasql.Procedure("LIVINGAPI_PKG.LOOKUPLANG_MERGE")
 		self.proc_appparameter_save = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_SAVE_LA")
 		self.proc_appparameter_delete = orasql.Procedure("APPPARAMETER_PKG.APPPARAMETER_DELETE")
 		self.proc_attachment_save = orasql.Procedure("ATTACHMENT_PKG.ATTACHMENT_SAVE_LA")
@@ -1305,8 +1322,8 @@ class DBHandler(Handler):
 			c,
 			c_user=self.ide_id,
 			p_ctl_id=control.id,
-			p_ctl_name=control.label,
-			p_ctl_description=control.description,
+			p_ctl_name=control.__dict__["label"], # Use the "raw" value (without the active view or translations applied)
+			p_ctl_description=control.__dict__["description"],
 			p_ctl_dm_hidden=dm_hidden,
 			p_ctl_dm_sum=int(control.in_sum),
 			p_ctl_priority=int(control.priority),
@@ -1325,24 +1342,109 @@ class DBHandler(Handler):
 
 		c = self.cursor()
 
+		# Use the "raw" values (without the translations applied)
 		self.proc_template_update(
 			c,
 			c_user=self.ide_id,
 			p_tpl_uuid=app.id,
-			p_tpl_name=app.name,
-			p_tpl_description=app.description,
+			p_tpl_name=app.__dict__["name"],
+			p_tpl_description=app.__dict__["description"],
 			p_upl_id_image=None if app.image is None else app.image.internal_id,
 			p_tpl_favorite=int(app.favorite),
-			p_tpl_gramgen=app.gramgen,
-			p_tpl_typename_nom_sin=app.typename_nom_sin,
-			p_tpl_typename_gen_sin=app.typename_gen_sin,
-			p_tpl_typename_dat_sin=app.typename_dat_sin,
-			p_tpl_typename_acc_sin=app.typename_acc_sin,
-			p_tpl_typename_nom_plu=app.typename_nom_plu,
-			p_tpl_typename_gen_plu=app.typename_gen_plu,
-			p_tpl_typename_dat_plu=app.typename_dat_plu,
-			p_tpl_typename_acc_plu=app.typename_acc_plu,
+			p_tpl_gramgen=app.__dict__["typename_grammatical_gender"],
+			p_tpl_typename_nom_sin=app.__dict__["typename_nominative_singular"],
+			p_tpl_typename_gen_sin=app.__dict__["typename_genitive_singular"],
+			p_tpl_typename_dat_sin=app.__dict__["typename_dative_singular"],
+			p_tpl_typename_acc_sin=app.__dict__["typename_accusative_singular"],
+			p_tpl_typename_nom_plu=app.__dict__["typename_nominative_plural"],
+			p_tpl_typename_gen_plu=app.__dict__["typename_genitive_plural"],
+			p_tpl_typename_dat_plu=app.__dict__["typename_dative_plural"],
+			p_tpl_typename_acc_plu=app.__dict__["typename_accusative_plural"],
 		)
+		return True
+
+	def save_applang(self, translation) -> bool:
+		c = self.cursor()
+
+		r = self.proc_templatelang_merge(
+			c,
+			c_user=self.ide_id,
+			p_tpll_id=translation.id,
+			p_tpl_uuid=translation.app.id,
+			p_tpll_lang=translation.lang,
+			p_tpll_name=translation.name,
+			p_tpll_description=translation.description,
+			p_tpll_gramgen=translation.typename_grammatical_gender,
+			p_tpll_typename_nom_sin=translation.typename_nominative_singular,
+			p_tpll_typename_gen_sin=translation.typename_genitive_singular,
+			p_tpll_typename_dat_sin=translation.typename_dative_singular,
+			p_tpll_typename_acc_sin=translation.typename_accusative_singular,
+			p_tpll_typename_nom_plu=translation.typename_nominative_plural,
+			p_tpll_typename_gen_plu=translation.typename_genitive_plural,
+			p_tpll_typename_dat_plu=translation.typename_dative_plural,
+			p_tpll_typename_acc_plu=translation.typename_accusative_plural,
+		)
+		if translation.id is None:
+			translation.id = r.p_tpll_id
+			self.ul4on_decoder.store_persistent_object(translation)
+		return True
+
+	def save_appgrouplang(self, translation) -> bool:
+		c = self.cursor()
+
+		r = self.proc_appgrouplang_merge(
+			c,
+			c_user=self.ide_id,
+			p_agl_id=translation.id,
+			p_ag_id=translation.appgroup.id,
+			p_agl_lang=translation.lang,
+			p_agl_name=translation.name,
+			p_agl_description=translation.description,
+		)
+		if translation.id is None:
+			translation.id = r.p_agl_id
+			self.ul4on_decoder.store_persistent_object(translation)
+		return True
+
+	def save_controllang(self, translation) -> bool:
+		c = self.cursor()
+
+		r = self.proc_controllang_merge(
+			c,
+			c_user=self.ide_id,
+			p_ctll_id=translation.id,
+			p_ctl_id=translation.control.id,
+			p_ctll_lang=translation.lang,
+			p_ctll_name=translation.label,
+			p_ctll_description=translation.description,
+		)
+		if translation.id is None:
+			translation.id = r.p_ctll_id
+			self.ul4on_decoder.store_persistent_object(translation)
+		return True
+
+	def save_lookupitemlang(self, translation) -> bool:
+		c = self.cursor()
+
+		# The lookup item is identified by its control and its key, because its
+		# own id is a synthetic one (the database dumps lookup items with the id
+		# ``ctl_id.lup_kennung``, so that record values (which reference lookup
+		# items by their key) can be dumped without an additional query for the
+		# real ``lup_id``).
+		lookup_item = translation.lookup_item
+
+		r = self.proc_lookuplang_merge(
+			c,
+			c_user=self.ide_id,
+			p_lupl_id=translation.id,
+			p_ctl_id=lookup_item.control.id,
+			p_lup_kennung=lookup_item.key,
+			p_lupl_lang=translation.lang,
+			p_lupl_bezeichnung=translation.label,
+		)
+		if translation.id is None:
+			translation.id = r.p_lupl_id
+			self.ul4on_decoder.store_persistent_object(translation)
 		return True
 
 	def save_attachment(self, attachment) -> None:
@@ -1667,7 +1769,7 @@ class DBHandler(Handler):
 		return self.libraryparams
 
 	def count_records(self, app, filter):
-		q = vsql.Query(
+		q = vsql.OracleQuery(
 			f"Count records of app {app.name}",
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
@@ -1688,14 +1790,14 @@ class DBHandler(Handler):
 			if f:
 				q.where_vsql(f)
 
-		query = f"{self.query_prefix}\n{q.sqlsource()}"
+		query = t"{self.query_prefix(app):q}\n{q.sqlsource():q}"
 
 		c = self.cursor()
-		c.execute(query, ide_id_user=self.ide_id, tpl_id_app=app.internal_id, dat_id_detail=None, lang=app.globals.lang)
+		c.execute(query)
 		return c.fetchone()[0]
 
 	def delete_records(self, app, filter):
-		q = vsql.Query(
+		q = vsql.OracleQuery(
 			f"Delete records of app {app.name}",
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
@@ -1721,13 +1823,13 @@ class DBHandler(Handler):
 
 		dat_ids = c.var(self.varchars)
 
-		query = f"""
+		query = t"""
 			declare
-				v_ide_id_user identity.ide_id%type := :ide_id_user;
-				v_lang varchar2(30) := :lang;
-				v_reqid varchar2(30) := :req_id;
-				v_tpl_uuid template.tpl_uuid%type := :tpl_uuid;
-				v_tpl_id template.tpl_id%type := :tpl_id;
+				v_ide_id_user identity.ide_id%type := {self.ide_id};
+				v_lang varchar2(30) := {app.globals.lang};
+				v_reqid varchar2(30) := {self.requestid};
+				v_tpl_uuid template.tpl_uuid%type := {app.id};
+				v_tpl_id template.tpl_id%type := {app.internal_id};
 				v_deleted varchars := varchars();
 				v_errormessage varchar2(4000);
 			begin
@@ -1741,7 +1843,7 @@ class DBHandler(Handler):
 						from
 							dual
 					)
-					{q.sqlsource()}
+					{q.sqlsource():q}
 				) loop
 					livingapi_pkg.data_delete(
 						c_user => v_ide_id_user,
@@ -1753,19 +1855,11 @@ class DBHandler(Handler):
 					varchars_pkg.append(v_deleted, row.dat_id);
 				end loop;
 
-				:dat_ids := v_deleted;
+				{dat_ids} := v_deleted;
 			end;
 		"""
 
-		c.execute(
-			query,
-			ide_id_user=self.ide_id,
-			req_id=self.requestid,
-			tpl_uuid=app.id,
-			tpl_id=app.internal_id,
-			lang=app.globals.lang,
-			dat_ids=dat_ids,
-		)
+		c.execute(query)
 
 		dat_ids = dat_ids.getvalue().aslist()
 		for dat_id in dat_ids:
@@ -1776,7 +1870,7 @@ class DBHandler(Handler):
 		return len(dat_ids)
 
 	def fetch_records(self, app, filter:list[str], sort:list[str], offset=0, limit=None):
-		q = vsql.Query(
+		q = vsql.OracleQuery(
 			f"Fetch records of app {app.name} ({app.id})",
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
@@ -1822,17 +1916,19 @@ class DBHandler(Handler):
 
 		dat_ids = c.var(self.varchars)
 
-		field_statements = []
+		field_statements = t""
 		for control in app.controls.values():
-			field_statements.append(f"\t\t\t{control.sql_fetch_statement()}\n")
+			field_statements += t"\t\t\t{control.sql_fetch_statement():q}\n"
 
-		query = f"""
+		dump = c.var(orasql.BLOB)
+
+		query = t"""
 			declare
-				v_ide_id_user identity.ide_id%type := :ide_id_user;
-				v_lang varchar2(30) := :lang;
-				v_reqid varchar2(30) := :req_id;
-				v_tpl_uuid template.tpl_uuid%type := :tpl_uuid;
-				v_tpl_id template.tpl_id%type := :tpl_id;
+				v_ide_id_user identity.ide_id%type := {self.ide_id};
+				v_lang varchar2(30) := {app.globals.lang};
+				v_reqid varchar2(30) := {self.requestid};
+				v_tpl_uuid template.tpl_uuid%type := {app.id};
+				v_tpl_id template.tpl_id%type := {app.internal_id};
 				v_result blob;
 			begin
 				livingapi_pkg.records_inc_init;
@@ -1847,7 +1943,7 @@ class DBHandler(Handler):
 						from
 							dual
 					)
-					{q.sqlsource()}
+					{q.sqlsource():q}
 				) loop
 					if livingapi_pkg.records_inc_begin_record(
 						row.dat_id,
@@ -1858,41 +1954,27 @@ class DBHandler(Handler):
 						row.dat_uname,
 						row.dat_updatecount
 					) then
-						{''.join(field_statements)}
+						{field_statements:q}
 						livingapi_pkg.records_inc_end_record;
 					end if;
 				end loop;
 				livingapi_pkg.records_inc_finish(v_result);
-				:dump := v_result;
+				{dump} := v_result;
 			end;
 		"""
 
-		dump = c.var(orasql.BLOB)
+		c.execute(query)
 
-		args = dict(
-			ide_id_user=self.ide_id,
-			lang=app.globals.lang,
-			req_id=self.requestid,
-			tpl_uuid=app.id,
-			tpl_id=app.internal_id,
-		)
-		c.execute(
-			query,
-			dump=dump,
-			**args
-		)
-
-		dump = dump.getvalue()
-		if dump is None:
+		value = dump.getvalue()
+		if value is None:
 			self._reinitialize_livingapi_db(c, app.globals)
-			dump = c.var(orasql.BLOB)
-			c.execute(query, dump=dump, **args)
-			dump = dump.getvalue()
-		dump = dump.read().decode("utf-8")
+			c.execute(query)
+			value = dump.getvalue()
+		dump = value.read().decode("utf-8")
 		return self.ul4on_decoder.loads(dump)
 
 	def vsqlquery4fetch(self, app, filter, fields, record):
-		q = vsql.Query(
+		q = vsql.OracleQuery(
 			f"Fetch records of app {app.name} ({app.id})",
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
 			r=app.vsqlfield_records("r", vsql.sql(app.internal_id)),
@@ -1917,7 +1999,7 @@ class DBHandler(Handler):
 		q.select_vsql("r.updatecount", None, "dat_updatecount")
 
 		for (fieldname, field) in fields.items():
-			q.select_sql(field.fieldsql.replace("{a}", table_alias), None, fieldname)
+			q.select_sql(vsql.tstring_replace(field.fieldsql, "{a}", table_alias), None, fieldname)
 
 		# Add filter conditions
 		for f in filter:
@@ -1926,7 +2008,7 @@ class DBHandler(Handler):
 		return q
 
 	def vsqlquery4count(self, app, filter, record):
-		q = vsql.Query(
+		q = vsql.OracleQuery(
 			f"Fetch records of app {app.name} ({app.id})",
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
 			r=app.vsqlfield_records("r", vsql.sql(app.internal_id)),
@@ -1958,13 +2040,16 @@ class DBHandler(Handler):
 		# Collect all fields from all apps
 		all_fields = {control.fieldname: control.vsqlfield for app in filter for control in app.controls.values()}
 
-		inner_q = "\n\n\t\t\t\t\tunion all\n\n".join(
-			self.vsqlquery4fetch(app, f, all_fields, record).sqlsource()
-			for (app, f) in filter.items()
-		)
-		inner_q = f"(\n{inner_q}\t\t\t\t)"
+		inner_q = None
+		for (app, f) in filter.items():
+			sub_q = self.vsqlquery4fetch(app, f, all_fields, record).sqlsource()
+			if inner_q is None:
+				inner_q = sub_q
+			else:
+				inner_q += t"\n\n\t\t\t\t\tunion all\n\n{sub_q:q}"
+		inner_q = t"(\n{inner_q:q}\t\t\t\t)"
 
-		q = vsql.Query(
+		q = vsql.OracleQuery(
 			"Fetch records from multiple apps",
 			user=vsql.Field(
 				"user",
@@ -2013,20 +2098,24 @@ class DBHandler(Handler):
 		if limit is not None:
 			q.limit(limit)
 
-		field_sql = []
+		field_sql = t""
 		for (i, app) in enumerate(filter):
-			field_sql.append(f"\t\t\t{'elsif' if i else 'if'} row.tpl_id = {app.internal_id} then\n")
+			field_sql += t"\t\t\t{('elsif' if i else 'if'):q} row.tpl_id = {app.internal_id} then\n"
 			for control in app.controls.values():
-				field_sql.append(f"\t\t\t\t\t{control.sql_fetch_statement()}\n")
-		field_sql.append("\t\t\t\tend if;\n")
+				field_sql += t"\t\t\t\t\t{control.sql_fetch_statement():q}\n"
+		field_sql += t"\t\t\t\tend if;\n"
 
-		sql = f"""
+		c = self.cursor()
+
+		dump = c.var(orasql.BLOB)
+
+		sql = t"""
 		declare
-			v_ide_id_user identity.ide_id%type := :ide_id_user;
-			v_lang varchar2(30) := :lang;
-			v_reqid varchar2(30) := :req_id;
+			v_ide_id_user identity.ide_id%type := {self.ide_id};
+			v_lang varchar2(30) := {globals.lang};
+			v_reqid varchar2(30) := {self.requestid};
 			v_tpl_uuid varchar2(30) := null;
-			v_dat_id_detail varchar2(30) := :dat_id_detail;
+			v_dat_id_detail varchar2(30) := {record.id if record is not None else None};
 			v_result blob;
 		begin
 			-- Do nothing (and thus return `null`) if the UL4ON machinery
@@ -2044,7 +2133,7 @@ class DBHandler(Handler):
 						from
 							dual
 					)
-					{q.sqlsource()}
+					{q.sqlsource():q}
 				) loop
 					if livingapi_pkg.records_inc_begin_record(
 						row.dat_id,
@@ -2055,28 +2144,17 @@ class DBHandler(Handler):
 						row.dat_uname,
 						row.dat_updatecount
 					) then
-						{''.join(field_sql)}
+						{field_sql:q}
 						livingapi_pkg.records_inc_end_record;
 					end if;
 				end loop;
 				livingapi_pkg.records_inc_finish(v_result);
 			end if;
-			:dump := v_result;
+			{dump} := v_result;
 		end;
 		"""
 
-		c = self.cursor()
-
-		dump = c.var(orasql.BLOB)
-
-		c.execute(
-			sql,
-			ide_id_user=self.ide_id,
-			lang=globals.lang,
-			req_id=self.requestid,
-			dat_id_detail=record.id if record is not None else None,
-			dump=dump,
-		)
+		c.execute(sql)
 
 		dump = dump.getvalue().read().decode("utf-8")
 		return self.ul4on_decoder.loads(dump)
@@ -2085,42 +2163,37 @@ class DBHandler(Handler):
 		if not filter:
 			return 0
 
-		inner_sql = "\n\n\tunion all\n\n".join(
-			self.vsqlquery4count(app, f, record).sqlsource()
-			for (app, f) in filter.items()
-		)
+		inner_sql = None
+		for (app, f) in filter.items():
+			sub_sql = self.vsqlquery4count(app, f, record).sqlsource()
+			if inner_sql is None:
+				inner_sql = sub_sql
+			else:
+				inner_sql += t"\n\n\tunion all\n\n{sub_sql:q}"
 
-		sql = f"""
+		sql = t"""
 		with v_globals as (
 			select
-				:ide_id_user as ide_id_user /* user.id */,
-				:lang as lang, /* language */
-				:req_id as v_reqid, /* request id */
-				:dat_id_detail as dat_id_detail /* record.id */
+				{self.ide_id} as ide_id_user /* user.id */,
+				{globals.lang} as lang, /* language */
+				{self.requestid} as v_reqid, /* request id */
+				{record.id if record is not None else None} as dat_id_detail /* record.id */
 			from
 				dual
 		)
 		select sum(c) from (
-			{inner_sql}
+			{inner_sql:q}
 		)
 		"""
 
 		c = self.cursor()
 
-		dump = c.var(orasql.BLOB)
-
-		c.execute(
-			sql,
-			ide_id_user=self.ide_id,
-			lang=globals.lang,
-			req_id=self.requestid,
-			dat_id_detail=record.id if record is not None else None,
-		)
+		c.execute(sql)
 		return c.fetchone()[0]
 
 
 	def aggregate_records(self, app, filter:list[str], value:list[str]):
-		q = vsql.Query(
+		q = vsql.OracleQuery(
 			f"Aggregate records of app {app.name} ({app.id})",
 			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
@@ -2143,12 +2216,10 @@ class DBHandler(Handler):
 			if v:
 				q.aggregate_vsql(v)
 
-		c = self.cursor()
-
-		query = f"{self.query_prefix}\n{q.sqlsource()}"
+		query = t"{self.query_prefix(app):q}\n{q.sqlsource():q}"
 
 		c = self.cursor()
-		c.execute(query, ide_id_user=self.ide_id, tpl_id_app=app.internal_id, dat_id_detail=None, lang=app.globals.lang)
+		c.execute(query)
 		return [list(r) for r in c]
 
 

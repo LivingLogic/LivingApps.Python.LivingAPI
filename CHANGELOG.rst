@@ -1,3 +1,52 @@
+0.62.0 (2026-08-19)
+-------------------
+
+*	Update to XIST 5.89 (which added Postgres support for vSQL).
+
+*	Fixed the dynamic vSQL queries which were broken by the changed vSQL API
+	in XIST 5.89 (``vsql.Group`` now takes ``vsql.Field`` objects,
+	``vsql.Query.sqlsource()`` and ``vsql.sql()`` now return t-strings):
+	``DBHandler.count_records()``, ``DBHandler.fetch_records()``,
+	``DBHandler.delete_records()``, ``DBHandler.aggregate_records()``,
+	``DBHandler.count_records_from_apps()`` and
+	``DBHandler.fetch_records_from_apps()`` (i.e. the methods behind
+	``App.count_records()``, ``App.fetch_records()``, ``App.delete_records()``,
+	``App.aggregate_records()``, ``AppGroup.count_records()``,
+	``AppGroup.fetch_records()`` and ``AppGroup.fetch_recordpage()``).
+
+	The queries are now composed as t-strings, and all values (including the
+	out parameters) are passed as real bind parameters instead of being
+	embedded literally into the SQL source or being passed as keyword
+	arguments to ``execute()``.
+
+*	Added support for the translations of the multilingual attributes of apps,
+	app groups, controls and lookup items via the new classes ``AppLang``,
+	``AppGroupLang``, ``ControlLang`` and ``LookupItemLang``.
+
+	The multilingual attributes themselves (e.g. ``control.label``) remain
+	plain strings: their getters now return the translation matching
+	``globals.lang``. A label from the active view still wins over the
+	translation, and when there's no translation (or the translated attribute
+	is ``None``) the attribute of the object itself is used.
+
+	All translations are accessible (and modifiable) via the new attribute
+	``translations`` whose attributes are the language codes (e.g.
+	``control.translations.de``; this works in UL4 and in Python). Accessing a
+	known language for which no translations exist yet creates a new empty
+	translation object. Each translation object can be saved with its method
+	``save()``; ``translations.save()`` saves the translations for all
+	languages.
+
+	Setting e.g. ``control.label`` still sets the attribute of the control
+	itself and never touches the translations.
+
+*	``DBHandler.save_app()`` and ``DBHandler.save_control()`` now pass the
+	"raw" attribute values (i.e. without the active view or the translations
+	applied) to the database. This also fixes ``save_app()`` which previously
+	accessed nonexistent ``App`` attributes for the grammatical gender and the
+	case forms of the type name.
+
+
 0.61.0 (2026-07-23)
 -------------------
 
