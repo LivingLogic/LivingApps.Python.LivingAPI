@@ -16,7 +16,7 @@
 	(``globals.lang``), falling back to the noun forms for the system
 	language.
 
-*	Bump supported db version to 142.
+*	Bumped supported db version to 142.
 
 
 0.62.0 (2026-08-19)
