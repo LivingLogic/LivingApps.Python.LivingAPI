@@ -1,4 +1,4 @@
-0.63.0 (unreleased)
+0.63.0 (2026-08-28)
 -------------------
 
 *	The eight ``typename_*`` attributes of ``AppLang`` have been replaced by
@@ -15,6 +15,8 @@
 	``typenames`` dictionary of the translation for the current language
 	(``globals.lang``), falling back to the noun forms for the system
 	language.
+
+*	Bump supported db version to 142.
 
 
 0.62.0 (2026-08-19)
