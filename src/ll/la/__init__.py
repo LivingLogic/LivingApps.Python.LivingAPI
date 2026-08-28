@@ -2188,7 +2188,7 @@ class Globals(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
-	supported_version = "141"
+	supported_version = "142"
 
 	class Mode(misc.Enum):
 		"""
@@ -3279,6 +3279,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 			"typename_genitive_plural",
 			"typename_dative_plural",
 			"typename_accusative_plural",
+			"typenames",
 			"startlink",
 			"image",
 			"iconlarge",
@@ -3357,6 +3358,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	typename_genitive_plural = Attr(str, get="", set=True, ul4get="_typename_genitive_plural_get", ul4set=True, ul4onget=True, ul4onset=True)
 	typename_dative_plural = Attr(str, get="", set=True, ul4get="_typename_dative_plural_get", ul4set=True, ul4onget=True, ul4onset=True)
 	typename_accusative_plural = Attr(str, get="", set=True, ul4get="_typename_accusative_plural_get", ul4set=True, ul4onget=True, ul4onset=True)
+	typenames = Attr(dict, get="", ul4get="_typenames_get")
 	startlink = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	image = Attr(File, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	iconlarge = Attr(File, get="_image_get", ul4get="_image_get")
@@ -3517,29 +3519,59 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	def _typename_grammatical_gender_get(self):
 		return self._translated_get("typename_grammatical_gender")
 
+	def _translated_typename_get(self, name, form):
+		"""
+		Return the type name attribute ``name`` translated for the current
+		language (``globals.lang``) if the translation has the noun form
+		``form``, otherwise the attribute of the app itself.
+		"""
+		translation = self._translations_get().get()
+		if translation is not None and translation.typenames:
+			value = translation.typenames.get(form)
+			if value is not None:
+				return value
+		return self.__dict__[name]
+
 	def _typename_nominative_singular_get(self):
-		return self._translated_get("typename_nominative_singular")
+		return self._translated_typename_get("typename_nominative_singular", "nom_sin")
 
 	def _typename_genitive_singular_get(self):
-		return self._translated_get("typename_genitive_singular")
+		return self._translated_typename_get("typename_genitive_singular", "gen_sin")
 
 	def _typename_dative_singular_get(self):
-		return self._translated_get("typename_dative_singular")
+		return self._translated_typename_get("typename_dative_singular", "dat_sin")
 
 	def _typename_accusative_singular_get(self):
-		return self._translated_get("typename_accusative_singular")
+		return self._translated_typename_get("typename_accusative_singular", "acc_sin")
 
 	def _typename_nominative_plural_get(self):
-		return self._translated_get("typename_nominative_plural")
+		return self._translated_typename_get("typename_nominative_plural", "nom_plu")
 
 	def _typename_genitive_plural_get(self):
-		return self._translated_get("typename_genitive_plural")
+		return self._translated_typename_get("typename_genitive_plural", "gen_plu")
 
 	def _typename_dative_plural_get(self):
-		return self._translated_get("typename_dative_plural")
+		return self._translated_typename_get("typename_dative_plural", "dat_plu")
 
 	def _typename_accusative_plural_get(self):
-		return self._translated_get("typename_accusative_plural")
+		return self._translated_typename_get("typename_accusative_plural", "acc_plu")
+
+	def _typenames_get(self):
+		"""
+		Return all noun forms of the type name as a dictionary that maps the
+		noun form identifier (e.g. ``nom_sin`` for nominative singular) to the
+		type name in that form: the forms of the translation for the current
+		language (``globals.lang``) if it has any, otherwise the forms for the
+		system language (i.e. the language of the app itself).
+		"""
+		translations = self._translations_get()
+		translation = translations.get()
+		if translation is not None and translation.typenames:
+			return translation.typenames
+		translation = translations.get(self.lang)
+		if translation is not None and translation.typenames:
+			return translation.typenames
+		return None
 
 	def _records_ul4onset(self, value):
 		if value is not None:
@@ -4189,17 +4221,12 @@ class AppLang(LangBase):
 
 		The grammatical gender of the translated type name.
 
-	.. attribute:: typename_nominative_singular
-	.. attribute:: typename_genitive_singular
-	.. attribute:: typename_dative_singular
-	.. attribute:: typename_accusative_singular
-	.. attribute:: typename_nominative_plural
-	.. attribute:: typename_genitive_plural
-	.. attribute:: typename_dative_plural
-	.. attribute:: typename_accusative_plural
-		:type: Optional[str]
+	.. attribute:: typenames
+		:type: Optional[dict]
 
-		The case forms of the translated type name.
+		All noun forms of the translated type name as a dictionary that maps
+		the noun form identifier (e.g. ``nom_sin`` for nominative singular)
+		to the type name in that form.
 	"""
 
 	ul4_attrs = LangBase.ul4_attrs.union({
@@ -4207,14 +4234,7 @@ class AppLang(LangBase):
 		"name",
 		"description",
 		"typename_grammatical_gender",
-		"typename_nominative_singular",
-		"typename_genitive_singular",
-		"typename_dative_singular",
-		"typename_accusative_singular",
-		"typename_nominative_plural",
-		"typename_genitive_plural",
-		"typename_dative_plural",
-		"typename_accusative_plural",
+		"typenames",
 	})
 	ul4_type = ul4c.Type("la", "AppLang", "The translations of the multilingual attributes of an app for one language")
 
@@ -4223,14 +4243,7 @@ class AppLang(LangBase):
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	typename_grammatical_gender = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_nominative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_genitive_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_dative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_accusative_singular = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_nominative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_genitive_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_dative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typename_accusative_plural = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
+	typenames = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, app=None, lang=None):
 		self.id = id
@@ -4239,14 +4252,7 @@ class AppLang(LangBase):
 		self.name = None
 		self.description = None
 		self.typename_grammatical_gender = None
-		self.typename_nominative_singular = None
-		self.typename_genitive_singular = None
-		self.typename_dative_singular = None
-		self.typename_accusative_singular = None
-		self.typename_nominative_plural = None
-		self.typename_genitive_plural = None
-		self.typename_dative_plural = None
-		self.typename_accusative_plural = None
+		self.typenames = None
 
 	def _gethandler(self) -> Handler:
 		return self.app._gethandler()

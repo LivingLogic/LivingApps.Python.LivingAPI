@@ -1,3 +1,22 @@
+0.63.0 (unreleased)
+-------------------
+
+*	The eight ``typename_*`` attributes of ``AppLang`` have been replaced by
+	the new attribute ``typenames`` (read-only in UL4): a dictionary that
+	maps noun form identifiers (e.g. ``nom_sin`` for nominative singular) to
+	the type name in that form (stored in the new database table
+	``TYPENAMEFORM``). This supports arbitrary per-language forms instead of
+	the fixed eight German forms. The ``typename_*`` attributes of the ``App``
+	itself are unchanged (they hold the system language version);
+	their getters now take the ``typenames`` dictionary of the translation for
+	the current language into account.
+
+*	``App`` has a new read-only attribute ``typenames`` that mirrors the
+	``typenames`` dictionary of the translation for the current language
+	(``globals.lang``), falling back to the noun forms for the system
+	language.
+
+
 0.62.0 (2026-08-19)
 -------------------
 
