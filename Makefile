@@ -14,8 +14,11 @@ test: install
 
 
 build:
-	rm -rf dist/*
-	python$(PYVERSION) setup.py sdist --formats=gztar bdist_wheel
+	# remove a stale SOURCES.txt, otherwise its old file list gets merged into the new package
+	rm -rf dist/* src/ll_la.egg-info
+	# setuptools-scm is installed, which would add all GIT controlled files to the package
+	# we dont want that, so set `SETUPTOOLS_SCM_IGNORE_VCS_ROOTS`
+	SETUPTOOLS_SCM_IGNORE_VCS_ROOTS=$(CURDIR) python$(PYVERSION) setup.py sdist --formats=gztar bdist_wheel
 
 
 upload: build
@@ -24,6 +27,6 @@ upload: build
 
 livinglogic: build
 	rm -rf dist/*
-	python$(PYVERSION) setup.py sdist --formats=gztar
-	python$(PYVERSION) setup.py bdist_wheel
+	SETUPTOOLS_SCM_IGNORE_VCS_ROOTS=$(CURDIR) python$(PYVERSION) setup.py sdist --formats=gztar
+	SETUPTOOLS_SCM_IGNORE_VCS_ROOTS=$(CURDIR) python$(PYVERSION) setup.py bdist_wheel
 	python$(PYVERSION) -mll.scripts.ucp -vyes dist/*.tar.gz dist/*.whl ssh://intranet@intranet.livinglogic.de/~/documentroot/intranet.livinglogic.de/python-downloads/

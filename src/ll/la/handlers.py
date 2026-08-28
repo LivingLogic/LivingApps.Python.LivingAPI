@@ -1375,14 +1375,6 @@ class DBHandler(Handler):
 			p_tpll_name=translation.name,
 			p_tpll_description=translation.description,
 			p_tpll_gramgen=translation.typename_grammatical_gender,
-			p_tpll_typename_nom_sin=translation.typename_nominative_singular,
-			p_tpll_typename_gen_sin=translation.typename_genitive_singular,
-			p_tpll_typename_dat_sin=translation.typename_dative_singular,
-			p_tpll_typename_acc_sin=translation.typename_accusative_singular,
-			p_tpll_typename_nom_plu=translation.typename_nominative_plural,
-			p_tpll_typename_gen_plu=translation.typename_genitive_plural,
-			p_tpll_typename_dat_plu=translation.typename_dative_plural,
-			p_tpll_typename_acc_plu=translation.typename_accusative_plural,
 		)
 		if translation.id is None:
 			translation.id = r.p_tpll_id
