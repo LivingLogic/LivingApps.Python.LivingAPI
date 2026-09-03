@@ -1,3 +1,12 @@
+0.63.1 (2026-09-03)
+-------------------
+
+*	Fixed vSQL types of ``user.summary``, ``user.interests`` and
+	``app.description`` to be ``CLOB``\s.
+
+*	Fixed SQL for vSQL attributes ``app.createdat`` and ``app.updatedat``.
+
+
 0.63.0 (2026-08-28)
 -------------------
 
