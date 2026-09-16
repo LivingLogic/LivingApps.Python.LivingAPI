@@ -4226,7 +4226,9 @@ class AppLang(LangBase):
 
 		All noun forms of the translated type name as a dictionary that maps
 		the noun form identifier (e.g. ``nom_sin`` for nominative singular)
-		to the type name in that form.
+		to the type name in that form. :meth:`save` saves these forms too:
+		Each form in the dictionary is created or updated in the database,
+		all other forms of this translation are deleted.
 	"""
 
 	ul4_attrs = LangBase.ul4_attrs.union({
@@ -4243,7 +4245,7 @@ class AppLang(LangBase):
 	name = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	typename_grammatical_gender = Attr(str, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
-	typenames = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	typenames = AttrDictAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, id=None, app=None, lang=None):
 		self.id = id
@@ -4252,7 +4254,7 @@ class AppLang(LangBase):
 		self.name = None
 		self.description = None
 		self.typename_grammatical_gender = None
-		self.typenames = None
+		self.typenames = attrdict()
 
 	def _gethandler(self) -> Handler:
 		return self.app._gethandler()

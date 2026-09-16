@@ -1,3 +1,18 @@
+0.64.0 (unreleased)
+-------------------
+
+*	``AppLang.save()`` (i.e. ``app.translations[lang].save()``) now saves the
+	noun forms of the type name (``typenames``) too: Each form in the
+	dictionary is created or updated in the database, all other forms of the
+	translation are deleted (this requires the new procedures
+	``livingapi_pkg.typenameform_merge`` and
+	``livingapi_pkg.templatelang_keeptypenameform``). Forms whose type name is
+	``None`` count as deleted.
+
+*	``AppLang.typenames`` can now be set from UL4 (to a dict or ``None``) and
+	is an empty dictionary for a new translation (instead of ``None``).
+
+
 0.63.1 (2026-09-03)
 -------------------
 
