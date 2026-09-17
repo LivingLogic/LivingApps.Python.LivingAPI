@@ -391,6 +391,8 @@ class DBHandler(Handler):
 		self.proc_control_update = orasql.Procedure("LIVINGAPI_PKG.CONTROL_UPDATE")
 		self.proc_template_update = orasql.Procedure("LIVINGAPI_PKG.TEMPLATE_UPDATE")
 		self.proc_templatelang_merge = orasql.Procedure("LIVINGAPI_PKG.TEMPLATELANG_MERGE")
+		self.proc_templatelang_keeptypenameform = orasql.Procedure("LIVINGAPI_PKG.TEMPLATELANG_KEEPTYPENAMEFORM")
+		self.proc_typenameform_merge = orasql.Procedure("LIVINGAPI_PKG.TYPENAMEFORM_MERGE")
 		self.proc_appgrouplang_merge = orasql.Procedure("LIVINGAPI_PKG.APPGROUPLANG_MERGE")
 		self.proc_controllang_merge = orasql.Procedure("LIVINGAPI_PKG.CONTROLLANG_MERGE")
 		self.proc_lookuplang_merge = orasql.Procedure("LIVINGAPI_PKG.LOOKUPLANG_MERGE")
@@ -1379,6 +1381,32 @@ class DBHandler(Handler):
 		if translation.id is None:
 			translation.id = r.p_tpll_id
 			self.ul4on_decoder.store_persistent_object(translation)
+
+		# Save the noun forms of the type name: Each form in the dictionary is
+		# created or updated, all other forms of this translation are deleted.
+		# Forms whose type name is ``None`` count as deleted.
+		forms = []
+		if translation.typenames:
+			for (form, typename) in translation.typenames.items():
+				if form is None or typename is None:
+					continue
+				forms.append(form)
+				self.proc_typenameform_merge(
+					c,
+					c_user=self.ide_id,
+					p_tnf_id=None,
+					p_tpll_id=translation.id,
+					p_tnf_form=form,
+					p_tnf_typename=typename,
+				)
+
+		# Delete the noun forms that are no longer part of the translation
+		self.proc_templatelang_keeptypenameform(
+			c,
+			c_user=self.ide_id,
+			p_tpll_id=translation.id,
+			p_tnf_forms=self.varchars(forms),
+		)
 		return True
 
 	def save_appgrouplang(self, translation) -> bool:

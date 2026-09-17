@@ -1,3 +1,32 @@
+0.64.0
+------
+
+*	``AppLang.save()`` (i.e. ``app.translations[lang].save()``) now saves the
+	noun forms of the type name (``typenames``) too: Each form in the
+	dictionary is created or updated in the database, all other forms of the
+	translation are deleted (this requires the new procedures
+	``livingapi_pkg.typenameform_merge`` and
+	``livingapi_pkg.templatelang_keeptypenameform``). Forms whose type name is
+	``None`` count as deleted.
+
+*	``AppLang.typenames`` can now be set from UL4 (to a dict or ``None``) and
+	is an empty dictionary for a new translation (instead of ``None``).
+
+*	``App`` has a new method ``typename(form)`` that returns the type name in
+	the noun form ``form`` (e.g. ``nom_sin`` for nominative singular) for the
+	current language: the form from ``translations[globals.lang]`` wins, then
+	the form from the translation for the system language ``app.lang``, then
+	the (German) form stored in the app itself. If none of them has the form
+	``None`` is returned. The read-only attribute ``App.typenames`` (added in
+	0.63.0) has been removed again.
+
+*	The eight ``typename_*`` attributes of ``App`` use the same lookup as
+	``typename()``, but are now read-only in UL4: the forms are set via
+	``translations[lang].typenames`` and saved via ``translations[lang].save()``.
+	``app.typename_grammatical_gender`` is read-only in UL4 too and is set via
+	``translations[lang].typename_grammatical_gender``.
+
+
 0.63.1 (2026-09-03)
 -------------------
 
