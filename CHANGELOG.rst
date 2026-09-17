@@ -1,5 +1,5 @@
-0.64.0 (unreleased)
--------------------
+0.64.0
+------
 
 *	``AppLang.save()`` (i.e. ``app.translations[lang].save()``) now saves the
 	noun forms of the type name (``typenames``) too: Each form in the
