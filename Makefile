@@ -29,4 +29,4 @@ livinglogic: build
 	rm -rf dist/*
 	SETUPTOOLS_SCM_IGNORE_VCS_ROOTS=$(CURDIR) python$(PYVERSION) setup.py sdist --formats=gztar
 	SETUPTOOLS_SCM_IGNORE_VCS_ROOTS=$(CURDIR) python$(PYVERSION) setup.py bdist_wheel
-	python$(PYVERSION) -mll.scripts.ucp -vyes dist/*.tar.gz dist/*.whl ssh://intranet@intranet.livinglogic.de/~/documentroot/intranet.livinglogic.de/python-downloads/
+	LL_URL_SSH_PYTHON=python3 python$(PYVERSION) -mll.scripts.ucp -vyes dist/*.tar.gz dist/*.whl ssh://intranet@intranet.livinglogic.de/~/documentroot/intranet.livinglogic.de/python-downloads/

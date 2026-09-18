@@ -2090,6 +2090,13 @@ class Globals(CustomAttributes):
 
 		The language to be used by templates.
 
+	.. attribute:: sys_lang
+		:type: str
+
+		The system language, i.e. the language of the system the template
+		is running in (e.g. ``"de"`` or ``"en"``). This is the fallback
+		language that is used when no translation for ``lang`` exists.
+
 	.. attribute:: datasources
 		:type: dict[str, DataSourceData]
 
@@ -2158,6 +2165,7 @@ class Globals(CustomAttributes):
 		"user",
 		"user_record",
 		"lang",
+		"sys_lang",
 		"templates",
 		"params",
 		"flashes",
@@ -2231,6 +2239,7 @@ class Globals(CustomAttributes):
 	maxdbactions = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	maxtemplateruntime = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	sys_lang = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	datasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	hostname = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	free = BoolAttr(get=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -2265,6 +2274,7 @@ class Globals(CustomAttributes):
 		self.maxtemplateruntime = None
 		self.__dict__["_flashes"] = []
 		self.lang = None
+		self.sys_lang = None
 		self.handler = None
 		self.request = None
 		self.response = None

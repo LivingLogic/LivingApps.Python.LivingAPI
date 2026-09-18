@@ -1,3 +1,12 @@
+0.65.0
+------
+
+*	``Globals`` has a new attribute ``sys_lang`` that contains the system
+	language, i.e. the language of the system the template is running in
+	(e.g. ``"de"`` or ``"en"``). This is the fallback language that is used
+	when no translation for ``globals.lang`` exists. It is read-only in UL4.
+
+
 0.64.0
 ------
 
