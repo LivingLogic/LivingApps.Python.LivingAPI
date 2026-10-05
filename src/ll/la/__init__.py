@@ -6797,6 +6797,17 @@ class AppLookupControl(Control):
 	.. attribute:: remote_master_control
 		:type: Control
 
+	.. attribute:: on_delete
+		:type: OnDelete
+
+		What happens when a record that is referenced by a field of this
+		control gets deleted? ``None`` means that the reference is set to
+		``None``, ``OnDelete.RESTRICT`` means that deleting the referenced
+		record is prevented and ``OnDelete.CASCADE`` means that the
+		referencing record is deleted too.
+
+		This attribute is settable.
+
 	.. attribute:: none_key
 		:type: str
 
@@ -6813,26 +6824,32 @@ class AppLookupControl(Control):
 
 	_type = "applookup"
 
-	ul4_attrs = Control.ul4_attrs.union({"lookup_app", "lookup_controls", "lookupapp", "lookupcontrols"})
+	ul4_attrs = Control.ul4_attrs.union({"lookup_app", "lookup_controls", "lookupapp", "lookupcontrols", "on_delete"})
 	ul4_type = ul4c.Type("la", "AppLookupControl", "A LivingApps applookup field")
+
+	class OnDelete(misc.Enum):
+		RESTRICT = "restrict"
+		CASCADE = "cascade"
 
 	lookup_app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	lookup_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	local_master_control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	local_detail_controls = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	remote_master_control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	on_delete = EnumAttr(OnDelete, get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	none_key = Attr(str, get="", ul4get="_none_key_get")
 	none_label = Attr(str, get="", ul4get="_none_label_get")
 
 	fieldtype = AppLookupField
 
-	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None):
+	def __init__(self, id=None, identifier=None, fieldname=None, label=None, priority=None, order=None, lookup_app=None, lookup_controls=None, local_master_control=None, local_detail_controls=None, remote_master_control=None, on_delete=None):
 		super().__init__(id=id, identifier=identifier, fieldname=fieldname, label=label, priority=priority, order=order)
 		self.lookup_app = lookup_app
 		self.lookup_controls = lookup_controls
 		self.local_master_control = local_master_control
 		self.local_detail_controls = local_detail_controls
 		self.remote_master_control = remote_master_control
+		self.on_delete = on_delete
 
 	def _none_key_get(self):
 		vc = self._get_viewcontrol()

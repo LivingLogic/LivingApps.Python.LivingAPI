@@ -1319,6 +1319,12 @@ class DBHandler(Handler):
 				in_structured_search = 1
 			case _:
 				in_structured_search = None
+		args = {}
+		if isinstance(control, la.AppLookupControl):
+			# Only applookup controls have ``on_delete``. For all other controls
+			# the parameter is omitted, so that the procedure uses its default
+			# (``'unchanged'``).
+			args["p_ctl_ondelete"] = control.on_delete.value if control.on_delete is not None else None
 
 		self.proc_control_update(
 			c,
@@ -1335,6 +1341,7 @@ class DBHandler(Handler):
 			p_ctl_instructuredsearch=in_structured_search,
 			p_ctl_inexpertsearch=int(control.in_expert_search),
 			p_ctl_required=required,
+			**args,
 		)
 		return True
 
