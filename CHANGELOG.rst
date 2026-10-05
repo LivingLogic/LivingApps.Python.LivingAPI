@@ -1,3 +1,17 @@
+0.66.0
+------
+
+*	``AppLookupControl`` and ``MultipleAppLookupControl`` have a new attribute
+	``on_delete`` that specifies what happens when a record that is referenced
+	by a field of this control gets deleted: ``None`` means that the reference
+	is set to ``None``, ``AppLookupControl.OnDelete.RESTRICT`` (``"restrict"``
+	in UL4) means that deleting the referenced record is prevented and
+	``AppLookupControl.OnDelete.CASCADE`` (``"cascade"`` in UL4) means that the
+	referencing record is deleted too. The attribute is settable and is saved
+	by ``Control.save()`` (this requires the new parameter ``p_ctl_ondelete``
+	of ``livingapi_pkg.control_update``).
+
+
 0.65.0
 ------
 
