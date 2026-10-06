@@ -34,7 +34,7 @@ import datetime, pathlib, itertools, json, operator, warnings, random
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
-from ll import url, ul4c, ul4on, vsql # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
+from ll import url, ul4c, ul4on, vsql, misc # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
 try:
 	from ll import orasql
