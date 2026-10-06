@@ -1379,6 +1379,13 @@ class CustomAttributes(WithTemplates):
 				attrs.add(attrname)
 		return attrs
 
+	def ul4_dir(self):
+		attrs = set(super().ul4_dir())
+		for attrname in self.__dict__:
+			if attrname.startswith("x_"):
+				attrs.add(attrname)
+		return attrs
+
 	def ul4_hasattr(self, name: str) -> bool:
 		if name.startswith("x_"):
 			return name in self.__dict__
