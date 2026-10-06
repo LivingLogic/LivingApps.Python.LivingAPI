@@ -812,9 +812,9 @@ def test_view_control_overwrite_string(handler, config_data):
 	output = handler.renders(person_app_id(), template=vt_no_view.identifier)
 	expected = """
 		lang=None
-		label='Firstname'
+		label='Vorname'
 		placeholder=None
-		required=False
+		required=True
 		minlength=None
 		maxlength=4000
 		labelpos='left'
@@ -2448,11 +2448,12 @@ def test_record_add_error(handler):
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
+	# The first and last `True` stem from the fact that we have required fields
 	expected = """
-		False
+		True
 		True
 		['my error text']
-		False
+		True
 	"""
 	assert lines(output) == lines(expected)
 
@@ -3089,10 +3090,12 @@ def test_globals_dir(handler, config_data):
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_globals_dir",
 			source=f"""
+				<?whitespace stript?>
 				<?code globals.x_gurk = 42?>
 				<?for attrname in sorted(dir(globals))?>
 					<?if not attrname.startswith(["t_", "p_", "pv_"])?>
 						<?print attrname?>=<?print isdefined(getattr(globals, attrname))?>
+						<?print "\\n"?>
 					<?end if?>
 				<?end for?>
 			""",
@@ -3151,10 +3154,12 @@ def test_app_dir(handler, config_data):
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_globals_dir",
 			source=f"""
+				<?whitespace strip?>
 				<?code app.x_gurk = 42?>
 				<?for attrname in sorted(dir(app))?>
 					<?if not attrname.startswith(["t_", "c_", "lc_", "p_", "pv_"])?>
 						<?print attrname?>=<?print isdefined(getattr(app, attrname))?>
+						<?print "\\n"?>
 					<?end if?>
 				<?end for?>
 			""",
@@ -3222,11 +3227,13 @@ def test_record_dir(handler, config_data):
 			),
 			identifier="test_livingapi_record_dir",
 			source=f"""
+				<?whitespace strip?>
 				<?code record = first(app.records.values())?>
 				<?code record.x_gurk = 42?>
 				<?for attrname in sorted(dir(record))?>
 					<?if not attrname.startswith(["t_", "f_", "v_", "c_"])?>
 						<?print attrname?>=<?print isdefined(getattr(record, attrname))?>
+						<?print "\\n"?>
 					<?end if?>
 				<?end for?>
 			""",
@@ -3246,6 +3253,17 @@ def test_record_dir(handler, config_data):
 			children=True
 			attachments=True
 			errors=True
+			details=True
+			state=True
+			template_url=True
+			display_embedded_url=True
+			display_standalone_url=True
+			display_url=True
+			edit_embedded_url=True
+			edit_standalone_url=True
+			edit_url=True
+			custom=True
+			x_gurk=True
 			has_errors=True
 			has_errors_in_active_view=True
 			add_error=True
@@ -3257,16 +3275,14 @@ def test_record_dir(handler, config_data):
 			update=True
 			delete=True
 			executeaction=True
-			state=True
-			template_url=True
-			display_embedded_url=True
-			display_standalone_url=True
-			display_url=True
-			edit_embedded_url=True
-			edit_standalone_url=True
-			edit_url=True
-			custom=True
-			x_gurk=True
+			add_file_attachment=True
+			add_note_attachment=True
+			add_url_attachment=True
+			add_json_attachment=True
+			send_mail=True
+			count_child_records=True
+			fetch_child_recordpage=True
+			fetch_child_records=True
 		"""
 		assert sorted(lines(output)) == sorted(lines(expected))
 
@@ -3277,11 +3293,13 @@ def test_view_dir(handler, config_data):
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_view_dir",
 			source=f"""
+				<?whitespace strip?>
 				<?code view = first(app.views.values())?>
 				<?code view.x_gurk = 42?>
 				<?for attrname in sorted(dir(view))?>
 					<?if not attrname.startswith(["c_", "lc_"])?>
 						<?print attrname?>=<?print isdefined(getattr(view, attrname))?>
+						<?print "\\n"?>
 					<?end if?>
 				<?end for?>
 			""",
@@ -3318,11 +3336,13 @@ def test_control_dir(handler, config_data):
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_control_dir",
 			source=f"""
+				<?whitespace strip?>
 				<?code control = app.c_firstname?>
 				<?code control.x_gurk = 42?>
 				<?for attrname in sorted(dir(control))?>
 					<?if not attrname.startswith(["t_"])?>
 						<?print attrname?>=<?print isdefined(getattr(control, attrname))?>
+						<?print "\\n"?>
 					<?end if?>
 				<?end for?>
 			""",
@@ -3337,6 +3357,8 @@ def test_control_dir(handler, config_data):
 			fulltype=True
 			app=True
 			label=True
+			description=True
+			translations=True
 			priority=True
 			order=True
 			default=True
@@ -3349,17 +3371,26 @@ def test_control_dir(handler, config_data):
 			liveupdate=True
 			tabindex=True
 			required=True
+			base_mode=True
 			mode=True
 			labelpos=True
 			labelwidth=True
 			autoalign=True
 			in_active_view=True
 			is_focused=True
+			in_expert_search=True
+			in_fulltext_search=True
+			in_list=True
+			in_mobile_list=True
+			in_structured_search=True
+			in_sum=True
+			in_text=True
 			minlength=True
 			maxlength=True
 			placeholder=True
 			custom=True
 			x_gurk=True
+			save=True
 		"""
 		assert sorted(lines(output)) == sorted(lines(expected))
 
@@ -3370,11 +3401,13 @@ def test_layoutcontrol_dir(handler, config_data):
 		vt = handler.make_viewtemplate(
 			identifier="test_livingapi_layoutcontrol_dir",
 			source=f"""
+				<?whitespace strip?>
 				<?code layoutcontrol = first(app.views.values()).lc_save?>
 				<?code layoutcontrol.x_gurk = 42?>
 				<?for attrname in sorted(dir(layoutcontrol))?>
 					<?if not attrname.startswith(["t_"])?>
 						<?print attrname?>=<?print isdefined(getattr(layoutcontrol, attrname))?>
+						<?print "\\n"?>
 					<?end if?>
 				<?end for?>
 			""",
@@ -3412,11 +3445,13 @@ def test_field_dir(handler, config_data):
 			),
 			identifier="test_livingapi_field_dir",
 			source=f"""
+				<?whitespace strip?>
 				<?code field = first(app.records.values()).f_firstname?>
 				<?code field.x_gurk = 42?>
 				<?for attrname in sorted(dir(field))?>
 					<?if not attrname.startswith(["t_"])?>
 						app.f_firstname.<?print attrname?>=<?print isdefined(getattr(field, attrname))?>
+						<?print "\\n"?>
 					<?end if?>
 				<?end for?>
 				<?code field = first(app.records.values()).f_field_of_activity?>
@@ -3424,6 +3459,7 @@ def test_field_dir(handler, config_data):
 				<?for attrname in sorted(dir(field))?>
 					<?if not attrname.startswith(["t_"])?>
 						app.f_field_of_activity.<?print attrname?>=<?print isdefined(getattr(field, attrname))?>
+						<?print "\\n"?>
 					<?end if?>
 				<?end for?>
 			""",
