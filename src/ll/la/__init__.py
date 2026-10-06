@@ -1096,16 +1096,13 @@ class VSQLAttr(Attr):
 	Data descriptor for an attribute containing a vSQL expression.
 	"""
 
-	def __init__(self, function:str, **kwargs):
+	def __init__(self, **kwargs):
 		"""
 		Create an :class:`VSQLAttr` data descriptor.
 
-		The supported type will be :class:`str`. ``function`` must be the
-		name of a PL/SQL function for returning the UL4ON dump of the allowed
-		vSQL variables.
+		The supported type will be :class:`str`.
 		"""
 		super().__init__(str, **kwargs)
-		self.function = function
 
 
 class AttrDictAttr(Attr):
@@ -4002,6 +3999,21 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 
 	def vsqlfield_app(self, ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
 		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", self.vsqlgroup_app)
+
+	@staticmethod
+	def vsqlvars_recordfilter_common(self):
+		return dict(
+			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=User.vsqlgroup),
+			r=self.vsqlgroup_records_common("data_select"),
+			app=app.vsqlfield_app("app", "g.tpl_id_app"),
+		)
+
+	def vsqlvars_recordfilter(self):
+		return dict(
+			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=User.vsqlgroup),
+			r=self.vsqlfield_records("r", "g.tpl_id_app"),
+			app=self.vsqlfield_app("app", "g.tpl_id_app"),
+		)
 
 	@staticmethod
 	def vsqlgroup_records_common(base_query: str) -> vsql.Group:
@@ -9279,12 +9291,12 @@ class DataSourceConfig(Base):
 	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	includecloned = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
-	appfilter = VSQLAttr("vsqlsupport_pkg3.ds_appfilter_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	appfilter = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	includecontrols = IntEnumAttr(IncludeControls, get=True, set=True, required=True, default=IncludeControls.ALL, ul4get=True, ul4onget=True, ul4onset=True)
 	includerecords = IntEnumAttr(IncludeRecords, get=True, set=True, required=True, default=IncludeRecords.RECORDS, ul4get=True, ul4onget=True, ul4onset=True)
 	includecount = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	recordpermission = IntEnumAttr(RecordPermission, get=True, set=True, required=True, default=RecordPermission.ALL, ul4get=True, ul4onget=True, ul4onset=True)
-	recordfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	recordfilter = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	includepermissions = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	includeattachments = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	includeparams = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
@@ -9394,7 +9406,7 @@ class DataSourceChildrenConfig(Base):
 	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	filter = VSQLAttr("vsqlsupport_pkg3.dsc_recordfilter_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	filter = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	orders = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, *args, id=None, identifier=None, control=None, filter=None):
@@ -9502,7 +9514,7 @@ class DataOrder(Base):
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	parent = Attr(DataSourceConfig, DataSourceChildrenConfig, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	expression = VSQLAttr("?", get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	expression = VSQLAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	direction = EnumAttr(Direction, get=True, set=True, required=True, default=Direction.ASC, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	nulls = EnumAttr(Nulls, get=True, set=True, required=True, default=Nulls.LAST, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 
@@ -9682,7 +9694,7 @@ class DataAction(CustomAttributes):
 	icon = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	message = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	filter = VSQLAttr("vsqlsupport_pkg3.da_filter_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	filter = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	as_multiple_action = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	as_single_action = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	as_mail_link = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
@@ -9769,7 +9781,7 @@ class DataActionCommand(Base):
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	parent = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	condition = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	condition = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	details = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, *args, id=None, condition=None):
@@ -10031,7 +10043,7 @@ class DataActionDetail(Base):
 	control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	type = EnumAttr(Type, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	expression = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	expression = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	formmode = EnumAttr(FormMode, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	code = Attr(str, get="", repr=True)

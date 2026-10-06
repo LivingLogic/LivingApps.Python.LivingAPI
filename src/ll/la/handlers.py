@@ -627,23 +627,10 @@ class DBHandler(Handler):
 	def save_vsql_ast(self, vsqlexpr, datatype=None, cursor=None):
 		return self._save_vsql_ast(vsqlexpr, datatype, cursor)[0]
 
-	def save_vsql_source(self, cursor, source, function, datatype=None, **queryargs):
+	def save_vsql_source(self, cursor, source, vars, datatype=None, **queryargs):
 		if not source:
 			return None
 
-		if cursor is None:
-			cursor = self.cursor()
-
-		query = t"select {function:q}("
-		for (f, (k, v)) in misc.isfirst(queryargs.items()):
-			if not f:
-				query += t", "
-			query += t"{k:q} => {v}"
-		query += t") from dual"
-		cursor.execute(query)
-		dump = cursor.fetchone()[0]
-		dump = dump.decode("utf-8")
-		vars = ul4on.loads(dump)
 		vsqlexpr = vsql.AST.fromsource(source, **vars)
 		return self.save_vsql_ast(vsqlexpr, datatype, cursor)
 
@@ -720,7 +707,7 @@ class DBHandler(Handler):
 		vs_id_recordfilter = self.save_vsql_source(
 			cursor,
 			datasource.recordfilter,
-			la.DataSourceConfig.recordfilter.function,
+			datasource.app.vsqlvars_recordfilter() if datasource.app else la.App.vsqlvars_recordfilter_common(),
 			p_vt_id=datasource.parent.id,
 			p_tpl_uuid_r=datasource.app.id if datasource.app is not None else None,
 		)
