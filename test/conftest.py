@@ -249,7 +249,7 @@ class JavaDB(LocalTemplateHandler):
 		dump = dump.encode("utf-8")
 		currentdir = pathlib.Path.cwd()
 		try:
-			os.chdir(pathlib.Path.home() / "checkouts/LivingApps.Java.LivingAPI")
+			os.chdir(pathlib.Path.home() / "checkouts/LivingApps/Java.LivingAPI")
 			result = subprocess.run("gradle -q --console=plain execute", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 		finally:
 			os.chdir(currentdir)
