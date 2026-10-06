@@ -672,6 +672,7 @@ class DBHandler(Handler):
 			c_user=self.ide_id,
 			p_tpl_uuid=viewtemplate.app.id,
 			p_vt_type=viewtemplate.type.value,
+			p_vt_name=template.name,
 			p_vt_identifier=template.name,
 			p_vt_mimetype=viewtemplate.mimetype,
 			p_utv_signature=ul4c._str(template.signature) if template.signature is not None else None,
