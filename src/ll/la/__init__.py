@@ -5760,7 +5760,7 @@ class Control(CustomAttributes, WithTranslations):
 
 	_type = None
 	_subtype = None
-	ul4_attrs = CustomAttributes.ul4_attrs.union(WithTranslations.ul4_attrs, {"id", "identifier", "type", "subtype", "fulltype", "app", "label", "description", "priority", "in_list", "in_mobile_list", "in_text", "required", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure", "save"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union(WithTranslations.ul4_attrs, {"id", "identifier", "type", "subtype", "fulltype", "app", "label", "description", "priority", "in_list", "in_mobile_list", "in_fulltext_search", "in_structured_search", "in_expert_search", "in_text", "in_sum", "required", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "base_mode", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure", "save"})
 	ul4_type = ul4c.Type("la", "Control", "Metainformation about a field in a LivingApps application")
 
 	class Mode(misc.Enum):
