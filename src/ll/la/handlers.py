@@ -294,11 +294,21 @@ class Handler:
 	def change_user(self, lang, oldpassword, newpassword, newemail):
 		raise NotImplementedError
 
-	def fetch_librarytemplates(self, type : str):
-		return la.attrdict()
+	def fetch_templatelibrary(self, globals) -> la.TemplateLibrary | None:
+		"""
+		Return the template library version used by ``globals`` (i.e. the
+		version ``globals.template_library_version``) with its templates and
+		parameters, or ``None`` if there's no such version.
+		"""
+		return None
 
-	def fetch_libraryparams(self):
-		return la.attrdict()
+	def fetch_templatelibraries(self) -> dict[int, la.TemplateLibrary]:
+		"""
+		Return all template library versions (without their templates and
+		parameters) as a dictionary mapping version numbers to
+		:class:`~ll.la.TemplateLibrary` objects.
+		"""
+		return {}
 
 	def fetch_viewtemplate_params(self, globals):
 		return la.attrdict()
@@ -422,8 +432,8 @@ class DBHandler(Handler):
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
 		self.viewtemplate_params = {} # Maps ``vt_id`` to parameter dictionary
 		self.emailtemplate_params = {} # Maps ``et_id`` to parameter dictionary
-		self.librarytemplates = {} # Maps ``lt_id`` to templates
-		self.libraryparams = None # Maps ``lp_id`` to :class:`AppParameter`
+		self.templatelibraries = {} # Maps ``tl_version`` to :class:`TemplateLibrary` (with templates and parameters; ``None`` for unknown versions)
+		self.templatelibraries_without_children = None # Maps ``tl_version`` to :class:`TemplateLibrary` (without templates and parameters)
 
 		if ide_id is not None:
 			if ide_account is not None:
@@ -903,6 +913,25 @@ class DBHandler(Handler):
 			args["p_sessionid"] = self.session_id
 		self.proc_init(cursor, **args)
 
+	def _execute_pg_ul4on_query(self, query):
+		"""
+		Execute the Postgres query ``query`` (a t-string that must return an
+		UL4ON dump as its single value) and return the decoded dump (or
+		``None`` if the query returned ``null``).
+
+		Unlike :meth:`_execute_incremental_ul4on_call` the dump is
+		self-contained: it is decoded with a fresh decoder, so it can't
+		reference objects from the Oracle dumps, and persistent objects in it
+		are not merged with the objects already loaded.
+		"""
+		c = self.cursor_pg(row_factory=rows.tuple_row)
+		c.execute(query)
+		r = c.fetchone()
+		dump = r[0]
+		if dump is None:
+			return None
+		return ul4on.loads(dump)
+
 	def _execute_incremental_ul4on_call(self, globals, call):
 		"""
 		Returns the deserialized UL4ON data from executing a database function
@@ -1357,6 +1386,7 @@ class DBHandler(Handler):
 			p_tpl_typename_gen_plu=app.__dict__["typename_genitive_plural"],
 			p_tpl_typename_dat_plu=app.__dict__["typename_dative_plural"],
 			p_tpl_typename_acc_plu=app.__dict__["typename_accusative_plural"],
+			p_tl_version=app.template_library_version,
 		)
 		return True
 
@@ -1735,53 +1765,21 @@ class DBHandler(Handler):
 			)
 		return self.emailtemplate_params[et_id]
 
-	def fetch_librarytemplates(self, type : str):
-		if type not in self.librarytemplates:
-			c = self.cursor_pg(row_factory=rows.tuple_row)
-			if type is None:
-				c.execute(t"""
-					select
-						lt_identifier,
-						utv_source
-					from
-						templatelibrary.librarytemplate_select
-					where
-						tmt_key is null
-				""")
-			else:
-				c.execute(t"""
-					select
-						lt_identifier,
-						utv_source
-					from
-						templatelibrary.librarytemplate_select
-					where
-						tmt_key = {type}
-				""")
+	def fetch_templatelibrary(self, globals) -> la.TemplateLibrary | None:
+		version = globals.template_library_version
+		if version not in self.templatelibraries:
+			self.templatelibraries[version] = self._execute_pg_ul4on_query(
+				t"select templatelibrary.templatelibrary_ful4on({version}, true)",
+			)
+		return self.templatelibraries[version]
 
-			templates = la.attrdict()
-			for r in c:
-				(identifier, source) = r
-				namespace = f"templatelibrary.{type}" if type else f"templatelibrary"
-				template = ul4c.Template(source, name=identifier, namespace=namespace)
-				templates[template.name] = template
-			self.librarytemplates[type] = templates
-		return self.librarytemplates[type]
-
-	def fetch_libraryparams(self):
-		if self.libraryparams is None:
-			c = self.cursor_pg(row_factory=rows.tuple_row)
-			c.execute("select templatelibrary.libraryparameters_ful4on()")
-			r = c.fetchone()
-			dump = r[0]
-			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
-			# Note that we ignore the problem of persistent objects, since none of the
-			# persistent objects in this dump are in the other dump
-			dump = ul4on.loads(dump)
-			if isinstance(dump, dict):
-				dump = la.attrdict(dump)
-			self.libraryparams = la.attrdict(dump)
-		return self.libraryparams
+	def fetch_templatelibraries(self) -> dict[int, la.TemplateLibrary]:
+		if self.templatelibraries_without_children is None:
+			libraries = self._execute_pg_ul4on_query(
+				t"select templatelibrary.templatelibraries_ful4on(false)",
+			)
+			self.templatelibraries_without_children = libraries if libraries is not None else {}
+		return self.templatelibraries_without_children
 
 	def count_records(self, app, filter):
 		q = vsql.OracleQuery(

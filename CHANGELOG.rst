@@ -1,3 +1,39 @@
+0.67.0 (2026-10-28)
+-------------------
+
+*	The template library is now versioned. The new class ``TemplateLibrary``
+	describes one version of the library with the attributes ``id``,
+	``version``, ``label``, ``description``, ``templates`` (the templates of
+	this version, keyed by identifier, or ``*.<type>.<identifier>`` for typed
+	templates) and ``parameters`` (the parameters of this version, keyed by
+	identifier). The last two are ``None`` when the version has been loaded
+	without its templates and parameters.
+
+*	``Globals`` has two new attributes: ``template_libraries`` is a dictionary
+	mapping version numbers to the ``TemplateLibrary`` objects of all versions
+	(without their templates and parameters). ``template_library_version`` is
+	the version whose templates and parameters are used by the running
+	template (i.e. for ``globals.templates``, ``app.templates``,
+	``record.templates`` etc. and for the library parameters in
+	``globals.params`` and ``app.params``). It is read-only and is
+	``app.template_library_version`` (or the default version of the system
+	if there's no app).
+
+*	``App`` has a new attribute ``template_library_version`` that contains
+	the template library version the app uses. It can be set (to a version
+	that exists in ``globals.template_libraries``) and is saved by
+	``App.save()`` (this requires the new parameter ``p_tl_version`` of
+	``livingapi_pkg.template_update``).
+
+*	The handler methods ``fetch_librarytemplates()`` and
+	``fetch_libraryparams()`` have been replaced by ``fetch_templatelibrary()``
+	(the version used by a ``Globals`` object, with templates and parameters),
+	and ``fetch_templatelibraries()`` (all versions, without templates and
+	parameters). The ``DBHandler`` implements them via the new Postgres
+	functions ``templatelibrary.templatelibrary_ful4on()`` and
+	``templatelibrary.templatelibraries_ful4on()``.
+
+
 0.66.0
 ------
 

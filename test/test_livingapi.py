@@ -10,6 +10,8 @@ package ``pytest-rerunfailures`` is used.
 
 import textwrap, re, json
 
+import pytest
+
 from conftest import *
 
 
@@ -2934,6 +2936,8 @@ def test_template_libraries(handler):
 				<?render globals.t_la_static_ul4()?>
 				<?render globals.app.templates.la_static_ul4()?>
 				<?render globals.app.t_la_static_ul4()?>
+				<?print globals.template_library_version?>
+				<?print globals.app.template_library_version?>
 			"""
 		)
 
@@ -2943,6 +2947,8 @@ def test_template_libraries(handler):
 			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
 			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
 			<script src="/static/ul4/1.16.1/dist/umd/ul4.js"></script>
+			0
+			0
 		"""
 		assert lines(output) == lines(expected)
 
@@ -2958,6 +2964,8 @@ def test_library_parameters(handler):
 				<?print globals.app.params.la_css_active_color_light.value?>
 				<?print globals.app.p_la_css_active_color_light.value?>
 				<?print globals.app.pv_la_css_active_color_light?>
+				<?print globals.template_library_version?>
+				<?print globals.app.template_library_version?>
 			"""
 		)
 
@@ -2969,8 +2977,44 @@ def test_library_parameters(handler):
 			#008bd2
 			#008bd2
 			#008bd2
+			0
+			0
 		"""
 		assert lines(output) == lines(expected)
+
+
+def test_template_library_versions(handler):
+	if not isinstance(handler, PythonHTTP):
+		vt = handler.make_viewtemplate(
+			identifier="template_library_versions",
+			source="""
+				<?print 0 in globals.template_libraries?>
+				<?print globals.template_libraries[0].version?>
+				<?print globals.template_libraries[0].templates?>
+			"""
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			True
+			0
+			None
+		"""
+		assert lines(output) == lines(expected)
+
+	if isinstance(handler, PythonDB):
+		with handler.dbhandler:
+			vars = handler.dbhandler.viewtemplate_data(person_app_id(), template=vt.identifier)
+			globals = vars["globals"]
+			assert 0 in globals.template_libraries
+			assert globals.template_libraries[0].version == 0
+			assert globals.template_libraries[0].templates is None
+			# The version of the globals can't be changed
+			with pytest.raises(AttributeError):
+				globals.template_library_version = 1
+			# Assigning an unknown version to the app must fail
+			with pytest.raises(ValueError):
+				globals.app.template_library_version = -1
 
 
 def test_globals_urls(handler, config_data):

@@ -246,6 +246,10 @@ def error_attribute_wrong_type(instance: Any, name: str, value: Any, allowed_typ
 	return f"Value for attribute {name!r} of {misc.format_class(instance)!r} object must be {allowed_types}, but is {format_class(type(value))}."
 
 
+def error_template_library_version_unknown(version: int) -> str:
+	return f"Unknown template library version {version!r}."
+
+
 def error_argument_wrong_type(name: str, value: Any, allowed_types: list[Type] | Type) -> str:
 	if isinstance(allowed_types, (tuple, list)):
 		allowed_types = format_list([format_class(t) for t in allowed_types])
@@ -1580,7 +1584,7 @@ class File(CustomAttributes):
 	def _template_candidates(self):
 		handler = self.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.globals.app.id, "file_instance", None)
-		yield handler.fetch_librarytemplates("file_instance")
+		yield self.globals.library_templates("file_instance")
 
 	def ul4_getattr(self, name: str) -> Any:
 		if name == "internalid":
@@ -1682,7 +1686,7 @@ class Geo(WithTemplates):
 	def _template_candidates(self):
 		handler = self.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.globals.app.id, "geo_instance", None)
-		yield handler.fetch_librarytemplates("geo_instance")
+		yield self.globals.library_templates("geo_instance")
 
 	@classmethod
 	def ul4oncreate(cls, id: str | None=None) -> Geo:
@@ -1900,7 +1904,7 @@ class User(CustomAttributes):
 	def _template_candidates(self):
 		handler = self.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.globals.app.id, "user_instance", None)
-		yield handler.fetch_librarytemplates("user_instance")
+		yield self.globals.library_templates("user_instance")
 
 	@classmethod
 	def vsqlfield(cls, ul4var: str="user", sqlvar: vsql.T_sql = "livingapi_pkg.global_user") -> vsql.Field:
@@ -2044,6 +2048,115 @@ class Permissions(Base):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__}{attrs} at {id(self):#x}>"
 
 
+@register("templatelibrary")
+class TemplateLibrary(Base):
+	r"""
+	A version of the template library.
+
+	The template library contains the templates and parameters that are
+	available to all apps. It exists in several versions. Which version an
+	app uses is determined by :attr:`App.template_library_version`; the
+	version the running template uses is
+	:attr:`Globals.template_library_version`. All versions are available via
+	:attr:`Globals.template_libraries` (without their templates and
+	parameters).
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id
+
+	.. attribute:: version
+		:type: int
+
+		The version number (unique among all versions of the library)
+
+	.. attribute:: label
+		:type: str | None
+
+		A short label for this version
+
+	.. attribute:: description
+		:type: str | None
+
+		A description of this version
+
+	.. attribute:: templates
+		:type: dict[str, ll.ul4c.Template] | None
+
+		The templates of this version. The key is the identifier of the
+		template for untyped templates and ``*.<type>.<identifier>`` for
+		typed ones (e.g. ``*.app_instance.la_name``). ``None`` if the templates
+		have not been loaded (which is the case for the objects in
+		:attr:`Globals.template_libraries`).
+
+	.. attribute:: parameters
+		:type: dict[str, AppParameter] | None
+
+		The parameters of this version (mapping identifiers to parameters).
+		``None`` if the parameters have not been loaded.
+	"""
+
+	ul4_attrs = Base.ul4_attrs.union({"id", "version", "label", "description", "templates", "parameters"})
+	ul4_type = ul4c.Type("la", "TemplateLibrary", "A version of the template library")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	version = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	templates = Attr(dict, get=True, set="_templates_set", ul4get=True, ul4onget=True, ul4onset="_templates_set")
+	parameters = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, version=None, label=None, description=None):
+		self.id = id
+		self.version = version
+		self.label = label
+		self.description = description
+		self._templates_by_type = {}
+		self.templates = None
+		self.parameters = None
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def _templates_set(self, value):
+		"""
+		Store the templates ``value`` (a dictionary as described for
+		:attr:`templates`) and group them by type in ``_templates_by_type``.
+
+		Templates without a namespace get the namespace ``templatelibrary``
+		(for untyped templates) or ``templatelibrary.<type>`` (for typed ones).
+		"""
+		templates_by_type = {}
+		if value is not None:
+			value = makeattrs(value)
+			for (key, template) in value.items():
+				if key.startswith("*."):
+					(type, identifier) = key[2:].split(".", 1)
+					namespace = f"templatelibrary.{type}"
+				else:
+					(type, identifier) = (None, key)
+					namespace = "templatelibrary"
+				if template.namespace is None:
+					template.namespace = namespace
+				if type not in templates_by_type:
+					templates_by_type[type] = attrdict()
+				templates_by_type[type][identifier] = template
+		self.__dict__["templates"] = value
+		self._templates_by_type = templates_by_type
+
+	def templates_for_type(self, type: str | None) -> dict[str, ul4c.Template]:
+		"""
+		Return the templates of type ``type`` (``None`` for the untyped
+		templates) as a dictionary mapping identifiers to templates.
+		"""
+		templates = self._templates_by_type.get(type)
+		return templates if templates is not None else attrdict()
+
+
 @register("globals")
 class Globals(CustomAttributes):
 	r"""
@@ -2151,6 +2264,21 @@ class Globals(CustomAttributes):
 
 		Parameters of the view or email template that overwrite the parameters
 		of the app.
+
+	.. attribute:: template_library_version
+		:type: int
+
+		The version number of the template library (see
+		:class:`TemplateLibrary`) whose templates and parameters are used. This is
+		:attr:`App.template_library_version` of :attr:`app` (or the default
+		version of the system when there's no app). It can't be changed
+		(change the version of the app instead).
+
+	.. attribute:: template_libraries
+		:type: dict[int, TemplateLibrary]
+
+		All versions of the template library (without their templates and
+		parameters), keyed by version number.
 	"""
 
 	ul4_attrs = CustomAttributes.ul4_attrs.union({
@@ -2172,6 +2300,8 @@ class Globals(CustomAttributes):
 		"sys_lang",
 		"templates",
 		"params",
+		"template_library_version",
+		"template_libraries",
 		"flashes",
 		"request",
 		"response",
@@ -2257,6 +2387,8 @@ class Globals(CustomAttributes):
 	view_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	externaldatasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	template_params = AttrDictAttr(get="", ul4onget="_template_params_get", ul4onset="_template_params_ul4onset")
+	template_library_version = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True, ul4ondefault="")
+	template_libraries = Attr(dict, get="", ul4get="_template_libraries_get", ul4onget="", ul4onset="")
 	groups = AttrDictAttr(get="", ul4get="_groups_get", ul4onget="_groups_get")
 	params = AttrDictAttr(get="", ul4get="_params_get")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
@@ -2289,6 +2421,8 @@ class Globals(CustomAttributes):
 		self.view_id = None
 		self.externaldatasources = attrdict()
 		self._template_params = {}
+		self.__dict__["template_library_version"] = 0
+		self._template_libraries = None
 		self._library_params = None
 		self._params = None
 		self._next_attachment_id = 0
@@ -2629,15 +2763,45 @@ class Globals(CustomAttributes):
 	def _template_params_ul4onset(self, value):
 		self._template_params = attrdict(value) if value else attrdict()
 
+	def _template_library_version_ul4ondefault(self):
+		# Only dumps from a database before version 143 lack the version; such a database can't be used with this LivingAPI
+		self.__dict__["template_library_version"] = self.app.template_library_version if self.app is not None else 0
+
+	def _template_libraries_get(self) -> dict[int, TemplateLibrary]:
+		libraries = self._template_libraries
+		if libraries is None:
+			libraries = self._gethandler().fetch_templatelibraries()
+			self._template_libraries = libraries
+		return libraries
+
+	def _template_libraries_ul4onget(self) -> dict[int, TemplateLibrary] | None:
+		return self._template_libraries
+
+	def _template_libraries_ul4onset(self, value):
+		self._template_libraries = value
+
+	def library_templates(self, type: str | None) -> dict[str, ul4c.Template]:
+		"""
+		Return the templates of type ``type`` (``None`` for the untyped
+		templates) from the template library version
+		:attr:`template_library_version` (an empty dictionary if there's no
+		such version).
+		"""
+		library = self._gethandler().fetch_templatelibrary(self)
+		if library is None:
+			return attrdict()
+		return library.templates_for_type(type)
+
 	@property
 	def library_params(self) -> dict[str, AppParameter]:
 		if self._library_params is None:
-			handler = self._gethandler()
+			library = self._gethandler().fetch_templatelibrary(self)
 			self._library_params = attrdict()
-			for p in handler.fetch_libraryparams().values():
-				p = AppParameter(id=p.id, type=p.type, identifier=p.identifier, value=p.value, description=p.description)
-				p._globals = self
-				self._library_params[p.identifier] = p
+			if library is not None and library.parameters is not None:
+				for p in library.parameters.values():
+					p = AppParameter(id=p.id, type=p.type, identifier=p.identifier, value=p.value, description=p.description)
+					p._globals = self
+					self._library_params[p.identifier] = p
 		return self._library_params
 
 	def _params_get(self) -> dict[str, MutableAppParameter]:
@@ -3263,6 +3427,13 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		:type: Optional[dict[str, DataAction]]
 
 		Data actions of this app.
+
+	.. attribute:: template_library_version
+		:type: int
+
+		The version number of the template library (see
+		:class:`TemplateLibrary`) this app uses. Can be set to any version in
+		:attr:`Globals.template_libraries` and is saved by :meth:`save`.
 	"""
 
 	ul4_attrs = CustomAttributes.ul4_attrs.union(
@@ -3284,6 +3455,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 			"sort_default",
 			"filter_owndata",
 			"permissions",
+			"template_library_version",
 			"typename_grammatical_gender",
 			"typename_nominative_singular",
 			"typename_genitive_singular",
@@ -3418,6 +3590,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 	order = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	translations = Attr(Translations, get="", ul4get="_translations_get", ul4onget="", ul4onset="", ul4ondefault="")
+	template_library_version = Attr(int, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True, ul4ondefault="")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, installation=None, datamanagement_identifier=None):
@@ -3486,6 +3659,8 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		self._data_actions = None
 		self._vsqlgroup_records = None
 		self._vsqlgroup_app = None
+		# Apps are created by the database (which assigns the default version), so this only matters for apps constructed in Python
+		self.__dict__["template_library_version"] = 0
 		self._add_param(*args)
 
 	def __str__(self) -> str:
@@ -3646,8 +3821,8 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		if "la" in self.ownparams and isinstance(self.ownparams["la"].value, App):
 			yield from self.ownparams["la"].value._template_candidates()
 		else:
-			yield handler.fetch_librarytemplates(None)
-			yield handler.fetch_librarytemplates("app_instance")
+			yield self.globals.library_templates(None)
+			yield self.globals.library_templates("app_instance")
 
 	def _viewtemplates_get(self):
 		viewtemplates = self._viewtemplates
@@ -3842,6 +4017,21 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		if self.globals is None:
 			raise NoHandlerError()
 		return self.globals._gethandler()
+
+	def _template_library_version_set(self, value):
+		if not isinstance(value, int):
+			raise TypeError(error_attribute_wrong_type(self, "template_library_version", value, (int,)))
+		if self.globals is not None:
+			libraries = self.globals.template_libraries
+		else:
+			libraries = self._gethandler().fetch_templatelibraries()
+		if value not in libraries:
+			raise ValueError(error_template_library_version_unknown(value))
+		self.__dict__["template_library_version"] = value
+
+	def _template_library_version_ul4ondefault(self):
+		# Only dumps from a database before version 143 lack the version; such a database can't be used with this LivingAPI
+		self.__dict__["template_library_version"] = 0
 
 	def _params_candidates(self):
 		yield self.ownparams
@@ -4413,7 +4603,7 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	def _template_candidates(self):
 		handler = self.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.globals.app.id, "appgroup_instance", None)
-		yield handler.fetch_librarytemplates("appgroup_instance")
+		yield self.globals.library_templates("appgroup_instance")
 
 	@property
 	def ul4onid(self) -> str:
@@ -4772,8 +4962,8 @@ a
 		yield handler.fetch_internaltemplates(app_id, "field_instance", self.control.id)
 		yield handler.fetch_internaltemplates(app_id, f"field_{self.control.type}_instance", None)
 		yield handler.fetch_internaltemplates(app_id, f"field_instance", None)
-		yield handler.fetch_librarytemplates(f"field_{self.control.type}_instance")
-		yield handler.fetch_librarytemplates("field_instance")
+		yield self.record.app.globals.library_templates(f"field_{self.control.type}_instance")
+		yield self.record.app.globals.library_templates("field_instance")
 
 	def _template_is_bound(self, template):
 		return template.namespace.endswith(("_instance", f"_instance.{self.control.id}"))
@@ -5861,8 +6051,8 @@ class Control(CustomAttributes, WithTranslations):
 		yield handler.fetch_internaltemplates(app_id, "control_instance", self.id)
 		yield handler.fetch_internaltemplates(app_id, f"control_{self.type}_instance", None)
 		yield handler.fetch_internaltemplates(app_id, f"control_instance", None)
-		yield handler.fetch_librarytemplates(f"control_{self.type}_instance")
-		yield handler.fetch_librarytemplates("control_instance")
+		yield self.app.globals.library_templates(f"control_{self.type}_instance")
+		yield self.app.globals.library_templates("control_instance")
 
 	def _template_is_bound(self, template):
 		return template.namespace.endswith(("_instance", f"_instance.{self.id}"))
@@ -7718,7 +7908,7 @@ class Record(CustomAttributes, WithAttachments):
 	def _template_candidates(self):
 		handler = self._gethandler()
 		yield handler.fetch_internaltemplates(self.app.id, "record_instance", None)
-		yield handler.fetch_librarytemplates("record_instance")
+		yield self.globals.library_templates("record_instance")
 
 	def _fields_get(self):
 		if self.__dict__["fields"] is None:
@@ -8287,8 +8477,8 @@ class Attachment(CustomAttributes):
 		type = self.type.removesuffix("attachment")
 		yield handler.fetch_internaltemplates(app_id, f"attachment_{type}_instance", None)
 		yield handler.fetch_internaltemplates(app_id, "attachment_instance", None)
-		yield handler.fetch_librarytemplates(f"attachment_{type}_instance")
-		yield handler.fetch_librarytemplates("attachment_instance")
+		yield self.record.app.globals.library_templates(f"attachment_{type}_instance")
+		yield self.record.app.globals.library_templates("attachment_instance")
 
 	def delete(self):
 		self._gethandler().delete_attachment(self)
@@ -9732,7 +9922,7 @@ class DataAction(CustomAttributes):
 		handler = self._gethandler()
 		app_id = self.app.id
 		yield handler.fetch_internaltemplates(app_id, "dataaction_instance", None)
-		yield handler.fetch_librarytemplates("dataaction_instance")
+		yield self.app.globals.library_templates("dataaction_instance")
 
 	def execute(self, record, sync=False):
 		self._gethandler()._executeaction(record, self.identifier, sync=sync)
@@ -10210,8 +10400,8 @@ class LayoutControl(CustomAttributes):
 		app_id = self.view.app.id
 		yield handler.fetch_internaltemplates(app_id, f"layoutcontrol_{self.type}_instance", None)
 		yield handler.fetch_internaltemplates(app_id, f"layoutcontrol_instance", None)
-		yield handler.fetch_librarytemplates(f"layoutcontrol_{self.type}_instance")
-		yield handler.fetch_librarytemplates("layoutcontrol_instance")
+		yield self.view.app.globals.library_templates(f"layoutcontrol_{self.type}_instance")
+		yield self.view.app.globals.library_templates("layoutcontrol_instance")
 
 	@property
 	def ul4onid(self) -> str:
@@ -11202,8 +11392,8 @@ class AppParameter(CustomAttributes):
 		app = self.app if self.app is not None else globals.app
 		yield handler.fetch_internaltemplates(app.id, f"parameter_{self.type.value}_instance", None)
 		yield handler.fetch_internaltemplates(app.id, "parameter_instance", None)
-		yield handler.fetch_librarytemplates(f"parameter_{self.type.value}_instance")
-		yield handler.fetch_librarytemplates("parameter_instance")
+		yield globals.library_templates(f"parameter_{self.type.value}_instance")
+		yield globals.library_templates("parameter_instance")
 
 
 @register("mutableappparameter")
@@ -11677,7 +11867,7 @@ class MenuItem(CustomAttributes):
 	def _template_candidates(self):
 		handler = self.app.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.app.id, "menuitem_instance", None)
-		yield handler.fetch_librarytemplates("menuitem_instance")
+		yield self.app.globals.library_templates("menuitem_instance")
 
 	def __getattr__(self, name: str) -> Any:
 		if name.startswith("c_"):
@@ -11856,8 +12046,8 @@ class Panel(MenuItem):
 		handler = self.app.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.app.id, "panel_instance", None)
 		yield handler.fetch_internaltemplates(self.app.id, "menuitem_instance", None)
-		yield handler.fetch_librarytemplates("panel_instance")
-		yield handler.fetch_librarytemplates("menuitem_instance")
+		yield self.app.globals.library_templates("panel_instance")
+		yield self.app.globals.library_templates("menuitem_instance")
 
 	def __dir__(self) -> set[str]:
 		"""
