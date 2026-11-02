@@ -12251,18 +12251,6 @@ class HTTPRequest(Base):
 
 	Relevant class attributes are:
 
-	.. attribute:: vsqlfield
-		:type: ll.la.vsql.Field
-
-		The vSQL field for the vSQL variable ``params`` that references ``vsqlgroup``.
-
-	.. attribute:: vsqlgroup
-		:type: ll.la.vsql.Group
-
-		The vSQL group for the vSQL variable ``params`` with the following
-		subgroups: ``str``, ``strlist``, ``int``, ``intlist``, ``float``,
-		``floatlist``, ``date``, ``datelist``, ``datetime`` and ``datetimelist``.
-
 	.. attribute:: vsqlsearchexpr
 		:type: ll.la.vsql.Field
 
@@ -12290,29 +12278,6 @@ class HTTPRequest(Base):
 		result = self._seqvalue
 		self._seqvalue += 1
 		return result
-
-	datatypes = {
-		vsql.DataType.STR,
-		vsql.DataType.STRLIST,
-		vsql.DataType.INT,
-		vsql.DataType.INTLIST,
-		vsql.DataType.NUMBER,
-		vsql.DataType.NUMBERLIST,
-		vsql.DataType.DATE,
-		vsql.DataType.DATELIST,
-		vsql.DataType.DATETIME,
-		vsql.DataType.DATETIMELIST,
-	}
-
-	vsqlgroup = vsql.Group(
-		None,
-		*(
-			vsql.Field(dt.value, refgroup=vsql.Group(None, vsql.Field("*", dt)))
-			for dt in datatypes
-		)
-	)
-
-	vsqlfield = vsql.Field("params", refgroup=vsqlgroup)
 
 
 from .handlers import *

@@ -60,6 +60,11 @@
 	``DBHandler`` methods that fetch records now references a single record
 	(instead of the records of its app).
 
+*	The class attributes ``HTTPRequest.vsqlgroup`` and ``HTTPRequest.vsqlfield``
+	have been removed. The vSQL variable ``params`` no longer exists; request
+	parameters are accessed via the vSQL functions ``request_param_str()``,
+	``request_param_int()`` etc. instead.
+
 
 0.66.0
 ------
