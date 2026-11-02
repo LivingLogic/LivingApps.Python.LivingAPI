@@ -94,6 +94,11 @@
 	now, so that users and parameters without a file no longer vanish from
 	the result when the expression references the file.
 
+*	The vSQL group of an app has the new fields ``image`` (the app image as a
+	file) and ``appgroup`` (the app group, via the new class attribute
+	``AppGroup.vsqlgroup`` with the fields ``id``, ``name``, ``description``,
+	``image``, ``createdat``, ``createdby``, ``updatedat`` and ``updatedby``).
+
 
 0.66.0
 ------

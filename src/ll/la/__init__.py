@@ -4310,7 +4310,9 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 			vsql.Field("createdby", vsql.DataType.STR, "{a}.tpl_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup),
 			vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.tpl_utimestamp"),
 			vsql.Field("updatedby", vsql.DataType.STR, "{a}.tpl_uname", "{m}.tpl_uname = {d}.ide_id(+)", User.vsqlgroup),
+			vsql.Field("image", vsql.DataType.STR, "{a}.upl_id_image", "({m}.upl_id_image = {d}.upl_id(+) and {d}.upr_table(+) = 'template' and {d}.upr_pkvalue(+) = {m}.tpl_id and {d}.upr_field(+) = 'upl_id_image')", File.vsqlgroup),
 			vsql.Field("installation", vsql.DataType.STR, "{a}.inl_id", "{m}.inl_id = {d}.inl_id(+)", Installation.vsqlgroup),
+			vsql.Field("appgroup", vsql.DataType.STR, "{a}.ag_id", "{m}.ag_id = {d}.ag_id(+)", AppGroup.vsqlgroup),
 		)
 
 	@property
@@ -4666,6 +4668,18 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	params = AttrDictAttr(get="", ul4get="_params_get")
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 	translations = Attr(Translations, get="", ul4get="_translations_get", ul4onget="", ul4onset="", ul4ondefault="")
+
+	vsqlgroup = vsql.Group(
+		"appgroup",
+		vsql.Field("id", vsql.DataType.STR, "{a}.ag_id"),
+		vsql.Field("name", vsql.DataType.STR, "{a}.ag_name"),
+		vsql.Field("description", vsql.DataType.CLOB, "{a}.ag_description"),
+		vsql.Field("image", vsql.DataType.STR, "{a}.upl_id_image", "({m}.upl_id_image = {d}.upl_id(+) and {d}.upr_table(+) = 'appgroup' and {d}.upr_pkvalue(+) = {m}.ag_id and {d}.upr_field(+) = 'upl_id_image')", File.vsqlgroup),
+		vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.ag_cdate"),
+		vsql.Field("createdby", vsql.DataType.STR, "{a}.ag_cname", "{m}.ag_cname = {d}.ide_id(+)", User.vsqlgroup),
+		vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.ag_udate"),
+		vsql.Field("updatedby", vsql.DataType.STR, "{a}.ag_uname", "{m}.ag_uname = {d}.ide_id(+)", User.vsqlgroup),
+	)
 
 	def __init__(self, id=None, globals=None, name=None, description=None):
 		super().__init__()
