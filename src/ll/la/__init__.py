@@ -4206,25 +4206,52 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		return record
 
 	def vsqlfield_records(self, ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for the records of this app.
+		"""
 		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", self.vsqlgroup_records)
 
+	@staticmethod
+	def vsqlfield_records_common(ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for the records of an unknown app
+		(i.e. one that only has the generic record fields).
+		"""
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", App.vsqlgroup_records_common("data_select"))
+
+	def vsqlfield_record(self, ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for a single record of this app.
+		"""
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.dat_id", self.vsqlgroup_records)
+
+	@staticmethod
+	def vsqlfield_record_common(ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for a single record of an unknown
+		app (i.e. one that only has the generic record fields).
+		"""
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.dat_id", App.vsqlgroup_records_common("data_select"))
+
 	def vsqlfield_app(self, ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for this app.
+		"""
 		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", self.vsqlgroup_app)
 
 	@staticmethod
-	def vsqlvars_recordfilter_common(self):
-		return dict(
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=User.vsqlgroup),
-			r=self.vsqlgroup_records_common("data_select"),
-			app=app.vsqlfield_app("app", "g.tpl_id_app"),
-		)
+	def vsqlfield_app_common(ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for an unknown app.
+		"""
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", App.vsqlgroup_app_common())
 
-	def vsqlvars_recordfilter(self):
-		return dict(
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=User.vsqlgroup),
-			r=self.vsqlfield_records("r", "g.tpl_id_app"),
-			app=self.vsqlfield_app("app", "g.tpl_id_app"),
-		)
+	@staticmethod
+	def vsqlfield_user(ul4var: str = "user", sqlvar: vsql.T_sql = "g.ide_id_user") -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for the currently logged in user.
+		"""
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.ide_id", User.vsqlgroup)
 
 	@staticmethod
 	def vsqlgroup_records_common(base_query: str) -> vsql.Group:
@@ -4251,21 +4278,25 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 					g.fields[vsqlfield.identifier] = vsqlfield
 		return self._vsqlgroup_records
 
+	@staticmethod
+	def vsqlgroup_app_common() -> vsql.Group:
+		return vsql.Group(
+			"template",
+			vsql.Field("id", vsql.DataType.STR, "{a}.tpl_uuid"),
+			vsql.Field("name", vsql.DataType.STR, "{a}.tpl_name"),
+			vsql.Field("description", vsql.DataType.CLOB, "{a}.tpl_description"),
+			vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.tpl_ctimestamp"),
+			vsql.Field("createdby", vsql.DataType.STR, "{a}.tpl_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup),
+			vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.tpl_utimestamp"),
+			vsql.Field("updatedby", vsql.DataType.STR, "{a}.tpl_uname", "{m}.tpl_uname = {d}.ide_id(+)", User.vsqlgroup),
+			vsql.Field("installation", vsql.DataType.STR, "{a}.inl_id", "{m}.inl_id = {d}.inl_id(+)", Installation.vsqlgroup),
+		)
+
 	@property
 	def vsqlgroup_app(self) -> vsql.Group:
 		if self._vsqlgroup_app is None:
 			# FIXME: Add app parameters
-			self._vsqlgroup_app = vsql.Group(
-				"template",
-				vsql.Field("id", vsql.DataType.STR, "{a}.tpl_uuid"),
-				vsql.Field("name", vsql.DataType.STR, "{a}.tpl_name"),
-				vsql.Field("description", vsql.DataType.CLOB, "{a}.tpl_description"),
-				vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.tpl_ctimestamp"),
-				vsql.Field("createdby", vsql.DataType.STR, "{a}.tpl_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup),
-				vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.tpl_utimestamp"),
-				vsql.Field("updatedby", vsql.DataType.STR, "{a}.tpl_uname", "{m}.tpl_uname = {d}.ide_id(+)", User.vsqlgroup),
-				vsql.Field("installation", vsql.DataType.STR, "{a}.inl_id", "{m}.inl_id = {d}.inl_id(+)", Installation.vsqlgroup),
-			)
+			self._vsqlgroup_app = self.vsqlgroup_app_common()
 		return self._vsqlgroup_app
 
 	def vsqlsearchexpr(self, record: Record, maxdepth: int, controls: dict[str, Control] | None=None):
@@ -9540,6 +9571,41 @@ class DataSourceConfig(Base):
 	def __str__(self) -> str:
 		return f"{self.parent or '?'}/datasource={self.identifier}"
 
+	def _vsqlvars_common(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that are available in all vSQL expressions
+		of this datasource: ``user`` (the logged in user), ``app`` (the app of
+		the view template) and ``record`` (the detail record, whose app is
+		unknown).
+		"""
+		app = self.parent.app if self.parent is not None else None
+		return dict(
+			user=App.vsqlfield_user(),
+			app=app.vsqlfield_app("app", "g.tpl_id_app") if app is not None else App.vsqlfield_app_common("app", "g.tpl_id_app"),
+			record=App.vsqlfield_record_common("record", "g.dat_id_detail"),
+		)
+
+	def vsqlvars_appfilter(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`appfilter`.
+
+		In addition to the common variables ``a`` is the app to be filtered.
+		"""
+		vars = self._vsqlvars_common()
+		vars["a"] = self.app.vsqlfield_app("a", "t.tpl_id") if self.app is not None else App.vsqlfield_app_common("a", "t.tpl_id")
+		return vars
+
+	def vsqlvars_recordfilter(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`recordfilter`
+		(and the order expressions in :attr:`orders`).
+
+		In addition to the common variables ``r`` is the record to be filtered.
+		"""
+		vars = self._vsqlvars_common()
+		vars["r"] = self.app.vsqlfield_records("r", "g.tpl_id_app") if self.app is not None else App.vsqlfield_records_common("r", "g.tpl_id_app")
+		return vars
+
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
 
@@ -9631,6 +9697,19 @@ class DataSourceChildrenConfig(Base):
 
 	def __str__(self) -> str:
 		return f"{self.datasource or '?'}/datasourcechildrenconfig={self.identifier}"
+
+	def vsqlvars_filter(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`filter` (and the
+		order expressions in :attr:`orders`).
+
+		In addition to the common variables of the datasource ``r`` is the
+		record to be filtered, i.e. a record of the app that contains
+		:attr:`control`.
+		"""
+		vars = self.datasource._vsqlvars_common()
+		vars["r"] = self.control.app.vsqlfield_records("r", "g.tpl_id_app")
+		return vars
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
@@ -9758,6 +9837,17 @@ class DataOrder(Base):
 
 	def save_meta(self, handler:T_opt_handler=None, recursive:bool=True):
 		raise NotImplementedError("DataOrder objects can only be saved by their parent")
+
+	def vsqlvars_expression(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`expression`.
+
+		These are the variables of the filter expression of :attr:`parent`.
+		"""
+		if isinstance(self.parent, DataSourceConfig):
+			return self.parent.vsqlvars_recordfilter()
+		else:
+			return self.parent.vsqlvars_filter()
 
 
 @register("dataaction")
@@ -9948,6 +10038,18 @@ class DataAction(CustomAttributes):
 	def execute(self, record, sync=False):
 		self._gethandler()._executeaction(record, self.identifier, sync=sync)
 
+	def vsqlvars_filter(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`filter`: ``user``
+		(the logged in user), ``app`` (the app of the data action) and ``r``
+		(the record the data action is executed on).
+		"""
+		return dict(
+			user=App.vsqlfield_user(),
+			app=self.app.vsqlfield_app("app", "g.tpl_id_app"),
+			r=self.app.vsqlfield_records("r", "g.tpl_id_app"),
+		)
+
 
 # We don't have to register this class, since only subclasses will be put into
 # UL4ON dumps
@@ -10014,6 +10116,30 @@ class DataActionCommand(Base):
 			else:
 				raise TypeError(f"don't know what to do with positional argument {item!r}")
 		return self
+
+	def vsqlvars_condition(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`condition` (and in
+		the expressions of :attr:`details`).
+
+		These are the variables of the filter of the data action, plus a
+		variable for each :class:`DataActionCommandWithIdentifier` in the chain
+		of commands from the top level command down to (and including) this
+		command. This variable is named after the identifier of the command and
+		references a record of the target app of the command.
+		"""
+		commands = []
+		node = self
+		while isinstance(node, DataActionCommand):
+			commands.append(node)
+			node = node.parent
+		dataaction = node
+		vars = dataaction.vsqlvars_filter()
+		for command in reversed(commands):
+			if isinstance(command, DataActionCommandWithIdentifier) and command.identifier:
+				app = command.app if command.app is not None else dataaction.app
+				vars[command.identifier] = app.vsqlfield_record(command.identifier, f"{command.identifier}.dat_id")
+		return vars
 
 
 @register("dataactioncommand_update")
@@ -10271,6 +10397,14 @@ class DataActionDetail(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def vsqlvars_expression(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`expression`.
+
+		These are the variables of the condition of :attr:`parent`.
+		"""
+		return self.parent.vsqlvars_condition()
 
 	def _code_get(self) -> str:
 		if self.type is DataActionDetail.Type.SETNULL:

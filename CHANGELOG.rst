@@ -38,6 +38,28 @@
 	``DARK`` or ``AUTO``; ``"light"``, ``"dark"`` or ``"auto"`` in UL4). It is
 	also available as ``user.colorscheme`` in vSQL expressions.
 
+*	The vSQL variables for the vSQL expressions of a ``DataSourceConfig``
+	(``appfilter``, ``recordfilter`` and the order expressions), a
+	``DataSourceChildrenConfig`` (``filter`` and its order expressions), a
+	``DataAction`` (``filter``), a ``DataActionCommand`` (``condition``) and a
+	``DataActionDetail`` (``expression``) are now defined in Python by the new
+	methods ``vsqlvars_appfilter()``, ``vsqlvars_recordfilter()``,
+	``vsqlvars_filter()``, ``vsqlvars_condition()`` and
+	``vsqlvars_expression()`` instead of being fetched from the database
+	functions of ``vsqlsupport_pkg3`` (which no longer exist). ``VSQLAttr`` no
+	longer has a ``function`` argument, and the ``DBHandler`` method
+	``save_vsql_source()`` takes the dictionary of vSQL variables instead of the
+	name of a database function (and no additional keyword arguments).
+
+*	``App`` has new methods for creating vSQL fields: ``vsqlfield_record()``
+	(for a single record of the app), the static methods
+	``vsqlfield_records_common()``, ``vsqlfield_record_common()`` and
+	``vsqlfield_app_common()`` (for an unknown app), ``vsqlfield_user()`` (for
+	the logged in user) and ``vsqlgroup_app_common()`` (the vSQL group of an
+	unknown app). The vSQL variable ``record`` (the detail record) in the
+	``DBHandler`` methods that fetch records now references a single record
+	(instead of the records of its app).
+
 
 0.66.0
 ------

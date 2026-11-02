@@ -637,7 +637,15 @@ class DBHandler(Handler):
 	def save_vsql_ast(self, vsqlexpr, datatype=None, cursor=None):
 		return self._save_vsql_ast(vsqlexpr, datatype, cursor)[0]
 
-	def save_vsql_source(self, cursor, source, vars, datatype=None, **queryargs):
+	def save_vsql_source(self, cursor, source, vars, datatype=None):
+		"""
+		Compile the vSQL expression ``source`` using the vSQL variables ``vars``
+		(a dictionary mapping variable names to :class:`ll.vsql.Field` objects)
+		and save it.
+
+		Returns the ``vs_id`` of the saved expression (or ``None`` if ``source``
+		is empty).
+		"""
 		if not source:
 			return None
 
@@ -708,18 +716,14 @@ class DBHandler(Handler):
 		vs_id_appfilter = self.save_vsql_source(
 			cursor,
 			datasource.appfilter,
-			la.DataSourceConfig.appfilter.function,
-			p_vt_id=datasource.parent.id,
-			p_tpl_uuid_a=None,
+			datasource.vsqlvars_appfilter(),
 		)
 
 		# Compile and save the record filter
 		vs_id_recordfilter = self.save_vsql_source(
 			cursor,
 			datasource.recordfilter,
-			datasource.app.vsqlvars_recordfilter() if datasource.app else la.App.vsqlvars_recordfilter_common(),
-			p_vt_id=datasource.parent.id,
-			p_tpl_uuid_r=datasource.app.id if datasource.app is not None else None,
+			datasource.vsqlvars_recordfilter(),
 		)
 
 		# FIXME: Support for system apps?
@@ -750,7 +754,6 @@ class DBHandler(Handler):
 			self._save_dataorders(
 				cursor,
 				datasource.orders,
-				"VSQLSUPPORT_PKG3.DS_ORDER_FUL4ON",
 				ds_id=r.p_ds_id,
 			)
 			for children in datasource.children.values():
@@ -777,9 +780,7 @@ class DBHandler(Handler):
 		vs_id_filter = self.save_vsql_source(
 			cursor,
 			datasourcechildrenconfig.filter,
-			la.DataSourceChildrenConfig.filter.function,
-			p_ds_id=datasourcechildrenconfig.datasource.id,
-			p_ctl_id=ctl_id,
+			datasourcechildrenconfig.vsqlvars_filter(),
 		)
 
 		# Import the ``datasourcechildren`` record
@@ -798,11 +799,10 @@ class DBHandler(Handler):
 			self._save_dataorders(
 				cursor,
 				datasourcechildrenconfig.orders,
-				"VSQLSUPPORT_PKG3.DSC_ORDER_FUL4ON",
 				dsc_id=r.p_dsc_id,
 			)
 
-	def _save_dataorders(self, cursor, orders, function, **kwargs):
+	def _save_dataorders(self, cursor, orders, **kwargs):
 		query = t"select do_id, do_order from dataorder where "
 		for (f, (k, v)) in misc.isfirst(kwargs.items()):
 			if not f:
@@ -826,8 +826,7 @@ class DBHandler(Handler):
 				vs_id_expression = self.save_vsql_source(
 					cursor,
 					dataorder.expression,
-					function,
-					**procargs,
+					dataorder.vsqlvars_expression(),
 				)
 
 				# Import the ``dataorder`` record
@@ -1784,7 +1783,7 @@ class DBHandler(Handler):
 	def count_records(self, app, filter):
 		q = vsql.OracleQuery(
 			f"Count records of app {app.name}",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
 			app=app.vsqlfield_app("app", "g.tpl_id_app"),
 		)
@@ -1812,7 +1811,7 @@ class DBHandler(Handler):
 	def delete_records(self, app, filter):
 		q = vsql.OracleQuery(
 			f"Delete records of app {app.name}",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
 			app=app.vsqlfield_app("app", "g.tpl_id_app"),
 		)
@@ -1885,7 +1884,7 @@ class DBHandler(Handler):
 	def fetch_records(self, app, filter:list[str], sort:list[str], offset=0, limit=None):
 		q = vsql.OracleQuery(
 			f"Fetch records of app {app.name} ({app.id})",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
 			app=app.vsqlfield_app("app", "g.tpl_id_app"),
 		)
@@ -1989,10 +1988,10 @@ class DBHandler(Handler):
 	def vsqlquery4fetch(self, app, filter, fields, record):
 		q = vsql.OracleQuery(
 			f"Fetch records of app {app.name} ({app.id})",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", vsql.sql(app.internal_id)),
 			app=app.vsqlfield_app("app", vsql.sql(app.globals.app.internal_id)),
-			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
+			record=record.app.vsqlfield_record("record", "g.dat_id_detail") if record is not None else None,
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
@@ -2023,10 +2022,10 @@ class DBHandler(Handler):
 	def vsqlquery4count(self, app, filter, record):
 		q = vsql.OracleQuery(
 			f"Fetch records of app {app.name} ({app.id})",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", vsql.sql(app.internal_id)),
 			app=app.vsqlfield_app("app", vsql.sql(app.globals.app.internal_id)),
-			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
+			record=record.app.vsqlfield_record("record", "g.dat_id_detail") if record is not None else None,
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
@@ -2064,13 +2063,7 @@ class DBHandler(Handler):
 
 		q = vsql.OracleQuery(
 			"Fetch records from multiple apps",
-			user=vsql.Field(
-				"user",
-				vsql.DataType.STR,
-				"v_globals.ide_id_user",
-				"g.ide_id_user = {d}.ide_id",
-				refgroup=la.User.vsqlgroup
-			),
+			user=la.App.vsqlfield_user(),
 			r=vsql.Field(
 				"r",
 				vsql.DataType.STR,
@@ -2079,7 +2072,7 @@ class DBHandler(Handler):
 				la.App.vsqlgroup_records_common(inner_q),
 			),
 			app=globals.app.vsqlfield_app("r", vsql.sql(globals.app.internal_id)),
-			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
+			record=record.app.vsqlfield_record("record", "g.dat_id_detail") if record is not None else None,
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
@@ -2208,7 +2201,7 @@ class DBHandler(Handler):
 	def aggregate_records(self, app, filter:list[str], value:list[str]):
 		q = vsql.OracleQuery(
 			f"Aggregate records of app {app.name} ({app.id})",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
 			app=app.vsqlfield_app("app", "g.tpl_id_app"),
 		)
