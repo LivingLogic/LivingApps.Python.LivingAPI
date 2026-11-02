@@ -10511,7 +10511,6 @@ class Installation(Base):
 
 	vsqlgroup = vsql.Group(
 		"installation_link",
-		vsql.Field("internalid", vsql.DataType.STR, "{a}.upl_id"),
 		vsql.Field("id", vsql.DataType.STR, "{a}.inl_id"),
 		vsql.Field("name", vsql.DataType.STR, "{a}.inl_additional_name"),
 	)

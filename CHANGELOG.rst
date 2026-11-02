@@ -99,6 +99,10 @@
 	``AppGroup.vsqlgroup`` with the fields ``id``, ``name``, ``description``,
 	``image``, ``createdat``, ``createdby``, ``updatedat`` and ``updatedby``).
 
+*	The field ``internalid`` has been removed from ``Installation.vsqlgroup``.
+	It referenced the column ``upl_id``, which ``installation_link`` doesn't
+	have, and the database doesn't support it in vSQL either.
+
 
 0.66.0
 ------
