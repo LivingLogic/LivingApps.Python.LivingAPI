@@ -127,7 +127,9 @@ def test_datasource_appfilter(config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="all",
-			appfilter=f"a.uuid == '{person_app_id()}'"
+			appfilter=f"a.id == '{person_app_id()}'",
+			# A data source for all apps must not include all records
+			recordpermission=la.DataSourceConfig.RecordPermission.NONE,
 		),
 		identifier="vsql_datasource_appfilter",
 		source=source,
