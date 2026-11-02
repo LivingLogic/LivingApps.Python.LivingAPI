@@ -72,6 +72,13 @@
 	(implemented by ``DBHandler``), and parameter sets that can't be loaded
 	(e.g. the app group parameters) are skipped.
 
+*	``App.vsqlgroup_app`` now contains a field ``p_<identifier>`` for each
+	parameter of the app (via the new properties ``AppParameter.vsqlfield``
+	and ``AppParameter.vsqlgroup``), so that vSQL expressions like
+	``app.p_foo.value`` can be compiled again. The field ``app`` of the vSQL
+	group for records (``App.vsqlgroup_records``) now references the vSQL
+	group of the app, so ``r.app.name`` or ``r.app.p_foo.value`` work too.
+
 
 0.66.0
 ------

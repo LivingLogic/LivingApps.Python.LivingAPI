@@ -113,11 +113,12 @@ class Handler:
 	def make_viewtemplate(self, *args, **kwargs):
 		viewtemplate = la.ViewTemplateConfig(*args, **{**{"mimetype": "text/plain"}, **kwargs})
 		with self.dbhandler:
-			app = la.App()
-			app.handler = self.dbhandler
-			app.id = person_app_id()
+			# Use a fully loaded app, so that its parameters are available for
+			# the vSQL variables of the datasources (see ``App.vsqlgroup_app``)
+			vars = self.dbhandler.viewtemplate_data(person_app_id(), template="livingapi_datasources")
+			app = vars.globals.app
 			app.addtemplate(viewtemplate)
-			self.dbhandler.save_app_config(app)
+			self.dbhandler.save_viewtemplate_config(viewtemplate)
 		return viewtemplate
 
 	def make_internaltemplate(self, *args, **kwargs):

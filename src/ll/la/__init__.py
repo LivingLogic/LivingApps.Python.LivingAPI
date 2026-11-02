@@ -4258,11 +4258,20 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.ide_id", User.vsqlgroup)
 
 	@staticmethod
+	def _vsqlfield_records_app(group: vsql.Group) -> vsql.Field:
+		"""
+		Return the field ``app`` of a records group (see
+		:meth:`vsqlgroup_records_common`) that references the app of the record
+		via the vSQL group ``group``.
+		"""
+		return vsql.Field("app", vsql.DataType.STR, "{a}.tpl_uuid", "{m}.tpl_id = {d}.tpl_id(+)", group)
+
+	@staticmethod
 	def vsqlgroup_records_common(base_query: str) -> vsql.Group:
 		return vsql.Group(
 			base_query,
 			vsql.Field("id", vsql.DataType.STR, "{a}.dat_id"),
-			vsql.Field("app", vsql.DataType.STR, "{a}.tpl_uuid"),
+			App._vsqlfield_records_app(App.vsqlgroup_app_common()),
 			vsql.Field("app_internal_id", vsql.DataType.INT, "{a}.tpl_id"),
 			vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.dat_cdate"),
 			vsql.Field("createdby", vsql.DataType.STR, "{a}.dat_cname", "{m}.dat_cname = {d}.ide_id(+)", User.vsqlgroup),
@@ -4274,8 +4283,18 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 
 	@property
 	def vsqlgroup_records(self) -> vsql.Group:
+		"""
+		The vSQL group for the records of this app.
+
+		In addition to the fields of :meth:`vsqlgroup_records_common` this group
+		contains a field ``v_<identifier>`` for each control in :attr:`controls`
+		(see :attr:`Control.vsqlfield`), and the field ``app`` references the
+		vSQL group of this app (see :attr:`vsqlgroup_app`) instead of the
+		generic one, so that the app parameters are available via ``r.app``.
+		"""
 		if self._vsqlgroup_records is None:
 			self._vsqlgroup_records = g = self.vsqlgroup_records_common("data_select_la")
+			g.fields["app"] = self._vsqlfield_records_app(self.vsqlgroup_app)
 			if self.controls is not None:
 				for control in self.controls.values():
 					vsqlfield = control.vsqlfield
@@ -4298,9 +4317,26 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 
 	@property
 	def vsqlgroup_app(self) -> vsql.Group:
+		"""
+		The vSQL group for this app.
+
+		In addition to the fields of :meth:`vsqlgroup_app_common` this group
+		contains a field ``p_<identifier>`` for each parameter in
+		:attr:`ownparams` (see :attr:`AppParameter.vsqlfield`), if the
+		parameters are available (or can be loaded via the handler).
+		"""
 		if self._vsqlgroup_app is None:
-			# FIXME: Add app parameters
-			self._vsqlgroup_app = self.vsqlgroup_app_common()
+			# Cache the group before adding the parameters, so that a parameter
+			# of type ``APP`` that references this app doesn't recurse endlessly
+			self._vsqlgroup_app = g = self.vsqlgroup_app_common()
+			try:
+				params = self.ownparams
+			except NoHandlerError:
+				params = None
+			if params is not None:
+				for param in params.values():
+					vsqlfield = param.vsqlfield
+					g.fields[vsqlfield.identifier] = vsqlfield
 		return self._vsqlgroup_app
 
 	def vsqlsearchexpr(self, record: Record, maxdepth: int, controls: dict[str, Control] | None=None):
@@ -11543,6 +11579,83 @@ class AppParameter(CustomAttributes):
 			return self.identifier
 		else:
 			return f"{self.namespace}.{self.identifier}"
+
+	# vSQL datatype and SQL expression of the field ``value`` for the
+	# parameter types whose value is a scalar (see :attr:`vsqlgroup`)
+	_vsqlvalues = {
+		Type.BOOL: (vsql.DataType.BOOL, "to_number({a}.ap_value)"),
+		Type.INT: (vsql.DataType.INT, "to_number({a}.ap_value)"),
+		Type.NUMBER: (vsql.DataType.NUMBER, "case when {a}.ap_value is not null then vsqlimpl_pkg.float_str({a}.ap_value) else null end"),
+		Type.STRING: (vsql.DataType.CLOB, "{a}.ap_value_clob"),
+		Type.HTML: (vsql.DataType.CLOB, "{a}.ap_value_clob"),
+		Type.JSON: (vsql.DataType.CLOB, "{a}.ap_value_clob"),
+		Type.CODE: (vsql.DataType.CLOB, "{a}.ap_value_clob"),
+		Type.COLOR: (vsql.DataType.COLOR, "to_number({a}.ap_value)"),
+		Type.DATE: (vsql.DataType.DATE, "case when {a}.ap_value is null then null else to_date({a}.ap_value, 'YYYY-MM-DD') end"),
+		Type.DATETIME: (vsql.DataType.DATETIME, "case when {a}.ap_value is null then null else to_date({a}.ap_value, 'YYYY-MM-DD\"T\"HH24:MI:SS') end"),
+		Type.DATEDELTA: (vsql.DataType.DATEDELTA, "to_number({a}.ap_value)"),
+		Type.DATETIMEDELTA: (vsql.DataType.DATETIMEDELTA, "case when {a}.ap_value is null then null else vsqlimpl_pkg.float_str({a}.ap_value) end"),
+		Type.MONTHDELTA: (vsql.DataType.MONTHDELTA, "to_number({a}.ap_value)"),
+	}
+
+	@property
+	def vsqlgroup(self) -> vsql.Group:
+		"""
+		The vSQL group for this parameter with the fields ``id``, ``identifier``,
+		``description``, ``value``, ``createdat``, ``createdby``, ``updatedat``
+		and ``updatedby``.
+
+		The datatype of ``value`` depends on :attr:`type`. For ``UPLOAD`` and
+		``APP`` it references the vSQL group of the file or app. Parameters of
+		type ``LIST`` and ``DICT`` have no ``value`` field, since vSQL can't
+		handle those types.
+		"""
+		group = vsql.Group(
+			"appparameter",
+			vsql.Field("id", vsql.DataType.STR, "{a}.ap_id"),
+			vsql.Field("identifier", vsql.DataType.STR, "{a}.ap_identifier"),
+			vsql.Field("description", vsql.DataType.CLOB, "{a}.ap_description"),
+			vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.ap_cdate"),
+			vsql.Field("createdby", vsql.DataType.STR, "{a}.ap_cname", "{m}.ap_cname = {d}.ide_id(+)", User.vsqlgroup),
+			vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.ap_udate"),
+			vsql.Field("updatedby", vsql.DataType.STR, "{a}.ap_uname", "{m}.ap_uname = {d}.ide_id(+)", User.vsqlgroup),
+		)
+		type = self.type
+		if type in self._vsqlvalues:
+			(datatype, fieldsql) = self._vsqlvalues[type]
+			group.add_field("value", datatype, fieldsql)
+		elif type is AppParameter.Type.UPLOAD:
+			group.add_field("value", vsql.DataType.STR, "{a}.upl_id", "({m}.upl_id = {d}.upl_id and {d}.upr_table = 'appparameter' and {d}.upr_pkvalue = {m}.ap_id and {d}.upr_field = 'upl_id')", File.vsqlgroup)
+		elif type is AppParameter.Type.APP:
+			refgroup = self.value.vsqlgroup_app if isinstance(self.value, App) else App.vsqlgroup_app_common()
+			group.add_field("value", vsql.DataType.STR, "{a}.tpl_id_value", "{m}.tpl_id_value = {d}.tpl_id(+)", refgroup)
+		elif type is AppParameter.Type.CONTROL:
+			group.add_field("value", vsql.DataType.STR, "{a}.ctl_id")
+		return group
+
+	@property
+	def vsqlfield(self) -> vsql.Field:
+		"""
+		The vSQL field ``p_<identifier>`` that references this parameter from
+		the vSQL group of its app (see :attr:`App.vsqlgroup_app`).
+
+		The parameter is joined via an outer join, so that a query doesn't
+		break when the parameter gets deleted later.
+		"""
+		# The app has no column that references the parameter, so the SQL
+		# expression for the field itself is the constant ``ap_id`` (which is
+		# also used in the join condition). This mirrors how
+		# ``vsqlsupport_pkg.resolve_template_attr`` resolves ``p_<identifier>``
+		# in the database, which renders the stored vSQL expressions. (A
+		# consequence is that the field itself is never ``None``, even if the
+		# parameter has been deleted.)
+		return vsql.Field(
+			f"p_{self.identifier}",
+			vsql.DataType.STR,
+			t"{self.id}",
+			t"{{m}}.tpl_id = {{d}}.tpl_id(+) and {{d}}.ap_id(+) = {self.id}",
+			self.vsqlgroup,
+		)
 
 	def _template_candidates(self):
 		globals = self.globals
