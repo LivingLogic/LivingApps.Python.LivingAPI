@@ -35,8 +35,9 @@
 
 *	``User`` has a new attribute ``colorscheme`` that contains the preferred
 	browser color scheme of the user as a ``User.ColorScheme`` enum (``LIGHT``,
-	``DARK`` or ``AUTO``; ``"light"``, ``"dark"`` or ``"auto"`` in UL4). It is
-	also available as ``user.colorscheme`` in vSQL expressions.
+	``DARK`` or ``AUTO``; ``"light"``, ``"dark"`` or ``"auto"`` in UL4; the
+	default for dumps from an older database is ``AUTO``). It is also available
+	as ``user.colorscheme`` in vSQL expressions.
 
 *	The vSQL variables for the vSQL expressions of a ``DataSourceConfig``
 	(``appfilter``, ``recordfilter`` and the order expressions), a

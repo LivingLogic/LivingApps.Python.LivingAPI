@@ -51,7 +51,7 @@ def test_user(handler):
 		source="<?print globals.user.colorscheme?>",
 	)
 
-	assert "light" == handler.renders(person_app_id(), template=vt.identifier)
+	assert "auto" == handler.renders(person_app_id(), template=vt.identifier)
 
 
 def test_global_hostname(handler):

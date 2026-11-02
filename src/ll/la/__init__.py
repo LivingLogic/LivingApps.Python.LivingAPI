@@ -1876,7 +1876,7 @@ class User(CustomAttributes):
 	department = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	keyviews = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	colorscheme = EnumAttr(ColorScheme, get=True, set=True, required=True, default=ColorScheme.LIGHT, ul4get=True, ul4onget=True, ul4onset=True)
+	colorscheme = EnumAttr(ColorScheme, get=True, set=True, required=True, default=ColorScheme.AUTO, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self,
 		id=None, gender=None, title=None, firstname=None, surname=None,
@@ -1884,7 +1884,7 @@ class User(CustomAttributes):
 		avatar_large=None, streetname=None, streetnumber=None, zip=None,
 		city=None, phone=None, fax=None, summary=None, interests=None,
 		personal_website=None, company_website=None, company=None,
-		position=None, department=None, colorscheme=ColorScheme.LIGHT
+		position=None, department=None, colorscheme=ColorScheme.AUTO
 	):
 		self.id = id
 		self.publicid = id
