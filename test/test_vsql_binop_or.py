@@ -20,58 +20,58 @@ dt1 = "@(2000-02-29T12:34:56)"
 dt2 = "@(2000-03-01T12:34:56)"
 
 def test_null_bool(config_data):
-	check_vsql(config_data, "(None or app.p_bool_true.value) == app.p_bool_true.value")
+	check_vsql(config_data, "(None or app.p_test_bool_true.value) == app.p_test_bool_true.value")
 
 def test_bool_null(config_data):
-	check_vsql(config_data, "(app.p_bool_true.value or None) == app.p_bool_true.value")
+	check_vsql(config_data, "(app.p_test_bool_true.value or None) == app.p_test_bool_true.value")
 
 def test_bool_bool1(config_data):
-	check_vsql(config_data, "(app.p_bool_false.value or app.p_bool_false.value) == False")
+	check_vsql(config_data, "(app.p_test_bool_false.value or app.p_test_bool_false.value) == False")
 
 def test_bool_bool2(config_data):
-	check_vsql(config_data, "(app.p_bool_true.value or app.p_bool_false.value) == True")
+	check_vsql(config_data, "(app.p_test_bool_true.value or app.p_test_bool_false.value) == True")
 
 def test_int_int1(config_data):
-	check_vsql(config_data, "(0 or app.p_int_value.value) == app.p_int_value.value")
+	check_vsql(config_data, "(0 or app.p_test_int_value.value) == app.p_test_int_value.value")
 
 def test_int_int2(config_data):
-	check_vsql(config_data, "(42 or app.p_int_value.value) == 42")
+	check_vsql(config_data, "(42 or app.p_test_int_value.value) == 42")
 
 def test_number_number1(config_data):
-	check_vsql(config_data, "(0.0 or app.p_number_value.value) == app.p_number_value.value")
+	check_vsql(config_data, "(0.0 or app.p_test_number_value.value) == app.p_test_number_value.value")
 
 def test_number_number2(config_data):
-	check_vsql(config_data, "(42.5 or app.p_number_value.value) == 42.5")
+	check_vsql(config_data, "(42.5 or app.p_test_number_value.value) == 42.5")
 
 def test_str_str1(config_data):
-	check_vsql(config_data, "('' or app.p_str_value.value) == app.p_str_value.value")
+	check_vsql(config_data, "('' or app.p_test_str_value.value) == app.p_test_str_value.value")
 
 def test_str_str2(config_data):
-	check_vsql(config_data, "('hurz' or app.p_str_value.value) == 'hurz'")
+	check_vsql(config_data, "('hurz' or app.p_test_str_value.value) == 'hurz'")
 
 def test_date_date1(config_data):
-	check_vsql(config_data, f"({d1} or app.p_date_none.value) == {d1}")
+	check_vsql(config_data, f"({d1} or app.p_test_date_none.value) == {d1}")
 
 def test_date_date2(config_data):
-	check_vsql(config_data, f"({d1} or app.p_date_value.value) == {d1}")
+	check_vsql(config_data, f"({d1} or app.p_test_date_value.value) == {d1}")
 
 def test_datetime_datetime1(config_data):
-	check_vsql(config_data, f"(app.p_datetime_none.value or {dt1}) == {dt1}")
+	check_vsql(config_data, f"(app.p_test_datetime_none.value or {dt1}) == {dt1}")
 
 def test_datetime_datetime2(config_data):
-	check_vsql(config_data, f"(app.p_datetime_value.value or {dt1}) == app.p_datetime_value.value")
+	check_vsql(config_data, f"(app.p_test_datetime_value.value or {dt1}) == app.p_test_datetime_value.value")
 
 def test_datedelta_datedelta1(config_data):
-	check_vsql(config_data, "(app.p_datedelta_none.value or days(10)) == days(10)")
+	check_vsql(config_data, "(app.p_test_datedelta_none.value or days(10)) == days(10)")
 
 def test_datedelta_datedelta2(config_data):
-	check_vsql(config_data, "(app.p_datedelta_value.value or days(10)) == app.p_datedelta_value.value")
+	check_vsql(config_data, "(app.p_test_datedelta_value.value or days(10)) == app.p_test_datedelta_value.value")
 
 def test_datetimedelta_datetimedelta1(config_data):
-	check_vsql(config_data, "(app.p_datetimedelta_none.value or hours(12)) == hours(12)")
+	check_vsql(config_data, "(app.p_test_datetimedelta_none.value or hours(12)) == hours(12)")
 
 def test_datetimedelta_datetimedelta2(config_data):
-	check_vsql(config_data, "(app.p_datetimedelta_value.value or hours(12)) == app.p_datetimedelta_value.value")
+	check_vsql(config_data, "(app.p_test_datetimedelta_value.value or hours(12)) == app.p_test_datetimedelta_value.value")
 
 def test_intlist_intlist1(config_data):
 	check_vsql(config_data, "(0*[1] or [4, 5, 6]) == [4, 5, 6]")

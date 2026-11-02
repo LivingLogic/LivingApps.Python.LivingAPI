@@ -24,46 +24,46 @@ dt3 = "@(2000-03-02T12:34:56)"
 dt4 = "@(2000-03-03T12:34:56)"
 
 def test_str_1(config_data):
-	check_vsql(config_data, "app.p_str_value.value[1:3] == 'ur'")
+	check_vsql(config_data, "app.p_test_str_value.value[1:3] == 'ur'")
 
 def test_str_2(config_data):
-	check_vsql(config_data, "app.p_str_value.value[-3:-1] == 'ur'")
+	check_vsql(config_data, "app.p_test_str_value.value[-3:-1] == 'ur'")
 
 def test_str_3(config_data):
-	check_vsql(config_data, "app.p_str_value.value[4:10] == ''")
+	check_vsql(config_data, "app.p_test_str_value.value[4:10] == ''")
 
 def test_str_4(config_data):
-	check_vsql(config_data, "app.p_str_value.value[-10:-5] == ''")
+	check_vsql(config_data, "app.p_test_str_value.value[-10:-5] == ''")
 
 def test_str_5(config_data):
-	check_vsql(config_data, "app.p_str_value.value[1:] == 'urk'")
+	check_vsql(config_data, "app.p_test_str_value.value[1:] == 'urk'")
 
 def test_str_6(config_data):
-	check_vsql(config_data, "app.p_str_value.value[-3:] == 'urk'")
+	check_vsql(config_data, "app.p_test_str_value.value[-3:] == 'urk'")
 
 def test_str_7(config_data):
-	check_vsql(config_data, "app.p_str_value.value[4:] == ''")
+	check_vsql(config_data, "app.p_test_str_value.value[4:] == ''")
 
 def test_str_8(config_data):
-	check_vsql(config_data, "app.p_str_value.value[-10:] == 'gurk'")
+	check_vsql(config_data, "app.p_test_str_value.value[-10:] == 'gurk'")
 
 def test_str_9(config_data):
-	check_vsql(config_data, "app.p_str_value.value[:3] == 'gur'")
+	check_vsql(config_data, "app.p_test_str_value.value[:3] == 'gur'")
 
 def test_str_10(config_data):
-	check_vsql(config_data, "app.p_str_value.value[:-1] == 'gur'")
+	check_vsql(config_data, "app.p_test_str_value.value[:-1] == 'gur'")
 
 def test_str_11(config_data):
-	check_vsql(config_data, "app.p_str_value.value[:10] == 'gurk'")
+	check_vsql(config_data, "app.p_test_str_value.value[:10] == 'gurk'")
 
 def test_str_12(config_data):
-	check_vsql(config_data, "app.p_str_value.value[:-5] == ''")
+	check_vsql(config_data, "app.p_test_str_value.value[:-5] == ''")
 
 def test_str_13(config_data):
-	check_vsql(config_data, "app.p_str_value.value[:] == 'gurk'")
+	check_vsql(config_data, "app.p_test_str_value.value[:] == 'gurk'")
 
 def test_str_14(config_data):
-	check_vsql(config_data, "app.p_str_value.value[None:None] == 'gurk'")
+	check_vsql(config_data, "app.p_test_str_value.value[None:None] == 'gurk'")
 
 def test_intlist_1(config_data):
 	check_vsql(config_data, "[1, 2, 3, 4][1:3] == [2, 3]")

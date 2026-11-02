@@ -14,31 +14,31 @@ from conftest import *
 ###
 
 def test_bool_bool1(config_data):
-	check_vsql(config_data, "repr(app.p_bool_false.value | False) == '0'")
+	check_vsql(config_data, "repr(app.p_test_bool_false.value | False) == '0'")
 
 def test_bool_bool2(config_data):
-	check_vsql(config_data, "repr(app.p_bool_true.value | False) == '1'")
+	check_vsql(config_data, "repr(app.p_test_bool_true.value | False) == '1'")
 
 def test_bool_int1(config_data):
-	check_vsql(config_data, "repr(app.p_bool_false.value | 0) == '0'")
+	check_vsql(config_data, "repr(app.p_test_bool_false.value | 0) == '0'")
 
 def test_bool_int2(config_data):
-	check_vsql(config_data, "repr(app.p_bool_true.value | 3) == '3'")
+	check_vsql(config_data, "repr(app.p_test_bool_true.value | 3) == '3'")
 
 def test_int_bool1(config_data):
-	check_vsql(config_data, "repr(app.p_int_value.value | False) == '1777'")
+	check_vsql(config_data, "repr(app.p_test_int_value.value | False) == '1777'")
 
 def test_int_bool2(config_data):
-	check_vsql(config_data, "repr(app.p_int_value.value | True) == '1777'")
+	check_vsql(config_data, "repr(app.p_test_int_value.value | True) == '1777'")
 
 def test_int_int1(config_data):
-	check_vsql(config_data, "repr(app.p_int_value.value | 0b100111001) == '2041'")
+	check_vsql(config_data, "repr(app.p_test_int_value.value | 0b100111001) == '2041'")
 
 def test_int_int2(config_data):
-	check_vsql(config_data, "repr(app.p_int_value.value | 0) == '1777'")
+	check_vsql(config_data, "repr(app.p_test_int_value.value | 0) == '1777'")
 
 def test_int_int3(config_data):
-	check_vsql(config_data, "repr((-app.p_int_value.value) | 0b100111001) == '-1729'")
+	check_vsql(config_data, "repr((-app.p_test_int_value.value) | 0b100111001) == '-1729'")
 
 def test_intset_intset1(config_data):
 	check_vsql(config_data, "{1} | {1} == {1}")

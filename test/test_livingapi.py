@@ -454,9 +454,9 @@ def test_app_shortcuts(handler, config_data):
 		source="""
 			app.controls.firstname.identifier = <?print repr(app.controls.firstname.identifier)?>
 			app.c_firstname.identifier = <?print repr(app.c_firstname.identifier)?>
-			app.params.bool_true.value = <?print repr(app.params.bool_true.value)?>
-			app.p_bool_true.value = <?print repr(app.p_bool_true.value)?>
-			app.pv_bool_true = <?print repr(app.pv_bool_true)?>
+			app.params.test_bool_true.value = <?print repr(app.params.test_bool_true.value)?>
+			app.p_test_bool_true.value = <?print repr(app.p_test_bool_true.value)?>
+			app.pv_test_bool_true = <?print repr(app.pv_test_bool_true)?>
 			<?code app.active_view = first(app.views)?>
 			app.layout_controls.save.identifier = <?print repr(app.layout_controls.save.identifier)?>
 			app.lc_save.identifier = <?print repr(app.lc_save.identifier)?>
@@ -467,9 +467,9 @@ def test_app_shortcuts(handler, config_data):
 	expected = """
 		app.controls.firstname.identifier = 'firstname'
 		app.c_firstname.identifier = 'firstname'
-		app.params.bool_true.value = True
-		app.p_bool_true.value = True
-		app.pv_bool_true = True
+		app.params.test_bool_true.value = True
+		app.p_test_bool_true.value = True
+		app.pv_test_bool_true = True
 		app.layout_controls.save.identifier = 'save'
 		app.lc_save.identifier = 'save'
 	"""
@@ -637,8 +637,8 @@ def test_app_parameters_on_demand(handler):
 			identifier="test_livingapi_app_parameters_on_demand",
 			source="""
 				<?print app.params is not None?>
-				<?print app.p_bool_true.value?>
-				<?print app.pv_bool_true?>
+				<?print app.p_test_bool_true.value?>
+				<?print app.pv_test_bool_true?>
 			""",
 		)
 
@@ -667,127 +667,127 @@ def test_appparams(handler, config_data):
 		),
 		identifier="test_livingapi_appparam_bool",
 		source="""
-			bool_none.value=<?print repr(app.params.bool_none.value)?>
-			bool_none.description=<?print app.params.bool_none.description?>
-			bool_false.value=<?print repr(app.params.bool_false.value)?>
-			bool_false.description=<?print app.params.bool_false.description?>
-			bool_true.value=<?print repr(app.params.bool_true.value)?>
-			bool_true.description=<?print app.params.bool_true.description?>
+			test_bool_none.value=<?print repr(app.params.test_bool_none.value)?>
+			test_bool_none.description=<?print app.params.test_bool_none.description?>
+			test_bool_false.value=<?print repr(app.params.test_bool_false.value)?>
+			test_bool_false.description=<?print app.params.test_bool_false.description?>
+			test_bool_true.value=<?print repr(app.params.test_bool_true.value)?>
+			test_bool_true.description=<?print app.params.test_bool_true.description?>
 
-			int_none.value=<?print repr(app.params.int_none.value)?>
-			int_none.description=<?print app.params.int_none.description?>
-			int_value.value=<?print repr(app.params.int_value.value)?>
-			int_value.description=<?print app.params.int_value.description?>
+			test_int_none.value=<?print repr(app.params.test_int_none.value)?>
+			test_int_none.description=<?print app.params.test_int_none.description?>
+			test_int_value.value=<?print repr(app.params.test_int_value.value)?>
+			test_int_value.description=<?print app.params.test_int_value.description?>
 
-			number_none.value=<?print repr(app.params.number_none.value)?>
-			number_none.description=<?print app.params.number_none.description?>
-			number_value.value=<?print repr(app.params.number_value.value)?>
-			number_value.description=<?print app.params.number_value.description?>
+			test_number_none.value=<?print repr(app.params.test_number_none.value)?>
+			test_number_none.description=<?print app.params.test_number_none.description?>
+			test_number_value.value=<?print repr(app.params.test_number_value.value)?>
+			test_number_value.description=<?print app.params.test_number_value.description?>
 
-			str_none.value=<?print repr(app.params.str_none.value)?>
-			str_none.description=<?print app.params.str_none.description?>
-			str_value.value=<?print repr(app.params.str_value.value)?>
-			str_value.description=<?print app.params.str_value.description?>
+			test_str_none.value=<?print repr(app.params.test_str_none.value)?>
+			test_str_none.description=<?print app.params.test_str_none.description?>
+			test_str_value.value=<?print repr(app.params.test_str_value.value)?>
+			test_str_value.description=<?print app.params.test_str_value.description?>
 
-			color_none.value=<?print repr(app.params.color_none.value)?>
-			color_none.description=<?print app.params.color_none.description?>
-			color_value.value=<?print repr(app.params.color_value.value)?>
-			color_value.description=<?print app.params.color_value.description?>
+			test_color_none.value=<?print repr(app.params.test_color_none.value)?>
+			test_color_none.description=<?print app.params.test_color_none.description?>
+			test_color_value.value=<?print repr(app.params.test_color_value.value)?>
+			test_color_value.description=<?print app.params.test_color_value.description?>
 
-			datedelta_none.value=<?print repr(app.params.datedelta_none.value)?>
-			datedelta_none.description=<?print app.params.datedelta_none.description?>
-			datedelta_value.value=<?print repr(app.params.datedelta_value.value)?>
-			datedelta_value.description=<?print app.params.datedelta_value.description?>
+			test_datedelta_none.value=<?print repr(app.params.test_datedelta_none.value)?>
+			test_datedelta_none.description=<?print app.params.test_datedelta_none.description?>
+			test_datedelta_value.value=<?print repr(app.params.test_datedelta_value.value)?>
+			test_datedelta_value.description=<?print app.params.test_datedelta_value.description?>
 
-			datetimedelta_none.value=<?print repr(app.params.datetimedelta_none.value)?>
-			datetimedelta_none.description=<?print app.params.datetimedelta_none.description?>
-			datetimedelta_value.value=<?print repr(app.params.datetimedelta_value.value)?>
-			datetimedelta_value.description=<?print app.params.datetimedelta_value.description?>
+			test_datetimedelta_none.value=<?print repr(app.params.test_datetimedelta_none.value)?>
+			test_datetimedelta_none.description=<?print app.params.test_datetimedelta_none.description?>
+			test_datetimedelta_value.value=<?print repr(app.params.test_datetimedelta_value.value)?>
+			test_datetimedelta_value.description=<?print app.params.test_datetimedelta_value.description?>
 
-			monthdelta_none.value=<?print repr(app.params.monthdelta_none.value)?>
-			monthdelta_none.description=<?print app.params.monthdelta_none.description?>
-			monthdelta_value.value=<?print repr(app.params.monthdelta_value.value)?>
-			monthdelta_value.description=<?print app.params.monthdelta_value.description?>
+			test_monthdelta_none.value=<?print repr(app.params.test_monthdelta_none.value)?>
+			test_monthdelta_none.description=<?print app.params.test_monthdelta_none.description?>
+			test_monthdelta_value.value=<?print repr(app.params.test_monthdelta_value.value)?>
+			test_monthdelta_value.description=<?print app.params.test_monthdelta_value.description?>
 
-			upload_none.value=<?print repr(app.params.upload_none.value)?>
-			upload_none.description=<?print app.params.upload_none.description?>
-			upload_value.value=<?print repr(app.params.upload_value.value.mimetype)?>
-			upload_value.description=<?print app.params.upload_value.description?>
+			test_upload_none.value=<?print repr(app.params.test_upload_none.value)?>
+			test_upload_none.description=<?print app.params.test_upload_none.description?>
+			test_upload_value.value=<?print repr(app.params.test_upload_value.value.mimetype)?>
+			test_upload_value.description=<?print app.params.test_upload_value.description?>
 
-			app_none.value=<?print repr(app.params.app_none.value)?>
-			app_none.description=<?print app.params.app_none.description?>
-			app_value.value=<?print repr(app.params.app_value.value.id)?>
-			app_value.description=<?print app.params.app_value.description?>
+			test_app_none.value=<?print repr(app.params.test_app_none.value)?>
+			test_app_none.description=<?print app.params.test_app_none.description?>
+			test_app_value.value=<?print repr(app.params.test_app_value.value.id)?>
+			test_app_value.description=<?print app.params.test_app_value.description?>
 
-			str_value.identifier=<?print app.p_str_value.identifier?>
-			str_value.description=<?print app.p_str_value.description?>
-			str_value.createdat=<?print isdatetime(app.p_str_value.createdat)?>
-			str_value.createdby=<?print isdefined(app.p_str_value.createdby)?>
-			str_value.updatedat=<?print isdefined(app.p_str_value.updatedat)?>
-			str_value.updatedby=<?print isdefined(app.p_str_value.updatedby)?>
+			test_str_value.identifier=<?print app.p_test_str_value.identifier?>
+			test_str_value.description=<?print app.p_test_str_value.description?>
+			test_str_value.createdat=<?print isdatetime(app.p_test_str_value.createdat)?>
+			test_str_value.createdby=<?print isdefined(app.p_test_str_value.createdby)?>
+			test_str_value.updatedat=<?print isdefined(app.p_test_str_value.updatedat)?>
+			test_str_value.updatedby=<?print isdefined(app.p_test_str_value.updatedby)?>
 		"""
 	)
 
 	output = handler.renders(person_app_id(), template=vt.identifier)
 	expected = f"""
-		bool_none.value=None
-		bool_none.description=desc bool_none
-		bool_false.value=False
-		bool_false.description=desc bool_false
-		bool_true.value=True
-		bool_true.description=desc bool_true
+		test_bool_none.value=None
+		test_bool_none.description=Test parameter test_bool_none for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_bool_false.value=False
+		test_bool_false.description=Test parameter test_bool_false for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_bool_true.value=True
+		test_bool_true.description=Test parameter test_bool_true for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
 
-		int_none.value=None
-		int_none.description=desc int_none
-		int_value.value=1777
-		int_value.description=desc int_value
+		test_int_none.value=None
+		test_int_none.description=Test parameter test_int_none for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_int_value.value=1777
+		test_int_value.description=Test parameter test_int_value for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
 
-		number_none.value=None
-		number_none.description=desc number_none
-		number_value.value=42.5
-		number_value.description=desc number_value
+		test_number_none.value=None
+		test_number_none.description=Test parameter test_number_none for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_number_value.value=42.5
+		test_number_value.description=Test parameter test_number_value for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
 
-		str_none.value=None
-		str_none.description=desc str_none
-		str_value.value='gurk'
-		str_value.description=desc str_value
+		test_str_none.value=None
+		test_str_none.description=Test parameter test_str_none for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_str_value.value='gurk'
+		test_str_value.description=Test parameter test_str_value for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
 
-		color_none.value=None
-		color_none.description=desc color_none
-		color_value.value=#369c
-		color_value.description=desc color_value
+		test_color_none.value=None
+		test_color_none.description=Test parameter test_color_none for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_color_value.value=#369c
+		test_color_value.description=Test parameter test_color_value for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
 
-		datedelta_none.value=None
-		datedelta_none.description=desc datedelta_none
-		datedelta_value.value=timedelta(days=12)
-		datedelta_value.description=desc datedelta_value
+		test_datedelta_none.value=None
+		test_datedelta_none.description=Test parameter test_datedelta_none for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_datedelta_value.value=timedelta(days=12)
+		test_datedelta_value.description=Test parameter test_datedelta_value for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
 
-		datetimedelta_none.value=None
-		datetimedelta_none.description=desc datetimedelta_none
-		datetimedelta_value.value=timedelta(days=1, seconds=45296)
-		datetimedelta_value.description=desc datetimedelta_value
+		test_datetimedelta_none.value=None
+		test_datetimedelta_none.description=Test parameter test_datetimedelta_none for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_datetimedelta_value.value=timedelta(days=1, seconds=45296)
+		test_datetimedelta_value.description=Test parameter test_datetimedelta_value for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
 
-		monthdelta_none.value=None
-		monthdelta_none.description=desc monthdelta_none
-		monthdelta_value.value=monthdelta(3)
-		monthdelta_value.description=desc monthdelta_value
+		test_monthdelta_none.value=None
+		test_monthdelta_none.description=Test parameter test_monthdelta_none for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_monthdelta_value.value=monthdelta(3)
+		test_monthdelta_value.description=Test parameter test_monthdelta_value for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
 
-		upload_none.value=None
-		upload_none.description=desc upload_none
-		upload_value.value='image/jpeg'
-		upload_value.description=desc upload_value
+		test_upload_none.value=None
+		test_upload_none.description=Test parameter test_upload_none for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_upload_value.value='image/jpeg'
+		test_upload_value.description=Test parameter test_upload_value for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
 
-		app_none.value=None
-		app_none.description=desc app_none
-		app_value.value='{person_app_id()}'
-		app_value.description=desc app_value
+		test_app_none.value=None
+		test_app_none.description=Test parameter test_app_none for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_app_value.value='{person_app_id()}'
+		test_app_value.description=Test parameter test_app_value for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
 
-		str_value.identifier=str_value
-		str_value.description=desc str_value
-		str_value.createdat=True
-		str_value.createdby=True
-		str_value.updatedat=True
-		str_value.updatedby=True
+		test_str_value.identifier=test_str_value
+		test_str_value.description=Test parameter test_str_value for the LivingAPI test suite (test_appparams, test_vsql_*). Do not delete!
+		test_str_value.createdat=True
+		test_str_value.createdby=True
+		test_str_value.updatedat=True
+		test_str_value.updatedby=True
 	"""
 	assert lines(output) == lines(expected)
 
@@ -996,9 +996,9 @@ def test_globals_shortcuts(handler, config_data):
 		source="""
 			<?print repr(globals.datasources.persons.app.controls.firstname.identifier)?>
 			<?print repr(globals.d_persons.app.c_firstname.identifier)?>
-			<?print repr(globals.app.params.bool_true.value)?>
-			<?print repr(globals.p_bool_true.value)?>
-			<?print repr(globals.pv_bool_true)?>
+			<?print repr(globals.app.params.test_bool_true.value)?>
+			<?print repr(globals.p_test_bool_true.value)?>
+			<?print repr(globals.pv_test_bool_true)?>
 		""",
 	)
 
@@ -3646,8 +3646,8 @@ def test_globals_pv_attributes_settable(handler, config_data):
 			),
 			identifier="test_livingapi_pv_attributes_settable",
 			source=f"""
-				<?code globals.pv_int_value = 17?>
-				<?print globals.pv_int_value?>
+				<?code globals.pv_test_int_value = 17?>
+				<?print globals.pv_test_int_value?>
 			""",
 		)
 
@@ -3670,8 +3670,8 @@ def test_app_pv_attributes_settable(handler, config_data):
 			),
 			identifier="test_livingapi_pv_attributes_settable",
 			source=f"""
-				<?code app.pv_int_value = 17?>
-				<?print app.pv_int_value?>
+				<?code app.pv_test_int_value = 17?>
+				<?print app.pv_test_int_value?>
 			""",
 		)
 

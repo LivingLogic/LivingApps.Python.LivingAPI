@@ -14,10 +14,10 @@ from conftest import *
 ###
 
 def test_str_bool(config_data):
-	check_vsql(config_data, "app.p_str_value.value[True] == 'u'")
+	check_vsql(config_data, "app.p_test_str_value.value[True] == 'u'")
 
 def test_str_int(config_data):
-	check_vsql(config_data, "app.p_str_value.value[2] == 'r'")
+	check_vsql(config_data, "app.p_test_str_value.value[2] == 'r'")
 
 def test_strlist_bool(config_data):
 	check_vsql(config_data, "['gurk', 'hurz', 'hinz', 'kunz'][True] == 'hurz'")

@@ -48,10 +48,10 @@ def test_null_datetimelist2(config_data):
 	check_vsql(config_data, "None in [@(2000-02-29T12:34:56), None, @(2000-03-01T12:34:56)]")
 
 def test_str_str1(config_data):
-	check_vsql(config_data, "not ('az' in app.p_str_value.value)")
+	check_vsql(config_data, "not ('az' in app.p_test_str_value.value)")
 
 def test_str_str2(config_data):
-	check_vsql(config_data, "'ur' in app.p_str_value.value")
+	check_vsql(config_data, "'ur' in app.p_test_str_value.value")
 
 def test_str_strlist1(config_data):
 	check_vsql(config_data, "not ('hinz' in ['gurk', 'hurz'])")

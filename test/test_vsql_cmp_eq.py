@@ -14,136 +14,136 @@ from conftest import *
 ###
 
 def test_bool_none_false(config_data):
-	check_vsql(config_data, "app.p_bool_none.value == None")
+	check_vsql(config_data, "app.p_test_bool_none.value == None")
 
 def test_bool_none_true(config_data):
-	check_vsql(config_data, "not (app.p_bool_true.value == None)")
+	check_vsql(config_data, "not (app.p_test_bool_true.value == None)")
 
 def test_int_none_false(config_data):
-	check_vsql(config_data, "app.p_int_none.value == None")
+	check_vsql(config_data, "app.p_test_int_none.value == None")
 
 def test_int_none_true(config_data):
-	check_vsql(config_data, "not (app.p_int_value.value == None)")
+	check_vsql(config_data, "not (app.p_test_int_value.value == None)")
 
 def test_number_none_false(config_data):
-	check_vsql(config_data, "app.p_number_none.value == None")
+	check_vsql(config_data, "app.p_test_number_none.value == None")
 
 def test_number_none_true(config_data):
-	check_vsql(config_data, "not (app.p_number_value.value == None)")
+	check_vsql(config_data, "not (app.p_test_number_value.value == None)")
 
 def test_str_none_false(config_data):
-	check_vsql(config_data, "app.p_str_none.value == None")
+	check_vsql(config_data, "app.p_test_str_none.value == None")
 
 def test_str_none_true(config_data):
-	check_vsql(config_data, "not (app.p_str_value.value == None)")
+	check_vsql(config_data, "not (app.p_test_str_value.value == None)")
 
 def test_date_none_false(config_data):
-	check_vsql(config_data, "app.p_date_none.value == None")
+	check_vsql(config_data, "app.p_test_date_none.value == None")
 
 def test_date_none_true(config_data):
-	check_vsql(config_data, "not (app.p_date_value.value == None)")
+	check_vsql(config_data, "not (app.p_test_date_value.value == None)")
 
 def test_datetime_none_false(config_data):
-	check_vsql(config_data, "app.p_datetime_none.value == None")
+	check_vsql(config_data, "app.p_test_datetime_none.value == None")
 
 def test_datetime_none_true(config_data):
-	check_vsql(config_data, "not (app.p_datetime_value.value == None)")
+	check_vsql(config_data, "not (app.p_test_datetime_value.value == None)")
 
 def test_color_none_false(config_data):
-	check_vsql(config_data, "app.p_color_none.value == None")
+	check_vsql(config_data, "app.p_test_color_none.value == None")
 
 def test_color_none_true(config_data):
-	check_vsql(config_data, "not (app.p_color_value.value == None)")
+	check_vsql(config_data, "not (app.p_test_color_value.value == None)")
 
 def test_datedelta_none_false(config_data):
-	check_vsql(config_data, "app.p_datedelta_none.value == None")
+	check_vsql(config_data, "app.p_test_datedelta_none.value == None")
 
 def test_datedelta_none_true(config_data):
-	check_vsql(config_data, "not (app.p_datedelta_value.value == None)")
+	check_vsql(config_data, "not (app.p_test_datedelta_value.value == None)")
 
 def test_datetimedelta_none_false(config_data):
-	check_vsql(config_data, "app.p_datetimedelta_none.value == None")
+	check_vsql(config_data, "app.p_test_datetimedelta_none.value == None")
 
 def test_datetimedelta_none_true(config_data):
-	check_vsql(config_data, "not (app.p_datetimedelta_value.value == None)")
+	check_vsql(config_data, "not (app.p_test_datetimedelta_value.value == None)")
 
 def test_monthdelta_none_false(config_data):
-	check_vsql(config_data, "app.p_monthdelta_none.value == None")
+	check_vsql(config_data, "app.p_test_monthdelta_none.value == None")
 
 def test_monthdelta_none_true(config_data):
-	check_vsql(config_data, "not (app.p_monthdelta_value.value == None)")
+	check_vsql(config_data, "not (app.p_test_monthdelta_value.value == None)")
 
 def test_bool_bool_false(config_data):
-	check_vsql(config_data, "app.p_bool_false.value == False")
+	check_vsql(config_data, "app.p_test_bool_false.value == False")
 
 def test_bool_bool_true(config_data):
-	check_vsql(config_data, "app.p_bool_true.value == True")
+	check_vsql(config_data, "app.p_test_bool_true.value == True")
 
 def test_bool_int_false(config_data):
-	check_vsql(config_data, "app.p_bool_false.value == 0")
+	check_vsql(config_data, "app.p_test_bool_false.value == 0")
 
 def test_bool_int_true(config_data):
-	check_vsql(config_data, "app.p_bool_true.value == 1")
+	check_vsql(config_data, "app.p_test_bool_true.value == 1")
 
 def test_int_bool_false(config_data):
-	check_vsql(config_data, "0 == app.p_bool_false.value")
+	check_vsql(config_data, "0 == app.p_test_bool_false.value")
 
 def test_int_bool_true(config_data):
-	check_vsql(config_data, "1 == app.p_bool_true.value")
+	check_vsql(config_data, "1 == app.p_test_bool_true.value")
 
 def test_number_bool_false(config_data):
-	check_vsql(config_data, "0.0 == app.p_bool_false.value")
+	check_vsql(config_data, "0.0 == app.p_test_bool_false.value")
 
 def test_number_bool_true(config_data):
-	check_vsql(config_data, "1.0 == app.p_bool_true.value")
+	check_vsql(config_data, "1.0 == app.p_test_bool_true.value")
 
 def test_number_int_false(config_data):
-	check_vsql(config_data, "not (42.5 == app.p_int_value.value)")
+	check_vsql(config_data, "not (42.5 == app.p_test_int_value.value)")
 
 def test_number_int_true(config_data):
-	check_vsql(config_data, "1777.0 == app.p_int_value.value")
+	check_vsql(config_data, "1777.0 == app.p_test_int_value.value")
 
 def test_number_number_false(config_data):
-	check_vsql(config_data, "not (17.23 == app.p_number_value.value)")
+	check_vsql(config_data, "not (17.23 == app.p_test_number_value.value)")
 
 def test_number_number_true(config_data):
-	check_vsql(config_data, "42.5 == app.p_number_value.value")
+	check_vsql(config_data, "42.5 == app.p_test_number_value.value")
 
 def test_str_str_false(config_data):
-	check_vsql(config_data, "not (app.p_str_none.value == 'gurk')")
+	check_vsql(config_data, "not (app.p_test_str_none.value == 'gurk')")
 
 def test_str_str_true(config_data):
-	check_vsql(config_data, "app.p_str_value.value == 'gurk'")
+	check_vsql(config_data, "app.p_test_str_value.value == 'gurk'")
 
 def test_date_date_false(config_data):
-	check_vsql(config_data, "not (app.p_date_none.value == @(2000-02-29))")
+	check_vsql(config_data, "not (app.p_test_date_none.value == @(2000-02-29))")
 
 def test_date_date_true(config_data):
-	check_vsql(config_data, "app.p_date_value.value == @(2000-02-29)")
+	check_vsql(config_data, "app.p_test_date_value.value == @(2000-02-29)")
 
 def test_datetime_datetime_false(config_data):
-	check_vsql(config_data, "not (app.p_datetime_none.value == @(2000-02-29T12:34:56))")
+	check_vsql(config_data, "not (app.p_test_datetime_none.value == @(2000-02-29T12:34:56))")
 
 def test_datetime_datetime_true(config_data):
-	check_vsql(config_data, "app.p_datetime_value.value == @(2000-02-29T12:34:56)")
+	check_vsql(config_data, "app.p_test_datetime_value.value == @(2000-02-29T12:34:56)")
 
 def test_datedelta_datedelta_false(config_data):
-	check_vsql(config_data, "not (app.p_datedelta_none.value == days(12))")
+	check_vsql(config_data, "not (app.p_test_datedelta_none.value == days(12))")
 
 def test_datedelta_datedelta_true(config_data):
-	check_vsql(config_data, "app.p_datedelta_value.value == days(12)")
+	check_vsql(config_data, "app.p_test_datedelta_value.value == days(12)")
 
 def test_color_color_false(config_data):
-	check_vsql(config_data, "not (app.p_color_none.value == #369c)")
+	check_vsql(config_data, "not (app.p_test_color_none.value == #369c)")
 
 def test_color_color_true(config_data):
-	check_vsql(config_data, "app.p_color_value.value == #369c")
+	check_vsql(config_data, "app.p_test_color_value.value == #369c")
 
 def test_datetimedelta_datetimedelta_false(config_data):
-	check_vsql(config_data, "not (app.p_datetimedelta_none.value == timedelta(1, 45296))")
+	check_vsql(config_data, "not (app.p_test_datetimedelta_none.value == timedelta(1, 45296))")
 
 def test_datetimedelta_datetimedelta_true(config_data):
-	check_vsql(config_data, "app.p_datetimedelta_value.value == timedelta(1, 45296)")
+	check_vsql(config_data, "app.p_test_datetimedelta_value.value == timedelta(1, 45296)")
 
 def test_intlist_intlist1(config_data):
 	check_vsql(config_data, "not ([1] == [2])")

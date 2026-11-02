@@ -14,67 +14,67 @@ from conftest import *
 ###
 
 def test_bool_none1(config_data):
-	check_vsql(config_data, "not (app.p_bool_none.value > None)")
+	check_vsql(config_data, "not (app.p_test_bool_none.value > None)")
 
 def test_bool_none2(config_data):
-	check_vsql(config_data, "app.p_bool_false.value > None")
+	check_vsql(config_data, "app.p_test_bool_false.value > None")
 
 def test_bool_none3(config_data):
-	check_vsql(config_data, "app.p_bool_true.value > None")
+	check_vsql(config_data, "app.p_test_bool_true.value > None")
 
 def test_int_none1(config_data):
-	check_vsql(config_data, "not (app.p_int_none.value > None)")
+	check_vsql(config_data, "not (app.p_test_int_none.value > None)")
 
 def test_int_none2(config_data):
-	check_vsql(config_data, "app.p_int_value.value > None")
+	check_vsql(config_data, "app.p_test_int_value.value > None")
 
 def test_number_none1(config_data):
-	check_vsql(config_data, "not (app.p_number_none.value > None)")
+	check_vsql(config_data, "not (app.p_test_number_none.value > None)")
 
 def test_number_none2(config_data):
-	check_vsql(config_data, "app.p_number_value.value > None")
+	check_vsql(config_data, "app.p_test_number_value.value > None")
 
 def test_str_none1(config_data):
-	check_vsql(config_data, "not (app.p_str_none.value > None)")
+	check_vsql(config_data, "not (app.p_test_str_none.value > None)")
 
 def test_str_none2(config_data):
-	check_vsql(config_data, "app.p_str_value.value > None")
+	check_vsql(config_data, "app.p_test_str_value.value > None")
 
 def test_date_none1(config_data):
-	check_vsql(config_data, "not (app.p_date_none.value > None)")
+	check_vsql(config_data, "not (app.p_test_date_none.value > None)")
 
 def test_date_none2(config_data):
-	check_vsql(config_data, "app.p_date_value.value > None")
+	check_vsql(config_data, "app.p_test_date_value.value > None")
 
 def test_datetime_none1(config_data):
-	check_vsql(config_data, "not (app.p_datetime_none.value > None)")
+	check_vsql(config_data, "not (app.p_test_datetime_none.value > None)")
 
 def test_datetime_none2(config_data):
-	check_vsql(config_data, "app.p_datetime_value.value > None")
+	check_vsql(config_data, "app.p_test_datetime_value.value > None")
 
 def test_color_none1(config_data):
-	check_vsql(config_data, "not (app.p_color_none.value > None)")
+	check_vsql(config_data, "not (app.p_test_color_none.value > None)")
 
 def test_color_none2(config_data):
-	check_vsql(config_data, "app.p_color_value.value > None")
+	check_vsql(config_data, "app.p_test_color_value.value > None")
 
 def test_datedelta_none1(config_data):
-	check_vsql(config_data, "not (app.p_datedelta_none.value > None)")
+	check_vsql(config_data, "not (app.p_test_datedelta_none.value > None)")
 
 def test_datedelta_none2(config_data):
-	check_vsql(config_data, "app.p_datedelta_value.value > None")
+	check_vsql(config_data, "app.p_test_datedelta_value.value > None")
 
 def test_datetimedelta_none1(config_data):
-	check_vsql(config_data, "not (app.p_datetimedelta_none.value > None)")
+	check_vsql(config_data, "not (app.p_test_datetimedelta_none.value > None)")
 
 def test_datetimedelta_none2(config_data):
-	check_vsql(config_data, "app.p_datetimedelta_value.value > None")
+	check_vsql(config_data, "app.p_test_datetimedelta_value.value > None")
 
 def test_monthdelta_none1(config_data):
-	check_vsql(config_data, "not (app.p_monthdelta_none.value > None)")
+	check_vsql(config_data, "not (app.p_test_monthdelta_none.value > None)")
 
 def test_monthdelta_none2(config_data):
-	check_vsql(config_data, "app.p_monthdelta_value.value > None")
+	check_vsql(config_data, "app.p_test_monthdelta_value.value > None")
 
 def test_intlist_none(config_data):
 	check_vsql(config_data, "[1, 2] > None")
@@ -92,67 +92,67 @@ def test_datetimelist_none(config_data):
 	check_vsql(config_data, "[@(2000-02-29T12:34:56)] > None")
 
 def test_none_bool1(config_data):
-	check_vsql(config_data, "not (None > app.p_bool_none.value)")
+	check_vsql(config_data, "not (None > app.p_test_bool_none.value)")
 
 def test_none_bool2(config_data):
-	check_vsql(config_data, "not (None > app.p_bool_false.value)")
+	check_vsql(config_data, "not (None > app.p_test_bool_false.value)")
 
 def test_none_bool3(config_data):
-	check_vsql(config_data, "not (None > app.p_bool_true.value)")
+	check_vsql(config_data, "not (None > app.p_test_bool_true.value)")
 
 def test_none_int1(config_data):
-	check_vsql(config_data, "not (None > app.p_int_none.value)")
+	check_vsql(config_data, "not (None > app.p_test_int_none.value)")
 
 def test_none_int2(config_data):
-	check_vsql(config_data, "not (None > app.p_int_value.value)")
+	check_vsql(config_data, "not (None > app.p_test_int_value.value)")
 
 def test_none_number1(config_data):
-	check_vsql(config_data, "not (None > app.p_number_none.value)")
+	check_vsql(config_data, "not (None > app.p_test_number_none.value)")
 
 def test_none_number2(config_data):
-	check_vsql(config_data, "not (None > app.p_number_value.value)")
+	check_vsql(config_data, "not (None > app.p_test_number_value.value)")
 
 def test_none_str1(config_data):
-	check_vsql(config_data, "not (None > app.p_str_none.value)")
+	check_vsql(config_data, "not (None > app.p_test_str_none.value)")
 
 def test_none_str2(config_data):
-	check_vsql(config_data, "not (None > app.p_str_value.value)")
+	check_vsql(config_data, "not (None > app.p_test_str_value.value)")
 
 def test_none_date1(config_data):
-	check_vsql(config_data, "not (None > app.p_date_none.value)")
+	check_vsql(config_data, "not (None > app.p_test_date_none.value)")
 
 def test_none_date2(config_data):
-	check_vsql(config_data, "not (None > app.p_date_value.value)")
+	check_vsql(config_data, "not (None > app.p_test_date_value.value)")
 
 def test_none_datetime1(config_data):
-	check_vsql(config_data, "not (None > app.p_datetime_none.value)")
+	check_vsql(config_data, "not (None > app.p_test_datetime_none.value)")
 
 def test_none_datetime2(config_data):
-	check_vsql(config_data, "not (None > app.p_datetime_value.value)")
+	check_vsql(config_data, "not (None > app.p_test_datetime_value.value)")
 
 def test_none_color1(config_data):
-	check_vsql(config_data, "not (None > app.p_color_none.value)")
+	check_vsql(config_data, "not (None > app.p_test_color_none.value)")
 
 def test_none_color2(config_data):
-	check_vsql(config_data, "not (None > app.p_color_value.value)")
+	check_vsql(config_data, "not (None > app.p_test_color_value.value)")
 
 def test_none_datedelta1(config_data):
-	check_vsql(config_data, "not (None > app.p_datedelta_none.value)")
+	check_vsql(config_data, "not (None > app.p_test_datedelta_none.value)")
 
 def test_none_datedelta2(config_data):
-	check_vsql(config_data, "not (None > app.p_datedelta_value.value)")
+	check_vsql(config_data, "not (None > app.p_test_datedelta_value.value)")
 
 def test_none_datetimedelta1(config_data):
-	check_vsql(config_data, "not (None > app.p_datetimedelta_none.value)")
+	check_vsql(config_data, "not (None > app.p_test_datetimedelta_none.value)")
 
 def test_none_datetimedelta2(config_data):
-	check_vsql(config_data, "not (None > app.p_datetimedelta_value.value)")
+	check_vsql(config_data, "not (None > app.p_test_datetimedelta_value.value)")
 
 def test_none_monthdelta1(config_data):
-	check_vsql(config_data, "not (None > app.p_monthdelta_none.value)")
+	check_vsql(config_data, "not (None > app.p_test_monthdelta_none.value)")
 
 def test_none_monthdelta2(config_data):
-	check_vsql(config_data, "not (None > app.p_monthdelta_value.value)")
+	check_vsql(config_data, "not (None > app.p_test_monthdelta_value.value)")
 
 def test_none_intlist(config_data):
 	check_vsql(config_data, "not (None > [1, 2])")
@@ -170,166 +170,166 @@ def test_none_datetimelist(config_data):
 	check_vsql(config_data, "not (None > [@(2000-02-29T12:34:56)])")
 
 def test_bool_bool1(config_data):
-	check_vsql(config_data, "not (app.p_bool_none.value > app.p_bool_none.value)")
+	check_vsql(config_data, "not (app.p_test_bool_none.value > app.p_test_bool_none.value)")
 
 def test_bool_bool2(config_data):
-	check_vsql(config_data, "not (app.p_bool_none.value > app.p_bool_false.value)")
+	check_vsql(config_data, "not (app.p_test_bool_none.value > app.p_test_bool_false.value)")
 
 def test_bool_bool3(config_data):
-	check_vsql(config_data, "not (app.p_bool_none.value > app.p_bool_true.value)")
+	check_vsql(config_data, "not (app.p_test_bool_none.value > app.p_test_bool_true.value)")
 
 def test_bool_bool4(config_data):
-	check_vsql(config_data, "app.p_bool_false.value > app.p_bool_none.value")
+	check_vsql(config_data, "app.p_test_bool_false.value > app.p_test_bool_none.value")
 
 def test_bool_bool5(config_data):
-	check_vsql(config_data, "not (app.p_bool_false.value > app.p_bool_false.value)")
+	check_vsql(config_data, "not (app.p_test_bool_false.value > app.p_test_bool_false.value)")
 
 def test_bool_bool6(config_data):
-	check_vsql(config_data, "not (app.p_bool_false.value > app.p_bool_true.value)")
+	check_vsql(config_data, "not (app.p_test_bool_false.value > app.p_test_bool_true.value)")
 
 def test_bool_bool7(config_data):
-	check_vsql(config_data, "app.p_bool_true.value > app.p_bool_none.value")
+	check_vsql(config_data, "app.p_test_bool_true.value > app.p_test_bool_none.value")
 
 def test_bool_bool8(config_data):
-	check_vsql(config_data, "app.p_bool_true.value > app.p_bool_false.value")
+	check_vsql(config_data, "app.p_test_bool_true.value > app.p_test_bool_false.value")
 
 def test_bool_bool9(config_data):
-	check_vsql(config_data, "not (app.p_bool_true.value > app.p_bool_true.value)")
+	check_vsql(config_data, "not (app.p_test_bool_true.value > app.p_test_bool_true.value)")
 
 def test_bool_int1(config_data):
-	check_vsql(config_data, "not (app.p_bool_none.value > app.p_int_none.value)")
+	check_vsql(config_data, "not (app.p_test_bool_none.value > app.p_test_int_none.value)")
 
 def test_bool_int2(config_data):
-	check_vsql(config_data, "not (app.p_bool_none.value > -1)")
+	check_vsql(config_data, "not (app.p_test_bool_none.value > -1)")
 
 def test_bool_int3(config_data):
-	check_vsql(config_data, "app.p_bool_false.value > app.p_int_none.value")
+	check_vsql(config_data, "app.p_test_bool_false.value > app.p_test_int_none.value")
 
 def test_bool_int4(config_data):
-	check_vsql(config_data, "not (app.p_bool_false.value > 0)")
+	check_vsql(config_data, "not (app.p_test_bool_false.value > 0)")
 
 def test_bool_int5(config_data):
-	check_vsql(config_data, "not (app.p_bool_false.value > 1)")
+	check_vsql(config_data, "not (app.p_test_bool_false.value > 1)")
 
 def test_bool_int6(config_data):
-	check_vsql(config_data, "app.p_bool_true.value > app.p_int_none.value")
+	check_vsql(config_data, "app.p_test_bool_true.value > app.p_test_int_none.value")
 
 def test_bool_int7(config_data):
-	check_vsql(config_data, "app.p_bool_true.value > 0")
+	check_vsql(config_data, "app.p_test_bool_true.value > 0")
 
 def test_bool_int8(config_data):
-	check_vsql(config_data, "not (app.p_bool_true.value > 1)")
+	check_vsql(config_data, "not (app.p_test_bool_true.value > 1)")
 
 def test_bool_number1(config_data):
-	check_vsql(config_data, "not (app.p_bool_none.value > app.p_number_none.value)")
+	check_vsql(config_data, "not (app.p_test_bool_none.value > app.p_test_number_none.value)")
 
 def test_bool_number2(config_data):
-	check_vsql(config_data, "not (app.p_bool_none.value > -1.0)")
+	check_vsql(config_data, "not (app.p_test_bool_none.value > -1.0)")
 
 def test_bool_number3(config_data):
-	check_vsql(config_data, "app.p_bool_false.value > app.p_number_none.value")
+	check_vsql(config_data, "app.p_test_bool_false.value > app.p_test_number_none.value")
 
 def test_bool_number4(config_data):
-	check_vsql(config_data, "not (app.p_bool_false.value > 0.0)")
+	check_vsql(config_data, "not (app.p_test_bool_false.value > 0.0)")
 
 def test_bool_number5(config_data):
-	check_vsql(config_data, "not (app.p_bool_false.value > 1.0)")
+	check_vsql(config_data, "not (app.p_test_bool_false.value > 1.0)")
 
 def test_bool_number6(config_data):
-	check_vsql(config_data, "app.p_bool_true.value > app.p_number_none.value")
+	check_vsql(config_data, "app.p_test_bool_true.value > app.p_test_number_none.value")
 
 def test_bool_number7(config_data):
-	check_vsql(config_data, "app.p_bool_true.value > 0.0")
+	check_vsql(config_data, "app.p_test_bool_true.value > 0.0")
 
 def test_bool_number8(config_data):
-	check_vsql(config_data, "not (app.p_bool_true.value > 1.0)")
+	check_vsql(config_data, "not (app.p_test_bool_true.value > 1.0)")
 
 def test_int_bool1(config_data):
-	check_vsql(config_data, "not (app.p_int_none.value > app.p_bool_none.value)")
+	check_vsql(config_data, "not (app.p_test_int_none.value > app.p_test_bool_none.value)")
 
 def test_int_bool2(config_data):
-	check_vsql(config_data, "not (app.p_int_none.value > app.p_bool_false.value)")
+	check_vsql(config_data, "not (app.p_test_int_none.value > app.p_test_bool_false.value)")
 
 def test_int_bool3(config_data):
-	check_vsql(config_data, "not (app.p_int_none.value > app.p_bool_true.value)")
+	check_vsql(config_data, "not (app.p_test_int_none.value > app.p_test_bool_true.value)")
 
 def test_int_bool4(config_data):
-	check_vsql(config_data, "app.p_int_value.value > app.p_bool_none.value")
+	check_vsql(config_data, "app.p_test_int_value.value > app.p_test_bool_none.value")
 
 def test_int_bool5(config_data):
-	check_vsql(config_data, "app.p_int_value.value > app.p_bool_false.value")
+	check_vsql(config_data, "app.p_test_int_value.value > app.p_test_bool_false.value")
 
 def test_int_bool6(config_data):
-	check_vsql(config_data, "app.p_int_value.value > app.p_bool_true.value")
+	check_vsql(config_data, "app.p_test_int_value.value > app.p_test_bool_true.value")
 
 def test_int_bool7(config_data):
-	check_vsql(config_data, "-app.p_int_value.value > app.p_bool_none.value")
+	check_vsql(config_data, "-app.p_test_int_value.value > app.p_test_bool_none.value")
 
 def test_int_bool8(config_data):
-	check_vsql(config_data, "not (-app.p_int_value.value > app.p_bool_false.value)")
+	check_vsql(config_data, "not (-app.p_test_int_value.value > app.p_test_bool_false.value)")
 
 def test_int_bool9(config_data):
-	check_vsql(config_data, "not (-app.p_int_value.value > app.p_bool_true.value)")
+	check_vsql(config_data, "not (-app.p_test_int_value.value > app.p_test_bool_true.value)")
 
 def test_int_int1(config_data):
-	check_vsql(config_data, "not (app.p_int_none.value > app.p_int_none.value)")
+	check_vsql(config_data, "not (app.p_test_int_none.value > app.p_test_int_none.value)")
 
 def test_int_int2(config_data):
-	check_vsql(config_data, "not (app.p_int_none.value > 1)")
+	check_vsql(config_data, "not (app.p_test_int_none.value > 1)")
 
 def test_int_int3(config_data):
-	check_vsql(config_data, "app.p_int_value.value > 1775")
+	check_vsql(config_data, "app.p_test_int_value.value > 1775")
 
 def test_int_int4(config_data):
-	check_vsql(config_data, "not (app.p_int_value.value > 1777)")
+	check_vsql(config_data, "not (app.p_test_int_value.value > 1777)")
 
 def test_int_int5(config_data):
-	check_vsql(config_data, "42 > app.p_int_none.value")
+	check_vsql(config_data, "42 > app.p_test_int_none.value")
 
 def test_number_bool1(config_data):
-	check_vsql(config_data, "not (app.p_number_none.value > app.p_bool_none.value)")
+	check_vsql(config_data, "not (app.p_test_number_none.value > app.p_test_bool_none.value)")
 
 def test_number_bool2(config_data):
-	check_vsql(config_data, "not (app.p_number_none.value > False)")
+	check_vsql(config_data, "not (app.p_test_number_none.value > False)")
 
 def test_number_bool3(config_data):
-	check_vsql(config_data, "app.p_number_value.value > True")
+	check_vsql(config_data, "app.p_test_number_value.value > True")
 
 def test_number_bool4(config_data):
-	check_vsql(config_data, "not (-app.p_number_value.value > True)")
+	check_vsql(config_data, "not (-app.p_test_number_value.value > True)")
 
 def test_number_int1(config_data):
-	check_vsql(config_data, "not (app.p_number_none.value > app.p_int_none.value)")
+	check_vsql(config_data, "not (app.p_test_number_none.value > app.p_test_int_none.value)")
 
 def test_number_int2(config_data):
-	check_vsql(config_data, "not (app.p_number_none.value > 1)")
+	check_vsql(config_data, "not (app.p_test_number_none.value > 1)")
 
 def test_number_int3(config_data):
-	check_vsql(config_data, "app.p_number_value.value > 1")
+	check_vsql(config_data, "app.p_test_number_value.value > 1")
 
 def test_number_int4(config_data):
-	check_vsql(config_data, "not (app.p_number_value.value > 73)")
+	check_vsql(config_data, "not (app.p_test_number_value.value > 73)")
 
 def test_number_number1(config_data):
-	check_vsql(config_data, "not (app.p_number_none.value > app.p_number_none.value)")
+	check_vsql(config_data, "not (app.p_test_number_none.value > app.p_test_number_none.value)")
 
 def test_number_number2(config_data):
-	check_vsql(config_data, "not (app.p_number_none.value > 1.0)")
+	check_vsql(config_data, "not (app.p_test_number_none.value > 1.0)")
 
 def test_number_number3(config_data):
-	check_vsql(config_data, "app.p_number_value.value > 1.0")
+	check_vsql(config_data, "app.p_test_number_value.value > 1.0")
 
 def test_number_number4(config_data):
-	check_vsql(config_data, "not (app.p_number_value.value > 73.0)")
+	check_vsql(config_data, "not (app.p_test_number_value.value > 73.0)")
 
 def test_str_str(config_data):
-	check_vsql(config_data, "app.p_str_value.value > 'abc'")
+	check_vsql(config_data, "app.p_test_str_value.value > 'abc'")
 
 def test_date_date(config_data):
-	check_vsql(config_data, "app.p_date_value.value > @(2000-02-28)")
+	check_vsql(config_data, "app.p_test_date_value.value > @(2000-02-28)")
 
 def test_datetime_datetime(config_data):
-	check_vsql(config_data, "app.p_datetime_value.value > @(2000-02-28T23:59:59)")
+	check_vsql(config_data, "app.p_test_datetime_value.value > @(2000-02-28T23:59:59)")
 
 def test_datedelta_datedelta(config_data):
 	check_vsql(config_data, "days(2) > days(1)")

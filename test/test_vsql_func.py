@@ -34,7 +34,7 @@ def test_bool_true(config_data):
 	check_vsql(config_data, "bool(True)")
 
 def test_bool_int_none(config_data):
-	check_vsql(config_data, "not bool(app.p_int_none.value)")
+	check_vsql(config_data, "not bool(app.p_test_int_none.value)")
 
 def test_bool_int_false(config_data):
 	check_vsql(config_data, "not bool(0)")

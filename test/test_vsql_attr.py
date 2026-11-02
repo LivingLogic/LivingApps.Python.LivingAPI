@@ -74,16 +74,16 @@ def test_datetimedelta_total_seconds(config_data):
 	check_vsql(config_data, "timedelta(12, 34).total_seconds == 12 * 60 * 60 * 24 + 34")
 
 def test_color_r(config_data):
-	check_vsql(config_data, "app.p_color_value.value.r == 0x33")
+	check_vsql(config_data, "app.p_test_color_value.value.r == 0x33")
 
 def test_color_g(config_data):
-	check_vsql(config_data, "app.p_color_value.value.g == 0x66")
+	check_vsql(config_data, "app.p_test_color_value.value.g == 0x66")
 
 def test_color_b(config_data):
-	check_vsql(config_data, "app.p_color_value.value.b == 0x99")
+	check_vsql(config_data, "app.p_test_color_value.value.b == 0x99")
 
 def test_color_a(config_data):
-	check_vsql(config_data, "app.p_color_value.value.a == 0xcc")
+	check_vsql(config_data, "app.p_test_color_value.value.a == 0xcc")
 
 def test_geo_lat(config_data):
 	check_vsql(config_data, "geo(49.95, 11.59, 'Here').lat == 49.95")
