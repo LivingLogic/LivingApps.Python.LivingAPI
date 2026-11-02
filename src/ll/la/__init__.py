@@ -1628,16 +1628,16 @@ class File(CustomAttributes):
 
 	vsqlgroup = vsql.Group(
 		"upload_ref_select",
-		vsql.Field("internal_id", vsql.DataType.STR, "upl_id"),
-		vsql.Field("id", vsql.DataType.STR, "upr_path"),
-		vsql.Field("filename", vsql.DataType.STR, "upl_orgname"),
-		vsql.Field("mimetype", vsql.DataType.STR, "upl_mimetype"),
-		vsql.Field("width", vsql.DataType.INT, "upl_width"),
-		vsql.Field("height", vsql.DataType.INT, "upl_height"),
-		vsql.Field("size", vsql.DataType.INT, "upl_size"),
-		vsql.Field("duration", vsql.DataType.INT, "upl_duration"),
-		vsql.Field("recordedat", vsql.DataType.DATETIME, "upl_recorddate"),
-		vsql.Field("createdat", vsql.DataType.DATETIME, "upl_ctimestamp"),
+		vsql.Field("internal_id", vsql.DataType.STR, "{a}.upl_id"),
+		vsql.Field("id", vsql.DataType.STR, "{a}.upr_path"),
+		vsql.Field("filename", vsql.DataType.STR, "{a}.upl_orgname"),
+		vsql.Field("mimetype", vsql.DataType.STR, "{a}.upl_mimetype"),
+		vsql.Field("width", vsql.DataType.INT, "{a}.upl_width"),
+		vsql.Field("height", vsql.DataType.INT, "{a}.upl_height"),
+		vsql.Field("size", vsql.DataType.INT, "{a}.upl_size"),
+		vsql.Field("duration", vsql.DataType.INT, "{a}.upl_duration"),
+		vsql.Field("recordedat", vsql.DataType.DATETIME, "{a}.upl_recorddate"),
+		vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.upl_ctimestamp"),
 	)
 
 
@@ -1932,30 +1932,30 @@ class User(CustomAttributes):
 
 	vsqlgroup = vsql.Group(
 		"identity",
-		vsql.Field("id", vsql.DataType.STR, "ide_publicid"),
-		vsql.Field("gender", vsql.DataType.STR, "ide_gender"),
-		vsql.Field("title", vsql.DataType.STR, "ide_title"),
-		vsql.Field("firstname", vsql.DataType.STR, "ide_firstname"),
-		vsql.Field("surname", vsql.DataType.STR, "ide_surname"),
-		vsql.Field("initials", vsql.DataType.STR, "ide_initials"),
-		vsql.Field("email", vsql.DataType.STR, "ide_account"),
-		vsql.Field("street", vsql.DataType.STR, "ide_street"),
-		vsql.Field("streetnumber", vsql.DataType.STR, "ide_streetnumber"),
-		vsql.Field("zip", vsql.DataType.STR, "ide_zip"),
-		vsql.Field("city", vsql.DataType.STR, "ide_city"),
-		vsql.Field("phone", vsql.DataType.STR, "ide_phone"),
-		vsql.Field("fax", vsql.DataType.STR, "ide_fax"),
-		vsql.Field("lang", vsql.DataType.STR, "ide_lang"),
-		vsql.Field("colorscheme", vsql.DataType.STR, "ide_colorscheme"),
+		vsql.Field("id", vsql.DataType.STR, "{a}.ide_publicid"),
+		vsql.Field("gender", vsql.DataType.STR, "{a}.ide_gender"),
+		vsql.Field("title", vsql.DataType.STR, "{a}.ide_title"),
+		vsql.Field("firstname", vsql.DataType.STR, "{a}.ide_firstname"),
+		vsql.Field("surname", vsql.DataType.STR, "{a}.ide_surname"),
+		vsql.Field("initials", vsql.DataType.STR, "{a}.ide_initials"),
+		vsql.Field("email", vsql.DataType.STR, "{a}.ide_account"),
+		vsql.Field("street", vsql.DataType.STR, "{a}.ide_street"),
+		vsql.Field("streetnumber", vsql.DataType.STR, "{a}.ide_streetnumber"),
+		vsql.Field("zip", vsql.DataType.STR, "{a}.ide_zip"),
+		vsql.Field("city", vsql.DataType.STR, "{a}.ide_city"),
+		vsql.Field("phone", vsql.DataType.STR, "{a}.ide_phone"),
+		vsql.Field("fax", vsql.DataType.STR, "{a}.ide_fax"),
+		vsql.Field("lang", vsql.DataType.STR, "{a}.ide_lang"),
+		vsql.Field("colorscheme", vsql.DataType.STR, "{a}.ide_colorscheme"),
 		# FIXME: We can't add the uploads, because the Oracle side doesn't support it yet.
-		vsql.Field("image", vsql.DataType.STR, "upl_id_image", "({m}.upl_id_image = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_image')", File.vsqlgroup),
-		vsql.Field("summary", vsql.DataType.CLOB, "ide_summary"),
-		vsql.Field("interests", vsql.DataType.CLOB, "ide_interests"),
-		vsql.Field("personal_website", vsql.DataType.STR, "ide_personal_website"),
-		vsql.Field("company_website", vsql.DataType.STR, "ide_company_website"),
-		vsql.Field("company", vsql.DataType.STR, "ide_company"),
-		vsql.Field("position", vsql.DataType.STR, "ide_position"),
-		vsql.Field("department", vsql.DataType.STR, "ide_department"),
+		vsql.Field("image", vsql.DataType.STR, "{a}.upl_id_image", "({m}.upl_id_image = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_image')", File.vsqlgroup),
+		vsql.Field("summary", vsql.DataType.CLOB, "{a}.ide_summary"),
+		vsql.Field("interests", vsql.DataType.CLOB, "{a}.ide_interests"),
+		vsql.Field("personal_website", vsql.DataType.STR, "{a}.ide_personal_website"),
+		vsql.Field("company_website", vsql.DataType.STR, "{a}.ide_company_website"),
+		vsql.Field("company", vsql.DataType.STR, "{a}.ide_company"),
+		vsql.Field("position", vsql.DataType.STR, "{a}.ide_position"),
+		vsql.Field("department", vsql.DataType.STR, "{a}.ide_department"),
 	)
 
 	def isvalidemail(self, emailaddress: str) -> str | None:
@@ -10499,9 +10499,9 @@ class Installation(Base):
 
 	vsqlgroup = vsql.Group(
 		"installation_link",
-		vsql.Field("internalid", vsql.DataType.STR, "upl_id"),
-		vsql.Field("id", vsql.DataType.STR, "inl_id"),
-		vsql.Field("name", vsql.DataType.STR, "inl_additional_name"),
+		vsql.Field("internalid", vsql.DataType.STR, "{a}.upl_id"),
+		vsql.Field("id", vsql.DataType.STR, "{a}.inl_id"),
+		vsql.Field("name", vsql.DataType.STR, "{a}.inl_additional_name"),
 	)
 
 

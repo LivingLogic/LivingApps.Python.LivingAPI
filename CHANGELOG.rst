@@ -79,6 +79,11 @@
 	group for records (``App.vsqlgroup_records``) now references the vSQL
 	group of the app, so ``r.app.name`` or ``r.app.p_foo.value`` work too.
 
+*	The fields of the vSQL groups ``File.vsqlgroup``, ``User.vsqlgroup`` and
+	``Installation.vsqlgroup`` now include the table alias, so that joining
+	two files or two users in one query (e.g. ``r.createdby.email ==
+	r.updatedby.email``) no longer produces ambiguous column references.
+
 
 0.66.0
 ------
