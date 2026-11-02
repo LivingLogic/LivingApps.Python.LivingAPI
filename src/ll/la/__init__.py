@@ -3695,11 +3695,6 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	def group(self) -> AppGroup:
 		return self.appgroup
 
-	def _ownparams_fetch(self):
-		return self.globals._incremental_data(
-			t"livingapi_pkg.app_params_inc_ful4on({self.id})",
-		)
-
 	def _add_param(self, *params):
 		for param in params:
 			param.app = self
@@ -3882,6 +3877,9 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	def _data_actions_ul4onget(self):
 		return self._data_actions
 
+	def _ownparams_fetch(self):
+		return self._gethandler().app_params_incremental_data(self)
+
 	def _attachments_fetch(self):
 		return self.globals._incremental_data(
 			t"livingapi_pkg.app_attachments_inc_ful4on({self.id})",
@@ -4055,11 +4053,17 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		self.__dict__["template_library_version"] = 0
 
 	def _params_candidates(self):
-		yield self.ownparams
-		if self.appgroup:
-			yield self.appgroup.ownparams
-		if "la" in self.ownparams and isinstance(self.ownparams["la"].value, App):
-			yield from self.ownparams["la"].value._params_candidates()
+		# Parameters that the handler can't load (e.g. the app group parameters
+		# via the ``HTTPHandler``) are ``None`` and are skipped
+		ownparams = self.ownparams
+		if ownparams is not None:
+			yield ownparams
+		if self.appgroup is not None:
+			appgroupparams = self.appgroup.ownparams
+			if appgroupparams is not None:
+				yield appgroupparams
+		if ownparams is not None and "la" in ownparams and isinstance(ownparams["la"].value, App):
+			yield from ownparams["la"].value._params_candidates()
 		else:
 			yield self.globals.library_params
 
@@ -4728,20 +4732,20 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 				self._apps = apps
 		return apps
 
-	def _ownparams_fetch(self):
-		return self.globals._incremental_data(
-			t"livingapi_pkg.appgroup_params_inc_ful4on({self.id})",
-		)
-
 	def _params_get(self) -> dict[str, AppParameter]:
 		if self._params is None:
-			self._params = attrdict(collections.ChainMap(self.ownparams, self.globals.library_params))
+			ownparams = self.ownparams
+			library_params = self.globals.library_params
+			self._params = attrdict(collections.ChainMap(ownparams, library_params) if ownparams is not None else library_params)
 		return self._params
 
 	def add_param(self, identifier, *, type=None, description=None, value=None) -> AppParameter:
 		param = MutableAppParameter(appgroup=self, type=type, identifier=identifier, description=description, value=value)
 		self.params[param.identifier] = param
 		return param
+
+	def _ownparams_fetch(self):
+		return self._gethandler().appgroup_params_incremental_data(self)
 
 	def _attachments_fetch(self):
 		return self.globals._incremental_data(

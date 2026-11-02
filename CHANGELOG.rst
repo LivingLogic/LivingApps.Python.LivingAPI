@@ -65,6 +65,13 @@
 	parameters are accessed via the vSQL functions ``request_param_str()``,
 	``request_param_int()`` etc. instead.
 
+*	``App.params`` and ``AppGroup.params`` no longer fail with handlers that
+	can't load parameters incrementally (like the ``HTTPHandler``): The
+	parameters are now loaded via the handler methods
+	``app_params_incremental_data()`` and ``appgroup_params_incremental_data()``
+	(implemented by ``DBHandler``), and parameter sets that can't be loaded
+	(e.g. the app group parameters) are skipped.
+
 
 0.66.0
 ------

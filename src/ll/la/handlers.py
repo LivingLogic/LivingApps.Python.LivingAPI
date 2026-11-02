@@ -144,7 +144,10 @@ class Handler:
 	def fetch_internaltemplates(self, tpl_uuid, type, control_id):
 		raise NotImplementedError
 
-	def params_incremental_data(self, owner: la.App | la.AppGroup):
+	def app_params_incremental_data(self, app):
+		return None
+
+	def appgroup_params_incremental_data(self, appgroup):
 		return None
 
 	def app_dataactions_incremental_data(self, app):
@@ -1144,6 +1147,18 @@ class DBHandler(Handler):
 				raise ValueError(f"no template named {template!r} for app {appid!r}")
 
 		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
+
+	def app_params_incremental_data(self, app):
+		return self._execute_incremental_ul4on_call(
+			app.globals,
+			t"livingapi_pkg.app_params_inc_ful4on({app.id})",
+		)
+
+	def appgroup_params_incremental_data(self, appgroup):
+		return self._execute_incremental_ul4on_call(
+			appgroup.globals,
+			t"livingapi_pkg.appgroup_params_inc_ful4on({appgroup.id})",
+		)
 
 	def app_dataactions_incremental_data(self, app):
 		return self._execute_incremental_ul4on_call(
