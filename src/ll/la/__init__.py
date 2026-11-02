@@ -1627,9 +1627,8 @@ class File(CustomAttributes):
 		return self.globals._gethandler().file_content(self)
 
 	vsqlgroup = vsql.Group(
-		"upload_ref_select",
+		"upload_ref_upload_select",
 		vsql.Field("internal_id", vsql.DataType.STR, "{a}.upl_id"),
-		vsql.Field("id", vsql.DataType.STR, "{a}.upr_path"),
 		vsql.Field("filename", vsql.DataType.STR, "{a}.upl_orgname"),
 		vsql.Field("mimetype", vsql.DataType.STR, "{a}.upl_mimetype"),
 		vsql.Field("width", vsql.DataType.INT, "{a}.upl_width"),
@@ -1947,8 +1946,7 @@ class User(CustomAttributes):
 		vsql.Field("fax", vsql.DataType.STR, "{a}.ide_fax"),
 		vsql.Field("lang", vsql.DataType.STR, "{a}.ide_lang"),
 		vsql.Field("colorscheme", vsql.DataType.STR, "{a}.ide_colorscheme"),
-		# FIXME: We can't add the uploads, because the Oracle side doesn't support it yet.
-		vsql.Field("image", vsql.DataType.STR, "{a}.upl_id_image", "({m}.upl_id_image = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_image')", File.vsqlgroup),
+		vsql.Field("image", vsql.DataType.STR, "{a}.upl_id_image", "({m}.upl_id_image = {d}.upl_id(+) and {d}.upr_table(+) = 'identity' and {d}.upr_pkvalue(+) = {m}.ide_id and {d}.upr_field(+) = 'upl_id_image')", File.vsqlgroup),
 		vsql.Field("summary", vsql.DataType.CLOB, "{a}.ide_summary"),
 		vsql.Field("interests", vsql.DataType.CLOB, "{a}.ide_interests"),
 		vsql.Field("personal_website", vsql.DataType.STR, "{a}.ide_personal_website"),
@@ -11625,7 +11623,7 @@ class AppParameter(CustomAttributes):
 			(datatype, fieldsql) = self._vsqlvalues[type]
 			group.add_field("value", datatype, fieldsql)
 		elif type is AppParameter.Type.UPLOAD:
-			group.add_field("value", vsql.DataType.STR, "{a}.upl_id", "({m}.upl_id = {d}.upl_id and {d}.upr_table = 'appparameter' and {d}.upr_pkvalue = {m}.ap_id and {d}.upr_field = 'upl_id')", File.vsqlgroup)
+			group.add_field("value", vsql.DataType.STR, "{a}.upl_id", "({m}.upl_id = {d}.upl_id(+) and {d}.upr_table(+) = 'appparameter' and {d}.upr_pkvalue(+) = {m}.ap_id and {d}.upr_field(+) = 'upl_id')", File.vsqlgroup)
 		elif type is AppParameter.Type.APP:
 			refgroup = self.value.vsqlgroup_app if isinstance(self.value, App) else App.vsqlgroup_app_common()
 			group.add_field("value", vsql.DataType.STR, "{a}.tpl_id_value", "{m}.tpl_id_value = {d}.tpl_id(+)", refgroup)

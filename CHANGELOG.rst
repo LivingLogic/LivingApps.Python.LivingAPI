@@ -84,6 +84,16 @@
 	two files or two users in one query (e.g. ``r.createdby.email ==
 	r.updatedby.email``) no longer produces ambiguous column references.
 
+*	``File.vsqlgroup`` now uses the view ``upload_ref_upload_select`` (which
+	contains the columns of ``upload``; ``upload_ref_select`` doesn't), so
+	that file attributes like ``filename`` or ``mimetype`` can be used in
+	vSQL expressions that are rendered by Python. The field ``id`` has been
+	removed, since the id of a file is not a database column (the database
+	doesn't support it in vSQL either). The joins to the file of
+	``user.image`` and of an app parameter of type ``upload`` are outer joins
+	now, so that users and parameters without a file no longer vanish from
+	the result when the expression references the file.
+
 
 0.66.0
 ------
