@@ -33,6 +33,11 @@
 	functions ``templatelibrary.templatelibrary_ful4on()`` and
 	``templatelibrary.templatelibraries_ful4on()``.
 
+*	``User`` has a new attribute ``colorscheme`` that contains the preferred
+	browser color scheme of the user as a ``User.ColorScheme`` enum (``LIGHT``,
+	``DARK`` or ``AUTO``; ``"light"``, ``"dark"`` or ``"auto"`` in UL4). It is
+	also available as ``user.colorscheme`` in vSQL expressions.
+
 
 0.66.0
 ------

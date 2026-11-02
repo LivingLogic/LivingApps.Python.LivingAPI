@@ -1813,6 +1813,12 @@ class User(CustomAttributes):
 
 		The department the user works for in his/her company.
 
+	.. attribute:: colorscheme
+		:type: ColorScheme
+
+		The preferred browser color scheme of the user (``LIGHT``, ``DARK`` or
+		``AUTO``).
+
 	.. attribute:: keyviews
 		:type: Optional[dict[str, KeyView]]
 
@@ -1828,9 +1834,21 @@ class User(CustomAttributes):
 		"id", "globals", "gender", "title", "firstname", "surname", "initials", "email",
 		"lang", "image", "avatar_small", "avatar_large", "streetname", "streetnumber",
 		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
-		"company_website", "company", "position", "department", "keyviews", "change"
+		"company_website", "company", "position", "department", "colorscheme",
+		"keyviews", "change"
 	})
 	ul4_type = ul4c.Type("la", "User", "A LivingApps user/account")
+
+	class ColorScheme(misc.Enum):
+		"""
+		The preferred browser color scheme of a :class:`User`.
+
+		Allowed values are ``LIGHT``, ``DARK`` and ``AUTO``
+		"""
+
+		LIGHT = "light"
+		DARK = "dark"
+		AUTO = "auto"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	publicid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1859,6 +1877,7 @@ class User(CustomAttributes):
 	department = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	keyviews = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	colorscheme = EnumAttr(ColorScheme, get=True, set=True, required=True, default=ColorScheme.LIGHT, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self,
 		id=None, gender=None, title=None, firstname=None, surname=None,
@@ -1866,7 +1885,7 @@ class User(CustomAttributes):
 		avatar_large=None, streetname=None, streetnumber=None, zip=None,
 		city=None, phone=None, fax=None, summary=None, interests=None,
 		personal_website=None, company_website=None, company=None,
-		position=None, department=None
+		position=None, department=None, colorscheme=ColorScheme.LIGHT
 	):
 		self.id = id
 		self.publicid = id
@@ -1892,6 +1911,7 @@ class User(CustomAttributes):
 		self.company = company
 		self.position = position
 		self.department = department
+		self.colorscheme = colorscheme
 		self.keyviews = attrdict()
 
 	@property
@@ -1926,6 +1946,7 @@ class User(CustomAttributes):
 		vsql.Field("phone", vsql.DataType.STR, "ide_phone"),
 		vsql.Field("fax", vsql.DataType.STR, "ide_fax"),
 		vsql.Field("lang", vsql.DataType.STR, "ide_lang"),
+		vsql.Field("colorscheme", vsql.DataType.STR, "ide_colorscheme"),
 		# FIXME: We can't add the uploads, because the Oracle side doesn't support it yet.
 		vsql.Field("image", vsql.DataType.STR, "upl_id_image", "({m}.upl_id_image = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_image')", File.vsqlgroup),
 		vsql.Field("summary", vsql.DataType.CLOB, "ide_summary"),

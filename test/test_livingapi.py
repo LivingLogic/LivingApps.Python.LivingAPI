@@ -45,6 +45,14 @@ def test_user(handler):
 
 	assert f" email='{u}'" in handler.renders(person_app_id(), template=vt.identifier)
 
+	# Check the color scheme (an enum, dumped as its string value)
+	vt = handler.make_viewtemplate(
+		identifier="livingapi_user_colorscheme",
+		source="<?print globals.user.colorscheme?>",
+	)
+
+	assert "light" == handler.renders(person_app_id(), template=vt.identifier)
+
 
 def test_global_hostname(handler):
 	"""
