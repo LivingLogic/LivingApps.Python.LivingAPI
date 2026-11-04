@@ -2349,7 +2349,7 @@ class Globals(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
-	supported_version = "142"
+	supported_version = "143"
 
 	class Mode(misc.Enum):
 		"""

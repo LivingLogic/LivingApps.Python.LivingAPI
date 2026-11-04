@@ -1,4 +1,4 @@
-0.67.0 (2026-10-28)
+0.67.0 (2026-11-04)
 -------------------
 
 *	The template library is now versioned. The new class ``TemplateLibrary``
