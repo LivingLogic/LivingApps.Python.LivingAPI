@@ -246,6 +246,10 @@ def error_attribute_wrong_type(instance: Any, name: str, value: Any, allowed_typ
 	return f"Value for attribute {name!r} of {misc.format_class(instance)!r} object must be {allowed_types}, but is {format_class(type(value))}."
 
 
+def error_template_library_version_unknown(version: int) -> str:
+	return f"Unknown template library version {version!r}."
+
+
 def error_argument_wrong_type(name: str, value: Any, allowed_types: list[Type] | Type) -> str:
 	if isinstance(allowed_types, (tuple, list)):
 		allowed_types = format_list([format_class(t) for t in allowed_types])
@@ -1096,16 +1100,13 @@ class VSQLAttr(Attr):
 	Data descriptor for an attribute containing a vSQL expression.
 	"""
 
-	def __init__(self, function:str, **kwargs):
+	def __init__(self, **kwargs):
 		"""
 		Create an :class:`VSQLAttr` data descriptor.
 
-		The supported type will be :class:`str`. ``function`` must be the
-		name of a PL/SQL function for returning the UL4ON dump of the allowed
-		vSQL variables.
+		The supported type will be :class:`str`.
 		"""
 		super().__init__(str, **kwargs)
-		self.function = function
 
 
 class AttrDictAttr(Attr):
@@ -1379,6 +1380,13 @@ class CustomAttributes(WithTemplates):
 				attrs.add(attrname)
 		return attrs
 
+	def ul4_dir(self):
+		attrs = set(super().ul4_dir())
+		for attrname in self.__dict__:
+			if attrname.startswith("x_"):
+				attrs.add(attrname)
+		return attrs
+
 	def ul4_hasattr(self, name: str) -> bool:
 		if name.startswith("x_"):
 			return name in self.__dict__
@@ -1576,7 +1584,7 @@ class File(CustomAttributes):
 	def _template_candidates(self):
 		handler = self.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.globals.app.id, "file_instance", None)
-		yield handler.fetch_librarytemplates("file_instance")
+		yield self.globals.library_templates("file_instance")
 
 	def ul4_getattr(self, name: str) -> Any:
 		if name == "internalid":
@@ -1619,17 +1627,16 @@ class File(CustomAttributes):
 		return self.globals._gethandler().file_content(self)
 
 	vsqlgroup = vsql.Group(
-		"upload_ref_select",
-		vsql.Field("internal_id", vsql.DataType.STR, "upl_id"),
-		vsql.Field("id", vsql.DataType.STR, "upr_path"),
-		vsql.Field("filename", vsql.DataType.STR, "upl_orgname"),
-		vsql.Field("mimetype", vsql.DataType.STR, "upl_mimetype"),
-		vsql.Field("width", vsql.DataType.INT, "upl_width"),
-		vsql.Field("height", vsql.DataType.INT, "upl_height"),
-		vsql.Field("size", vsql.DataType.INT, "upl_size"),
-		vsql.Field("duration", vsql.DataType.INT, "upl_duration"),
-		vsql.Field("recordedat", vsql.DataType.DATETIME, "upl_recorddate"),
-		vsql.Field("createdat", vsql.DataType.DATETIME, "upl_ctimestamp"),
+		"upload_ref_upload_select",
+		vsql.Field("internal_id", vsql.DataType.STR, "{a}.upl_id"),
+		vsql.Field("filename", vsql.DataType.STR, "{a}.upl_orgname"),
+		vsql.Field("mimetype", vsql.DataType.STR, "{a}.upl_mimetype"),
+		vsql.Field("width", vsql.DataType.INT, "{a}.upl_width"),
+		vsql.Field("height", vsql.DataType.INT, "{a}.upl_height"),
+		vsql.Field("size", vsql.DataType.INT, "{a}.upl_size"),
+		vsql.Field("duration", vsql.DataType.INT, "{a}.upl_duration"),
+		vsql.Field("recordedat", vsql.DataType.DATETIME, "{a}.upl_recorddate"),
+		vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.upl_ctimestamp"),
 	)
 
 
@@ -1678,7 +1685,7 @@ class Geo(WithTemplates):
 	def _template_candidates(self):
 		handler = self.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.globals.app.id, "geo_instance", None)
-		yield handler.fetch_librarytemplates("geo_instance")
+		yield self.globals.library_templates("geo_instance")
 
 	@classmethod
 	def ul4oncreate(cls, id: str | None=None) -> Geo:
@@ -1805,6 +1812,12 @@ class User(CustomAttributes):
 
 		The department the user works for in his/her company.
 
+	.. attribute:: colorscheme
+		:type: ColorScheme
+
+		The preferred browser color scheme of the user (``LIGHT``, ``DARK`` or
+		``AUTO``).
+
 	.. attribute:: keyviews
 		:type: Optional[dict[str, KeyView]]
 
@@ -1820,9 +1833,21 @@ class User(CustomAttributes):
 		"id", "globals", "gender", "title", "firstname", "surname", "initials", "email",
 		"lang", "image", "avatar_small", "avatar_large", "streetname", "streetnumber",
 		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
-		"company_website", "company", "position", "department", "keyviews", "change"
+		"company_website", "company", "position", "department", "colorscheme",
+		"keyviews", "change"
 	})
 	ul4_type = ul4c.Type("la", "User", "A LivingApps user/account")
+
+	class ColorScheme(misc.Enum):
+		"""
+		The preferred browser color scheme of a :class:`User`.
+
+		Allowed values are ``LIGHT``, ``DARK`` and ``AUTO``
+		"""
+
+		LIGHT = "light"
+		DARK = "dark"
+		AUTO = "auto"
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	publicid = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -1851,6 +1876,7 @@ class User(CustomAttributes):
 	department = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	keyviews = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	colorscheme = EnumAttr(ColorScheme, get=True, set=True, required=True, default=ColorScheme.AUTO, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self,
 		id=None, gender=None, title=None, firstname=None, surname=None,
@@ -1858,7 +1884,7 @@ class User(CustomAttributes):
 		avatar_large=None, streetname=None, streetnumber=None, zip=None,
 		city=None, phone=None, fax=None, summary=None, interests=None,
 		personal_website=None, company_website=None, company=None,
-		position=None, department=None
+		position=None, department=None, colorscheme=ColorScheme.AUTO
 	):
 		self.id = id
 		self.publicid = id
@@ -1884,6 +1910,7 @@ class User(CustomAttributes):
 		self.company = company
 		self.position = position
 		self.department = department
+		self.colorscheme = colorscheme
 		self.keyviews = attrdict()
 
 	@property
@@ -1896,7 +1923,7 @@ class User(CustomAttributes):
 	def _template_candidates(self):
 		handler = self.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.globals.app.id, "user_instance", None)
-		yield handler.fetch_librarytemplates("user_instance")
+		yield self.globals.library_templates("user_instance")
 
 	@classmethod
 	def vsqlfield(cls, ul4var: str="user", sqlvar: vsql.T_sql = "livingapi_pkg.global_user") -> vsql.Field:
@@ -1904,29 +1931,29 @@ class User(CustomAttributes):
 
 	vsqlgroup = vsql.Group(
 		"identity",
-		vsql.Field("id", vsql.DataType.STR, "ide_publicid"),
-		vsql.Field("gender", vsql.DataType.STR, "ide_gender"),
-		vsql.Field("title", vsql.DataType.STR, "ide_title"),
-		vsql.Field("firstname", vsql.DataType.STR, "ide_firstname"),
-		vsql.Field("surname", vsql.DataType.STR, "ide_surname"),
-		vsql.Field("initials", vsql.DataType.STR, "ide_initials"),
-		vsql.Field("email", vsql.DataType.STR, "ide_account"),
-		vsql.Field("street", vsql.DataType.STR, "ide_street"),
-		vsql.Field("streetnumber", vsql.DataType.STR, "ide_streetnumber"),
-		vsql.Field("zip", vsql.DataType.STR, "ide_zip"),
-		vsql.Field("city", vsql.DataType.STR, "ide_city"),
-		vsql.Field("phone", vsql.DataType.STR, "ide_phone"),
-		vsql.Field("fax", vsql.DataType.STR, "ide_fax"),
-		vsql.Field("lang", vsql.DataType.STR, "ide_lang"),
-		# FIXME: We can't add the uploads, because the Oracle side doesn't support it yet.
-		vsql.Field("image", vsql.DataType.STR, "upl_id_image", "({m}.upl_id_image = {d}.upl_id and {d}.upr_table = 'identity' and {d}.upr_pkvalue = {m}.ide_id and {d}.upr_field = 'upl_id_image')", File.vsqlgroup),
-		vsql.Field("summary", vsql.DataType.CLOB, "ide_summary"),
-		vsql.Field("interests", vsql.DataType.CLOB, "ide_interests"),
-		vsql.Field("personal_website", vsql.DataType.STR, "ide_personal_website"),
-		vsql.Field("company_website", vsql.DataType.STR, "ide_company_website"),
-		vsql.Field("company", vsql.DataType.STR, "ide_company"),
-		vsql.Field("position", vsql.DataType.STR, "ide_position"),
-		vsql.Field("department", vsql.DataType.STR, "ide_department"),
+		vsql.Field("id", vsql.DataType.STR, "{a}.ide_publicid"),
+		vsql.Field("gender", vsql.DataType.STR, "{a}.ide_gender"),
+		vsql.Field("title", vsql.DataType.STR, "{a}.ide_title"),
+		vsql.Field("firstname", vsql.DataType.STR, "{a}.ide_firstname"),
+		vsql.Field("surname", vsql.DataType.STR, "{a}.ide_surname"),
+		vsql.Field("initials", vsql.DataType.STR, "{a}.ide_initials"),
+		vsql.Field("email", vsql.DataType.STR, "{a}.ide_account"),
+		vsql.Field("street", vsql.DataType.STR, "{a}.ide_street"),
+		vsql.Field("streetnumber", vsql.DataType.STR, "{a}.ide_streetnumber"),
+		vsql.Field("zip", vsql.DataType.STR, "{a}.ide_zip"),
+		vsql.Field("city", vsql.DataType.STR, "{a}.ide_city"),
+		vsql.Field("phone", vsql.DataType.STR, "{a}.ide_phone"),
+		vsql.Field("fax", vsql.DataType.STR, "{a}.ide_fax"),
+		vsql.Field("lang", vsql.DataType.STR, "{a}.ide_lang"),
+		vsql.Field("colorscheme", vsql.DataType.STR, "{a}.ide_colorscheme"),
+		vsql.Field("image", vsql.DataType.STR, "{a}.upl_id_image", "({m}.upl_id_image = {d}.upl_id(+) and {d}.upr_table(+) = 'identity' and {d}.upr_pkvalue(+) = {m}.ide_id and {d}.upr_field(+) = 'upl_id_image')", File.vsqlgroup),
+		vsql.Field("summary", vsql.DataType.CLOB, "{a}.ide_summary"),
+		vsql.Field("interests", vsql.DataType.CLOB, "{a}.ide_interests"),
+		vsql.Field("personal_website", vsql.DataType.STR, "{a}.ide_personal_website"),
+		vsql.Field("company_website", vsql.DataType.STR, "{a}.ide_company_website"),
+		vsql.Field("company", vsql.DataType.STR, "{a}.ide_company"),
+		vsql.Field("position", vsql.DataType.STR, "{a}.ide_position"),
+		vsql.Field("department", vsql.DataType.STR, "{a}.ide_department"),
 	)
 
 	def isvalidemail(self, emailaddress: str) -> str | None:
@@ -2040,6 +2067,115 @@ class Permissions(Base):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__}{attrs} at {id(self):#x}>"
 
 
+@register("templatelibrary")
+class TemplateLibrary(Base):
+	r"""
+	A version of the template library.
+
+	The template library contains the templates and parameters that are
+	available to all apps. It exists in several versions. Which version an
+	app uses is determined by :attr:`App.template_library_version`; the
+	version the running template uses is
+	:attr:`Globals.template_library_version`. All versions are available via
+	:attr:`Globals.template_libraries` (without their templates and
+	parameters).
+
+	Relevant instance attributes are:
+
+	.. attribute:: id
+		:type: str
+
+		Unique database id
+
+	.. attribute:: version
+		:type: int
+
+		The version number (unique among all versions of the library)
+
+	.. attribute:: label
+		:type: str | None
+
+		A short label for this version
+
+	.. attribute:: description
+		:type: str | None
+
+		A description of this version
+
+	.. attribute:: templates
+		:type: dict[str, ll.ul4c.Template] | None
+
+		The templates of this version. The key is the identifier of the
+		template for untyped templates and ``*.<type>.<identifier>`` for
+		typed ones (e.g. ``*.app_instance.la_name``). ``None`` if the templates
+		have not been loaded (which is the case for the objects in
+		:attr:`Globals.template_libraries`).
+
+	.. attribute:: parameters
+		:type: dict[str, AppParameter] | None
+
+		The parameters of this version (mapping identifiers to parameters).
+		``None`` if the parameters have not been loaded.
+	"""
+
+	ul4_attrs = Base.ul4_attrs.union({"id", "version", "label", "description", "templates", "parameters"})
+	ul4_type = ul4c.Type("la", "TemplateLibrary", "A version of the template library")
+
+	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
+	version = Attr(int, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	templates = Attr(dict, get=True, set="_templates_set", ul4get=True, ul4onget=True, ul4onset="_templates_set")
+	parameters = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+
+	def __init__(self, id=None, version=None, label=None, description=None):
+		self.id = id
+		self.version = version
+		self.label = label
+		self.description = description
+		self._templates_by_type = {}
+		self.templates = None
+		self.parameters = None
+
+	@property
+	def ul4onid(self) -> str:
+		return self.id
+
+	def _templates_set(self, value):
+		"""
+		Store the templates ``value`` (a dictionary as described for
+		:attr:`templates`) and group them by type in ``_templates_by_type``.
+
+		Templates without a namespace get the namespace ``templatelibrary``
+		(for untyped templates) or ``templatelibrary.<type>`` (for typed ones).
+		"""
+		templates_by_type = {}
+		if value is not None:
+			value = makeattrs(value)
+			for (key, template) in value.items():
+				if key.startswith("*."):
+					(type, identifier) = key[2:].split(".", 1)
+					namespace = f"templatelibrary.{type}"
+				else:
+					(type, identifier) = (None, key)
+					namespace = "templatelibrary"
+				if template.namespace is None:
+					template.namespace = namespace
+				if type not in templates_by_type:
+					templates_by_type[type] = attrdict()
+				templates_by_type[type][identifier] = template
+		self.__dict__["templates"] = value
+		self._templates_by_type = templates_by_type
+
+	def templates_for_type(self, type: str | None) -> dict[str, ul4c.Template]:
+		"""
+		Return the templates of type ``type`` (``None`` for the untyped
+		templates) as a dictionary mapping identifiers to templates.
+		"""
+		templates = self._templates_by_type.get(type)
+		return templates if templates is not None else attrdict()
+
+
 @register("globals")
 class Globals(CustomAttributes):
 	r"""
@@ -2147,6 +2283,21 @@ class Globals(CustomAttributes):
 
 		Parameters of the view or email template that overwrite the parameters
 		of the app.
+
+	.. attribute:: template_library_version
+		:type: int
+
+		The version number of the template library (see
+		:class:`TemplateLibrary`) whose templates and parameters are used. This is
+		:attr:`App.template_library_version` of :attr:`app` (or the default
+		version of the system when there's no app). It can't be changed
+		(change the version of the app instead).
+
+	.. attribute:: template_libraries
+		:type: dict[int, TemplateLibrary]
+
+		All versions of the template library (without their templates and
+		parameters), keyed by version number.
 	"""
 
 	ul4_attrs = CustomAttributes.ul4_attrs.union({
@@ -2168,6 +2319,8 @@ class Globals(CustomAttributes):
 		"sys_lang",
 		"templates",
 		"params",
+		"template_library_version",
+		"template_libraries",
 		"flashes",
 		"request",
 		"response",
@@ -2196,7 +2349,7 @@ class Globals(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
-	supported_version = "142"
+	supported_version = "143"
 
 	class Mode(misc.Enum):
 		"""
@@ -2253,6 +2406,8 @@ class Globals(CustomAttributes):
 	view_id = Attr(str, get=True, set=True, ul4onget=True, ul4onset=True)
 	externaldatasources = AttrDictAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	template_params = AttrDictAttr(get="", ul4onget="_template_params_get", ul4onset="_template_params_ul4onset")
+	template_library_version = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True, ul4ondefault="")
+	template_libraries = Attr(dict, get="", ul4get="_template_libraries_get", ul4onget="", ul4onset="")
 	groups = AttrDictAttr(get="", ul4get="_groups_get", ul4onget="_groups_get")
 	params = AttrDictAttr(get="", ul4get="_params_get")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
@@ -2285,6 +2440,8 @@ class Globals(CustomAttributes):
 		self.view_id = None
 		self.externaldatasources = attrdict()
 		self._template_params = {}
+		self.__dict__["template_library_version"] = 0
+		self._template_libraries = None
 		self._library_params = None
 		self._params = None
 		self._next_attachment_id = 0
@@ -2625,15 +2782,45 @@ class Globals(CustomAttributes):
 	def _template_params_ul4onset(self, value):
 		self._template_params = attrdict(value) if value else attrdict()
 
+	def _template_library_version_ul4ondefault(self):
+		# Only dumps from a database before version 143 lack the version; such a database can't be used with this LivingAPI
+		self.__dict__["template_library_version"] = self.app.template_library_version if self.app is not None else 0
+
+	def _template_libraries_get(self) -> dict[int, TemplateLibrary]:
+		libraries = self._template_libraries
+		if libraries is None:
+			libraries = self._gethandler().fetch_templatelibraries()
+			self._template_libraries = libraries
+		return libraries
+
+	def _template_libraries_ul4onget(self) -> dict[int, TemplateLibrary] | None:
+		return self._template_libraries
+
+	def _template_libraries_ul4onset(self, value):
+		self._template_libraries = value
+
+	def library_templates(self, type: str | None) -> dict[str, ul4c.Template]:
+		"""
+		Return the templates of type ``type`` (``None`` for the untyped
+		templates) from the template library version
+		:attr:`template_library_version` (an empty dictionary if there's no
+		such version).
+		"""
+		library = self._gethandler().fetch_templatelibrary(self)
+		if library is None:
+			return attrdict()
+		return library.templates_for_type(type)
+
 	@property
 	def library_params(self) -> dict[str, AppParameter]:
 		if self._library_params is None:
-			handler = self._gethandler()
+			library = self._gethandler().fetch_templatelibrary(self)
 			self._library_params = attrdict()
-			for p in handler.fetch_libraryparams().values():
-				p = AppParameter(id=p.id, type=p.type, identifier=p.identifier, value=p.value, description=p.description)
-				p._globals = self
-				self._library_params[p.identifier] = p
+			if library is not None and library.parameters is not None:
+				for p in library.parameters.values():
+					p = AppParameter(id=p.id, type=p.type, identifier=p.identifier, value=p.value, description=p.description)
+					p._globals = self
+					self._library_params[p.identifier] = p
 		return self._library_params
 
 	def _params_get(self) -> dict[str, MutableAppParameter]:
@@ -3259,6 +3446,13 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		:type: Optional[dict[str, DataAction]]
 
 		Data actions of this app.
+
+	.. attribute:: template_library_version
+		:type: int
+
+		The version number of the template library (see
+		:class:`TemplateLibrary`) this app uses. Can be set to any version in
+		:attr:`Globals.template_libraries` and is saved by :meth:`save`.
 	"""
 
 	ul4_attrs = CustomAttributes.ul4_attrs.union(
@@ -3280,6 +3474,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 			"sort_default",
 			"filter_owndata",
 			"permissions",
+			"template_library_version",
 			"typename_grammatical_gender",
 			"typename_nominative_singular",
 			"typename_genitive_singular",
@@ -3414,6 +3609,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 	order = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	translations = Attr(Translations, get="", ul4get="_translations_get", ul4onget="", ul4onset="", ul4ondefault="")
+	template_library_version = Attr(int, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True, ul4ondefault="")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, installation=None, datamanagement_identifier=None):
@@ -3482,6 +3678,8 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		self._data_actions = None
 		self._vsqlgroup_records = None
 		self._vsqlgroup_app = None
+		# Apps are created by the database (which assigns the default version), so this only matters for apps constructed in Python
+		self.__dict__["template_library_version"] = 0
 		self._add_param(*args)
 
 	def __str__(self) -> str:
@@ -3494,11 +3692,6 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	@property
 	def group(self) -> AppGroup:
 		return self.appgroup
-
-	def _ownparams_fetch(self):
-		return self.globals._incremental_data(
-			t"livingapi_pkg.app_params_inc_ful4on({self.id})",
-		)
 
 	def _add_param(self, *params):
 		for param in params:
@@ -3642,8 +3835,8 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		if "la" in self.ownparams and isinstance(self.ownparams["la"].value, App):
 			yield from self.ownparams["la"].value._template_candidates()
 		else:
-			yield handler.fetch_librarytemplates(None)
-			yield handler.fetch_librarytemplates("app_instance")
+			yield self.globals.library_templates(None)
+			yield self.globals.library_templates("app_instance")
 
 	def _viewtemplates_get(self):
 		viewtemplates = self._viewtemplates
@@ -3681,6 +3874,9 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 
 	def _data_actions_ul4onget(self):
 		return self._data_actions
+
+	def _ownparams_fetch(self):
+		return self._gethandler().app_params_incremental_data(self)
 
 	def _attachments_fetch(self):
 		return self.globals._incremental_data(
@@ -3839,12 +4035,33 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 			raise NoHandlerError()
 		return self.globals._gethandler()
 
+	def _template_library_version_set(self, value):
+		if not isinstance(value, int):
+			raise TypeError(error_attribute_wrong_type(self, "template_library_version", value, (int,)))
+		if self.globals is not None:
+			libraries = self.globals.template_libraries
+		else:
+			libraries = self._gethandler().fetch_templatelibraries()
+		if value not in libraries:
+			raise ValueError(error_template_library_version_unknown(value))
+		self.__dict__["template_library_version"] = value
+
+	def _template_library_version_ul4ondefault(self):
+		# Only dumps from a database before version 143 lack the version; such a database can't be used with this LivingAPI
+		self.__dict__["template_library_version"] = 0
+
 	def _params_candidates(self):
-		yield self.ownparams
-		if self.appgroup:
-			yield self.appgroup.ownparams
-		if "la" in self.ownparams and isinstance(self.ownparams["la"].value, App):
-			yield from self.ownparams["la"].value._params_candidates()
+		# Parameters that the handler can't load (e.g. the app group parameters
+		# via the ``HTTPHandler``) are ``None`` and are skipped
+		ownparams = self.ownparams
+		if ownparams is not None:
+			yield ownparams
+		if self.appgroup is not None:
+			appgroupparams = self.appgroup.ownparams
+			if appgroupparams is not None:
+				yield appgroupparams
+		if ownparams is not None and "la" in ownparams and isinstance(ownparams["la"].value, App):
+			yield from ownparams["la"].value._params_candidates()
 		else:
 			yield self.globals.library_params
 
@@ -3991,17 +4208,68 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		return record
 
 	def vsqlfield_records(self, ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for the records of this app.
+		"""
 		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", self.vsqlgroup_records)
 
+	@staticmethod
+	def vsqlfield_records_common(ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for the records of an unknown app
+		(i.e. one that only has the generic record fields).
+		"""
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", App.vsqlgroup_records_common("data_select"))
+
+	def vsqlfield_record(self, ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for a single record of this app.
+		"""
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.dat_id", self.vsqlgroup_records)
+
+	@staticmethod
+	def vsqlfield_record_common(ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for a single record of an unknown
+		app (i.e. one that only has the generic record fields).
+		"""
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.dat_id", App.vsqlgroup_records_common("data_select"))
+
 	def vsqlfield_app(self, ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for this app.
+		"""
 		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", self.vsqlgroup_app)
+
+	@staticmethod
+	def vsqlfield_app_common(ul4var: str, sqlvar: vsql.T_sql) -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for an unknown app.
+		"""
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.tpl_id", App.vsqlgroup_app_common())
+
+	@staticmethod
+	def vsqlfield_user(ul4var: str = "user", sqlvar: vsql.T_sql = "g.ide_id_user") -> vsql.Field:
+		"""
+		Return a vSQL field named ``ul4var`` for the currently logged in user.
+		"""
+		return vsql.Field(ul4var, vsql.DataType.STR, sqlvar, t"{sqlvar:q} = {{d}}.ide_id", User.vsqlgroup)
+
+	@staticmethod
+	def _vsqlfield_records_app(group: vsql.Group) -> vsql.Field:
+		"""
+		Return the field ``app`` of a records group (see
+		:meth:`vsqlgroup_records_common`) that references the app of the record
+		via the vSQL group ``group``.
+		"""
+		return vsql.Field("app", vsql.DataType.STR, "{a}.tpl_uuid", "{m}.tpl_id = {d}.tpl_id(+)", group)
 
 	@staticmethod
 	def vsqlgroup_records_common(base_query: str) -> vsql.Group:
 		return vsql.Group(
 			base_query,
 			vsql.Field("id", vsql.DataType.STR, "{a}.dat_id"),
-			vsql.Field("app", vsql.DataType.STR, "{a}.tpl_uuid"),
+			App._vsqlfield_records_app(App.vsqlgroup_app_common()),
 			vsql.Field("app_internal_id", vsql.DataType.INT, "{a}.tpl_id"),
 			vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.dat_cdate"),
 			vsql.Field("createdby", vsql.DataType.STR, "{a}.dat_cname", "{m}.dat_cname = {d}.ide_id(+)", User.vsqlgroup),
@@ -4013,29 +4281,62 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 
 	@property
 	def vsqlgroup_records(self) -> vsql.Group:
+		"""
+		The vSQL group for the records of this app.
+
+		In addition to the fields of :meth:`vsqlgroup_records_common` this group
+		contains a field ``v_<identifier>`` for each control in :attr:`controls`
+		(see :attr:`Control.vsqlfield`), and the field ``app`` references the
+		vSQL group of this app (see :attr:`vsqlgroup_app`) instead of the
+		generic one, so that the app parameters are available via ``r.app``.
+		"""
 		if self._vsqlgroup_records is None:
 			self._vsqlgroup_records = g = self.vsqlgroup_records_common("data_select_la")
+			g.fields["app"] = self._vsqlfield_records_app(self.vsqlgroup_app)
 			if self.controls is not None:
 				for control in self.controls.values():
 					vsqlfield = control.vsqlfield
 					g.fields[vsqlfield.identifier] = vsqlfield
 		return self._vsqlgroup_records
 
+	@staticmethod
+	def vsqlgroup_app_common() -> vsql.Group:
+		return vsql.Group(
+			"template",
+			vsql.Field("id", vsql.DataType.STR, "{a}.tpl_uuid"),
+			vsql.Field("name", vsql.DataType.STR, "{a}.tpl_name"),
+			vsql.Field("description", vsql.DataType.CLOB, "{a}.tpl_description"),
+			vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.tpl_ctimestamp"),
+			vsql.Field("createdby", vsql.DataType.STR, "{a}.tpl_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup),
+			vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.tpl_utimestamp"),
+			vsql.Field("updatedby", vsql.DataType.STR, "{a}.tpl_uname", "{m}.tpl_uname = {d}.ide_id(+)", User.vsqlgroup),
+			vsql.Field("image", vsql.DataType.STR, "{a}.upl_id_image", "({m}.upl_id_image = {d}.upl_id(+) and {d}.upr_table(+) = 'template' and {d}.upr_pkvalue(+) = {m}.tpl_id and {d}.upr_field(+) = 'upl_id_image')", File.vsqlgroup),
+			vsql.Field("installation", vsql.DataType.STR, "{a}.inl_id", "{m}.inl_id = {d}.inl_id(+)", Installation.vsqlgroup),
+			vsql.Field("appgroup", vsql.DataType.STR, "{a}.ag_id", "{m}.ag_id = {d}.ag_id(+)", AppGroup.vsqlgroup),
+		)
+
 	@property
 	def vsqlgroup_app(self) -> vsql.Group:
+		"""
+		The vSQL group for this app.
+
+		In addition to the fields of :meth:`vsqlgroup_app_common` this group
+		contains a field ``p_<identifier>`` for each parameter in
+		:attr:`ownparams` (see :attr:`AppParameter.vsqlfield`), if the
+		parameters are available (or can be loaded via the handler).
+		"""
 		if self._vsqlgroup_app is None:
-			# FIXME: Add app parameters
-			self._vsqlgroup_app = vsql.Group(
-				"template",
-				vsql.Field("id", vsql.DataType.STR, "{a}.tpl_uuid"),
-				vsql.Field("name", vsql.DataType.STR, "{a}.tpl_name"),
-				vsql.Field("description", vsql.DataType.CLOB, "{a}.tpl_description"),
-				vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.tpl_ctimestamp"),
-				vsql.Field("createdby", vsql.DataType.STR, "{a}.tpl_cname", "{m}.tpl_cname = {d}.ide_id(+)", User.vsqlgroup),
-				vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.tpl_utimestamp"),
-				vsql.Field("updatedby", vsql.DataType.STR, "{a}.tpl_uname", "{m}.tpl_uname = {d}.ide_id(+)", User.vsqlgroup),
-				vsql.Field("installation", vsql.DataType.STR, "{a}.inl_id", "{m}.inl_id = {d}.inl_id(+)", Installation.vsqlgroup),
-			)
+			# Cache the group before adding the parameters, so that a parameter
+			# of type ``APP`` that references this app doesn't recurse endlessly
+			self._vsqlgroup_app = g = self.vsqlgroup_app_common()
+			try:
+				params = self.ownparams
+			except NoHandlerError:
+				params = None
+			if params is not None:
+				for param in params.values():
+					vsqlfield = param.vsqlfield
+					g.fields[vsqlfield.identifier] = vsqlfield
 		return self._vsqlgroup_app
 
 	def vsqlsearchexpr(self, record: Record, maxdepth: int, controls: dict[str, Control] | None=None):
@@ -4368,6 +4669,18 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 	translations = Attr(Translations, get="", ul4get="_translations_get", ul4onget="", ul4onset="", ul4ondefault="")
 
+	vsqlgroup = vsql.Group(
+		"appgroup",
+		vsql.Field("id", vsql.DataType.STR, "{a}.ag_id"),
+		vsql.Field("name", vsql.DataType.STR, "{a}.ag_name"),
+		vsql.Field("description", vsql.DataType.CLOB, "{a}.ag_description"),
+		vsql.Field("image", vsql.DataType.STR, "{a}.upl_id_image", "({m}.upl_id_image = {d}.upl_id(+) and {d}.upr_table(+) = 'appgroup' and {d}.upr_pkvalue(+) = {m}.ag_id and {d}.upr_field(+) = 'upl_id_image')", File.vsqlgroup),
+		vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.ag_cdate"),
+		vsql.Field("createdby", vsql.DataType.STR, "{a}.ag_cname", "{m}.ag_cname = {d}.ide_id(+)", User.vsqlgroup),
+		vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.ag_udate"),
+		vsql.Field("updatedby", vsql.DataType.STR, "{a}.ag_uname", "{m}.ag_uname = {d}.ide_id(+)", User.vsqlgroup),
+	)
+
 	def __init__(self, id=None, globals=None, name=None, description=None):
 		super().__init__()
 		self.id = id
@@ -4394,7 +4707,7 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	def _template_candidates(self):
 		handler = self.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.globals.app.id, "appgroup_instance", None)
-		yield handler.fetch_librarytemplates("appgroup_instance")
+		yield self.globals.library_templates("appgroup_instance")
 
 	@property
 	def ul4onid(self) -> str:
@@ -4467,20 +4780,20 @@ class AppGroup(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 				self._apps = apps
 		return apps
 
-	def _ownparams_fetch(self):
-		return self.globals._incremental_data(
-			t"livingapi_pkg.appgroup_params_inc_ful4on({self.id})",
-		)
-
 	def _params_get(self) -> dict[str, AppParameter]:
 		if self._params is None:
-			self._params = attrdict(collections.ChainMap(self.ownparams, self.globals.library_params))
+			ownparams = self.ownparams
+			library_params = self.globals.library_params
+			self._params = attrdict(collections.ChainMap(ownparams, library_params) if ownparams is not None else library_params)
 		return self._params
 
 	def add_param(self, identifier, *, type=None, description=None, value=None) -> AppParameter:
 		param = MutableAppParameter(appgroup=self, type=type, identifier=identifier, description=description, value=value)
 		self.params[param.identifier] = param
 		return param
+
+	def _ownparams_fetch(self):
+		return self._gethandler().appgroup_params_incremental_data(self)
 
 	def _attachments_fetch(self):
 		return self.globals._incremental_data(
@@ -4753,8 +5066,8 @@ a
 		yield handler.fetch_internaltemplates(app_id, "field_instance", self.control.id)
 		yield handler.fetch_internaltemplates(app_id, f"field_{self.control.type}_instance", None)
 		yield handler.fetch_internaltemplates(app_id, f"field_instance", None)
-		yield handler.fetch_librarytemplates(f"field_{self.control.type}_instance")
-		yield handler.fetch_librarytemplates("field_instance")
+		yield self.record.app.globals.library_templates(f"field_{self.control.type}_instance")
+		yield self.record.app.globals.library_templates("field_instance")
 
 	def _template_is_bound(self, template):
 		return template.namespace.endswith(("_instance", f"_instance.{self.control.id}"))
@@ -5753,7 +6066,7 @@ class Control(CustomAttributes, WithTranslations):
 
 	_type = None
 	_subtype = None
-	ul4_attrs = CustomAttributes.ul4_attrs.union(WithTranslations.ul4_attrs, {"id", "identifier", "type", "subtype", "fulltype", "app", "label", "description", "priority", "in_list", "in_mobile_list", "in_text", "required", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure", "save"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union(WithTranslations.ul4_attrs, {"id", "identifier", "type", "subtype", "fulltype", "app", "label", "description", "priority", "in_list", "in_mobile_list", "in_fulltext_search", "in_structured_search", "in_expert_search", "in_text", "in_sum", "required", "order", "default", "top", "left", "width", "height", "liveupdate", "tabindex", "base_mode", "mode", "labelpos", "labelwidth", "autoalign", "in_active_view", "is_focused", "ininsertprocedure", "inupdateprocedure", "save"})
 	ul4_type = ul4c.Type("la", "Control", "Metainformation about a field in a LivingApps application")
 
 	class Mode(misc.Enum):
@@ -5842,8 +6155,8 @@ class Control(CustomAttributes, WithTranslations):
 		yield handler.fetch_internaltemplates(app_id, "control_instance", self.id)
 		yield handler.fetch_internaltemplates(app_id, f"control_{self.type}_instance", None)
 		yield handler.fetch_internaltemplates(app_id, f"control_instance", None)
-		yield handler.fetch_librarytemplates(f"control_{self.type}_instance")
-		yield handler.fetch_librarytemplates("control_instance")
+		yield self.app.globals.library_templates(f"control_{self.type}_instance")
+		yield self.app.globals.library_templates("control_instance")
 
 	def _template_is_bound(self, template):
 		return template.namespace.endswith(("_instance", f"_instance.{self.id}"))
@@ -7699,7 +8012,7 @@ class Record(CustomAttributes, WithAttachments):
 	def _template_candidates(self):
 		handler = self._gethandler()
 		yield handler.fetch_internaltemplates(self.app.id, "record_instance", None)
-		yield handler.fetch_librarytemplates("record_instance")
+		yield self.globals.library_templates("record_instance")
 
 	def _fields_get(self):
 		if self.__dict__["fields"] is None:
@@ -8268,8 +8581,8 @@ class Attachment(CustomAttributes):
 		type = self.type.removesuffix("attachment")
 		yield handler.fetch_internaltemplates(app_id, f"attachment_{type}_instance", None)
 		yield handler.fetch_internaltemplates(app_id, "attachment_instance", None)
-		yield handler.fetch_librarytemplates(f"attachment_{type}_instance")
-		yield handler.fetch_librarytemplates("attachment_instance")
+		yield self.record.app.globals.library_templates(f"attachment_{type}_instance")
+		yield self.record.app.globals.library_templates("attachment_instance")
 
 	def delete(self):
 		self._gethandler().delete_attachment(self)
@@ -9272,12 +9585,12 @@ class DataSourceConfig(Base):
 	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	app = Attr(App, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	includecloned = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
-	appfilter = VSQLAttr("vsqlsupport_pkg3.ds_appfilter_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	appfilter = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	includecontrols = IntEnumAttr(IncludeControls, get=True, set=True, required=True, default=IncludeControls.ALL, ul4get=True, ul4onget=True, ul4onset=True)
 	includerecords = IntEnumAttr(IncludeRecords, get=True, set=True, required=True, default=IncludeRecords.RECORDS, ul4get=True, ul4onget=True, ul4onset=True)
 	includecount = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	recordpermission = IntEnumAttr(RecordPermission, get=True, set=True, required=True, default=RecordPermission.ALL, ul4get=True, ul4onget=True, ul4onset=True)
-	recordfilter = VSQLAttr("vsqlsupport_pkg3.ds_recordfilter_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	recordfilter = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	includepermissions = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	includeattachments = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	includeparams = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
@@ -9309,6 +9622,41 @@ class DataSourceConfig(Base):
 
 	def __str__(self) -> str:
 		return f"{self.parent or '?'}/datasource={self.identifier}"
+
+	def _vsqlvars_common(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that are available in all vSQL expressions
+		of this datasource: ``user`` (the logged in user), ``app`` (the app of
+		the view template) and ``record`` (the detail record, whose app is
+		unknown).
+		"""
+		app = self.parent.app if self.parent is not None else None
+		return dict(
+			user=App.vsqlfield_user(),
+			app=app.vsqlfield_app("app", "g.tpl_id_app") if app is not None else App.vsqlfield_app_common("app", "g.tpl_id_app"),
+			record=App.vsqlfield_record_common("record", "g.dat_id_detail"),
+		)
+
+	def vsqlvars_appfilter(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`appfilter`.
+
+		In addition to the common variables ``a`` is the app to be filtered.
+		"""
+		vars = self._vsqlvars_common()
+		vars["a"] = self.app.vsqlfield_app("a", "t.tpl_id") if self.app is not None else App.vsqlfield_app_common("a", "t.tpl_id")
+		return vars
+
+	def vsqlvars_recordfilter(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`recordfilter`
+		(and the order expressions in :attr:`orders`).
+
+		In addition to the common variables ``r`` is the record to be filtered.
+		"""
+		vars = self._vsqlvars_common()
+		vars["r"] = self.app.vsqlfield_records("r", "g.tpl_id_app") if self.app is not None else App.vsqlfield_records_common("r", "g.tpl_id_app")
+		return vars
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
@@ -9387,7 +9735,7 @@ class DataSourceChildrenConfig(Base):
 	datasource = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	filter = VSQLAttr("vsqlsupport_pkg3.dsc_recordfilter_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	filter = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	orders = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, *args, id=None, identifier=None, control=None, filter=None):
@@ -9401,6 +9749,19 @@ class DataSourceChildrenConfig(Base):
 
 	def __str__(self) -> str:
 		return f"{self.datasource or '?'}/datasourcechildrenconfig={self.identifier}"
+
+	def vsqlvars_filter(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`filter` (and the
+		order expressions in :attr:`orders`).
+
+		In addition to the common variables of the datasource ``r`` is the
+		record to be filtered, i.e. a record of the app that contains
+		:attr:`control`.
+		"""
+		vars = self.datasource._vsqlvars_common()
+		vars["r"] = self.control.app.vsqlfield_records("r", "g.tpl_id_app")
+		return vars
 
 	def __repr__(self):
 		return f"<{self.__class__.__module__}.{self.__class__.__qualname__} path={str(self)!r} at {id(self):#x}>"
@@ -9495,7 +9856,7 @@ class DataOrder(Base):
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	parent = Attr(DataSourceConfig, DataSourceChildrenConfig, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	expression = VSQLAttr("?", get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
+	expression = VSQLAttr(get=True, set=True, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	direction = EnumAttr(Direction, get=True, set=True, required=True, default=Direction.ASC, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	nulls = EnumAttr(Nulls, get=True, set=True, required=True, default=Nulls.LAST, repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 
@@ -9528,6 +9889,17 @@ class DataOrder(Base):
 
 	def save_meta(self, handler:T_opt_handler=None, recursive:bool=True):
 		raise NotImplementedError("DataOrder objects can only be saved by their parent")
+
+	def vsqlvars_expression(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`expression`.
+
+		These are the variables of the filter expression of :attr:`parent`.
+		"""
+		if isinstance(self.parent, DataSourceConfig):
+			return self.parent.vsqlvars_recordfilter()
+		else:
+			return self.parent.vsqlvars_filter()
 
 
 @register("dataaction")
@@ -9675,7 +10047,7 @@ class DataAction(CustomAttributes):
 	icon = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	description = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	message = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	filter = VSQLAttr("vsqlsupport_pkg3.da_filter_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	filter = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	as_multiple_action = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	as_single_action = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
 	as_mail_link = BoolAttr(get=True, set=True, required=True, default=False, ul4get=True, ul4onget=True, ul4onset=True)
@@ -9713,10 +10085,22 @@ class DataAction(CustomAttributes):
 		handler = self._gethandler()
 		app_id = self.app.id
 		yield handler.fetch_internaltemplates(app_id, "dataaction_instance", None)
-		yield handler.fetch_librarytemplates("dataaction_instance")
+		yield self.app.globals.library_templates("dataaction_instance")
 
 	def execute(self, record, sync=False):
 		self._gethandler()._executeaction(record, self.identifier, sync=sync)
+
+	def vsqlvars_filter(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`filter`: ``user``
+		(the logged in user), ``app`` (the app of the data action) and ``r``
+		(the record the data action is executed on).
+		"""
+		return dict(
+			user=App.vsqlfield_user(),
+			app=self.app.vsqlfield_app("app", "g.tpl_id_app"),
+			r=self.app.vsqlfield_records("r", "g.tpl_id_app"),
+		)
 
 
 # We don't have to register this class, since only subclasses will be put into
@@ -9762,7 +10146,7 @@ class DataActionCommand(Base):
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
 	parent = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	condition = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	condition = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	details = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	def __init__(self, *args, id=None, condition=None):
@@ -9784,6 +10168,30 @@ class DataActionCommand(Base):
 			else:
 				raise TypeError(f"don't know what to do with positional argument {item!r}")
 		return self
+
+	def vsqlvars_condition(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`condition` (and in
+		the expressions of :attr:`details`).
+
+		These are the variables of the filter of the data action, plus a
+		variable for each :class:`DataActionCommandWithIdentifier` in the chain
+		of commands from the top level command down to (and including) this
+		command. This variable is named after the identifier of the command and
+		references a record of the target app of the command.
+		"""
+		commands = []
+		node = self
+		while isinstance(node, DataActionCommand):
+			commands.append(node)
+			node = node.parent
+		dataaction = node
+		vars = dataaction.vsqlvars_filter()
+		for command in reversed(commands):
+			if isinstance(command, DataActionCommandWithIdentifier) and command.identifier:
+				app = command.app if command.app is not None else dataaction.app
+				vars[command.identifier] = app.vsqlfield_record(command.identifier, f"{command.identifier}.dat_id")
+		return vars
 
 
 @register("dataactioncommand_update")
@@ -10024,7 +10432,7 @@ class DataActionDetail(Base):
 	control = Attr(Control, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	type = EnumAttr(Type, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	value = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
-	expression = VSQLAttr("vsqlsupport_pkg3.dac_condition_ful4on", get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	expression = VSQLAttr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	formmode = EnumAttr(FormMode, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
 	code = Attr(str, get="", repr=True)
@@ -10041,6 +10449,14 @@ class DataActionDetail(Base):
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def vsqlvars_expression(self) -> dict[str, vsql.Field]:
+		"""
+		Return the vSQL variables that can be used in :attr:`expression`.
+
+		These are the variables of the condition of :attr:`parent`.
+		"""
+		return self.parent.vsqlvars_condition()
 
 	def _code_get(self) -> str:
 		if self.type is DataActionDetail.Type.SETNULL:
@@ -10095,9 +10511,8 @@ class Installation(Base):
 
 	vsqlgroup = vsql.Group(
 		"installation_link",
-		vsql.Field("internalid", vsql.DataType.STR, "upl_id"),
-		vsql.Field("id", vsql.DataType.STR, "inl_id"),
-		vsql.Field("name", vsql.DataType.STR, "inl_additional_name"),
+		vsql.Field("id", vsql.DataType.STR, "{a}.inl_id"),
+		vsql.Field("name", vsql.DataType.STR, "{a}.inl_additional_name"),
 	)
 
 
@@ -10191,8 +10606,8 @@ class LayoutControl(CustomAttributes):
 		app_id = self.view.app.id
 		yield handler.fetch_internaltemplates(app_id, f"layoutcontrol_{self.type}_instance", None)
 		yield handler.fetch_internaltemplates(app_id, f"layoutcontrol_instance", None)
-		yield handler.fetch_librarytemplates(f"layoutcontrol_{self.type}_instance")
-		yield handler.fetch_librarytemplates("layoutcontrol_instance")
+		yield self.view.app.globals.library_templates(f"layoutcontrol_{self.type}_instance")
+		yield self.view.app.globals.library_templates("layoutcontrol_instance")
 
 	@property
 	def ul4onid(self) -> str:
@@ -11176,6 +11591,83 @@ class AppParameter(CustomAttributes):
 		else:
 			return f"{self.namespace}.{self.identifier}"
 
+	# vSQL datatype and SQL expression of the field ``value`` for the
+	# parameter types whose value is a scalar (see :attr:`vsqlgroup`)
+	_vsqlvalues = {
+		Type.BOOL: (vsql.DataType.BOOL, "to_number({a}.ap_value)"),
+		Type.INT: (vsql.DataType.INT, "to_number({a}.ap_value)"),
+		Type.NUMBER: (vsql.DataType.NUMBER, "case when {a}.ap_value is not null then vsqlimpl_pkg.float_str({a}.ap_value) else null end"),
+		Type.STRING: (vsql.DataType.CLOB, "{a}.ap_value_clob"),
+		Type.HTML: (vsql.DataType.CLOB, "{a}.ap_value_clob"),
+		Type.JSON: (vsql.DataType.CLOB, "{a}.ap_value_clob"),
+		Type.CODE: (vsql.DataType.CLOB, "{a}.ap_value_clob"),
+		Type.COLOR: (vsql.DataType.COLOR, "to_number({a}.ap_value)"),
+		Type.DATE: (vsql.DataType.DATE, "case when {a}.ap_value is null then null else to_date({a}.ap_value, 'YYYY-MM-DD') end"),
+		Type.DATETIME: (vsql.DataType.DATETIME, "case when {a}.ap_value is null then null else to_date({a}.ap_value, 'YYYY-MM-DD\"T\"HH24:MI:SS') end"),
+		Type.DATEDELTA: (vsql.DataType.DATEDELTA, "to_number({a}.ap_value)"),
+		Type.DATETIMEDELTA: (vsql.DataType.DATETIMEDELTA, "case when {a}.ap_value is null then null else vsqlimpl_pkg.float_str({a}.ap_value) end"),
+		Type.MONTHDELTA: (vsql.DataType.MONTHDELTA, "to_number({a}.ap_value)"),
+	}
+
+	@property
+	def vsqlgroup(self) -> vsql.Group:
+		"""
+		The vSQL group for this parameter with the fields ``id``, ``identifier``,
+		``description``, ``value``, ``createdat``, ``createdby``, ``updatedat``
+		and ``updatedby``.
+
+		The datatype of ``value`` depends on :attr:`type`. For ``UPLOAD`` and
+		``APP`` it references the vSQL group of the file or app. Parameters of
+		type ``LIST`` and ``DICT`` have no ``value`` field, since vSQL can't
+		handle those types.
+		"""
+		group = vsql.Group(
+			"appparameter",
+			vsql.Field("id", vsql.DataType.STR, "{a}.ap_id"),
+			vsql.Field("identifier", vsql.DataType.STR, "{a}.ap_identifier"),
+			vsql.Field("description", vsql.DataType.CLOB, "{a}.ap_description"),
+			vsql.Field("createdat", vsql.DataType.DATETIME, "{a}.ap_cdate"),
+			vsql.Field("createdby", vsql.DataType.STR, "{a}.ap_cname", "{m}.ap_cname = {d}.ide_id(+)", User.vsqlgroup),
+			vsql.Field("updatedat", vsql.DataType.DATETIME, "{a}.ap_udate"),
+			vsql.Field("updatedby", vsql.DataType.STR, "{a}.ap_uname", "{m}.ap_uname = {d}.ide_id(+)", User.vsqlgroup),
+		)
+		type = self.type
+		if type in self._vsqlvalues:
+			(datatype, fieldsql) = self._vsqlvalues[type]
+			group.add_field("value", datatype, fieldsql)
+		elif type is AppParameter.Type.UPLOAD:
+			group.add_field("value", vsql.DataType.STR, "{a}.upl_id", "({m}.upl_id = {d}.upl_id(+) and {d}.upr_table(+) = 'appparameter' and {d}.upr_pkvalue(+) = {m}.ap_id and {d}.upr_field(+) = 'upl_id')", File.vsqlgroup)
+		elif type is AppParameter.Type.APP:
+			refgroup = self.value.vsqlgroup_app if isinstance(self.value, App) else App.vsqlgroup_app_common()
+			group.add_field("value", vsql.DataType.STR, "{a}.tpl_id_value", "{m}.tpl_id_value = {d}.tpl_id(+)", refgroup)
+		elif type is AppParameter.Type.CONTROL:
+			group.add_field("value", vsql.DataType.STR, "{a}.ctl_id")
+		return group
+
+	@property
+	def vsqlfield(self) -> vsql.Field:
+		"""
+		The vSQL field ``p_<identifier>`` that references this parameter from
+		the vSQL group of its app (see :attr:`App.vsqlgroup_app`).
+
+		The parameter is joined via an outer join, so that a query doesn't
+		break when the parameter gets deleted later.
+		"""
+		# The app has no column that references the parameter, so the SQL
+		# expression for the field itself is the constant ``ap_id`` (which is
+		# also used in the join condition). This mirrors how
+		# ``vsqlsupport_pkg.resolve_template_attr`` resolves ``p_<identifier>``
+		# in the database, which renders the stored vSQL expressions. (A
+		# consequence is that the field itself is never ``None``, even if the
+		# parameter has been deleted.)
+		return vsql.Field(
+			f"p_{self.identifier}",
+			vsql.DataType.STR,
+			t"{self.id}",
+			t"{{m}}.tpl_id = {{d}}.tpl_id(+) and {{d}}.ap_id(+) = {self.id}",
+			self.vsqlgroup,
+		)
+
 	def _template_candidates(self):
 		globals = self.globals
 		handler = globals._gethandler()
@@ -11183,8 +11675,8 @@ class AppParameter(CustomAttributes):
 		app = self.app if self.app is not None else globals.app
 		yield handler.fetch_internaltemplates(app.id, f"parameter_{self.type.value}_instance", None)
 		yield handler.fetch_internaltemplates(app.id, "parameter_instance", None)
-		yield handler.fetch_librarytemplates(f"parameter_{self.type.value}_instance")
-		yield handler.fetch_librarytemplates("parameter_instance")
+		yield globals.library_templates(f"parameter_{self.type.value}_instance")
+		yield globals.library_templates("parameter_instance")
 
 
 @register("mutableappparameter")
@@ -11658,7 +12150,7 @@ class MenuItem(CustomAttributes):
 	def _template_candidates(self):
 		handler = self.app.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.app.id, "menuitem_instance", None)
-		yield handler.fetch_librarytemplates("menuitem_instance")
+		yield self.app.globals.library_templates("menuitem_instance")
 
 	def __getattr__(self, name: str) -> Any:
 		if name.startswith("c_"):
@@ -11837,8 +12329,8 @@ class Panel(MenuItem):
 		handler = self.app.globals._gethandler()
 		yield handler.fetch_internaltemplates(self.app.id, "panel_instance", None)
 		yield handler.fetch_internaltemplates(self.app.id, "menuitem_instance", None)
-		yield handler.fetch_librarytemplates("panel_instance")
-		yield handler.fetch_librarytemplates("menuitem_instance")
+		yield self.app.globals.library_templates("panel_instance")
+		yield self.app.globals.library_templates("menuitem_instance")
 
 	def __dir__(self) -> set[str]:
 		"""
@@ -11887,18 +12379,6 @@ class HTTPRequest(Base):
 
 	Relevant class attributes are:
 
-	.. attribute:: vsqlfield
-		:type: ll.la.vsql.Field
-
-		The vSQL field for the vSQL variable ``params`` that references ``vsqlgroup``.
-
-	.. attribute:: vsqlgroup
-		:type: ll.la.vsql.Group
-
-		The vSQL group for the vSQL variable ``params`` with the following
-		subgroups: ``str``, ``strlist``, ``int``, ``intlist``, ``float``,
-		``floatlist``, ``date``, ``datelist``, ``datetime`` and ``datetimelist``.
-
 	.. attribute:: vsqlsearchexpr
 		:type: ll.la.vsql.Field
 
@@ -11926,29 +12406,6 @@ class HTTPRequest(Base):
 		result = self._seqvalue
 		self._seqvalue += 1
 		return result
-
-	datatypes = {
-		vsql.DataType.STR,
-		vsql.DataType.STRLIST,
-		vsql.DataType.INT,
-		vsql.DataType.INTLIST,
-		vsql.DataType.NUMBER,
-		vsql.DataType.NUMBERLIST,
-		vsql.DataType.DATE,
-		vsql.DataType.DATELIST,
-		vsql.DataType.DATETIME,
-		vsql.DataType.DATETIMELIST,
-	}
-
-	vsqlgroup = vsql.Group(
-		None,
-		*(
-			vsql.Field(dt.value, refgroup=vsql.Group(None, vsql.Field("*", dt)))
-			for dt in datatypes
-		)
-	)
-
-	vsqlfield = vsql.Field("params", refgroup=vsqlgroup)
 
 
 from .handlers import *

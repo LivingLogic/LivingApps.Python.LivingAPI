@@ -1,4 +1,4 @@
-import sys, os, datetime, subprocess, textwrap, pathlib, filelock
+import os, datetime, subprocess, textwrap, pathlib, filelock
 
 import pytest
 
@@ -65,38 +65,6 @@ def fields_app_id():
 	return os.environ["LA_LIVINGAPI_TEST_FIELDAPP"]
 
 
-def check_vsql(config_data, code, result=None):
-	c = config_data
-
-	# Use the name of the calling function (without "test_")
-	# as the name of the view template.
-	filename = pathlib.Path(sys._getframe(1).f_code.co_filename).with_suffix("").name
-	functionname = sys._getframe(1).f_code.co_name[5:]
-	identifier = f"{filename}_{functionname}"
-	handler = PythonDB()
-
-	vt = handler.make_viewtemplate(
-		la.DataSourceConfig(
-			recordfilter=code,
-			identifier="persons",
-			app=c.apps.persons,
-			includeparams=True,
-		),
-		identifier=identifier,
-		source="""
-			<?whitespace strip?>
-			<?print len(datasources.persons.app.records)?>
-		""",
-	)
-
-	output = handler.renders(person_app_id(), template=vt.identifier)
-
-	if result is None:
-		assert "0" != output
-	else:
-		assert result == output
-
-
 ###
 ### Testing handlers
 ###
@@ -113,11 +81,12 @@ class Handler:
 	def make_viewtemplate(self, *args, **kwargs):
 		viewtemplate = la.ViewTemplateConfig(*args, **{**{"mimetype": "text/plain"}, **kwargs})
 		with self.dbhandler:
-			app = la.App()
-			app.handler = self.dbhandler
-			app.id = person_app_id()
+			# Use a fully loaded app, so that its parameters are available for
+			# the vSQL variables of the datasources (see ``App.vsqlgroup_app``)
+			vars = self.dbhandler.viewtemplate_data(person_app_id(), template="livingapi_datasources")
+			app = vars.globals.app
 			app.addtemplate(viewtemplate)
-			self.dbhandler.save_app_config(app)
+			self.dbhandler.save_viewtemplate_config(viewtemplate)
 		return viewtemplate
 
 	def make_internaltemplate(self, *args, **kwargs):
@@ -165,7 +134,6 @@ class PythonDB(LocalTemplateHandler):
 			# load data incrementally
 			result = template.renders_with_globals([], vars, dict(globals=globals, la=la.module))
 		return result
-
 
 
 class PythonHTTP(LocalTemplateHandler):
@@ -249,7 +217,7 @@ class JavaDB(LocalTemplateHandler):
 		dump = dump.encode("utf-8")
 		currentdir = pathlib.Path.cwd()
 		try:
-			os.chdir(pathlib.Path.home() / "checkouts/LivingApps.Java.LivingAPI")
+			os.chdir(pathlib.Path.home() / "checkouts/LivingApps/Java.LivingAPI")
 			result = subprocess.run("gradle -q --console=plain execute", input=dump, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 		finally:
 			os.chdir(currentdir)

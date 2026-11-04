@@ -75,25 +75,25 @@ def test_global_variables(config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			la.DataOrder(expression="r.v_name"),
-			la.DataOrder(expression="app.p_str_value.value"),
+			la.DataOrder(expression="app.p_test_str_value.value"),
 			la.DataOrder(expression="user.email"),
 			la.DataOrder(expression="record.id"),
-			la.DataOrder(expression="params.str.nix"),
-			la.DataOrder(expression="len(params.strlist.nix)"),
+			la.DataOrder(expression="request_param_str('nix')"),
+			la.DataOrder(expression="len(request_param_strlist('nix'))"),
 			la.DataSourceChildrenConfig(
 				la.DataOrder(expression="r.v_name"),
-				la.DataOrder(expression="app.p_str_value.value"),
+				la.DataOrder(expression="app.p_test_str_value.value"),
 				la.DataOrder(expression="user.email"),
 				la.DataOrder(expression="record.id"),
-				la.DataOrder(expression="params.str.nix"),
-				la.DataOrder(expression="len(params.strlist.nix)"),
+				la.DataOrder(expression="request_param_str('nix')"),
+				la.DataOrder(expression="len(request_param_strlist('nix'))"),
 				identifier="children",
 				control=c.apps.fields.c_parent,
-				filter="r.app.id != app.p_app_value.id and user.email is not None and record.id is None and params.str.nix is None and len(params.strlist.nix) == 0",
+				filter="r.app.id != app.p_test_app_value.id and user.email is not None and user.colorscheme == 'auto' and record.id is None and request_param_str('nix') is None and len(request_param_strlist('nix')) == 0",
 			),
 			identifier="fieldsofactivity",
 			app=c.apps.fields,
-			recordfilter="r.app.id != app.p_app_value.id and user.email is not None and record.id is None and params.str.nix is None and len(params.strlist.nix) == 0",
+			recordfilter="r.app.id != app.p_test_app_value.id and user.email is not None and user.colorscheme == 'auto' and record.id is None and request_param_str('nix') is None and len(request_param_strlist('nix')) == 0",
 			includeparams=True,
 		),
 		identifier="vsql_global_variables",
@@ -127,7 +127,9 @@ def test_datasource_appfilter(config_data):
 	vt = handler.make_viewtemplate(
 		la.DataSourceConfig(
 			identifier="all",
-			appfilter=f"a.uuid == '{person_app_id()}'"
+			appfilter=f"a.id == '{person_app_id()}'",
+			# A data source for all apps must not include all records
+			recordpermission=la.DataSourceConfig.RecordPermission.NONE,
 		),
 		identifier="vsql_datasource_appfilter",
 		source=source,
@@ -166,7 +168,7 @@ def test_datasource_recordfilter_param_str(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="r.v_lastname == params.str.lastname",
+			recordfilter="r.v_lastname == request_param_str('lastname')",
 		),
 		identifier="vsql_datasource_recordfilter_param_str",
 		source=template_unsorted_persons,
@@ -185,7 +187,7 @@ def test_datasource_recordfilter_param_int(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="r.v_date_of_birth.year == params.int.year",
+			recordfilter="r.v_date_of_birth.year == request_param_int('year')",
 		),
 		identifier="vsql_datasource_recordfilter_param_int",
 		source=template_unsorted_persons,
@@ -204,7 +206,7 @@ def test_datasource_recordfilter_param_date(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="r.v_date_of_birth == params.date.date_of_birth",
+			recordfilter="r.v_date_of_birth == request_param_date('date_of_birth')",
 		),
 		identifier="vsql_datasource_recordfilter_param_date",
 		source=template_unsorted_persons,
@@ -223,7 +225,7 @@ def test_datasource_recordfilter_param_datetime(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="datetime(r.v_date_of_birth) + hours(12) + minutes(34) + seconds(56) == params.datetime.date_of_birth",
+			recordfilter="datetime(r.v_date_of_birth) + hours(12) + minutes(34) + seconds(56) == request_param_datetime('date_of_birth')",
 		),
 		identifier="vsql_datasource_recordfilter_param_datetime",
 		source=template_unsorted_persons,
@@ -242,7 +244,7 @@ def test_datasource_recordfilter_param_strlist(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="r.v_lastname in params.strlist.lastname",
+			recordfilter="r.v_lastname in request_param_strlist('lastname')",
 		),
 		identifier="vsql_datasource_recordfilter_param_strlist",
 		source=template_sorted_persons,
@@ -261,7 +263,7 @@ def test_datasource_recordfilter_param_intlist(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="r.v_date_of_birth.year in params.intlist.year",
+			recordfilter="r.v_date_of_birth.year in request_param_intlist('year')",
 		),
 		identifier="vsql_datasource_recordfilter_param_intlist",
 		source=template_sorted_persons,
@@ -280,7 +282,7 @@ def test_datasource_recordfilter_param_datelist(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="r.v_date_of_birth in params.datelist.date_of_birth",
+			recordfilter="r.v_date_of_birth in request_param_datelist('date_of_birth')",
 		),
 		identifier="vsql_datasource_recordfilter_param_datelist",
 		source=template_sorted_persons,
@@ -299,7 +301,7 @@ def test_datasource_recordfilter_param_datetimelist(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="datetime(r.v_date_of_birth) + hours(12) + minutes(34) + seconds(56) == params.datetimelist.date_of_birth[0]",
+			recordfilter="datetime(r.v_date_of_birth) + hours(12) + minutes(34) + seconds(56) == request_param_datetimelist('date_of_birth')[0]",
 		),
 		identifier="vsql_datasource_recordfilter_param_datelist",
 		source=template_sorted_persons,
@@ -318,7 +320,7 @@ def test_datasource_recordfilter_appparam_int(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="r.v_date_of_birth.year == app.p_int_value.value",
+			recordfilter="r.v_date_of_birth.year == app.p_test_int_value.value",
 		),
 		identifier="vsql_datasource_recordfilter_appparam_int",
 		source=template_sorted_persons,
@@ -339,7 +341,7 @@ def test_datasource_recordfilter_geo(config_data):
 			la.DataOrder(expression="dist(r.v_grave, geo(49.955267, 11.591212, 'LivingLogic AG'))", direction="asc", nulls="first"),
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="r.v_grave is not None and dist(r.v_grave, geo(49.955267, 11.591212, 'LivingLogic AG')) < params.int.maxdist",
+			recordfilter="r.v_grave is not None and dist(r.v_grave, geo(49.955267, 11.591212, 'LivingLogic AG')) < request_param_int('maxdist')",
 		),
 		identifier="vsql_datasource_recordfilter_geo",
 		source=template_unsorted_persons,
@@ -551,7 +553,7 @@ def test_color_attributes(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="app.p_color_value.value.r == 0x33 and app.p_color_value.value.g == 0x66 and app.p_color_value.value.b == 0x99 and app.p_color_value.value.a == 0xcc",
+			recordfilter="app.p_test_color_value.value.r == 0x33 and app.p_test_color_value.value.g == 0x66 and app.p_test_color_value.value.b == 0x99 and app.p_test_color_value.value.a == 0xcc",
 		),
 		identifier="vsql_color_attributes",
 		source=source,
@@ -576,7 +578,7 @@ def test_color_methods(config_data):
 		la.DataSourceConfig(
 			identifier="persons",
 			app=c.apps.persons,
-			recordfilter="app.p_color_value.value.lum() == 0.4",
+			recordfilter="app.p_test_color_value.value.lum() == 0.4",
 		),
 		identifier="vsql_color_methods",
 		source=source,

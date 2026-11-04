@@ -1,3 +1,110 @@
+0.67.0 (2026-11-04)
+-------------------
+
+*	The template library is now versioned. The new class ``TemplateLibrary``
+	describes one version of the library with the attributes ``id``,
+	``version``, ``label``, ``description``, ``templates`` (the templates of
+	this version, keyed by identifier, or ``*.<type>.<identifier>`` for typed
+	templates) and ``parameters`` (the parameters of this version, keyed by
+	identifier). The last two are ``None`` when the version has been loaded
+	without its templates and parameters.
+
+*	``Globals`` has two new attributes: ``template_libraries`` is a dictionary
+	mapping version numbers to the ``TemplateLibrary`` objects of all versions
+	(without their templates and parameters). ``template_library_version`` is
+	the version whose templates and parameters are used by the running
+	template (i.e. for ``globals.templates``, ``app.templates``,
+	``record.templates`` etc. and for the library parameters in
+	``globals.params`` and ``app.params``). It is read-only and is
+	``app.template_library_version`` (or the default version of the system
+	if there's no app).
+
+*	``App`` has a new attribute ``template_library_version`` that contains
+	the template library version the app uses. It can be set (to a version
+	that exists in ``globals.template_libraries``) and is saved by
+	``App.save()`` (this requires the new parameter ``p_tl_version`` of
+	``livingapi_pkg.template_update``).
+
+*	The handler methods ``fetch_librarytemplates()`` and
+	``fetch_libraryparams()`` have been replaced by ``fetch_templatelibrary()``
+	(the version used by a ``Globals`` object, with templates and parameters),
+	and ``fetch_templatelibraries()`` (all versions, without templates and
+	parameters). The ``DBHandler`` implements them via the new Postgres
+	functions ``templatelibrary.templatelibrary_ful4on()`` and
+	``templatelibrary.templatelibraries_ful4on()``.
+
+*	``User`` has a new attribute ``colorscheme`` that contains the preferred
+	browser color scheme of the user as a ``User.ColorScheme`` enum (``LIGHT``,
+	``DARK`` or ``AUTO``; ``"light"``, ``"dark"`` or ``"auto"`` in UL4; the
+	default for dumps from an older database is ``AUTO``). It is also available
+	as ``user.colorscheme`` in vSQL expressions.
+
+*	The vSQL variables for the vSQL expressions of a ``DataSourceConfig``
+	(``appfilter``, ``recordfilter`` and the order expressions), a
+	``DataSourceChildrenConfig`` (``filter`` and its order expressions), a
+	``DataAction`` (``filter``), a ``DataActionCommand`` (``condition``) and a
+	``DataActionDetail`` (``expression``) are now defined in Python by the new
+	methods ``vsqlvars_appfilter()``, ``vsqlvars_recordfilter()``,
+	``vsqlvars_filter()``, ``vsqlvars_condition()`` and
+	``vsqlvars_expression()`` instead of being fetched from the database
+	functions of ``vsqlsupport_pkg3`` (which no longer exist). ``VSQLAttr`` no
+	longer has a ``function`` argument, and the ``DBHandler`` method
+	``save_vsql_source()`` takes the dictionary of vSQL variables instead of the
+	name of a database function (and no additional keyword arguments).
+
+*	``App`` has new methods for creating vSQL fields: ``vsqlfield_record()``
+	(for a single record of the app), the static methods
+	``vsqlfield_records_common()``, ``vsqlfield_record_common()`` and
+	``vsqlfield_app_common()`` (for an unknown app), ``vsqlfield_user()`` (for
+	the logged in user) and ``vsqlgroup_app_common()`` (the vSQL group of an
+	unknown app). The vSQL variable ``record`` (the detail record) in the
+	``DBHandler`` methods that fetch records now references a single record
+	(instead of the records of its app).
+
+*	The class attributes ``HTTPRequest.vsqlgroup`` and ``HTTPRequest.vsqlfield``
+	have been removed. The vSQL variable ``params`` no longer exists; request
+	parameters are accessed via the vSQL functions ``request_param_str()``,
+	``request_param_int()`` etc. instead.
+
+*	``App.params`` and ``AppGroup.params`` no longer fail with handlers that
+	can't load parameters incrementally (like the ``HTTPHandler``): The
+	parameters are now loaded via the handler methods
+	``app_params_incremental_data()`` and ``appgroup_params_incremental_data()``
+	(implemented by ``DBHandler``), and parameter sets that can't be loaded
+	(e.g. the app group parameters) are skipped.
+
+*	``App.vsqlgroup_app`` now contains a field ``p_<identifier>`` for each
+	parameter of the app (via the new properties ``AppParameter.vsqlfield``
+	and ``AppParameter.vsqlgroup``), so that vSQL expressions like
+	``app.p_foo.value`` can be compiled again. The field ``app`` of the vSQL
+	group for records (``App.vsqlgroup_records``) now references the vSQL
+	group of the app, so ``r.app.name`` or ``r.app.p_foo.value`` work too.
+
+*	The fields of the vSQL groups ``File.vsqlgroup``, ``User.vsqlgroup`` and
+	``Installation.vsqlgroup`` now include the table alias, so that joining
+	two files or two users in one query (e.g. ``r.createdby.email ==
+	r.updatedby.email``) no longer produces ambiguous column references.
+
+*	``File.vsqlgroup`` now uses the view ``upload_ref_upload_select`` (which
+	contains the columns of ``upload``; ``upload_ref_select`` doesn't), so
+	that file attributes like ``filename`` or ``mimetype`` can be used in
+	vSQL expressions that are rendered by Python. The field ``id`` has been
+	removed, since the id of a file is not a database column (the database
+	doesn't support it in vSQL either). The joins to the file of
+	``user.image`` and of an app parameter of type ``upload`` are outer joins
+	now, so that users and parameters without a file no longer vanish from
+	the result when the expression references the file.
+
+*	The vSQL group of an app has the new fields ``image`` (the app image as a
+	file) and ``appgroup`` (the app group, via the new class attribute
+	``AppGroup.vsqlgroup`` with the fields ``id``, ``name``, ``description``,
+	``image``, ``createdat``, ``createdby``, ``updatedat`` and ``updatedby``).
+
+*	The field ``internalid`` has been removed from ``Installation.vsqlgroup``.
+	It referenced the column ``upl_id``, which ``installation_link`` doesn't
+	have, and the database doesn't support it in vSQL either.
+
+
 0.66.0
 ------
 

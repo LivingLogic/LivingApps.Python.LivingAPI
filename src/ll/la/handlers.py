@@ -34,7 +34,7 @@ import datetime, pathlib, itertools, json, operator, warnings, random
 
 import requests, requests.exceptions # This requires :mod:`request`, which you can install with ``pip install requests``
 
-from ll import url, ul4c, ul4on, vsql # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
+from ll import url, ul4c, ul4on, vsql, misc # This requires the :mod:`ll` package, which you can install with ``pip install ll-xist``
 
 try:
 	from ll import orasql
@@ -144,7 +144,10 @@ class Handler:
 	def fetch_internaltemplates(self, tpl_uuid, type, control_id):
 		raise NotImplementedError
 
-	def params_incremental_data(self, owner: la.App | la.AppGroup):
+	def app_params_incremental_data(self, app):
+		return None
+
+	def appgroup_params_incremental_data(self, appgroup):
 		return None
 
 	def app_dataactions_incremental_data(self, app):
@@ -294,11 +297,21 @@ class Handler:
 	def change_user(self, lang, oldpassword, newpassword, newemail):
 		raise NotImplementedError
 
-	def fetch_librarytemplates(self, type : str):
-		return la.attrdict()
+	def fetch_templatelibrary(self, globals) -> la.TemplateLibrary | None:
+		"""
+		Return the template library version used by ``globals`` (i.e. the
+		version ``globals.template_library_version``) with its templates and
+		parameters, or ``None`` if there's no such version.
+		"""
+		return None
 
-	def fetch_libraryparams(self):
-		return la.attrdict()
+	def fetch_templatelibraries(self) -> dict[int, la.TemplateLibrary]:
+		"""
+		Return all template library versions (without their templates and
+		parameters) as a dictionary mapping version numbers to
+		:class:`~ll.la.TemplateLibrary` objects.
+		"""
+		return {}
 
 	def fetch_viewtemplate_params(self, globals):
 		return la.attrdict()
@@ -422,8 +435,8 @@ class DBHandler(Handler):
 		self.internaltemplates = {} # Maps ``tpl_uuid`` to template dictionary
 		self.viewtemplate_params = {} # Maps ``vt_id`` to parameter dictionary
 		self.emailtemplate_params = {} # Maps ``et_id`` to parameter dictionary
-		self.librarytemplates = {} # Maps ``lt_id`` to templates
-		self.libraryparams = None # Maps ``lp_id`` to :class:`AppParameter`
+		self.templatelibraries = {} # Maps ``tl_version`` to :class:`TemplateLibrary` (with templates and parameters; ``None`` for unknown versions)
+		self.templatelibraries_without_children = None # Maps ``tl_version`` to :class:`TemplateLibrary` (without templates and parameters)
 
 		if ide_id is not None:
 			if ide_account is not None:
@@ -627,23 +640,18 @@ class DBHandler(Handler):
 	def save_vsql_ast(self, vsqlexpr, datatype=None, cursor=None):
 		return self._save_vsql_ast(vsqlexpr, datatype, cursor)[0]
 
-	def save_vsql_source(self, cursor, source, function, datatype=None, **queryargs):
+	def save_vsql_source(self, cursor, source, vars, datatype=None):
+		"""
+		Compile the vSQL expression ``source`` using the vSQL variables ``vars``
+		(a dictionary mapping variable names to :class:`ll.vsql.Field` objects)
+		and save it.
+
+		Returns the ``vs_id`` of the saved expression (or ``None`` if ``source``
+		is empty).
+		"""
 		if not source:
 			return None
 
-		if cursor is None:
-			cursor = self.cursor()
-
-		query = t"select {function:q}("
-		for (f, (k, v)) in misc.isfirst(queryargs.items()):
-			if not f:
-				query += t", "
-			query += t"{k:q} => {v}"
-		query += t") from dual"
-		cursor.execute(query)
-		dump = cursor.fetchone()[0]
-		dump = dump.decode("utf-8")
-		vars = ul4on.loads(dump)
 		vsqlexpr = vsql.AST.fromsource(source, **vars)
 		return self.save_vsql_ast(vsqlexpr, datatype, cursor)
 
@@ -672,6 +680,7 @@ class DBHandler(Handler):
 			c_user=self.ide_id,
 			p_tpl_uuid=viewtemplate.app.id,
 			p_vt_type=viewtemplate.type.value,
+			p_vt_name=template.name,
 			p_vt_identifier=template.name,
 			p_vt_mimetype=viewtemplate.mimetype,
 			p_utv_signature=ul4c._str(template.signature) if template.signature is not None else None,
@@ -710,18 +719,14 @@ class DBHandler(Handler):
 		vs_id_appfilter = self.save_vsql_source(
 			cursor,
 			datasource.appfilter,
-			la.DataSourceConfig.appfilter.function,
-			p_vt_id=datasource.parent.id,
-			p_tpl_uuid_a=None,
+			datasource.vsqlvars_appfilter(),
 		)
 
 		# Compile and save the record filter
 		vs_id_recordfilter = self.save_vsql_source(
 			cursor,
 			datasource.recordfilter,
-			la.DataSourceConfig.recordfilter.function,
-			p_vt_id=datasource.parent.id,
-			p_tpl_uuid_r=datasource.app.id if datasource.app is not None else None,
+			datasource.vsqlvars_recordfilter(),
 		)
 
 		# FIXME: Support for system apps?
@@ -752,7 +757,6 @@ class DBHandler(Handler):
 			self._save_dataorders(
 				cursor,
 				datasource.orders,
-				"VSQLSUPPORT_PKG3.DS_ORDER_FUL4ON",
 				ds_id=r.p_ds_id,
 			)
 			for children in datasource.children.values():
@@ -779,9 +783,7 @@ class DBHandler(Handler):
 		vs_id_filter = self.save_vsql_source(
 			cursor,
 			datasourcechildrenconfig.filter,
-			la.DataSourceChildrenConfig.filter.function,
-			p_ds_id=datasourcechildrenconfig.datasource.id,
-			p_ctl_id=ctl_id,
+			datasourcechildrenconfig.vsqlvars_filter(),
 		)
 
 		# Import the ``datasourcechildren`` record
@@ -800,11 +802,10 @@ class DBHandler(Handler):
 			self._save_dataorders(
 				cursor,
 				datasourcechildrenconfig.orders,
-				"VSQLSUPPORT_PKG3.DSC_ORDER_FUL4ON",
 				dsc_id=r.p_dsc_id,
 			)
 
-	def _save_dataorders(self, cursor, orders, function, **kwargs):
+	def _save_dataorders(self, cursor, orders, **kwargs):
 		query = t"select do_id, do_order from dataorder where "
 		for (f, (k, v)) in misc.isfirst(kwargs.items()):
 			if not f:
@@ -828,8 +829,7 @@ class DBHandler(Handler):
 				vs_id_expression = self.save_vsql_source(
 					cursor,
 					dataorder.expression,
-					function,
-					**procargs,
+					dataorder.vsqlvars_expression(),
 				)
 
 				# Import the ``dataorder`` record
@@ -914,6 +914,25 @@ class DBHandler(Handler):
 		if self.session_id is not None:
 			args["p_sessionid"] = self.session_id
 		self.proc_init(cursor, **args)
+
+	def _execute_pg_ul4on_query(self, query):
+		"""
+		Execute the Postgres query ``query`` (a t-string that must return an
+		UL4ON dump as its single value) and return the decoded dump (or
+		``None`` if the query returned ``null``).
+
+		Unlike :meth:`_execute_incremental_ul4on_call` the dump is
+		self-contained: it is decoded with a fresh decoder, so it can't
+		reference objects from the Oracle dumps, and persistent objects in it
+		are not merged with the objects already loaded.
+		"""
+		c = self.cursor_pg(row_factory=rows.tuple_row)
+		c.execute(query)
+		r = c.fetchone()
+		dump = r[0]
+		if dump is None:
+			return None
+		return ul4on.loads(dump)
 
 	def _execute_incremental_ul4on_call(self, globals, call):
 		"""
@@ -1128,6 +1147,18 @@ class DBHandler(Handler):
 				raise ValueError(f"no template named {template!r} for app {appid!r}")
 
 		return self._data(vt_id=r.vt_id, dat_id=datid, reqparams=params, funcname="viewtemplatedata_ful4on")
+
+	def app_params_incremental_data(self, app):
+		return self._execute_incremental_ul4on_call(
+			app.globals,
+			t"livingapi_pkg.app_params_inc_ful4on({app.id})",
+		)
+
+	def appgroup_params_incremental_data(self, appgroup):
+		return self._execute_incremental_ul4on_call(
+			appgroup.globals,
+			t"livingapi_pkg.appgroup_params_inc_ful4on({appgroup.id})",
+		)
 
 	def app_dataactions_incremental_data(self, app):
 		return self._execute_incremental_ul4on_call(
@@ -1369,6 +1400,7 @@ class DBHandler(Handler):
 			p_tpl_typename_gen_plu=app.__dict__["typename_genitive_plural"],
 			p_tpl_typename_dat_plu=app.__dict__["typename_dative_plural"],
 			p_tpl_typename_acc_plu=app.__dict__["typename_accusative_plural"],
+			p_tl_version=app.template_library_version,
 		)
 		return True
 
@@ -1747,58 +1779,26 @@ class DBHandler(Handler):
 			)
 		return self.emailtemplate_params[et_id]
 
-	def fetch_librarytemplates(self, type : str):
-		if type not in self.librarytemplates:
-			c = self.cursor_pg(row_factory=rows.tuple_row)
-			if type is None:
-				c.execute(t"""
-					select
-						lt_identifier,
-						utv_source
-					from
-						templatelibrary.librarytemplate_select
-					where
-						tmt_key is null
-				""")
-			else:
-				c.execute(t"""
-					select
-						lt_identifier,
-						utv_source
-					from
-						templatelibrary.librarytemplate_select
-					where
-						tmt_key = {type}
-				""")
+	def fetch_templatelibrary(self, globals) -> la.TemplateLibrary | None:
+		version = globals.template_library_version
+		if version not in self.templatelibraries:
+			self.templatelibraries[version] = self._execute_pg_ul4on_query(
+				t"select templatelibrary.templatelibrary_ful4on({version}, true)",
+			)
+		return self.templatelibraries[version]
 
-			templates = la.attrdict()
-			for r in c:
-				(identifier, source) = r
-				namespace = f"templatelibrary.{type}" if type else f"templatelibrary"
-				template = ul4c.Template(source, name=identifier, namespace=namespace)
-				templates[template.name] = template
-			self.librarytemplates[type] = templates
-		return self.librarytemplates[type]
-
-	def fetch_libraryparams(self):
-		if self.libraryparams is None:
-			c = self.cursor_pg(row_factory=rows.tuple_row)
-			c.execute("select templatelibrary.libraryparameters_ful4on()")
-			r = c.fetchone()
-			dump = r[0]
-			# Don't reuse the decoder for the dumps from Oracle, this is an independent one
-			# Note that we ignore the problem of persistent objects, since none of the
-			# persistent objects in this dump are in the other dump
-			dump = ul4on.loads(dump)
-			if isinstance(dump, dict):
-				dump = la.attrdict(dump)
-			self.libraryparams = la.attrdict(dump)
-		return self.libraryparams
+	def fetch_templatelibraries(self) -> dict[int, la.TemplateLibrary]:
+		if self.templatelibraries_without_children is None:
+			libraries = self._execute_pg_ul4on_query(
+				t"select templatelibrary.templatelibraries_ful4on(false)",
+			)
+			self.templatelibraries_without_children = libraries if libraries is not None else {}
+		return self.templatelibraries_without_children
 
 	def count_records(self, app, filter):
 		q = vsql.OracleQuery(
 			f"Count records of app {app.name}",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
 			app=app.vsqlfield_app("app", "g.tpl_id_app"),
 		)
@@ -1826,7 +1826,7 @@ class DBHandler(Handler):
 	def delete_records(self, app, filter):
 		q = vsql.OracleQuery(
 			f"Delete records of app {app.name}",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
 			app=app.vsqlfield_app("app", "g.tpl_id_app"),
 		)
@@ -1899,7 +1899,7 @@ class DBHandler(Handler):
 	def fetch_records(self, app, filter:list[str], sort:list[str], offset=0, limit=None):
 		q = vsql.OracleQuery(
 			f"Fetch records of app {app.name} ({app.id})",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
 			app=app.vsqlfield_app("app", "g.tpl_id_app"),
 		)
@@ -2003,10 +2003,10 @@ class DBHandler(Handler):
 	def vsqlquery4fetch(self, app, filter, fields, record):
 		q = vsql.OracleQuery(
 			f"Fetch records of app {app.name} ({app.id})",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", vsql.sql(app.internal_id)),
 			app=app.vsqlfield_app("app", vsql.sql(app.globals.app.internal_id)),
-			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
+			record=record.app.vsqlfield_record("record", "g.dat_id_detail") if record is not None else None,
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
@@ -2037,10 +2037,10 @@ class DBHandler(Handler):
 	def vsqlquery4count(self, app, filter, record):
 		q = vsql.OracleQuery(
 			f"Fetch records of app {app.name} ({app.id})",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", vsql.sql(app.internal_id)),
 			app=app.vsqlfield_app("app", vsql.sql(app.globals.app.internal_id)),
-			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
+			record=record.app.vsqlfield_record("record", "g.dat_id_detail") if record is not None else None,
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
@@ -2078,13 +2078,7 @@ class DBHandler(Handler):
 
 		q = vsql.OracleQuery(
 			"Fetch records from multiple apps",
-			user=vsql.Field(
-				"user",
-				vsql.DataType.STR,
-				"v_globals.ide_id_user",
-				"g.ide_id_user = {d}.ide_id",
-				refgroup=la.User.vsqlgroup
-			),
+			user=la.App.vsqlfield_user(),
 			r=vsql.Field(
 				"r",
 				vsql.DataType.STR,
@@ -2093,7 +2087,7 @@ class DBHandler(Handler):
 				la.App.vsqlgroup_records_common(inner_q),
 			),
 			app=globals.app.vsqlfield_app("r", vsql.sql(globals.app.internal_id)),
-			record=record.app.vsqlfield_records("record", "g.dat_id_detail") if record is not None else None,
+			record=record.app.vsqlfield_record("record", "g.dat_id_detail") if record is not None else None,
 		)
 
 		# Add CTE with the parameters that we'll pass to the query
@@ -2222,7 +2216,7 @@ class DBHandler(Handler):
 	def aggregate_records(self, app, filter:list[str], value:list[str]):
 		q = vsql.OracleQuery(
 			f"Aggregate records of app {app.name} ({app.id})",
-			user=vsql.Field("user", vsql.DataType.STR, "v_globals.ide_id_user", "g.ide_id_user = {d}.ide_id", refgroup=la.User.vsqlgroup),
+			user=la.App.vsqlfield_user(),
 			r=app.vsqlfield_records("r", "g.tpl_id_app"),
 			app=app.vsqlfield_app("app", "g.tpl_id_app"),
 		)
