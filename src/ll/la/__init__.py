@@ -6575,10 +6575,12 @@ class TelControl(StringControl):
 
 class EncryptionType(misc.IntEnum):
 	"""
-	The type of encruption for a field of type ``string``/``textarea``.
+	The type of encryption for a field of type ``string``/``textarea``.
+
+	A field that isn't encrypted has no encryption type (see
+	:attr:`TextAreaControl.encrypted`).
 	"""
 
-	NONE = 0
 	FORCE = 1
 	OPTIONAL = 2
 
@@ -6591,9 +6593,18 @@ class TextAreaControl(StringControl):
 	Relevant instance attributes are:
 
 	.. attribute:: encrypted
-		:type: EncryptionType
+		:type: EncryptionType | None
 
 		Is this field encrypted (and how/when will it be encrypted)?
+
+		``None`` means that the field isn't encrypted.
+
+		The value has three representations: In Python it is an
+		:class:`EncryptionType` member, in an UL4ON dump the integer value of
+		this member and in UL4 its name in lowercase (i.e. ``"force"`` or
+		``"optional"``). In all three ``None`` is used for a field that isn't
+		encrypted. All of them (and the integer ``0`` for "not encrypted") can
+		be used when setting the attribute.
 	"""
 
 	_subtype = "textarea"
@@ -6602,9 +6613,45 @@ class TextAreaControl(StringControl):
 	ul4_attrs = StringControl.ul4_attrs.union({"encrypted"})
 	ul4_type = ul4c.Type("la", "TextAreaControl", "A LivingApps textarea field (type 'string/textarea')")
 
-	encrypted = IntEnumAttr(EncryptionType, get=True, set=True, default=EncryptionType.NONE, ul4get=True, ul4onget=True, ul4onset=True)
+	encrypted = IntEnumAttr(EncryptionType, get=True, set="", ul4get="", ul4onget=True, ul4onset="_encrypted_set")
 
 	fieldtype = TextAreaField
+
+	def _encrypted_set(self, value: EncryptionType | int | str | None) -> None:
+		"""
+		Set the encryption type of this field.
+
+		Which values are supported is described for :attr:`encrypted`.
+		"""
+
+		if isinstance(value, EncryptionType) or value is None:
+			pass
+		elif isinstance(value, str):
+			try:
+				value = EncryptionType[value.upper()]
+			except KeyError:
+				values = [e.name.lower() for e in EncryptionType]
+				raise ValueError(attribute_wrong_value(self, "encrypted", value, values)) from None
+		elif isinstance(value, int) and not isinstance(value, bool):
+			if value == 0:
+				value = None
+			else:
+				try:
+					value = EncryptionType(value)
+				except ValueError:
+					values = [0, *(e.value for e in EncryptionType)]
+					raise ValueError(attribute_wrong_value(self, "encrypted", value, values)) from None
+		else:
+			raise TypeError(error_attribute_wrong_type(self, "encrypted", value, (EncryptionType, int, str, type(None))))
+		self.__dict__["encrypted"] = value
+
+	def _encrypted_ul4get(self) -> str | None:
+		"""
+		Return the encryption type of this field for UL4.
+		"""
+
+		value = self.encrypted
+		return value.name.lower() if value is not None else None
 
 	def _maxlength_get(self):
 		vc = self._get_viewcontrol()
