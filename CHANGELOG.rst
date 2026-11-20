@@ -1,3 +1,12 @@
+0.68.0 (2026-11-20)
+-------------------
+
+*	``TextAreaControl.encrypted`` is now ``None`` for a field that isn't
+	encrypted, so ``EncryptionType.NONE`` is gone. In UL4 the attribute is now
+	``"force"``, ``"optional"`` or ``None`` (instead of the integer value),
+	which is what the Java implementation does.
+
+
 0.67.0 (2026-11-04)
 -------------------
 
