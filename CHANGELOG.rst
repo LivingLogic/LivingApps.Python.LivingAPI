@@ -1,4 +1,4 @@
-0.68.0 (2026-11-??)
+0.68.0 (2026-11-20)
 -------------------
 
 *	``TextAreaControl.encrypted`` is now ``None`` for a field that isn't
