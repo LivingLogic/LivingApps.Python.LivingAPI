@@ -651,6 +651,53 @@ def test_app_parameters_on_demand(handler):
 		assert lines(output) == lines(expected)
 
 
+def test_app_parameters_user_specific(handler):
+	"""
+	Check user specific versions of app parameters.
+
+	A user specific version of an app parameter replaces the parameter for the
+	current user (see :attr:`ll.la.App.params`). This also checks saving and
+	deleting parameters of type ``string``.
+
+	Note that this will not work via ``PythonHTTP``.
+	"""
+
+	if not isinstance(handler, PythonHTTP):
+		vt = handler.make_viewtemplate(
+			identifier="test_livingapi_app_parameters_user_specific",
+			source="""
+				<?code p = app.ownparams.get("test_user_specific", None)?>
+				<?if p is None?>
+					<?code p = app.add_param("test_user_specific", type="string", value="all")?>
+				<?end if?>
+				<?code p.user_override = True?>
+				<?code p.save()?>
+				<?code u = app.userparams.get("test_user_specific", None)?>
+				<?if u is None?>
+					<?code u = app.add_param("test_user_specific", type="string", value="user", user=globals.user)?>
+				<?end if?>
+				<?code u.save()?>
+				<?print app.pv_test_user_specific?>
+				<?print app.ownparams.test_user_specific.value?>
+				<?print app.p_test_user_specific.user is globals.user?>
+				<?code u.delete()?>
+				<?print app.pv_test_user_specific?>
+				<?code p.delete()?>
+				<?print "test_user_specific" in app.params?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			user
+			all
+			True
+			all
+			False
+		"""
+		assert lines(output) == lines(expected)
+
+
 def test_appparams(handler, config_data):
 	"""
 	Check all app parameter types.

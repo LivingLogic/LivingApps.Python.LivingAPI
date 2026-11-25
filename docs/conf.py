@@ -15,6 +15,7 @@
 import sys
 import os
 import types
+import typing
 import re
 
 from pygments import lexer, token
@@ -411,6 +412,9 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
 		return True
 	elif name in dir(object) and doc == getattr(object, name).__doc__:
 		return True
+	elif isinstance(obj, typing.TypeAliasType):
+		# The docstring of a type alias is the string literal below it and not ``obj.__doc__``
+		return False
 	elif not doc or doc == getattr(type(obj), "__doc__", None):
 		return True
 	return False

@@ -64,17 +64,6 @@ __all__ = ["Handler", "HTTPHandler", "DBHandler", "FileHandler"]
 
 
 ###
-### Typing stuff
-###
-
-from typing import *
-T_opt_handler = Optional["ll.la.handlers.Handler"]
-T_opt_int = Optional[int]
-T_opt_float = Optional[float]
-T_opt_str = Optional[str]
-T_opt_file = Optional["ll.la.File"]
-
-###
 ### Utility functions and classes
 ###
 
@@ -147,6 +136,9 @@ class Handler:
 	def app_params_incremental_data(self, app):
 		return None
 
+	def app_userparams_incremental_data(self, app):
+		return None
+
 	def appgroup_params_incremental_data(self, appgroup):
 		return None
 
@@ -203,7 +195,7 @@ class Handler:
 				else:
 					return la.Geo(lat, long, parts[2].strip())
 
-	def geo(self, lat: T_opt_float = None, long: T_opt_float = None, info :T_opt_str = None) -> la.Geo:
+	def geo(self, lat: float | None = None, long: float | None = None, info: str | None = None) -> la.Geo:
 		"""
 		Create a :class:`~ll.la.Geo` object from :obj:`lat`/:obj`long` or :obj:`info`.
 
@@ -267,7 +259,10 @@ class Handler:
 	def save_file(self, file):
 		raise NotImplementedError
 
-	def save_parameter(self, parameter, recursive=True):
+	def save_parameter(self, parameter):
+		raise NotImplementedError
+
+	def delete_parameter(self, parameter):
 		raise NotImplementedError
 
 	def save_attachment(self, attachment) -> None:
@@ -519,7 +514,7 @@ class DBHandler(Handler):
 		(value, r) = self.func_template_seq(c, app.id)
 		return int(value)
 
-	def send_mail(self, globals: la.Globals, app: la.App | None, record: la.Record | None, *, from_: T_opt_str = None, reply_to: T_opt_str = None, to: T_opt_str = None, cc: T_opt_str = None, bcc: T_opt_str = None, subject: T_opt_str = None, body_text: T_opt_str = None, body_html: T_opt_str = None, attachments: T_opt_file = None) -> None:
+	def send_mail(self, globals: la.Globals, app: la.App | None, record: la.Record | None, *, from_: str | None = None, reply_to: str | None = None, to: str | None = None, cc: str | None = None, bcc: str | None = None, subject: str | None = None, body_text: str | None = None, body_html: str | None = None, attachments: la.File | None = None) -> None:
 		c = self.cursor()
 		self.proc_email_send(
 			c,
@@ -549,7 +544,7 @@ class DBHandler(Handler):
 					self.save_viewtemplate_config(viewtemplate_config, recursive=recursive)
 			if app._ownparams is not None:
 				for param in app._ownparams.values():
-					self.save_parameter(param)
+					self._save_parameter_tree(param)
 
 	def save_file(self, file):
 		if file.internal_id is None:
@@ -1154,6 +1149,12 @@ class DBHandler(Handler):
 			t"livingapi_pkg.app_params_inc_ful4on({app.id})",
 		)
 
+	def app_userparams_incremental_data(self, app):
+		return self._execute_incremental_ul4on_call(
+			app.globals,
+			t"livingapi_pkg.app_userparams_inc_ful4on({app.id})",
+		)
+
 	def appgroup_params_incremental_data(self, appgroup):
 		return self._execute_incremental_ul4on_call(
 			appgroup.globals,
@@ -1541,7 +1542,18 @@ class DBHandler(Handler):
 			)
 			attachment._deleted = True
 
-	def save_parameter(self, parameter, recursive=True):
+	def _save_parameter_tree(self, parameter):
+		# ``save_parameter()`` only saves the parameter itself, so the children
+		# must be saved after their parent
+		self.save_parameter(parameter)
+		if parameter.type is parameter.Type.LIST:
+			for child in parameter.value or ():
+				self._save_parameter_tree(child)
+		elif parameter.type is parameter.Type.DICT:
+			for child in (parameter.value or {}).values():
+				self._save_parameter_tree(child)
+
+	def save_parameter(self, parameter):
 		if not parameter._deleted:
 			c = self.cursor()
 
@@ -1562,7 +1574,7 @@ class DBHandler(Handler):
 					p_ap_value_other = str(parameter.value)
 				elif parameter.type is parameter.Type.NUMBER:
 					p_ap_value_other = str(parameter.value)
-				elif parameter.type is parameter.Type.STR:
+				elif parameter.type is parameter.Type.STRING:
 					p_ap_value_str = parameter.value
 				elif parameter.type is parameter.Type.HTML:
 					p_ap_value_html = parameter.value
@@ -1604,6 +1616,7 @@ class DBHandler(Handler):
 					p_ap_id_super=parameter.parent.id if parameter.parent is not None else None,
 					p_ap_order=parameter.order,
 					p_ap_identifier=parameter.identifier,
+					p_ap_namespace=parameter.namespace,
 					p_ap_type=parameter.type.value,
 					p_ap_description=parameter.description,
 					p_ap_value_bool=p_ap_value_bool,
@@ -1615,6 +1628,8 @@ class DBHandler(Handler):
 					p_upl_id=p_upl_id,
 					p_tpl_uuid_value=p_tpl_uuid_value,
 					p_ctl_id=p_ctl_id,
+					p_ide_id=parameter.user.id if parameter.user is not None else None,
+					p_ap_useroverride=None if parameter.user_override is None else int(parameter.user_override),
 				)
 			except orasql.DatabaseError as exc:
 				error = exc.args[0]
@@ -1639,13 +1654,6 @@ class DBHandler(Handler):
 				parameter.updatedby = parameter.globals.user
 			parameter._dirty = False
 			parameter._new = False
-			if recursive:
-				if parameter.type is parameter.Type.LIST:
-					for child in parameter.value:
-						self.save_parameter(child, True)
-				elif parameter.type is parameter.Type.DICT:
-					for child in parameter.value.values():
-						self.save_parameter(child, True)
 
 	def delete_parameter(self, parameter):
 		if not parameter._deleted:
@@ -1656,10 +1664,12 @@ class DBHandler(Handler):
 				p_ap_id=parameter.id,
 			)
 			if parameter.parent is not None:
-				if parameter.type is parameter.Type.DICT:
+				if parameter.parent.type is parameter.Type.DICT:
 					parameter.parent.value.pop(parameter.identifier)
-				elif parameter.type is parameter.Type.LIST:
+				elif parameter.parent.type is parameter.Type.LIST:
 					parameter.parent.value.remove(parameter)
+			elif parameter.app is not None:
+				parameter.app._remove_param(parameter)
 			parameter._deleted = True
 
 	def parameter_sync_data(self, ap_id):
