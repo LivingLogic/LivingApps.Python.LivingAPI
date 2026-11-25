@@ -377,7 +377,7 @@ texinfo_documents = [
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
 	'python': ('https://docs.python.org/3.8', None),
-	'requests': ('https://requests.kennethreitz.org/en/master/', None),
+	"requests": ("https://requests.readthedocs.io/en/latest", None),
 	'xist': ('https://python.livinglogic.de/', None),
 }
 
