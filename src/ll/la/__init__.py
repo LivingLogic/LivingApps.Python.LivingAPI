@@ -269,6 +269,14 @@ def error_userparameter_wrong_type(app: App, identifier: str, expected: AppParam
 	return f"User specific parameter {identifier!r} of app {app.id!r} must be of type {expected.value!r}, not {got.value if got is not None else None!r}."
 
 
+def error_userattachment_no_user() -> str:
+	return "An attachment of a user requires a logged in user."
+
+
+def error_userattachment_wrong_user(user: User) -> str:
+	return f"Attachments of a user can only be created, changed and deleted by this user, but the current user isn't {user!r}."
+
+
 def error_template_library_version_unknown(version: int) -> str:
 	return f"Unknown template library version {version!r}."
 
@@ -672,6 +680,13 @@ class UserParameterError(ValueError):
 	"""
 	Exception that is raised when a user specific app parameter can't be
 	created or saved (see :attr:`App.params`).
+	"""
+
+
+class UserAttachmentError(ValueError):
+	"""
+	Exception that is raised when an attachment of a user is created, saved
+	or deleted by another user (see :class:`WithAttachments`).
 	"""
 
 
@@ -1721,8 +1736,94 @@ class Geo(WithTemplates):
 		return cls()
 
 
+class WithAttachments:
+	"""
+	Mixin class for all classes that have attachments.
+
+	These are :class:`App`, :class:`AppGroup`, :class:`Record` and
+	:class:`User`. The attachments of a user are private to this user: only
+	the attachments of the current user (:attr:`Globals.user`) are loaded
+	(for every other user :attr:`attachments` is ``None``), and only the
+	current user can create, change and delete them (otherwise a
+	:exc:`UserAttachmentError` is raised).
+
+	These objects have the following attribute:
+
+	.. attribute:: attachments
+		:type: dict[str, Attachment] | None
+
+		Attachments for this record, app, app group or user.
+	"""
+
+	ul4_attrs = {"attachments"}
+
+	def _attachments_get(self):
+		attachments = self._attachments
+		if attachments is None and self.id is not None:
+			attachments = self._attachments_fetch()
+			if attachments is not None:
+				attachments = attrdict(attachments)
+				self._attachments = attachments
+		return attachments
+
+	def _attachments_fetch(self):
+		return None
+
+	def _attachments_set(self, value):
+		self._attachments = value
+
+	def _attachments_ul4onget(self):
+		return self._attachments
+
+	def _add_attachment(self, attachment):
+		attachment._check_user()
+		self.attachments[f"attachment_{self.globals._next_attachment_id}"] = attachment
+		self.globals._next_attachment_id += 1
+		return attachment
+
+	def add_note_attachment(self, label, namespace, active, value):
+		attachment = NoteAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+	def add_url_attachment(self, label, namespace, active, value):
+		attachment = URLAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+	def add_json_attachment(self, label, namespace, active, value):
+		attachment = JSONAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+	def add_file_attachment(self, label, namespace, active, value):
+		attachment = FileAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+
 @register("user")
-class User(CustomAttributes):
+class User(CustomAttributes, WithAttachments):
 	r"""
 	A LivingApps user account.
 
@@ -1852,6 +1953,11 @@ class User(CustomAttributes):
 
 		The :class:`KeyView`\s of this user (only when it is the logged in user)
 
+	.. attribute:: attachments
+		:type: dict[str, Attachment] | None
+
+		The attachments of this user (see :class:`WithAttachments`).
+
 	Note that the following attributes will always be ``None`` for users that
 	are not the logged in user: ``street``, ``streetnumber``, ``zip``, ``city``,
 	``phone``, ``fax``, ``summary``, ``interests``, ``personal_website``,
@@ -1863,7 +1969,8 @@ class User(CustomAttributes):
 		"lang", "image", "avatar_small", "avatar_large", "streetname", "streetnumber",
 		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
 		"company_website", "company", "position", "department", "colorscheme",
-		"keyviews", "change"
+		"keyviews", "change", "attachments", "add_note_attachment",
+		"add_url_attachment", "add_json_attachment", "add_file_attachment",
 	})
 	ul4_type = ul4c.Type("la", "User", "A LivingApps user/account")
 
@@ -1906,6 +2013,7 @@ class User(CustomAttributes):
 	keyviews = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	colorscheme = EnumAttr(ColorScheme, get=True, set=True, required=True, default=ColorScheme.AUTO, ul4get=True, ul4onget=True, ul4onset=True)
+	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 
 	def __init__(self,
 		id=None, gender=None, title=None, firstname=None, surname=None,
@@ -1941,10 +2049,24 @@ class User(CustomAttributes):
 		self.department = department
 		self.colorscheme = colorscheme
 		self.keyviews = attrdict()
+		self._attachments = None
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def _gethandler(self) -> Handler:
+		return self.globals._gethandler()
+
+	def _attachments_fetch(self):
+		# A user that hasn't been loaded from an UL4ON dump has no ``globals``
+		globals = self.__dict__.get("globals")
+		if globals is None:
+			return None
+		current_user = globals.user
+		if current_user is None or (self is not current_user and self.id != current_user.id):
+			return None
+		return globals._incremental_data(t"livingapi_pkg.user_attachments_inc_ful4on({self.id})")
 
 	def _image_get(self) -> File | None:
 		return self.image
@@ -2996,85 +3118,6 @@ class WithParams:
 	def _ownparams_ul4onset(self, value):
 		if value is not None:
 			self._ownparams = value
-
-
-class WithAttachments:
-	"""
-	Mixin class for all classes that have attachments
-	(i.e. :class:`App`, a:class:`AppGroup` and  :class:`Record`).
-
-	These objects have the following attribute:
-
-	.. attribute:: attachments
-		:type: dict[str, Attachment] | None
-
-		Attachments for this record, app, or app group.
-	"""
-
-	ul4_attrs = {"attachments"}
-
-	def _attachments_get(self):
-		attachments = self._attachments
-		if attachments is None and self.id is not None:
-			attachments = self._attachments_fetch()
-			if attachments is not None:
-				attachments = attrdict(attachments)
-				self._attachments = attachments
-		return attachments
-
-	def _attachments_fetch(self):
-		return None
-
-	def _attachments_set(self, value):
-		self._attachments = value
-
-	def _attachments_ul4onget(self):
-		return self._attachments
-
-	def _add_attachment(self, attachment):
-		self.attachments[f"attachment_{self.globals._next_attachment_id}"] = attachment
-		self.globals._next_attachment_id += 1
-		return attachment
-
-	def add_note_attachment(self, label, namespace, active, value):
-		attachment = NoteAttachment(
-			owner=self,
-			label=label,
-			namespace=namespace,
-			active=active,
-			value=value,
-		)
-		return self._add_attachment(attachment)
-
-	def add_url_attachment(self, label, namespace, active, value):
-		attachment = URLAttachment(
-			owner=self,
-			label=label,
-			namespace=namespace,
-			active=active,
-			value=value,
-		)
-		return self._add_attachment(attachment)
-
-	def add_json_attachment(self, label, namespace, active, value):
-		attachment = JSONAttachment(
-			owner=self,
-			label=label,
-			namespace=namespace,
-			active=active,
-			value=value,
-		)
-		return self._add_attachment(attachment)
-
-	def add_file_attachment(self, label, namespace, active, value):
-		attachment = FileAttachment(
-			owner=self,
-			label=label,
-			namespace=namespace,
-			active=active,
-			value=value,
-		)
-		return self._add_attachment(attachment)
 
 
 @register(None)
@@ -8728,7 +8771,8 @@ class RecordChildren(Base):
 
 class Attachment(CustomAttributes):
 	"""
-	An attachment for a :class:`Record`, :class:`App` or `:class:`AppGroup`.
+	An attachment for a :class:`Record`, :class:`App`, :class:`AppGroup` or
+	:class:`User` (see :class:`WithAttachments`).
 
 	Relevant instance attributes are:
 
@@ -8738,9 +8782,11 @@ class Attachment(CustomAttributes):
 		Unique database id.
 
 	.. attribute:: owner
-		:type: AppGroup | App | Record
+		:type: AppGroup | App | Record | User
 
-		The record, app or appgroup this attachment belongs to.
+		The record, app, app group or user this attachment belongs to. The
+		attributes ``record``, ``app``, ``appgroup`` and ``user`` return the
+		owner if it is of that type (and ``None`` otherwise).
 
 	.. attribute:: label
 		:type: str
@@ -8758,11 +8804,11 @@ class Attachment(CustomAttributes):
 		Is this attachment active?
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "type", "owner", "record", "app", "appgroop", "label", "namespace", "active", "save", "delete"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "type", "owner", "record", "app", "appgroup", "user", "label", "namespace", "active", "save", "delete"})
 	ul4_type = ul4c.Type("la", "Attachment", "An attachment of a record, app or appgroup")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	owner = Attr(AppGroup | App | Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	owner = Attr(AppGroup | App | Record | User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	namespace = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	active = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
@@ -8779,22 +8825,71 @@ class Attachment(CustomAttributes):
 	def ul4onid(self) -> str:
 		return self.id
 
+	@property
+	def record(self) -> Record | None:
+		return self.owner if isinstance(self.owner, Record) else None
+
+	@property
+	def app(self) -> App | None:
+		return self.owner if isinstance(self.owner, App) else None
+
+	@property
+	def appgroup(self) -> AppGroup | None:
+		return self.owner if isinstance(self.owner, AppGroup) else None
+
+	@property
+	def user(self) -> User | None:
+		return self.owner if isinstance(self.owner, User) else None
+
+	@property
+	def globals(self) -> Globals | None:
+		owner = self.owner
+		if isinstance(owner, Record):
+			return owner.app.globals
+		return owner.globals if owner is not None else None
+
 	def _gethandler(self) -> Handler:
 		return self.owner._gethandler()
 
+	def _check_user(self) -> None:
+		"""
+		Check that an attachment of a user belongs to the current user.
+
+		For the attachments of other owners this does nothing.
+		"""
+
+		user = self.user
+		if user is not None:
+			globals = user.__dict__.get("globals")
+			current_user = globals.user if globals is not None else None
+			if current_user is None:
+				raise UserAttachmentError(error_userattachment_no_user())
+			if user is not current_user and user.id != current_user.id:
+				raise UserAttachmentError(error_userattachment_wrong_user(user))
+
 	def _template_candidates(self):
 		handler = self._gethandler()
-		app_id = self.record.app.id
+		globals = self.globals
+		owner = self.owner
+		if isinstance(owner, Record):
+			app = owner.app
+		elif isinstance(owner, App):
+			app = owner
+		else:
+			app = globals.app
 		type = self.type.removesuffix("attachment")
-		yield handler.fetch_internaltemplates(app_id, f"attachment_{type}_instance", None)
-		yield handler.fetch_internaltemplates(app_id, "attachment_instance", None)
-		yield self.record.app.globals.library_templates(f"attachment_{type}_instance")
-		yield self.record.app.globals.library_templates("attachment_instance")
+		if app is not None:
+			yield handler.fetch_internaltemplates(app.id, f"attachment_{type}_instance", None)
+			yield handler.fetch_internaltemplates(app.id, "attachment_instance", None)
+		yield globals.library_templates(f"attachment_{type}_instance")
+		yield globals.library_templates("attachment_instance")
 
 	def delete(self):
+		self._check_user()
 		self._gethandler().delete_attachment(self)
 
 	def save(self):
+		self._check_user()
 		self._gethandler().save_attachment(self)
 
 	def text_for_save(self):

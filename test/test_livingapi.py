@@ -698,6 +698,51 @@ def test_app_parameters_user_specific(handler):
 		assert lines(output) == lines(expected)
 
 
+def test_user_attachments(handler):
+	"""
+	Check attachments of the current user.
+
+	Attachments of a user can only be created, changed and deleted by this
+	user (see :class:`ll.la.WithAttachments`).
+
+	Note that this will not work via ``PythonHTTP``.
+	"""
+
+	if not isinstance(handler, PythonHTTP):
+		vt = handler.make_viewtemplate(
+			identifier="test_livingapi_user_attachments",
+			source="""
+				<?for a in list(globals.user.attachments.values())?>
+					<?if a.label == "test_user_attachment"?>
+						<?code a.delete()?>
+					<?end if?>
+				<?end for?>
+				<?code a = globals.user.add_note_attachment("test_user_attachment", None, True, "first")?>
+				<?code a.save()?>
+				<?print a.id is not None?>
+				<?print a.owner is globals.user?>
+				<?print a.user is globals.user?>
+				<?print a.app?>
+				<?print a.id in globals.user.attachments?>
+				<?code a.value = "second"?>
+				<?code a.save()?>
+				<?print a.value?>
+				<?code a.delete()?>
+			""",
+		)
+
+		output = handler.renders(person_app_id(), template=vt.identifier)
+		expected = """
+			True
+			True
+			True
+			None
+			True
+			second
+		"""
+		assert lines(output) == lines(expected)
+
+
 def test_appparams(handler, config_data):
 	"""
 	Check all app parameter types.

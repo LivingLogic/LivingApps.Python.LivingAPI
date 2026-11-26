@@ -23,6 +23,19 @@
 	work again (the latter always sets the parameter of the app itself).
 	Deleting a child parameter now removes it from its parent.
 
+*	Users can now have attachments: ``User`` has the new attribute
+	``attachments`` and the methods ``add_note_attachment()``,
+	``add_url_attachment()``, ``add_json_attachment()`` and
+	``add_file_attachment()``. These attachments are private to the user (see
+	``WithAttachments``): for another user ``attachments`` is ``None``, and
+	creating, changing or deleting an attachment of another user raises a
+	``UserAttachmentError``. The UL4ON dump of a ``User`` now contains its
+	attachments (if they have been loaded).
+
+*	``Attachment`` has the new attributes ``record``, ``app``, ``appgroup``
+	and ``user`` (the first three were available in UL4 by name only and
+	failed). Member templates of attachments of apps and app groups work now.
+
 
 0.68.0 (2026-11-20)
 -------------------

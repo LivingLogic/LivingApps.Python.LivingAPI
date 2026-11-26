@@ -157,7 +157,7 @@ class Handler:
 	def app_panels_incremental_data(self, app):
 		return None
 
-	def attachments_incremental_data(self, owner: la.Record | la.App | la.AppGroup):
+	def attachments_incremental_data(self, owner: la.Record | la.App | la.AppGroup | la.User):
 		return None
 
 	def meta_data(self, *appids, records=False):
@@ -1518,6 +1518,7 @@ class DBHandler(Handler):
 				p_dat_id=attachment.owner.id if isinstance(attachment.owner, la.Record) else None,
 				p_tpl_id=attachment.owner.internal_id if isinstance(attachment.owner, la.App) else None,
 				p_ag_id=attachment.owner.id if isinstance(attachment.owner, la.AppGroup) else None,
+				p_ide_id=attachment.owner.id if isinstance(attachment.owner, la.User) else None,
 				p_atm_label=attachment.label,
 				p_atm_namespace=attachment.namespace,
 				p_atm_active=int(attachment.active),
