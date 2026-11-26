@@ -1,4 +1,4 @@
-0.69.0 (2026-??-??)
+0.69.0 (2026-11-26)
 -------------------
 
 *	App parameters can now have a version that is specific to a user: for this
