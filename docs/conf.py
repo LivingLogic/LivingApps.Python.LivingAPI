@@ -15,6 +15,7 @@
 import sys
 import os
 import types
+import typing
 import re
 
 from pygments import lexer, token
@@ -52,6 +53,7 @@ extensions = [
 	"sphinx.ext.inheritance_diagram",
 	"sphinx.ext.intersphinx",
 	"sphinx.ext.viewcode",
+	"sphinxcontrib.jquery",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -376,7 +378,7 @@ texinfo_documents = [
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
 	'python': ('https://docs.python.org/3.8', None),
-	'requests': ('https://requests.kennethreitz.org/en/master/', None),
+	"requests": ("https://requests.readthedocs.io/en/latest", None),
 	'xist': ('https://python.livinglogic.de/', None),
 }
 
@@ -411,6 +413,9 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
 		return True
 	elif name in dir(object) and doc == getattr(object, name).__doc__:
 		return True
+	elif isinstance(obj, typing.TypeAliasType):
+		# The docstring of a type alias is the string literal below it and not ``obj.__doc__``
+		return False
 	elif not doc or doc == getattr(type(obj), "__doc__", None):
 		return True
 	return False

@@ -34,7 +34,10 @@ __docformat__ = "reStructuredText"
 
 from typing import *
 
-T_opt_handler = Optional["ll.la.handlers.Handler"]
+type JSON = bool | int | float | str | list[JSON] | dict[str, JSON] | None
+"""
+A JSON compatible value, i.e. what :func:`json.loads` returns.
+"""
 
 
 ###
@@ -244,6 +247,34 @@ def error_attribute_wrong_type(instance: Any, name: str, value: Any, allowed_typ
 		allowed_types = format_class(allowed_types)
 
 	return f"Value for attribute {name!r} of {misc.format_class(instance)!r} object must be {allowed_types}, but is {format_class(type(value))}."
+
+
+def error_userparameter_app_only() -> str:
+	return "User specific parameters are only supported for apps."
+
+
+def error_userparameter_no_user() -> str:
+	return "A user specific parameter requires a logged in user."
+
+
+def error_userparameter_wrong_user(user: User) -> str:
+	return f"A user specific parameter can only be created for the current user, not for {user!r}."
+
+
+def error_userparameter_not_allowed(app: App, identifier: str) -> str:
+	return f"Parameter {identifier!r} of app {app.id!r} can't be overridden by users."
+
+
+def error_userparameter_wrong_type(app: App, identifier: str, expected: AppParameter.Type, got: AppParameter.Type) -> str:
+	return f"User specific parameter {identifier!r} of app {app.id!r} must be of type {expected.value!r}, not {got.value if got is not None else None!r}."
+
+
+def error_userattachment_no_user() -> str:
+	return "An attachment of a user requires a logged in user."
+
+
+def error_userattachment_wrong_user(user: User) -> str:
+	return f"Attachments of a user can only be created, changed and deleted by this user, but the current user isn't {user!r}."
 
 
 def error_template_library_version_unknown(version: int) -> str:
@@ -643,6 +674,20 @@ class VersionMismatchError(ValueError):
 
 	def __str__(self) -> str:
 		return f"invalid LivingAPI version: expected {self.expected_version!r}, got {self.encountered_version!r}"
+
+
+class UserParameterError(ValueError):
+	"""
+	Exception that is raised when a user specific app parameter can't be
+	created or saved (see :attr:`App.params`).
+	"""
+
+
+class UserAttachmentError(ValueError):
+	"""
+	Exception that is raised when an attachment of a user is created, saved
+	or deleted by another user (see :class:`WithAttachments`).
+	"""
 
 
 class UnsavedObjectError(ValueError):
@@ -1425,13 +1470,12 @@ class FlashMessage(Base):
 		The type of the message.
 
 	.. attribute:: title
+		:type: str | None
 
-		:type: Optional[str]
-
-		The message tile
+		The message title
 
 	.. attribute:: message
-		:type: Optional[str]
+		:type: str | None
 
 		The message itself
 	"""
@@ -1496,12 +1540,12 @@ class File(CustomAttributes):
 		MIME type.
 
 	.. attribute:: width
-		:type: Optional[int]
+		:type: int | None
 
 		Width in pixels if this file is an image.
 
 	.. attribute:: height
-		:type: Optional[int]
+		:type: int | None
 
 		Height in pixels if this file is an image.
 
@@ -1511,12 +1555,12 @@ class File(CustomAttributes):
 		The filesize in bytes.
 
 	.. attribute:: duration
-		:type: Optional[int]
+		:type: int | None
 
 		Duration of the audio or video file in milliseconds.
 
 	.. attribute:: geo
-		:type: Optional[Geo]
+		:type: Geo | None
 
 		Location where the original file was recorded/created (extracted from EXIF).
 
@@ -1692,8 +1736,94 @@ class Geo(WithTemplates):
 		return cls()
 
 
+class WithAttachments:
+	"""
+	Mixin class for all classes that have attachments.
+
+	These are :class:`App`, :class:`AppGroup`, :class:`Record` and
+	:class:`User`. The attachments of a user are private to this user: only
+	the attachments of the current user (:attr:`Globals.user`) are loaded
+	(for every other user :attr:`attachments` is ``None``), and only the
+	current user can create, change and delete them (otherwise a
+	:exc:`UserAttachmentError` is raised).
+
+	These objects have the following attribute:
+
+	.. attribute:: attachments
+		:type: dict[str, Attachment] | None
+
+		Attachments for this record, app, app group or user.
+	"""
+
+	ul4_attrs = {"attachments"}
+
+	def _attachments_get(self):
+		attachments = self._attachments
+		if attachments is None and self.id is not None:
+			attachments = self._attachments_fetch()
+			if attachments is not None:
+				attachments = attrdict(attachments)
+				self._attachments = attachments
+		return attachments
+
+	def _attachments_fetch(self):
+		return None
+
+	def _attachments_set(self, value):
+		self._attachments = value
+
+	def _attachments_ul4onget(self):
+		return self._attachments
+
+	def _add_attachment(self, attachment):
+		attachment._check_user()
+		self.attachments[f"attachment_{self.globals._next_attachment_id}"] = attachment
+		self.globals._next_attachment_id += 1
+		return attachment
+
+	def add_note_attachment(self, label, namespace, active, value):
+		attachment = NoteAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+	def add_url_attachment(self, label, namespace, active, value):
+		attachment = URLAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+	def add_json_attachment(self, label, namespace, active, value):
+		attachment = JSONAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+	def add_file_attachment(self, label, namespace, active, value):
+		attachment = FileAttachment(
+			owner=self,
+			label=label,
+			namespace=namespace,
+			active=active,
+			value=value,
+		)
+		return self._add_attachment(attachment)
+
+
 @register("user")
-class User(CustomAttributes):
+class User(CustomAttributes, WithAttachments):
 	r"""
 	A LivingApps user account.
 
@@ -1715,12 +1845,12 @@ class User(CustomAttributes):
 		Unique public id
 
 	.. attribute:: gender
-		:type: Optional[str]
+		:type: str | None
 
 		``"m"`` or ``"f"``.
 
 	.. attribute:: title
-		:type: Optional[str]
+		:type: str | None
 
 	.. attribute:: firstname
 		:type: str
@@ -1729,7 +1859,7 @@ class User(CustomAttributes):
 		:type: str
 
 	.. attribute:: initials
-		:type: Optional[str]
+		:type: str | None
 
 	.. attribute:: email
 		:type: str
@@ -1737,27 +1867,27 @@ class User(CustomAttributes):
 		Email address and account name
 
 	.. attribute:: streetname
-		:type: Optional[str]
+		:type: str | None
 
 		Street name; part of the users address
 
 	.. attribute:: streetnumber
-		:type: Optional[str]
+		:type: str | None
 
 		Street number; part of the users address
 
 	.. attribute:: zip
-		:type: Optional[str]
+		:type: str | None
 
 		ZIP code; part of the users address
 
 	.. attribute:: city
-		:type: Optional[str]
+		:type: str | None
 
 		City; part of the users address
 
 	.. attribute:: phone
-		:type: Optional[str]
+		:type: str | None
 
 		The users phone number
 
@@ -1778,37 +1908,37 @@ class User(CustomAttributes):
 		is logged in)
 
 	.. attribute:: summary
-		:type: Optional[str]
+		:type: str | None
 
 		Optional self description of the user.
 
 	.. attribute:: interests
-		:type: Optional[str]
+		:type: str | None
 
 		The users interests.
 
 	.. attribute:: personal_website
-		:type: Optional[str]
+		:type: str | None
 
 		URL of the users personal website.
 
 	.. attribute:: company_website
-		:type: Optional[str]
+		:type: str | None
 
 		URL of the company the user works for.
 
 	.. attribute:: company
-		:type: Optional[str]
+		:type: str | None
 
 		The name of the company the user works for.
 
 	.. attribute:: position
-		:type: Optional[str]
+		:type: str | None
 
 		The position the user has in his/her company.
 
 	.. attribute:: department
-		:type: Optional[str]
+		:type: str | None
 
 		The department the user works for in his/her company.
 
@@ -1819,9 +1949,14 @@ class User(CustomAttributes):
 		``AUTO``).
 
 	.. attribute:: keyviews
-		:type: Optional[dict[str, KeyView]]
+		:type: dict[str, KeyView] | None
 
 		The :class:`KeyView`\s of this user (only when it is the logged in user)
+
+	.. attribute:: attachments
+		:type: dict[str, Attachment] | None
+
+		The attachments of this user (see :class:`WithAttachments`).
 
 	Note that the following attributes will always be ``None`` for users that
 	are not the logged in user: ``street``, ``streetnumber``, ``zip``, ``city``,
@@ -1834,7 +1969,8 @@ class User(CustomAttributes):
 		"lang", "image", "avatar_small", "avatar_large", "streetname", "streetnumber",
 		"zip", "city", "phone", "fax", "summary", "interests", "personal_website",
 		"company_website", "company", "position", "department", "colorscheme",
-		"keyviews", "change"
+		"keyviews", "change", "attachments", "add_note_attachment",
+		"add_url_attachment", "add_json_attachment", "add_file_attachment",
 	})
 	ul4_type = ul4c.Type("la", "User", "A LivingApps user/account")
 
@@ -1877,6 +2013,7 @@ class User(CustomAttributes):
 	keyviews = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	globals = Attr(lambda: Globals, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	colorscheme = EnumAttr(ColorScheme, get=True, set=True, required=True, default=ColorScheme.AUTO, ul4get=True, ul4onget=True, ul4onset=True)
+	attachments = Attr(get="", set="", ul4get="_attachments_get", ul4onget="_attachments_ul4onget", ul4onset="_attachments_set")
 
 	def __init__(self,
 		id=None, gender=None, title=None, firstname=None, surname=None,
@@ -1912,10 +2049,24 @@ class User(CustomAttributes):
 		self.department = department
 		self.colorscheme = colorscheme
 		self.keyviews = attrdict()
+		self._attachments = None
 
 	@property
 	def ul4onid(self) -> str:
 		return self.id
+
+	def _gethandler(self) -> Handler:
+		return self.globals._gethandler()
+
+	def _attachments_fetch(self):
+		# A user that hasn't been loaded from an UL4ON dump has no ``globals``
+		globals = self.__dict__.get("globals")
+		if globals is None:
+			return None
+		current_user = globals.user
+		if current_user is None or (self is not current_user and self.id != current_user.id):
+			return None
+		return globals._incremental_data(t"livingapi_pkg.user_attachments_inc_ful4on({self.id})")
 
 	def _image_get(self) -> File | None:
 		return self.image
@@ -2264,22 +2415,22 @@ class Globals(CustomAttributes):
 		The type of template we're running.
 
 	.. attribute:: viewtemplate_id
-		:type: Optional[str]
+		:type: str | None
 
 		View template id of last database call.
 
 	.. attribute:: emailtemplate_id
-		:type: Optional[str]
+		:type: str | None
 
 		Email template id of last database call.
 
 	.. attribute:: view_id
-		:type: Optional[str]
+		:type: str | None
 
 		View id of last database call.
 
 	.. attribute:: params
-		:type: Optional[dict[str, AppParameter]]
+		:type: dict[str, AppParameter] | None
 
 		Parameters of the view or email template that overwrite the parameters
 		of the app.
@@ -2349,7 +2500,7 @@ class Globals(CustomAttributes):
 	})
 	ul4_type = ul4c.Type("la", "Globals", "Global information")
 
-	supported_version = "143"
+	supported_version = "144"
 
 	class Mode(misc.Enum):
 		"""
@@ -2938,7 +3089,7 @@ class WithParams:
 	These objects have the following attribute:
 
 	.. attribute:: params
-		:type: Optional[dict[str, AppParameter]]
+		:type: dict[str, AppParameter] | None
 
 		App or app group specific configuration parameters.
 	"""
@@ -2967,85 +3118,6 @@ class WithParams:
 	def _ownparams_ul4onset(self, value):
 		if value is not None:
 			self._ownparams = value
-
-
-class WithAttachments:
-	"""
-	Mixin class for all classes that have attachments
-	(i.e. :class:`App`, a:class:`AppGroup` and  :class:`Record`).
-
-	These objects have the following attribute:
-
-	.. attribute:: attachments
-		:type: Optional[dict[str, Attachment]]
-
-		Attachments for this record, app, or app group.
-	"""
-
-	ul4_attrs = {"attachments"}
-
-	def _attachments_get(self):
-		attachments = self._attachments
-		if attachments is None and self.id is not None:
-			attachments = self._attachments_fetch()
-			if attachments is not None:
-				attachments = attrdict(attachments)
-				self._attachments = attachments
-		return attachments
-
-	def _attachments_fetch(self):
-		return None
-
-	def _attachments_set(self, value):
-		self._attachments = value
-
-	def _attachments_ul4onget(self):
-		return self._attachments
-
-	def _add_attachment(self, attachment):
-		self.attachments[f"attachment_{self.globals._next_attachment_id}"] = attachment
-		self.globals._next_attachment_id += 1
-		return attachment
-
-	def add_note_attachment(self, label, namespace, active, value):
-		attachment = NoteAttachment(
-			owner=self,
-			label=label,
-			namespace=namespace,
-			active=active,
-			value=value,
-		)
-		return self._add_attachment(attachment)
-
-	def add_url_attachment(self, label, namespace, active, value):
-		attachment = URLAttachment(
-			owner=self,
-			label=label,
-			namespace=namespace,
-			active=active,
-			value=value,
-		)
-		return self._add_attachment(attachment)
-
-	def add_json_attachment(self, label, namespace, active, value):
-		attachment = JSONAttachment(
-			owner=self,
-			label=label,
-			namespace=namespace,
-			active=active,
-			value=value,
-		)
-		return self._add_attachment(attachment)
-
-	def add_file_attachment(self, label, namespace, active, value):
-		attachment = FileAttachment(
-			owner=self,
-			label=label,
-			namespace=namespace,
-			active=active,
-			value=value,
-		)
-		return self._add_attachment(attachment)
 
 
 @register(None)
@@ -3162,7 +3234,7 @@ class LangBase(Base):
 	Relevant instance attributes are:
 
 	.. attribute:: id
-		:type: Optional[str]
+		:type: str | None
 
 		Unique database id (or ``None`` if this translation hasn't been saved
 		yet).
@@ -3266,7 +3338,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		Name of the app.
 
 	.. attribute:: description
-		:type: Optional[str]
+		:type: str | None
 
 		Description of the app.
 
@@ -3310,7 +3382,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		Who created this app?
 
 	.. attribute:: controls
-		:type: Optional[dict[str, Control]]
+		:type: dict[str, Control] | None
 
 		The definition of the fields of this app.
 
@@ -3334,7 +3406,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		active and where the target page is accessible to the current user.
 
 	.. attribute:: records
-		:type: Optional[dict[str, Record]]
+		:type: dict[str, Record] | None
 
 		The records of this app (if configured).
 
@@ -3356,17 +3428,17 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		expressions for paging are configured).
 
 	.. attribute:: installation
-		:type: Optional[Installation]
+		:type: Installation | None
 
 		The installation that created this app.
 
 	.. attribute:: categories
-		:type: Optional[dict[str, Category]]
+		:type: dict[str, Category] | None
 
 		The navigation categories the currently logged in user put this app in.
 
 	.. attribute:: views
-		:type: Optional[dict[str, View]
+		:type: dict[str, View] | None
 
 	.. attribute:: datamanagement_identifier
 		:type: str
@@ -3408,17 +3480,17 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		When was this app created?
 
 	.. attribute:: updatedat
-		:type: Optional[datetime.datetime]
+		:type: datetime.datetime | None
 
 		When was this app last changed?
 
 	.. attribute:: updatedby
-		:type: Optional[User]
+		:type: User | None
 
 		When changed this app last?.
 
 	.. attribute:: superid
-		:type: Optional[str]
+		:type: str | None
 
 		Database id of the app this one was copied from.
 
@@ -3428,22 +3500,22 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		Is this app a favorite of the currently logged in user?.
 
 	.. attribute:: active_view
-		:type: Optional[View]
+		:type: View | None
 
 		Honor information of this view in the control objects.
 
 	.. attribute:: internaltemplates
-		:type: Optional[dict[str, InternalTemplate]]
+		:type: dict[str, InternalTemplate] | None
 
 		Internal templates of this app.
 
 	.. attribute:: viewtemplatesconfig
-		:type: Optional[dict[str, ViewTemplate]]
+		:type: dict[str, ViewTemplate] | None
 
 		View templates of this app.
 
 	.. attribute:: data_actions
-		:type: Optional[dict[str, DataAction]]
+		:type: dict[str, DataAction] | None
 
 		Data actions of this app.
 
@@ -3453,10 +3525,44 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		The version number of the template library (see
 		:class:`TemplateLibrary`) this app uses. Can be set to any version in
 		:attr:`Globals.template_libraries` and is saved by :meth:`save`.
+
+	.. attribute:: params
+		:type: dict[str, AppParameter] | None
+
+		The parameters that apply to this app. A parameter is searched in the
+		following order:
+
+		1.	The parameters of this app that are specific to the current user
+			(:attr:`userparams`). Such a parameter replaces the parameter with
+			the same identifier as a whole (for the types ``list`` and ``dict``
+			including all child parameters);
+		2.	the parameters of this app (:attr:`ownparams`);
+		3.	the parameters of the app group;
+		4.	the parameters of the app chained via the app parameter ``la``
+			(recursively, but without the user specific parameters of that
+			app);
+		5.	the library parameters.
+
+		Whether users may have their own version of a parameter is specified
+		by :attr:`AppParameter.user_override` of the first parameter in this
+		order (without the user specific ones) where it is not :const:`None`.
+		Such a version must have the same type as the parameter it replaces.
+
+	.. attribute:: ownparams
+		:type: dict[str, MutableAppParameter] | None
+
+		The parameters of this app that apply to all users (see :attr:`params`).
+
+	.. attribute:: userparams
+		:type: dict[str, MutableAppParameter]
+
+		The parameters of this app that are specific to the current user (see
+		:attr:`params`). Empty if there's no current user.
 	"""
 
 	ul4_attrs = CustomAttributes.ul4_attrs.union(
 		WithParams.ul4_attrs,
+		{"ownparams", "userparams"},
 		WithAttachments.ul4_attrs,
 		WithTranslations.ul4_attrs,
 		{
@@ -3577,7 +3683,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	record_total = Attr(int, get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
 	installation = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	categories = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset="")
-	ownparams = AttrDictAttr(get="", set="", ul4onget="", ul4onset="")
+	ownparams = AttrDictAttr(get="", set="", ul4get="_ownparams_get", ul4onget="", ul4onset="")
 	params = AttrDictAttr(get="", ul4get="_params_get")
 	views = Attr(get="", set="", ul4get="_views_get", ul4onget="_views_ul4onget", ul4onset="_views_set")
 	datamanagement_identifier = Attr(str, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
@@ -3610,6 +3716,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	order = Attr(int, get=True, ul4get=True, ul4onget=True, ul4onset=True)
 	translations = Attr(Translations, get="", ul4get="_translations_get", ul4onget="", ul4onset="", ul4ondefault="")
 	template_library_version = Attr(int, get=True, set="", ul4get=True, ul4set=True, ul4onget=True, ul4onset=True, ul4ondefault="")
+	userparams = AttrDictAttr(get="", set="", ul4get="_userparams_get", ul4onget="", ul4onset="")
 	custom = Attr(get=True, set=True, ul4get=True, ul4set=True)
 
 	def __init__(self, *args, id=None, name=None, description=None, lang=None, startlink=None, image=None, createdat=None, createdby=None, updatedat=None, updatedby=None, installation=None, datamanagement_identifier=None):
@@ -3662,6 +3769,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		self.deleteprocedure = None
 		self._owntemplates = None
 		self._ownparams = None
+		self._userparams = None
 		self._params = None
 		self.favorite = False
 		self.active_view = None
@@ -3695,16 +3803,101 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 
 	def _add_param(self, *params):
 		for param in params:
-			param.app = self
-			self.ownparams[param.identifier] = param
-			if self._params is not None:
-				self._params[param.identifier] = param
+			param.owner = self
+			if param.user is not None:
+				self.userparams[param.identifier] = param
+			else:
+				if self.ownparams is None:
+					self._ownparams = attrdict()
+					self._params = None
+				self.ownparams[param.identifier] = param
 		return self
 
-	def add_param(self, identifier, *, type=None, description=None, value=None):
-		param = MutableAppParameter(app=self, type=type, identifier=identifier, description=description, value=value)
+	def add_param(self, identifier, *, type=None, description=None, value=None, user=None):
+		"""
+		Create a new parameter for this app (it must be saved afterwards).
+
+		If ``user`` is not :const:`None` (it must be the current user then) the
+		parameter is specific to this user (see :attr:`params`).
+		"""
+
+		if user is not None:
+			self._check_user_param_user(user)
+		param = MutableAppParameter(owner=self, type=type, identifier=identifier, description=description, value=value, user=user)
 		self._add_param(param)
 		return param
+
+	def _remove_param(self, param):
+		# Called when the top level parameter ``param`` has been deleted
+		identifier = param.full_identifier
+		for params in (self._userparams, self._ownparams):
+			if params is not None and params.get(identifier) is param:
+				del params[identifier]
+
+	def _userparams_get(self) -> dict[str, MutableAppParameter]:
+		params = self._userparams
+		if params is None:
+			if self.id is not None and self.globals is not None and self.globals.user is not None:
+				params = self._gethandler().app_userparams_incremental_data(self)
+			params = attrdict(params or {})
+			self._userparams = params
+		return params
+
+	def _userparams_set(self, value):
+		self._userparams = value
+
+	def _userparams_ul4onget(self):
+		# Bypass the logic that fetches the parameters from the database
+		return self._userparams
+
+	def _userparams_ul4onset(self, value):
+		if value is not None:
+			self._userparams = attrdict(value)
+
+	def _check_user_param_user(self, user):
+		current_user = self.globals.user if self.globals is not None else None
+		if current_user is None:
+			raise UserParameterError(error_userparameter_no_user())
+		if user is not current_user and user.id != current_user.id:
+			raise UserParameterError(error_userparameter_wrong_user(user))
+
+	def _user_override(self, identifier: str) -> bool:
+		"""
+		Return whether users may have their own version of the parameter ``identifier``.
+
+		For the rule see :attr:`params`.
+		"""
+
+		for params in self._base_params_candidates():
+			if identifier in params:
+				user_override = params[identifier].user_override
+				if user_override is not None:
+					return user_override
+		return False
+
+	def _check_user_param(self, param):
+		"""
+		Check that ``param`` may be saved as a user specific parameter of this app.
+
+		Raises a :exc:`UserParameterError` if this is not the case. For the
+		rules see :attr:`params`.
+		"""
+
+		self._check_user_param_user(param.user)
+
+		# Child parameters belong to their parent, which has been checked when it was saved
+		if param.parent is not None:
+			return
+
+		identifier = param.full_identifier
+		if not self._user_override(identifier):
+			raise UserParameterError(error_userparameter_not_allowed(self, identifier))
+
+		for params in self._base_params_candidates():
+			if identifier in params:
+				if params[identifier].type is not param.type:
+					raise UserParameterError(error_userparameter_wrong_type(self, identifier, params[identifier].type, param.type))
+				break
 
 	def _image_get(self) -> File | None:
 		return self.image
@@ -3937,7 +4130,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	def seq(self) -> int:
 		return self.globals.handler.appseq(self)
 
-	def send_mail(self, from_: str | None = None, reply_to: str | None = None, to: str | None = None, cc: str | None = None, bcc: str | None = None, subject: str | None = None, body_text: str | None = None, body_html: str | None = None, attachments: la.File | None = None) -> None:
+	def send_mail(self, from_: str | None = None, reply_to: str | None = None, to: str | None = None, cc: str | None = None, bcc: str | None = None, subject: str | None = None, body_text: str | None = None, body_html: str | None = None, attachments: File | None = None) -> None:
 		self.globals.handler.send_mail(
 			globals=self.globals,
 			app=self,
@@ -3980,10 +4173,13 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 	def __setattr__(self, name: str, value: Any) -> None:
 		if name.startswith("pv_"):
 			identifier = name[3:]
-			if identifier in self.params:
-				self.params[identifier].value = value
+			# This always sets the parameter of the app itself (for all users),
+			# even if the current value is an inherited or a user specific one
+			ownparams = self.ownparams
+			if ownparams is not None and identifier in ownparams:
+				ownparams[identifier].value = value
 			else:
-				self.addparam(None, identifier, None, value)
+				self.add_param(identifier, value=value)
 			return
 		super().__setattr__(name, value)
 
@@ -4051,6 +4247,13 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		self.__dict__["template_library_version"] = 0
 
 	def _params_candidates(self):
+		# For the order see the documentation of :attr:`params`
+		userparams = self.userparams
+		if userparams is not None:
+			yield userparams
+		yield from self._base_params_candidates()
+
+	def _base_params_candidates(self):
 		# Parameters that the handler can't load (e.g. the app group parameters
 		# via the ``HTTPHandler``) are ``None`` and are skipped
 		ownparams = self.ownparams
@@ -4061,7 +4264,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 			if appgroupparams is not None:
 				yield appgroupparams
 		if ownparams is not None and "la" in ownparams and isinstance(ownparams["la"].value, App):
-			yield from ownparams["la"].value._params_candidates()
+			yield from ownparams["la"].value._base_params_candidates()
 		else:
 			yield self.globals.library_params
 
@@ -4496,7 +4699,7 @@ class App(CustomAttributes, WithParams, WithAttachments, WithTranslations):
 		``sum(expr)``
 			Return the sum of of the value of ``expr`` over all records in the group.
 
-		Example:
+		Example::
 
 			app.aggregate_records(
 				filter=["r.v_date_of_births.year//100 == today().year//100"],
@@ -4537,22 +4740,22 @@ class AppLang(LangBase):
 		The app whose attributes this object translates.
 
 	.. attribute:: name
-		:type: Optional[str]
+		:type: str | None
 
 		The translated name of the app.
 
 	.. attribute:: description
-		:type: Optional[str]
+		:type: str | None
 
 		The translated description of the app.
 
 	.. attribute:: typename_grammatical_gender
-		:type: Optional[str]
+		:type: str | None
 
 		The grammatical gender of the translated type name.
 
 	.. attribute:: typenames
-		:type: Optional[dict]
+		:type: dict | None
 
 		All noun forms of the translated type name as a dictionary that maps
 		the noun form identifier (e.g. ``nom_sin`` for nominative singular)
@@ -4906,12 +5109,12 @@ class AppGroupLang(LangBase):
 		The app group whose attributes this object translates.
 
 	.. attribute:: name
-		:type: Optional[str]
+		:type: str | None
 
 		The translated name of the app group.
 
 	.. attribute:: description
-		:type: Optional[str]
+		:type: str | None
 
 		The translated description of the app group.
 	"""
@@ -4954,7 +5157,7 @@ class Field(CustomAttributes):
 		:type: Record
 
 		The :class:`Record` for which this :class:`!Field` holds a value.
-a
+
 	.. attribute:: label
 		:type: str
 
@@ -5883,7 +6086,7 @@ class Control(CustomAttributes, WithTranslations):
 		The type of the control.
 
 	.. attribute:: subtype
-		:type: Optional[str]
+		:type: str | None
 
 		The subtype of the control (depends on the type and might be ``None``).
 
@@ -6347,12 +6550,12 @@ class ControlLang(LangBase):
 		The control whose attributes this object translates.
 
 	.. attribute:: label
-		:type: Optional[str]
+		:type: str | None
 
 		The translated label of the control.
 
 	.. attribute:: description
-		:type: Optional[str]
+		:type: str | None
 
 		The translated description of the control.
 	"""
@@ -6385,18 +6588,18 @@ class StringControl(Control):
 
 	Relevant instance attributes are:
 
-	.. attribute::  -> strminlength
-		:type: Optional[int]
+	.. attribute:: minlength
+		:type: int | None
 
 		The minimum allowed string length (``None`` means unlimited).
 
 	.. attribute:: maxlength
-		:type: Optional[int] -> str
+		:type: int | None
 
 		The maximum allowed string length (``None`` means unlimited).
 
 	.. attribute:: placeholder
-		:type: Optional[str]
+		:type: str | None
 
 		The placeholder for the HTML input.
 	"""
@@ -7004,13 +7207,13 @@ class LookupControl(Control):
 		The possible values this control might have.
 
 	.. attribute:: none_key
-		:type: Optional[str]
+		:type: str | None
 
 		Key to use for a "Nothing selected" option (from the active view,
 		else ``None``).
 
 	.. attribute:: none_label
-		:type: Optional[str]
+		:type: str | None
 
 		Label to display for a "Nothing selected" option (from the active view,
 		else ``None``).
@@ -7687,12 +7890,12 @@ class ViewControl(Base):
 		Tab order in the input form.
 
 	.. attribute:: minlength
-		:type: Optional[int]
+		:type: int | None
 
 		The minimum allowed string length (``None`` means unlimited).
 
 	.. attribute:: maxlength
-		:type: Optional[int]
+		:type: int | None
 
 		The maximum allowed string length (``None`` means unlimited).
 
@@ -7702,7 +7905,7 @@ class ViewControl(Base):
 		Is a value required for this field?
 
 	.. attribute:: placeholder
-		:type: Optional[str]
+		:type: str | None
 
 		The placeholder for the HTML input.
 
@@ -7745,12 +7948,12 @@ class ViewControl(Base):
 		Width of the label on screen.
 
 	.. attribute:: lookupdata
-		:type: Optional[dict[str, str | LookupItem | Record]
+		:type: dict[str, str | LookupItem | Record] | None
 
 		Lookup items for the control in this view.
 
 	.. attribute:: autoexpandable
-		:type: Optional[bool]
+		:type: bool | None
 
 		Automatically add missing items (only for ``lookup`` and
 		``multiplelookup``).
@@ -7900,12 +8103,12 @@ class Record(CustomAttributes, WithAttachments):
 		Who created this record?
 
 	.. attribute:: updatedat
-		:type: Optional[datetime.datetime]
+		:type: datetime.datetime | None
 
 		When was this record last updated?
 
 	.. attribute:: updatedby
-		:type: Optional[User]
+		:type: User | None
 
 		Who updated this record last?.
 
@@ -8350,7 +8553,7 @@ class Record(CustomAttributes, WithAttachments):
 		else:
 			return self.display_embedded_url(**params)
 
-	def send_mail(self, from_: str | None = None, reply_to: str | None = None, to: str | None = None, cc: str | None = None, bcc: str | None = None, subject: str | None = None, body_text: str | None = None, body_html: str | None = None, attachments: la.File | None = None) -> None:
+	def send_mail(self, from_: str | None = None, reply_to: str | None = None, to: str | None = None, cc: str | None = None, bcc: str | None = None, subject: str | None = None, body_text: str | None = None, body_html: str | None = None, attachments: File | None = None) -> None:
 		self._gethandler().send_mail(
 			globals=self.app.globals,
 			app=self.app,
@@ -8568,7 +8771,8 @@ class RecordChildren(Base):
 
 class Attachment(CustomAttributes):
 	"""
-	An attachment for a :class:`Record`, :class:`App` or `:class:`AppGroup`.
+	An attachment for a :class:`Record`, :class:`App`, :class:`AppGroup` or
+	:class:`User` (see :class:`WithAttachments`).
 
 	Relevant instance attributes are:
 
@@ -8578,9 +8782,11 @@ class Attachment(CustomAttributes):
 		Unique database id.
 
 	.. attribute:: owner
-		:type: AppGroup | App | Record
+		:type: AppGroup | App | Record | User
 
-		The record, app or appgroup this attachment belongs to.
+		The record, app, app group or user this attachment belongs to. The
+		attributes ``record``, ``app``, ``appgroup`` and ``user`` return the
+		owner if it is of that type (and ``None`` otherwise).
 
 	.. attribute:: label
 		:type: str
@@ -8598,11 +8804,11 @@ class Attachment(CustomAttributes):
 		Is this attachment active?
 	"""
 
-	ul4_attrs = Base.ul4_attrs.union({"id", "type", "owner", "record", "app", "appgroop", "label", "namespace", "active", "save", "delete"})
+	ul4_attrs = Base.ul4_attrs.union({"id", "type", "owner", "record", "app", "appgroup", "user", "label", "namespace", "active", "save", "delete"})
 	ul4_type = ul4c.Type("la", "Attachment", "An attachment of a record, app or appgroup")
 
 	id = Attr(str, get=True, set=True, repr=True, ul4get=True)
-	owner = Attr(AppGroup | App | Record, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	owner = Attr(AppGroup | App | Record | User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	label = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	namespace = Attr(str, get=True, set=True, repr=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
 	active = BoolAttr(get=True, set=True, ul4get=True, ul4set=True, ul4onget=True, ul4onset=True)
@@ -8619,22 +8825,71 @@ class Attachment(CustomAttributes):
 	def ul4onid(self) -> str:
 		return self.id
 
+	@property
+	def record(self) -> Record | None:
+		return self.owner if isinstance(self.owner, Record) else None
+
+	@property
+	def app(self) -> App | None:
+		return self.owner if isinstance(self.owner, App) else None
+
+	@property
+	def appgroup(self) -> AppGroup | None:
+		return self.owner if isinstance(self.owner, AppGroup) else None
+
+	@property
+	def user(self) -> User | None:
+		return self.owner if isinstance(self.owner, User) else None
+
+	@property
+	def globals(self) -> Globals | None:
+		owner = self.owner
+		if isinstance(owner, Record):
+			return owner.app.globals
+		return owner.globals if owner is not None else None
+
 	def _gethandler(self) -> Handler:
 		return self.owner._gethandler()
 
+	def _check_user(self) -> None:
+		"""
+		Check that an attachment of a user belongs to the current user.
+
+		For the attachments of other owners this does nothing.
+		"""
+
+		user = self.user
+		if user is not None:
+			globals = user.__dict__.get("globals")
+			current_user = globals.user if globals is not None else None
+			if current_user is None:
+				raise UserAttachmentError(error_userattachment_no_user())
+			if user is not current_user and user.id != current_user.id:
+				raise UserAttachmentError(error_userattachment_wrong_user(user))
+
 	def _template_candidates(self):
 		handler = self._gethandler()
-		app_id = self.record.app.id
+		globals = self.globals
+		owner = self.owner
+		if isinstance(owner, Record):
+			app = owner.app
+		elif isinstance(owner, App):
+			app = owner
+		else:
+			app = globals.app
 		type = self.type.removesuffix("attachment")
-		yield handler.fetch_internaltemplates(app_id, f"attachment_{type}_instance", None)
-		yield handler.fetch_internaltemplates(app_id, "attachment_instance", None)
-		yield self.record.app.globals.library_templates(f"attachment_{type}_instance")
-		yield self.record.app.globals.library_templates("attachment_instance")
+		if app is not None:
+			yield handler.fetch_internaltemplates(app.id, f"attachment_{type}_instance", None)
+			yield handler.fetch_internaltemplates(app.id, "attachment_instance", None)
+		yield globals.library_templates(f"attachment_{type}_instance")
+		yield globals.library_templates("attachment_instance")
 
 	def delete(self):
+		self._check_user()
 		self._gethandler().delete_attachment(self)
 
 	def save(self):
+		self._check_user()
 		self._gethandler().save_attachment(self)
 
 	def text_for_save(self):
@@ -8740,8 +8995,9 @@ class JSONAttachment(SimpleAttachment):
 	Relevant instance attributes are:
 
 	.. attribute:: value
+		:type: JSON
 
-		A JSON compatible object (or ``None``).
+		The parsed JSON value, not the JSON source.
 	"""
 
 	ul4_type = ul4c.Type("la", "JSONAttachment", "A JSON attachment of a record")
@@ -8783,12 +9039,12 @@ class EMailAttachment(Base):
 		Filename under which this email attachment should be stored
 
 	.. attribute:: content
-		:type: Optional[str]
+		:type: str | None
 
 		String content of the email attachment.
 
 	.. attribute:: size
-		:type: Optional[int]
+		:type: int | None
 
 		Size of the content in characters or ``None`` if ``content`` is ``None``.
 	"""
@@ -9095,7 +9351,7 @@ class Template(Base):
 	def ul4onid(self) -> str:
 		return self.id
 
-	def template(self) -> ul4.Template:
+	def template(self) -> ul4c.Template:
 		return ul4c.Template(self.source, name=self.identifier, signature=self.signature, whitespace=self.whitespace)
 
 	def _gethandler(self) -> Handler:
@@ -9934,7 +10190,7 @@ class DataOrder(Base):
 	def ul4onid(self) -> str:
 		return self.id
 
-	def save_meta(self, handler:T_opt_handler=None, recursive:bool=True):
+	def save_meta(self, handler: Handler | None = None, recursive: bool = True):
 		raise NotImplementedError("DataOrder objects can only be saved by their parent")
 
 	def vsqlvars_expression(self) -> dict[str, vsql.Field]:
@@ -10401,7 +10657,7 @@ class DataActionDetail(Base):
 		The type of action to perform on the field/attribute.
 
 	.. attribute:: value
-		:type:
+		:type: bool | int | float | str | datetime.date | datetime.datetime | LookupItem | Record | Geo | list | None
 
 		The value to use (if the :attr:`type` isn't ``Type.EXPR``). The type
 		depends on the value of the field or parameter.
@@ -10752,7 +11008,7 @@ class View(CustomAttributes):
 		The name of the view as configured in the FormBuilder.
 
 	.. attribute:: combined_type
-		:type: Optional[CombinedType]
+		:type: CombinedType | None
 
 		If this is a combined view, the type of the combined view.
 
@@ -10777,12 +11033,12 @@ class View(CustomAttributes):
 		height of the view in pixels
 
 	.. attribute:: start
-		:type: Optional[datetime.datetime]
+		:type: datetime.datetime | None
 
 		View is inactive before this date
 
 	.. attribute:: end
-		:type: Optional[datetime.datetime]
+		:type: datetime.datetime | None
 
 		View is inactive after this date
 
@@ -10967,7 +11223,7 @@ class DataSource(Base):
 		A unique identifier for the data source
 
 	.. attribute:: app
-		:type: Optional[App]
+		:type: App | None
 
 		The app reference byd this datasource (or ``None`` when the datasource is
 		configured for all apps)
@@ -11046,7 +11302,7 @@ class ExternalDataSource(Base):
 		A unique identifier for the external data source
 
 	.. attribute:: description
-		:type: Optional[str]
+		:type: str | None
 
 		A description of the external data source.
 
@@ -11294,7 +11550,7 @@ class LookupItemLang(LangBase):
 		The lookup item whose attributes this object translates.
 
 	.. attribute:: label
-		:type: Optional[str]
+		:type: str | None
 
 		The translated label of the lookup item.
 	"""
@@ -11396,17 +11652,17 @@ class Category(Base):
 		Used to order the categories in the navigation.
 
 	.. attribute:: parent
-		:type: Optional[Category]
+		:type: Category | None
 
 		The parent category.
 
 	.. attribute:: children
-		:type: Optional[dict[str, Category]]
+		:type: dict[str, Category] | None
 
 		The child categories.
 
 	.. attribute:: apps
-		:type: Optional[dict[str, App]]
+		:type: dict[str, App] | None
 
 		The apps that belong to that category. The :class:`dict` keys are the
 		:class:`App`'s :attr:`~App.id`\s.
@@ -11423,7 +11679,7 @@ class Category(Base):
 	children = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	apps = Attr(get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id:str=None, identifier:str=None, name:str=None, order:int=None, parent:Optional["Category"]=None, children:Optional[List["Category"]]=None, apps:Optional[dict[str, App]]=None):
+	def __init__(self, id: str | None = None, identifier: str | None = None, name: str | None = None, order: int | None = None, parent: Category | None = None, children: list[Category] | None = None, apps: dict[str, App] | None = None):
 		self.id = id
 		self.identifier = identifier
 		self.name = name
@@ -11505,14 +11761,10 @@ class AppParameter(CustomAttributes):
 		Description of the parameter
 
 	.. attribute:: value
+		:type: bool | int | float | str | color.Color | datetime.date | datetime.datetime | datetime.timedelta | misc.monthdelta | File | App | Control | list | dict | None
 
 		The parameter value. The type of the value depends on the type of the
-		parameter. Possible types are: :class:`bool`, :class:`int`,
-		:class:`float`, :class:`str`, :class:`~ll.color.Color`,
-		:class:`datetime.date`, :class:`datetime.datetime`,
-		:class:`datetime.timedelta`, :class:`~ll.misc.monthdelta`,
-		:class:`File`, :class:`App`, :class:`Control`, :class:`list`,
-		:class:`dict` (and ``None``).
+		parameter.
 
 	.. attribute:: createdat
 		:type: datetime.datetime
@@ -11525,17 +11777,31 @@ class AppParameter(CustomAttributes):
 		Who created this parameter?
 
 	.. attribute:: updatedat
-		:type: Optional[datetime.datetime]
+		:type: datetime.datetime | None
 
 		When was this parameter last updated?
 
 	.. attribute:: updatedby
-		:type: Optional[User]
+		:type: User | None
 
 		Who updated this parameter last?
+
+	.. attribute:: user_override
+		:type: bool | None
+
+		May users create their own version of this parameter? :const:`None`
+		means that this is specified by the parameter that this one overrides
+		(see :attr:`App.params`).
+
+	.. attribute:: user
+		:type: User | None
+
+		The user for which this parameter is the user specific version
+		(see :attr:`App.params`). :const:`None` for a parameter that applies to
+		all users.
 	"""
 
-	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "app", "appgroup", "parent", "type", "order", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby", "state"})
+	ul4_attrs = CustomAttributes.ul4_attrs.union({"id", "app", "appgroup", "parent", "type", "order", "identifier", "description", "value", "createdat", "createdby", "updatedat", "updatedby", "user_override", "user", "state"})
 	ul4_type = ul4c.Type("la", "AppParameter", "A parameter of a LivingApps application, app group or library")
 
 	class Type(misc.Enum):
@@ -11594,12 +11860,16 @@ class AppParameter(CustomAttributes):
 	createdby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedat = Attr(datetime.datetime, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 	updatedby = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	user_override = Attr(bool, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
+	user = Attr(User, get=True, set=True, ul4get=True, ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, owner=None, parent=None, type=None, order=None, identifier=None, namespace=None, description=None, value=None):
+	def __init__(self, id=None, owner=None, parent=None, type=None, order=None, identifier=None, namespace=None, description=None, value=None, user_override=None, user=None):
 		super().__init__()
 		self.id = id
 		self._globals = None
 		self.owner = owner
+		self.__dict__["user_override"] = user_override
+		self.user = user
 		self.parent = parent
 		self.order = order
 		self.identifier = identifier
@@ -11624,11 +11894,11 @@ class AppParameter(CustomAttributes):
 		return self.owner.globals
 
 	@property
-	def app(self) -> App:
+	def app(self) -> App | None:
 		return self.owner if isinstance(self.owner, App) else None
 
 	@property
-	def appgroup(self) -> Appgroup:
+	def appgroup(self) -> AppGroup | None:
 		return self.owner if isinstance(self.owner, AppGroup) else None
 
 	@property
@@ -11740,9 +12010,10 @@ class MutableAppParameter(AppParameter):
 	state = EnumAttr(State, get="", required=True, repr=True, ul4get="")
 	type = EnumAttr(AppParameter.Type, get=True, set="", repr=True, ul4get=True, ul4onget=True, ul4onset=True)
 	value = Attr(get=True, set="", ul4get=True, ul4set="_value_set", ul4onget=True, ul4onset=True)
+	user_override = Attr(bool, get=True, set="", ul4get=True, ul4set="_user_override_set", ul4onget=True, ul4onset=True)
 
-	def __init__(self, id=None, owner=None, parent=None, type=None, order=None, identifier=None, description=None, value=None):
-		super().__init__(id=id, owner=owner, parent=parent, type=type, order=order, identifier=identifier, description=description, value=value)
+	def __init__(self, id=None, owner=None, parent=None, type=None, order=None, identifier=None, description=None, value=None, user_override=None, user=None):
+		super().__init__(id=id, owner=owner, parent=parent, type=type, order=order, identifier=identifier, description=description, value=value, user_override=user_override, user=user)
 		self._new = True
 		self._deleted = False
 		self._dirty = True
@@ -11912,6 +12183,13 @@ class MutableAppParameter(AppParameter):
 		else:
 			raise TypeError(f"Type {type(value)} not supported for app parameters")
 
+	def _user_override_set(self, value):
+		if value is not None and not isinstance(value, bool):
+			raise TypeError(f"user_override must be None or a bool, but is {misc.format_class(value)}")
+		if value != self.__dict__.get("user_override"):
+			self.__dict__["user_override"] = value
+			self._dirty = True
+
 	def _gethandler(self) -> Handler:
 		globals = self.globals
 		if globals is None:
@@ -11919,6 +12197,22 @@ class MutableAppParameter(AppParameter):
 		return globals._gethandler()
 
 	def save(self, sync=False):
+		"""
+		Save this parameter to the database.
+
+		For a parameter of type ``list`` or ``dict`` this only saves the
+		parameter itself, not its children: each child must be saved on its own
+		(after its parent has been saved).
+
+		A user specific parameter (see :attr:`App.params`) can only be saved if
+		the app allows that.
+		"""
+
+		if self.user is not None:
+			app = self.app
+			if app is None:
+				raise UserParameterError(error_userparameter_app_only())
+			app._check_user_param(self)
 		handler = self._gethandler()
 		handler.save_parameter(self)
 		if sync:
@@ -11935,7 +12229,7 @@ class MutableAppParameter(AppParameter):
 			self.__dict__["value"] = []
 		if type is None and value is None:
 			raise ValueError("one of type or value must not be None")
-		param = AppParameter(parent=self, owner=self.owner, type=type, order=self.value[-1].order+10 if self.value else 10, description=description, value=value)
+		param = MutableAppParameter(parent=self, owner=self.owner, type=type, order=self.value[-1].order+10 if self.value else 10, description=description, value=value, user=self.user)
 		self.value.append(param)
 		return param
 
@@ -11946,7 +12240,7 @@ class MutableAppParameter(AppParameter):
 			self.__dict__["value"] = {}
 		if type is None and value is None:
 			raise ValueError("one of type or value must not be None")
-		param = AppParameter(parent=self, owner=self.owner, type=type, identifier=identifier, description=description, value=value)
+		param = MutableAppParameter(parent=self, owner=self.owner, type=type, identifier=identifier, description=description, value=value, user=self.user)
 		self.value[identifier] = param
 		return param
 
@@ -11990,7 +12284,7 @@ class MenuItem(CustomAttributes):
 		What kind of page does the item link to?
 
 	.. attribute:: icon
-		:type: Optional[str]
+		:type: str | None
 
 		The name of a Font Awesome icon.
 
@@ -12000,17 +12294,17 @@ class MenuItem(CustomAttributes):
 		instead of the default.
 
 	.. attribute:: title
-		:type: Optional[str]
+		:type: str | None
 
 		The ``title`` attribute for the link.
 
 	.. attribute:: target
-		:type: Optional[str]
+		:type: str | None
 
 		The ``target`` attribute for the link.
 
 	.. attribute:: cssclass
-		:type: Optional[str]
+		:type: str | None
 
 		The ``class`` attribute for the link.
 
@@ -12020,26 +12314,26 @@ class MenuItem(CustomAttributes):
 		The link itself.
 
 	.. attribute:: order
-		:type: Optional[int]
+		:type: int | None
 
 		Items are ordered by this integer value in menus and panels (except for
 		panels on the custom overview page, where panels are displayed in a
 		two-dimensional grid).
 
 	.. attribute:: children
-		:type: List[MenuItem]
+		:type: list[MenuItem]
 
 		List of sub items
 
 	.. attribute:: start_time
-		:type: Optional[datetime.datetime]
+		:type: datetime.datetime | None
 
 		If ``start_time`` is not ``None``, the item should not be displayed before
 		this point in time (and will not be output as part of the :class:`Apps`\s
 		``menus`` or ``panels`` attribute).
 
 	.. attribute:: end_time
-		:type: Optional[datetime.datetime]
+		:type: datetime.datetime | None
 
 		If ``end_time`` is not ``None``, the item should not be displayed before
 		this point in time (and will not be output as part of the :class:`Apps`\s
@@ -12083,12 +12377,12 @@ class MenuItem(CustomAttributes):
 		Who created this item?
 
 	.. attribute:: updatedat
-		:type: Optional[datetime.datetime]
+		:type: datetime.datetime | None
 
 		When was this item last updated?
 
 	.. attribute:: updatedby
-		:type: Optional[User]
+		:type: User | None
 
 		Who updated this item last?
 	"""
@@ -12240,38 +12534,38 @@ class Panel(MenuItem):
 	instance attributes are available:
 
 	.. attribute:: description
-		:type: Optional[str]
+		:type: str | None
 
 		Additional HTML description for the panel.
 
 	.. attribute:: description_url
-		:type: Optional[str]
+		:type: str | None
 
 		If this is not :const:`None`, the description should be fetched as an HTML
 		snippet from this URL.
 
 	.. attribute:: image
-		:type: Optional[File]
+		:type: File | None
 
 		An image to be displayed as the panel title.
 
 	.. attribute:: row
-		:type: Optional[int]
+		:type: int | None
 
 		Row number for displaying this panel on the custom overview page.
 
 	.. attribute:: column
-		:type: Optional[int]
+		:type: int | None
 
 		Column number for displaying this panel on the custom overview page.
 
 	.. attribute:: width
-		:type: Optional[int]
+		:type: int | None
 
 		Width of this panel on the custom overview page.
 
 	.. attribute:: height
-		:type: Optional[int]
+		:type: int | None
 
 		Height of this panel on the custom overview page.
 
@@ -12281,22 +12575,22 @@ class Panel(MenuItem):
 		How to display the header of the panel.
 
 	.. attribute:: header_background
-		:type: Optional[HeaderBackground]
+		:type: HeaderBackground | None
 
 		Which background to show for the header.
 
 	.. attribute:: text_color
-		:type: Optional[color.Color]
+		:type: color.Color | None
 
 		The text color for the header.
 
 	.. attribute:: background_color1
-		:type: Optional[color.Color]
+		:type: color.Color | None
 
 		The primary (or only) background color for the header.
 
 	.. attribute:: background_color2
-		:type: Optional[color.Color]
+		:type: color.Color | None
 
 		The secondary background color for the header.
 	"""

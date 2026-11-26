@@ -1,3 +1,42 @@
+0.69.0 (2026-11-26)
+-------------------
+
+*	App parameters can now have a version that is specific to a user: for this
+	user it replaces the parameter with the same identifier as a whole. The
+	lookup order and the rule that specifies which parameters users may
+	override are documented in ``App.params``. For this ``AppParameter`` has
+	the new attributes ``user`` and ``user_override``, ``App`` has the new
+	attributes ``userparams`` and ``ownparams`` (both available in UL4), and
+	``App.add_param()`` has the new keyword argument ``user`` (only ``None``
+	and the current user are allowed, otherwise a ``UserParameterError`` is
+	raised).
+
+*	``MutableAppParameter.save()`` no longer saves the children of a parameter
+	of type ``list`` or ``dict``: each child must be saved on its own (after
+	its parent), which is what the Java implementation does.
+	``MutableAppParameter.append_param()`` and ``add_param()`` now create
+	``MutableAppParameter`` objects, so that the children can be saved.
+
+*	Fixed saving of app parameters: values of type ``string`` (and all types
+	that are handled after it) could not be saved, and the namespace was not
+	saved at all. ``App.add_param()`` and the assignment to ``app.pv_...``
+	work again (the latter always sets the parameter of the app itself).
+	Deleting a child parameter now removes it from its parent.
+
+*	Users can now have attachments: ``User`` has the new attribute
+	``attachments`` and the methods ``add_note_attachment()``,
+	``add_url_attachment()``, ``add_json_attachment()`` and
+	``add_file_attachment()``. These attachments are private to the user (see
+	``WithAttachments``): for another user ``attachments`` is ``None``, and
+	creating, changing or deleting an attachment of another user raises a
+	``UserAttachmentError``. The UL4ON dump of a ``User`` now contains its
+	attachments (if they have been loaded).
+
+*	``Attachment`` has the new attributes ``record``, ``app``, ``appgroup``
+	and ``user`` (the first three were available in UL4 by name only and
+	failed). Member templates of attachments of apps and app groups work now.
+
+
 0.68.0 (2026-11-20)
 -------------------
 
