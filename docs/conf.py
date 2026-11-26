@@ -53,6 +53,7 @@ extensions = [
 	"sphinx.ext.inheritance_diagram",
 	"sphinx.ext.intersphinx",
 	"sphinx.ext.viewcode",
+	"sphinxcontrib.jquery",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
