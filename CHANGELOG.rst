@@ -9,7 +9,7 @@
 	attributes ``userparams`` and ``ownparams`` (both available in UL4), and
 	``App.add_param()`` has the new keyword argument ``user`` (only ``None``
 	and the current user are allowed, otherwise a ``UserParameterError`` is
-	raised). This requires database version 144.
+	raised).
 
 *	``MutableAppParameter.save()`` no longer saves the children of a parameter
 	of type ``list`` or ``dict``: each child must be saved on its own (after
